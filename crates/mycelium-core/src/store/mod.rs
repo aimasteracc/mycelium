@@ -33,6 +33,7 @@
 #[cfg(test)]
 mod tests;
 
+use std::collections::{HashSet, VecDeque};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
 
@@ -321,6 +322,52 @@ impl Store {
             }
         }
         resolved
+    }
+
+    /// Find the shortest call chain from `from` to `to` using BFS.
+    ///
+    /// Returns `Some(path)` where `path` is a `Vec<NodeId>` including both
+    /// endpoints (`path[0] == from`, `path.last() == to`), or `None` if
+    /// `to` is not reachable from `from` within `max_depth` hops.
+    ///
+    /// `max_depth` limits the number of edges traversed (hops = path.len()-1).
+    /// Cycles are handled safely via a visited set.
+    ///
+    /// If `from == to`, returns `Some(vec![from])` immediately (0 hops).
+    #[must_use]
+    pub fn find_call_path(
+        &self,
+        from: NodeId,
+        to: NodeId,
+        max_depth: usize,
+    ) -> Option<Vec<NodeId>> {
+        if from == to {
+            return Some(vec![from]);
+        }
+        // BFS queue: (current_node, path_so_far)
+        let mut queue: VecDeque<(NodeId, Vec<NodeId>)> = VecDeque::new();
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        queue.push_back((from, vec![from]));
+        visited.insert(from);
+        while let Some((cur, path)) = queue.pop_front() {
+            if path.len() > max_depth {
+                continue;
+            }
+            for &next in self.synapse.outgoing(cur, EdgeKind::Calls) {
+                if next == to {
+                    let mut result = path;
+                    result.push(next);
+                    return Some(result);
+                }
+                if !visited.contains(&next) && path.len() < max_depth {
+                    visited.insert(next);
+                    let mut new_path = path.clone();
+                    new_path.push(next);
+                    queue.push_back((next, new_path));
+                }
+            }
+        }
+        None
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.

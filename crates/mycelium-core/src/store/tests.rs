@@ -402,6 +402,94 @@ fn store_delegates_ancestors_and_descendants() {
     );
 }
 
+// ── RFC-0017: Store::find_call_path ──────────────────────────────────
+
+#[test]
+fn store_find_call_path_direct() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+
+    let result = store.find_call_path(a, b, 10);
+    assert_eq!(result, Some(vec![a, b]), "direct call must return [A, B]");
+}
+
+#[test]
+fn store_find_call_path_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+
+    let result = store.find_call_path(a, c, 10);
+    assert_eq!(
+        result,
+        Some(vec![a, b, c]),
+        "transitive call must return [A, B, C]"
+    );
+}
+
+#[test]
+fn store_find_call_path_no_path() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    // No edge A → B
+
+    let result = store.find_call_path(a, b, 10);
+    assert_eq!(result, None, "no path should return None");
+}
+
+#[test]
+fn store_find_call_path_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    // Cycle: A → B → A, but C is unreachable
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+
+    let result = store.find_call_path(a, c, 10);
+    assert_eq!(result, None, "cycle must not cause infinite loop");
+}
+
+#[test]
+fn store_find_call_path_respects_max_depth() {
+    // Chain: A → B → C → D; max_depth=1 cannot reach D
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    let d = store.upsert_node(path("d.rs>D"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, d);
+
+    assert_eq!(
+        store.find_call_path(a, d, 2),
+        None,
+        "depth 2 should not reach D (needs 3 hops)"
+    );
+    assert_eq!(
+        store.find_call_path(a, d, 3),
+        Some(vec![a, b, c, d]),
+        "depth 3 should reach D"
+    );
+}
+
+#[test]
+fn store_find_call_path_same_node() {
+    // From and to are the same — trivially reachable in 0 hops
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let result = store.find_call_path(a, a, 10);
+    assert_eq!(result, Some(vec![a]), "same node should return [A]");
+}
+
 // ── RFC-0014: Store::resolve_bare_call_stubs ──────────────────────────
 
 #[test]
