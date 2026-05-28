@@ -305,6 +305,40 @@ fn extractor_rust_call_creates_calls_edge() {
     );
 }
 
+// ── RFC-0014: cross-file call stub resolution ────────────────────────────
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_cross_file_call_resolves_stub_to_definition() {
+    // a.py calls bar(); bar is defined in b.py.
+    // After extracting both files and calling resolve_bare_call_stubs,
+    // the Calls edge from a.py>foo must point to b.py>bar, not a stub.
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("a.py", b"def foo():\n    bar()", &mut store)
+        .unwrap();
+    ext.extract("b.py", b"def bar(): pass", &mut store).unwrap();
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 1, "exactly one stub should be resolved");
+    let caller = store.lookup("a.py>foo").expect("a.py>foo must exist");
+    let callee = store.lookup("b.py>bar").expect("b.py>bar must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "a.py>foo must call b.py>bar after stub resolution"
+    );
+    assert_eq!(
+        store.incoming(callee, EdgeKind::Calls),
+        &[caller],
+        "b.py>bar must have exactly one caller: a.py>foo"
+    );
+    assert!(
+        store.lookup("bar").is_none(),
+        "bare stub 'bar' must be removed after resolution"
+    );
+}
+
 // ── RFC-0013: forward-reference call resolution ──────────────────────────────
 
 #[test]

@@ -129,13 +129,8 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
         stats.files += 1;
     }
 
-    // Count nodes and edges via descendant traversal from store internals.
-    // For v0.1 we use a proxy: the number of unique paths looked up is
-    // unavailable, so we fall back to a simple walk of everything reachable
-    // from the root nodes (files with no parent).
-    //
-    // A proper node/edge count will arrive with the persistence layer (P4).
-    // For now, the caller may inspect the store directly.
+    // Resolve cross-file call stubs after all files are processed.
+    store.resolve_bare_call_stubs();
 
     Ok((store, stats))
 }

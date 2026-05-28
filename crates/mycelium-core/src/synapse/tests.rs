@@ -132,6 +132,95 @@ fn synapse_edge_count_deduplicates() {
     assert_eq!(syn.edge_count(), 1);
 }
 
+// ── RFC-0014: AdjacencyList::redirect_node ────────────────────────────
+
+#[test]
+fn adjacency_redirect_rewires_incoming() {
+    // src → from; after redirect(from, to): src → to
+    let mut adj = AdjacencyList::new();
+    adj.add(n(1), n(10)); // 1 → 10 (from=10)
+    adj.redirect_node(n(10), n(20)); // redirect 10 → 20
+
+    assert!(
+        adj.outgoing(n(1)).contains(&n(20)),
+        "src should now point to to"
+    );
+    assert!(
+        !adj.outgoing(n(1)).contains(&n(10)),
+        "src must not point to from"
+    );
+    assert!(
+        adj.incoming(n(20)).contains(&n(1)),
+        "to reverse must include src"
+    );
+    assert!(
+        adj.incoming(n(10)).is_empty(),
+        "from reverse must be cleared"
+    );
+}
+
+#[test]
+fn adjacency_redirect_rewires_outgoing() {
+    // from → dst; after redirect(from, to): to → dst
+    let mut adj = AdjacencyList::new();
+    adj.add(n(10), n(99)); // 10 → 99 (from=10)
+    adj.redirect_node(n(10), n(20)); // redirect 10 → 20
+
+    assert!(
+        adj.outgoing(n(20)).contains(&n(99)),
+        "to should now point to dst"
+    );
+    assert!(
+        adj.outgoing(n(10)).is_empty(),
+        "from forward must be cleared"
+    );
+    assert!(
+        adj.incoming(n(99)).contains(&n(20)),
+        "dst reverse must include to"
+    );
+    assert!(
+        !adj.incoming(n(99)).contains(&n(10)),
+        "dst must not list from"
+    );
+}
+
+#[test]
+fn adjacency_redirect_no_self_loop() {
+    // If src == to, we must not introduce a self-edge to → to.
+    let mut adj = AdjacencyList::new();
+    adj.add(n(20), n(10)); // to → from
+    adj.redirect_node(n(10), n(20));
+
+    assert!(!adj.outgoing(n(20)).contains(&n(20)), "no self-loop on to");
+    assert!(
+        !adj.incoming(n(20)).contains(&n(20)),
+        "no self-loop reverse"
+    );
+}
+
+// ── RFC-0014: Synapse::redirect_node ─────────────────────────────────
+
+#[test]
+fn synapse_redirect_node_rewires_across_kinds() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Calls, n(1), n(10));
+    syn.add(EdgeKind::Imports, n(1), n(10));
+    syn.redirect_node(n(10), n(20));
+
+    assert!(syn.outgoing(n(1), EdgeKind::Calls).contains(&n(20)));
+    assert!(syn.outgoing(n(1), EdgeKind::Imports).contains(&n(20)));
+    assert!(
+        syn.outgoing(n(1), EdgeKind::Calls)
+            .iter()
+            .all(|&x| x != n(10))
+    );
+    assert!(
+        syn.outgoing(n(1), EdgeKind::Imports)
+            .iter()
+            .all(|&x| x != n(10))
+    );
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Proptest — property-based invariants (RFC-0001 §Testing strategy)
 // ──────────────────────────────────────────────────────────────────────
