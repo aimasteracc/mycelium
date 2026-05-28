@@ -490,6 +490,96 @@ fn store_find_call_path_same_node() {
     assert_eq!(result, Some(vec![a]), "same node should return [A]");
 }
 
+// ── RFC-0027: Store::find_import_path ────────────────────────────────
+
+#[test]
+fn store_find_import_path_direct() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    assert_eq!(
+        store.find_import_path(a, b, 10),
+        Some(vec![a, b]),
+        "direct import must return [a, b]"
+    );
+}
+
+#[test]
+fn store_find_import_path_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    let c = store.upsert_node(path("c.rs"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, c);
+    assert_eq!(
+        store.find_import_path(a, c, 10),
+        Some(vec![a, b, c]),
+        "transitive path must include intermediary"
+    );
+}
+
+#[test]
+fn store_find_import_path_no_path() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    assert_eq!(
+        store.find_import_path(a, b, 10),
+        None,
+        "no path returns None"
+    );
+}
+
+#[test]
+fn store_find_import_path_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    let c = store.upsert_node(path("c.rs"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, a); // cycle
+    assert_eq!(
+        store.find_import_path(a, c, 10),
+        None,
+        "cycle must not loop"
+    );
+}
+
+#[test]
+fn store_find_import_path_respects_max_depth() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    let c = store.upsert_node(path("c.rs"));
+    let d = store.upsert_node(path("d.rs"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, c);
+    store.upsert_edge(EdgeKind::Imports, c, d);
+    assert_eq!(
+        store.find_import_path(a, d, 2),
+        None,
+        "depth 2 cannot reach d (needs 3 hops)"
+    );
+    assert_eq!(
+        store.find_import_path(a, d, 3),
+        Some(vec![a, b, c, d]),
+        "depth 3 reaches d"
+    );
+}
+
+#[test]
+fn store_find_import_path_same_node() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    assert_eq!(
+        store.find_import_path(a, a, 10),
+        Some(vec![a]),
+        "same node trivially reachable"
+    );
+}
+
 // ── RFC-0014: Store::resolve_bare_call_stubs ──────────────────────────
 
 #[test]
