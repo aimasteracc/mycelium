@@ -820,3 +820,79 @@ fn store_callee_tree_leaf_when_no_callees() {
     assert_eq!(tree.id, a);
     assert!(tree.children.is_empty(), "leaf node has no children");
 }
+
+// ── RFC-0021: Store::caller_tree ─────────────────────────────────────
+
+#[test]
+fn store_caller_tree_direct_callers() {
+    let mut store = Store::new();
+    let root = store.upsert_node(path("b.rs>b"));
+    let caller = store.upsert_node(path("a.rs>a"));
+    store.upsert_edge(EdgeKind::Calls, caller, root);
+    let tree = store.caller_tree(root, 4);
+    assert_eq!(tree.id, root);
+    assert_eq!(tree.callers.len(), 1);
+    assert_eq!(tree.callers[0].id, caller);
+    assert!(tree.callers[0].callers.is_empty());
+}
+
+#[test]
+fn store_caller_tree_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let c = store.upsert_node(path("c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let tree = store.caller_tree(c, 4);
+    assert_eq!(tree.id, c);
+    assert_eq!(tree.callers.len(), 1);
+    assert_eq!(tree.callers[0].id, b);
+    assert_eq!(tree.callers[0].callers.len(), 1);
+    assert_eq!(tree.callers[0].callers[0].id, a);
+}
+
+#[test]
+fn store_caller_tree_max_depth_respected() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let c = store.upsert_node(path("c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    // max_depth=1: only b appears; a is absent
+    let tree = store.caller_tree(c, 1);
+    assert_eq!(tree.callers.len(), 1);
+    assert_eq!(tree.callers[0].id, b);
+    assert!(tree.callers[0].callers.is_empty(), "depth limit cuts off a");
+}
+
+#[test]
+fn store_caller_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a); // cycle
+    // caller_tree of b: a calls b, a is also called by b (cycle)
+    let tree = store.caller_tree(b, 10);
+    assert_eq!(tree.id, b);
+    assert_eq!(tree.callers.len(), 1);
+    assert_eq!(tree.callers[0].id, a);
+    // a's callers include b, but b is already in path → leaf
+    assert_eq!(tree.callers[0].callers.len(), 1);
+    assert_eq!(tree.callers[0].callers[0].id, b);
+    assert!(
+        tree.callers[0].callers[0].callers.is_empty(),
+        "cycle produces leaf"
+    );
+}
+
+#[test]
+fn store_caller_tree_leaf_when_no_callers() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let tree = store.caller_tree(a, 4);
+    assert_eq!(tree.id, a);
+    assert!(tree.callers.is_empty(), "root caller has no callers");
+}

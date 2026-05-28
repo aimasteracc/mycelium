@@ -75,6 +75,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0020: `CalleeNode { id, children }` struct — DFS callee tree node; cycle-safe via per-traversal visited set with backtrack removal.
 - RFC-0020: `Store::callee_tree(id, max_depth)` — depth-limited recursive DFS over Calls edges.
 - RFC-0020: `mycelium_get_callee_tree` MCP tool — returns `{ root: { path, children: [...] } }`; max_depth defaults to 4, capped at 10; unknown path returns `{ error }`.
+- RFC-0021: `CallerNode { id, callers }` struct — symmetric complement to `CalleeNode`; DFS up incoming Calls edges; cycle-safe via path-tracking visited set.
+- RFC-0021: `Store::caller_tree(id, max_depth)` — depth-limited recursive DFS over incoming Calls edges.
+- RFC-0021: `mycelium_get_caller_tree` MCP tool — returns `{ root: { path, callers: [...] } }`; max_depth defaults to 4, capped at 10; unknown path returns `{ error }`.
 
 ### Fixed
 
