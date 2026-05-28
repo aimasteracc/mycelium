@@ -174,6 +174,11 @@ impl Trunk {
         }
     }
 
+    /// Iterate every materialized path string in unspecified order.
+    pub fn all_paths(&self) -> impl Iterator<Item = &str> + '_ {
+        self.by_path.keys().map(String::as_str)
+    }
+
     /// Remove `id` and all of its descendants. Returns the count removed.
     pub fn remove_subtree(&mut self, id: NodeId) -> usize {
         let Some(prefix) = self.by_id.get(&id).cloned() else {

@@ -2,25 +2,391 @@
 //!
 //! Model Context Protocol server for Mycelium.
 //!
-//! Exposes the engine to AI agents (Claude Code, Cursor, etc.) over the
-//! MCP protocol. The server is a thin adapter — all real work lives in
-//! `mycelium-core` and `mycelium-hyphae`.
+//! Exposes the code intelligence graph over MCP stdio transport (JSON-RPC 2.0).
+//! Three tools are provided:
 //!
-//! **Status: scaffold only.** Real implementation lands after RFC-0001
-//! and RFC-0003 ship.
+//! | Tool | Description |
+//! |------|-------------|
+//! | `mycelium_index_workspace` | Index a directory into the in-memory graph |
+//! | `mycelium_search_symbol` | Search symbols by name prefix / substring |
+//! | `mycelium_get_ancestors` | Return the containment chain for a trunk path |
+//!
+//! See RFC-0004 for the full design.
 
-#![doc(html_root_url = "https://docs.rs/mycelium-mcp")]
+use std::path::PathBuf;
+use std::sync::Arc;
 
-/// MCP server placeholder.
-#[derive(Debug, Default)]
-pub struct Server {
-    _placeholder: (),
+use anyhow::Context as _;
+use mycelium_core::{extractor::Extractor, store::Store};
+use rmcp::{
+    ServerHandler, ServiceExt, handler::server::wrapper::Parameters, tool, tool_handler,
+    tool_router,
+};
+use schemars::JsonSchema;
+use serde::Deserialize;
+use tokio::sync::RwLock;
+use tracing::warn;
+
+// ── embedded pack queries ─────────────────────────────────────────────────────
+
+const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
+const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
+const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
+
+// ── request schemas ───────────────────────────────────────────────────────────
+
+/// Input parameters for `mycelium_index_workspace`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct IndexWorkspaceRequest {
+    /// Absolute or relative path to the workspace root to index.
+    pub path: String,
 }
 
-impl Server {
-    /// Construct an empty server.
+/// Input parameters for `mycelium_search_symbol`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SearchSymbolRequest {
+    /// Name prefix or substring to search for (case-insensitive).
+    pub query: String,
+    /// Maximum number of results to return (default: 20).
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_ancestors`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetAncestorsRequest {
+    /// Trunk path to look up, e.g. `"src/main.rs>greet"`.
+    pub path: String,
+}
+
+// ── server ────────────────────────────────────────────────────────────────────
+
+/// Stateful MCP server holding the in-memory symbol graph.
+///
+/// Construct with [`MyceliumServer::new`] and start with
+/// [`serve_stdio`].
+#[derive(Debug, Clone)]
+pub struct MyceliumServer {
+    store: Arc<RwLock<Store>>,
+    indexed_root: Arc<RwLock<Option<PathBuf>>>,
+}
+
+impl Default for MyceliumServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MyceliumServer {
+    /// Create a fresh server with an empty in-memory store.
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            store: Arc::new(RwLock::new(Store::new())),
+            indexed_root: Arc::new(RwLock::new(None)),
+        }
+    }
+}
+
+#[tool_router]
+impl MyceliumServer {
+    #[tool(
+        description = "Index a workspace directory and populate the in-memory symbol graph. \
+                       Call this before searching. Returns file and error counts."
+    )]
+    async fn mycelium_index_workspace(
+        &self,
+        Parameters(req): Parameters<IndexWorkspaceRequest>,
+    ) -> String {
+        let root = PathBuf::from(&req.path);
+        let result = tokio::task::spawn_blocking(move || run_index(&root)).await;
+        match result {
+            Err(e) => serde_json::json!({ "error": format!("task panicked: {e}") }).to_string(),
+            Ok(Err(e)) => serde_json::json!({ "error": e.to_string() }).to_string(),
+            Ok(Ok((new_store, files, errors))) => {
+                *self.store.write().await = new_store;
+                *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
+                serde_json::json!({ "files": files, "errors": errors }).to_string()
+            }
+        }
+    }
+
+    #[tool(
+        description = "Search for symbols by name prefix or substring (case-insensitive). \
+                       Returns matching trunk paths. Call mycelium_index_workspace first."
+    )]
+    async fn mycelium_search_symbol(
+        &self,
+        Parameters(req): Parameters<SearchSymbolRequest>,
+    ) -> String {
+        let limit = req.limit.unwrap_or(20);
+        let matches = self.store.read().await.search_symbol(&req.query, limit);
+        serde_json::json!({ "matches": matches }).to_string()
+    }
+
+    #[tool(
+        description = "Return the ancestor chain (containment hierarchy) for a given trunk path, \
+                       in child-to-root order. Returns an empty list if the path has no ancestors."
+    )]
+    async fn mycelium_get_ancestors(
+        &self,
+        Parameters(req): Parameters<GetAncestorsRequest>,
+    ) -> String {
+        let ancestors = self
+            .store
+            .read()
+            .await
+            .ancestors_of_path(&req.path)
+            .unwrap_or_default();
+        serde_json::json!({ "ancestors": ancestors }).to_string()
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for MyceliumServer {}
+
+// ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
+
+fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize)> {
+    let py_lang: tree_sitter::Language = tree_sitter_python::LANGUAGE.into();
+    let py_ext =
+        Extractor::new(py_lang, PYTHON_QUERIES).context("failed to compile Python extractor")?;
+
+    let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+    let ts_ext = Extractor::new(ts_lang, TYPESCRIPT_QUERIES)
+        .context("failed to compile TypeScript extractor")?;
+
+    let rs_lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
+    let rs_ext =
+        Extractor::new(rs_lang, RUST_QUERIES).context("failed to compile Rust extractor")?;
+
+    let mut store = Store::new();
+    let mut files = 0usize;
+    let mut errors = 0usize;
+
+    for entry in walkdir::WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+    {
+        let path = entry.path();
+        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
+        let extractor = match ext {
+            "py" | "pyi" => &py_ext,
+            "ts" => &ts_ext,
+            "rs" => &rs_ext,
+            _ => continue,
+        };
+        let rel = path
+            .strip_prefix(root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        match std::fs::read(path) {
+            Err(e) => {
+                warn!("could not read {}: {e}", path.display());
+                errors += 1;
+            }
+            Ok(src) => {
+                if let Err(e) = extractor.extract(&rel, &src, &mut store) {
+                    warn!("extraction failed for {}: {e}", path.display());
+                    errors += 1;
+                } else {
+                    files += 1;
+                }
+            }
+        }
+    }
+    Ok((store, files, errors))
+}
+
+// ── stdio entry point ─────────────────────────────────────────────────────────
+
+/// Start the MCP server on stdin/stdout and block until the client disconnects.
+///
+/// # Errors
+///
+/// Returns an error if the MCP handshake fails or the transport encounters an
+/// I/O error.
+pub async fn serve_stdio() -> anyhow::Result<()> {
+    let server = MyceliumServer::new();
+    let transport = rmcp::transport::stdio();
+    let running = server.serve(transport).await?;
+    running.waiting().await?;
+    Ok(())
+}
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use mycelium_core::{trunk::TrunkPath, types::EdgeKind};
+    use rmcp::handler::server::wrapper::Parameters;
+
+    use super::*;
+
+    async fn server_with_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let file = store.upsert_node(TrunkPath::parse("src/greet.rs").unwrap());
+            let greet = store.upsert_node(TrunkPath::parse("src/greet.rs>greet").unwrap());
+            let helper = store.upsert_node(TrunkPath::parse("src/greet.rs>helper").unwrap());
+            store.upsert_edge(EdgeKind::Contains, file, greet);
+            store.upsert_edge(EdgeKind::Contains, file, helper);
+        }
+        server
+    }
+
+    #[tokio::test]
+    async fn search_symbol_returns_matching_paths() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: "greet".to_string(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let arr = val["matches"].as_array().unwrap();
+        assert!(
+            arr.iter().any(|v| v.as_str() == Some("src/greet.rs>greet")),
+            "greet symbol should match"
+        );
+        assert!(
+            !arr.iter().any(|v| v.as_str() == Some("src/greet.rs>helper")),
+            "helper should not match query 'greet'"
+        );
+    }
+
+    #[tokio::test]
+    async fn search_symbol_respects_limit() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: String::new(), // matches everything
+                limit: Some(1),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(
+            val["matches"].as_array().unwrap().len(),
+            1,
+            "limit should be respected"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_ancestors_returns_containment_chain() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_get_ancestors(Parameters(GetAncestorsRequest {
+                path: "src/greet.rs>greet".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val["ancestors"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v.as_str() == Some("src/greet.rs")),
+            "file node should be an ancestor"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_ancestors_returns_empty_list_for_unknown_path() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_get_ancestors(Parameters(GetAncestorsRequest {
+                path: "no/such>path".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val["ancestors"].as_array().unwrap().is_empty(),
+            "unknown path should yield empty ancestors list"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_indexes_rust_file() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("lib.rs"), "fn hello() {}").unwrap();
+
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["files"], 1, "should report one indexed file");
+        assert_eq!(val["errors"], 0, "no errors expected");
+
+        assert!(
+            server.store.read().await.lookup("lib.rs>hello").is_some(),
+            "function node must be in the store after indexing"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_followed_by_search_and_ancestors() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(
+            tmp.path().join("lib.rs"),
+            "struct Point { x: i32 } impl Point { fn new() -> Self { Point { x: 0 } } }",
+        )
+        .unwrap();
+
+        let server = MyceliumServer::new();
+        server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+
+        // Search for the impl method
+        let search_raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: "new".to_string(),
+                limit: None,
+            }))
+            .await;
+        let search_val: serde_json::Value = serde_json::from_str(&search_raw).unwrap();
+        let matches: Vec<&str> = search_val["matches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(matches.iter().any(|p| p.ends_with(">new")));
+
+        // Get ancestors of the method
+        let method_path = matches
+            .iter()
+            .find(|p| p.ends_with(">new"))
+            .copied()
+            .unwrap();
+        let anc_raw = server
+            .mycelium_get_ancestors(Parameters(GetAncestorsRequest {
+                path: method_path.to_string(),
+            }))
+            .await;
+        let anc_val: serde_json::Value = serde_json::from_str(&anc_raw).unwrap();
+        assert!(
+            anc_val["ancestors"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v.as_str().is_some_and(|s| s.ends_with("lib.rs"))),
+            "file node must appear in ancestor chain"
+        );
     }
 }

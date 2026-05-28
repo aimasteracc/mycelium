@@ -146,6 +146,97 @@ fn store_remove_file_is_noop_for_unknown_path() {
 // Traversal delegation
 // ──────────────────────────────────────────────────────────────────────
 
+// ──────────────────────────────────────────────────────────────────────
+// search_symbol
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_search_symbol_returns_matching_name_segment() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/auth.rs"));
+    store.upsert_node(path("src/auth.rs>AuthService"));
+    store.upsert_node(path("src/auth.rs>AuthService>login"));
+    store.upsert_node(path("src/utils.rs>Authenticator"));
+    store.upsert_node(path("src/other.rs>OtherClass"));
+
+    // "auth" should match: "auth.rs" (filename), "AuthService", "Authenticator"
+    // NOT: "login", "OtherClass"
+    let results = store.search_symbol("auth", 20);
+    assert!(results.contains(&"src/auth.rs".to_string()));
+    assert!(results.contains(&"src/auth.rs>AuthService".to_string()));
+    assert!(results.contains(&"src/utils.rs>Authenticator".to_string()));
+    assert!(!results.contains(&"src/auth.rs>AuthService>login".to_string()));
+    assert!(!results.contains(&"src/other.rs>OtherClass".to_string()));
+}
+
+#[test]
+fn store_search_symbol_is_case_insensitive() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/lib.rs>MyStruct"));
+    let results = store.search_symbol("mystruct", 10);
+    assert!(results.contains(&"src/lib.rs>MyStruct".to_string()));
+}
+
+#[test]
+fn store_search_symbol_respects_limit() {
+    let mut store = Store::new();
+    for i in 0..10_usize {
+        store.upsert_node(TrunkPath::parse(&format!("src/f{i}.rs>foo{i}")).unwrap());
+    }
+    let results = store.search_symbol("foo", 3);
+    assert_eq!(results.len(), 3);
+}
+
+#[test]
+fn store_search_symbol_returns_sorted_results() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/z.rs>zap"));
+    store.upsert_node(path("src/a.rs>apple"));
+    store.upsert_node(path("src/m.rs>mango"));
+    let results = store.search_symbol("a", 10);
+    // All three contain "a" in their name segment
+    let mut expected = results.clone();
+    expected.sort_unstable();
+    assert_eq!(
+        results, expected,
+        "results must be lexicographically sorted"
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// ancestors_of_path
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_ancestors_of_path_returns_chain_in_child_to_root_order() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/auth.rs"));
+    store.upsert_node(path("src/auth.rs>AuthService"));
+    store.upsert_node(path("src/auth.rs>AuthService>login"));
+
+    let ancestors = store
+        .ancestors_of_path("src/auth.rs>AuthService>login")
+        .expect("path should be materialized");
+    assert_eq!(ancestors[0], "src/auth.rs>AuthService");
+    assert_eq!(ancestors[1], "src/auth.rs");
+}
+
+#[test]
+fn store_ancestors_of_path_returns_none_for_unknown_path() {
+    let store = Store::new();
+    assert!(store.ancestors_of_path("nonexistent>path").is_none());
+}
+
+#[test]
+fn store_ancestors_of_path_returns_empty_vec_for_root_node() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/lib.rs"));
+    let ancestors = store
+        .ancestors_of_path("src/lib.rs")
+        .expect("root node is materialized");
+    assert!(ancestors.is_empty(), "a root node has no ancestors");
+}
+
 #[test]
 fn store_delegates_ancestors_and_descendants() {
     let mut store = Store::new();

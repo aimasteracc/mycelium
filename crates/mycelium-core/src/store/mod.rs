@@ -113,6 +113,76 @@ impl Store {
         self.trunk.lookup_path(qpath)
     }
 
+    /// Return the path string for a node id, if present.
+    #[must_use]
+    pub fn path_of(&self, id: NodeId) -> Option<&str> {
+        self.trunk.path_of(id)
+    }
+
+    /// Search symbols by case-insensitive substring match on the **name
+    /// segment** (last `>`-separated segment of the trunk path). Returns
+    /// up to `limit` results sorted lexicographically.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    ///
+    /// let mut store = Store::new();
+    /// store.upsert_node(TrunkPath::parse("src/auth.rs>AuthService").unwrap());
+    /// let hits = store.search_symbol("auth", 10);
+    /// assert!(hits.contains(&"src/auth.rs>AuthService".to_string()));
+    /// ```
+    #[must_use]
+    pub fn search_symbol(&self, query: &str, limit: usize) -> Vec<String> {
+        let q = query.to_lowercase();
+        let mut results: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| {
+                p.split('>')
+                    .next_back()
+                    .is_some_and(|seg| seg.to_lowercase().contains(&q))
+            })
+            .map(str::to_owned)
+            .collect();
+        results.sort_unstable();
+        results.truncate(limit);
+        results
+    }
+
+    /// Return ancestor path strings for `path` in child-to-root order.
+    ///
+    /// Returns `None` if `path` is not materialized. Returns an empty
+    /// `Vec` if `path` is a root node (no materialized ancestors).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    ///
+    /// let mut store = Store::new();
+    /// store.upsert_node(TrunkPath::parse("src/lib.rs").unwrap());
+    /// store.upsert_node(TrunkPath::parse("src/lib.rs>Foo").unwrap());
+    /// store.upsert_node(TrunkPath::parse("src/lib.rs>Foo>bar").unwrap());
+    ///
+    /// let ancestors = store.ancestors_of_path("src/lib.rs>Foo>bar").unwrap();
+    /// assert_eq!(ancestors[0], "src/lib.rs>Foo");
+    /// assert_eq!(ancestors[1], "src/lib.rs");
+    /// ```
+    #[must_use]
+    pub fn ancestors_of_path(&self, path: &str) -> Option<Vec<String>> {
+        let id = self.trunk.lookup_path(path)?;
+        Some(
+            self.trunk
+                .ancestors(id)
+                .filter_map(|aid| self.trunk.path_of(aid).map(str::to_owned))
+                .collect(),
+        )
+    }
+
     /// Iterate all materialized ancestors of `id` in child-to-root order.
     pub fn ancestors(&self, id: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.trunk.ancestors(id)
