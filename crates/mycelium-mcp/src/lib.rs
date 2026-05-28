@@ -11,8 +11,10 @@
 //! | `mycelium_search_symbol` | Search symbols by name prefix / substring |
 //! | `mycelium_get_ancestors` | Return the containment chain for a trunk path |
 //! | `mycelium_get_descendants` | Return all symbols nested under a trunk path |
+//! | `mycelium_load_index` | Load a previously saved `.mycelium/index.rmp` |
+//! | `mycelium_server_status` | Return node count, root, and ready status |
 //!
-//! See RFC-0004 and RFC-0005 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, and RFC-0007 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -80,8 +82,8 @@ pub struct LoadIndexRequest {
 
 /// Stateful MCP server holding the in-memory symbol graph.
 ///
-/// Construct with [`MyceliumServer::new`] and start with
-/// [`serve_stdio`].
+/// Construct with [`MyceliumServer::new`] or [`MyceliumServer::with_root`]
+/// and start with [`serve_stdio`].
 #[derive(Debug, Clone)]
 pub struct MyceliumServer {
     store: Arc<RwLock<Store>>,
@@ -102,6 +104,53 @@ impl MyceliumServer {
             store: Arc::new(RwLock::new(Store::new())),
             indexed_root: Arc::new(RwLock::new(None)),
         }
+    }
+
+    /// Create a server pre-loaded from `root`.
+    ///
+    /// If `<root>/.mycelium/index.rmp` exists, loads the snapshot.
+    /// Otherwise runs a full live index and saves the snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only if the live index cannot be initiated (e.g.
+    /// `root` is inaccessible). Snapshot load failures fall back to live
+    /// indexing silently.
+    pub async fn with_root(root: PathBuf) -> anyhow::Result<Self> {
+        let snap = root.join(".mycelium").join("index.rmp");
+        let server = Self::new();
+
+        if snap.exists() {
+            match Store::load(&snap) {
+                Ok(loaded) => {
+                    tracing::info!(
+                        nodes = loaded.node_count(),
+                        path = %snap.display(),
+                        "loaded index from snapshot"
+                    );
+                    *server.store.write().await = loaded;
+                    *server.indexed_root.write().await = Some(root);
+                    return Ok(server);
+                }
+                Err(e) => {
+                    tracing::warn!("snapshot load failed ({e}), falling back to live index");
+                }
+            }
+        }
+
+        // Fall back: run live index.
+        let root_clone = root.clone();
+        let (new_store, files, errors, _languages) =
+            tokio::task::spawn_blocking(move || run_index(&root_clone))
+                .await
+                .map_err(|e| anyhow::anyhow!("indexing task panicked: {e}"))??;
+        tracing::info!(files, errors, "live index completed");
+        if let Err(e) = new_store.save(&snap) {
+            tracing::warn!("could not save snapshot after live index: {e}");
+        }
+        *server.store.write().await = new_store;
+        *server.indexed_root.write().await = Some(root);
+        Ok(server)
     }
 }
 
@@ -203,6 +252,28 @@ impl MyceliumServer {
             }
         }
     }
+
+    #[tool(
+        description = "Return the current server status: indexed root directory, node count, \
+                       and whether an index has been loaded. Useful for diagnostics and \
+                       confirming the server is ready before issuing queries."
+    )]
+    async fn mycelium_server_status(&self) -> String {
+        let node_count = self.store.read().await.node_count();
+        let root_guard = self.indexed_root.read().await;
+        let indexed_root = root_guard
+            .as_ref()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let is_loaded = root_guard.is_some();
+        drop(root_guard);
+        serde_json::json!({
+            "node_count": node_count,
+            "indexed_root": indexed_root,
+            "is_loaded": is_loaded,
+        })
+        .to_string()
+    }
 }
 
 #[tool_handler]
@@ -296,12 +367,19 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
 
 /// Start the MCP server on stdin/stdout and block until the client disconnects.
 ///
+/// When `root` is `Some(path)`, calls [`MyceliumServer::with_root`] to
+/// pre-load the index from a `.mycelium/index.rmp` snapshot (or build it).
+/// When `root` is `None`, starts with an empty store.
+///
 /// # Errors
 ///
-/// Returns an error if the MCP handshake fails or the transport encounters an
-/// I/O error.
-pub async fn serve_stdio() -> anyhow::Result<()> {
-    let server = MyceliumServer::new();
+/// Returns an error if pre-loading the index fails, the MCP handshake fails,
+/// or the transport encounters an I/O error.
+pub async fn serve_stdio(root: Option<PathBuf>) -> anyhow::Result<()> {
+    let server = match root {
+        Some(r) => MyceliumServer::with_root(r).await?,
+        None => MyceliumServer::new(),
+    };
     let transport = rmcp::transport::stdio();
     let running = server.serve(transport).await?;
     running.waiting().await?;
@@ -635,6 +713,74 @@ mod tests {
         assert!(
             val.get("error").is_some(),
             "loading from a directory without a snapshot must return an error"
+        );
+    }
+
+    // ── RFC-0007 tests ────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn with_root_loads_existing_snapshot() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("lib.rs"), "fn hello() {}").unwrap();
+
+        // Build and save a snapshot via a first server.
+        let server1 = MyceliumServer::new();
+        server1
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        let snap = tmp.path().join(".mycelium").join("index.rmp");
+        assert!(snap.exists(), "pre-condition: snapshot must exist");
+
+        // A second server boots from with_root — should load the snapshot.
+        let server2 = MyceliumServer::with_root(tmp.path().to_owned())
+            .await
+            .expect("with_root must succeed when snapshot exists");
+        assert!(
+            server2.store.read().await.lookup("lib.rs>hello").is_some(),
+            "symbol must be present after with_root loads snapshot"
+        );
+    }
+
+    #[tokio::test]
+    async fn with_root_indexes_when_no_snapshot() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("app.py"), "def run(): pass").unwrap();
+
+        // No snapshot exists yet; with_root must fall back to live index.
+        let server = MyceliumServer::with_root(tmp.path().to_owned())
+            .await
+            .expect("with_root must succeed even without snapshot");
+        assert!(
+            server.store.read().await.lookup("app.py>run").is_some(),
+            "symbol must be present after with_root runs live index"
+        );
+        // Snapshot should now exist.
+        assert!(
+            tmp.path().join(".mycelium").join("index.rmp").exists(),
+            "with_root must save a snapshot after live indexing"
+        );
+    }
+
+    #[tokio::test]
+    async fn server_status_returns_node_count() {
+        let server = server_with_fixture().await;
+        let raw = server.mycelium_server_status().await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val["node_count"].as_u64().unwrap() > 0,
+            "node_count must be non-zero"
+        );
+        assert!(
+            val.get("indexed_root").is_some(),
+            "indexed_root key must be present"
+        );
+        assert!(
+            val.get("is_loaded").is_some(),
+            "is_loaded key must be present"
         );
     }
 }
