@@ -731,3 +731,92 @@ fn store_top_callee_symbols_breaks_ties_by_path() {
     assert_eq!(ranked[0].0, "a.rs>a", "a.rs must sort before z.rs on tie");
     assert_eq!(ranked[1].0, "z.rs>z", "z.rs must sort after a.rs on tie");
 }
+
+// ── RFC-0020: Store::callee_tree ─────────────────────────────────────
+
+#[test]
+fn store_callee_tree_direct_children() {
+    let mut store = Store::new();
+    let root = store.upsert_node(path("a.rs>root"));
+    let child1 = store.upsert_node(path("b.rs>child1"));
+    let child2 = store.upsert_node(path("c.rs>child2"));
+    store.upsert_edge(EdgeKind::Calls, root, child1);
+    store.upsert_edge(EdgeKind::Calls, root, child2);
+
+    let tree = store.callee_tree(root, 4);
+    assert_eq!(tree.id, root);
+    assert_eq!(tree.children.len(), 2);
+    let child_ids: Vec<NodeId> = tree.children.iter().map(|c| c.id).collect();
+    assert!(child_ids.contains(&child1));
+    assert!(child_ids.contains(&child2));
+}
+
+#[test]
+fn store_callee_tree_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let c = store.upsert_node(path("c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+
+    let tree = store.callee_tree(a, 4);
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].id, b);
+    assert_eq!(tree.children[0].children.len(), 1);
+    assert_eq!(tree.children[0].children[0].id, c);
+    assert!(tree.children[0].children[0].children.is_empty());
+}
+
+#[test]
+fn store_callee_tree_max_depth_respected() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let c = store.upsert_node(path("c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+
+    // With max_depth=1 only direct children; c must not appear.
+    let tree = store.callee_tree(a, 1);
+    assert_eq!(tree.children.len(), 1, "a must have b as child");
+    assert!(
+        tree.children[0].children.is_empty(),
+        "b's children must be empty at depth limit"
+    );
+}
+
+#[test]
+fn store_callee_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    // a → b → a cycle
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+
+    // Must not recurse infinitely.  DFS path tracking: a → b → a(leaf).
+    let tree = store.callee_tree(a, 10);
+    assert_eq!(tree.children.len(), 1, "a must have b as child");
+    assert_eq!(tree.children[0].id, b);
+    // b → a: a is still in the current DFS path, so a appears as a leaf child of b.
+    assert_eq!(
+        tree.children[0].children.len(),
+        1,
+        "b must have a as a leaf child (cycle)"
+    );
+    assert_eq!(tree.children[0].children[0].id, a);
+    assert!(
+        tree.children[0].children[0].children.is_empty(),
+        "cycle node a must have no further children"
+    );
+}
+
+#[test]
+fn store_callee_tree_leaf_when_no_callees() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let tree = store.callee_tree(a, 4);
+    assert_eq!(tree.id, a);
+    assert!(tree.children.is_empty(), "leaf node has no children");
+}

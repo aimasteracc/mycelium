@@ -44,6 +44,19 @@ use crate::synapse::Synapse;
 use crate::trunk::{Trunk, TrunkPath};
 use crate::types::{EdgeKind, NodeId};
 
+/// A node in the callee tree returned by [`Store::callee_tree`].
+///
+/// Represents a symbol and its direct callees (recursively up to the
+/// configured `max_depth`).  Cycles are represented as leaf nodes
+/// (`children` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CalleeNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Callee subtrees, one per outgoing `Calls` edge, up to `max_depth`.
+    pub children: Vec<Self>,
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -441,6 +454,40 @@ impl Store {
             }
         }
         None
+    }
+
+    /// Return the transitive callee tree rooted at `id`, up to `max_depth` hops.
+    ///
+    /// Cycles are broken via a visited set: a node already in the current
+    /// traversal path is returned as a leaf with no children.
+    ///
+    /// `max_depth = 0` returns a leaf (no children) regardless of edges.
+    #[must_use]
+    pub fn callee_tree(&self, id: NodeId, max_depth: usize) -> CalleeNode {
+        let mut visited = HashSet::new();
+        self.callee_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn callee_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> CalleeNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return CalleeNode {
+                id,
+                children: vec![],
+            };
+        }
+        let children: Vec<CalleeNode> = self
+            .synapse
+            .outgoing(id, EdgeKind::Calls)
+            .iter()
+            .map(|&child_id| self.callee_tree_inner(child_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        CalleeNode { id, children }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.

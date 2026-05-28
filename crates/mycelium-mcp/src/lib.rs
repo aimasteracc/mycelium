@@ -20,8 +20,9 @@
 //! | `mycelium_find_call_path` | Find the shortest call chain between two symbols via BFS |
 //! | `mycelium_get_files` | List all indexed source files with optional path-prefix filter |
 //! | `mycelium_rank_symbols` | Return top-N symbols by caller count (most-called first) |
+//! | `mycelium_get_callee_tree` | Return depth-limited transitive callee tree for a symbol |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, and RFC-0019 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, and RFC-0020 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -29,7 +30,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
-use mycelium_core::{extractor::Extractor, store::Store};
+use mycelium_core::{CalleeNode, extractor::Extractor, store::Store};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
     ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::Implementation,
@@ -113,6 +114,15 @@ pub struct GetCallersRequest {
 pub struct GetSymbolInfoRequest {
     /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
     pub path: String,
+}
+
+/// Input parameters for `mycelium_get_callee_tree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetCalleeTreeRequest {
+    /// Root symbol path, e.g. `"src/main.rs>main"`.
+    pub path: String,
+    /// Maximum traversal depth. Defaults to 4, capped at 10.
+    pub max_depth: Option<usize>,
 }
 
 /// Input parameters for `mycelium_rank_symbols`.
@@ -621,6 +631,28 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "Return the transitive callee tree rooted at a given symbol, up to \
+                       max_depth hops. Each node contains its path and a list of callee subtrees. \
+                       Cycles are represented as leaf nodes. max_depth defaults to 4, capped at 10."
+    )]
+    async fn mycelium_get_callee_tree(
+        &self,
+        Parameters(req): Parameters<GetCalleeTreeRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let store_guard = self.store.read().await;
+        let Some(root_id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let tree = store_guard.callee_tree(root_id, max_depth);
+        let json_tree = callee_node_to_json(&tree, &store_guard);
+        drop(store_guard);
+        serde_json::json!({ "root": json_tree }).to_string()
+    }
+
+    #[tool(
         description = "Return the top-N symbols ranked by incoming Calls edge count (most-called \
                        first). Useful for identifying architectural hot spots, widely-used \
                        utilities, and high-coupling functions. limit defaults to 10, capped at 100. \
@@ -712,6 +744,18 @@ impl ServerHandler for MyceliumServer {
             Implementation::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
         )
     }
+}
+
+// ── callee tree serialization ─────────────────────────────────────────────────
+
+fn callee_node_to_json(node: &CalleeNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let children: Vec<serde_json::Value> = node
+        .children
+        .iter()
+        .map(|child| callee_node_to_json(child, store))
+        .collect();
+    serde_json::json!({ "path": path, "children": children })
 }
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
@@ -1641,6 +1685,70 @@ mod tests {
         assert!(
             val.get("error").is_some(),
             "unknown to_path must return error"
+        );
+    }
+
+    // ── RFC-0020: mycelium_get_callee_tree ───────────────────────────────
+
+    #[tokio::test]
+    async fn get_callee_tree_returns_nested_structure() {
+        let server = server_with_call_fixture().await;
+        // foo → bar, foo → baz, baz → bar
+        let raw = server
+            .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+                path: "src/lib.rs>foo".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_none(),
+            "known path must not return error"
+        );
+        let root = &val["root"];
+        assert_eq!(root["path"].as_str(), Some("src/lib.rs>foo"));
+        let children = root["children"].as_array().unwrap();
+        assert_eq!(children.len(), 2, "foo has 2 direct callees");
+    }
+
+    #[tokio::test]
+    async fn get_callee_tree_returns_error_for_unknown_path() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+                path: "no/such>path".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some(), "unknown path must return error");
+    }
+
+    #[tokio::test]
+    async fn get_callee_tree_leaf_at_max_depth() {
+        // Build a chain a → b → c
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+        }
+        let raw = server
+            .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+                path: "a.rs>a".to_string(),
+                max_depth: Some(1),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = &val["root"];
+        let b_node = &root["children"][0];
+        assert_eq!(b_node["path"].as_str(), Some("b.rs>b"));
+        assert!(
+            b_node["children"].as_array().unwrap().is_empty(),
+            "b must be a leaf at max_depth=1"
         );
     }
 
