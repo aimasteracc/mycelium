@@ -17,16 +17,18 @@ readme        = "README.md"
 workspace = true
 
 [dependencies]
-blake3      = { workspace = true }
-hashbrown   = { workspace = true }
-smol_str    = { workspace = true }
-thiserror   = { workspace = true }
-tracing     = { workspace = true }
+blake3        = { workspace = true }
+hashbrown     = { workspace = true }
+smol_str      = { workspace = true }
+thiserror     = { workspace = true }
+tracing       = { workspace = true }
+tree-sitter   = { workspace = true }
 
 [dev-dependencies]
-criterion   = { workspace = true }
-insta       = { workspace = true }
-proptest    = { workspace = true }
+criterion          = { workspace = true }
+insta              = { workspace = true }
+proptest           = { workspace = true }
+tree-sitter-python = { workspace = true }
 
 [[bench]]
 name    = "trunk_lookup"

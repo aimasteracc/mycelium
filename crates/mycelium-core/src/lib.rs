@@ -30,12 +30,14 @@
 //! | [`trunk`] (containment store) | **v0.1 spike**: HashMap-backed (correct semantics, sub-optimal layout). Radix trie optimization tracked under RFC-0001 Open Question #2. |
 //! | [`synapse`] (edges) | scaffolded, implementation pending |
 //! | [`store`] (unified API) | **v0.1**: in-memory Trunk + Synapse wiring. Persistence deferred to P4. |
-//! | Cortex (reactivity) | RFC-0002 not yet drafted |
+//! | [`extractor`] (tree-sitter → Store bridge) | **RFC-0002**: parses source files with tree-sitter queries, populates Store. |
+//! | Cortex (reactivity) | RFC-0003 |
 
 #![doc(html_root_url = "https://docs.rs/mycelium-core")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod error;
+pub mod extractor;
 pub mod store;
 pub mod synapse;
 pub mod trunk;
