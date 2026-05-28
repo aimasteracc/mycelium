@@ -117,6 +117,12 @@ impl Synapse {
         self.by_kind.get(&kind).map_or(&[], |a| a.incoming(dst))
     }
 
+    /// Total number of directed edges across all edge kinds.
+    #[must_use]
+    pub fn edge_count(&self) -> usize {
+        self.by_kind.values().map(AdjacencyList::edge_count).sum()
+    }
+
     /// Remove all edges involving `id`, across all edge kinds.
     pub fn remove_node(&mut self, id: NodeId) {
         for adj in self.by_kind.values_mut() {

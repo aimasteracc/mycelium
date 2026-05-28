@@ -108,6 +108,30 @@ fn synapse_remove_node_drops_across_all_kinds() {
     assert!(syn.outgoing(n(4), EdgeKind::Implements).is_empty());
 }
 
+// ── RFC-0010: Synapse::edge_count ─────────────────────────────────────
+
+#[test]
+fn synapse_edge_count_empty() {
+    assert_eq!(Synapse::new().edge_count(), 0);
+}
+
+#[test]
+fn synapse_edge_count_across_kinds() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Calls, n(1), n(2));
+    syn.add(EdgeKind::Extends, n(3), n(4));
+    syn.add(EdgeKind::Implements, n(5), n(6));
+    assert_eq!(syn.edge_count(), 3);
+}
+
+#[test]
+fn synapse_edge_count_deduplicates() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Calls, n(1), n(2));
+    syn.add(EdgeKind::Calls, n(1), n(2)); // duplicate
+    assert_eq!(syn.edge_count(), 1);
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Proptest — property-based invariants (RFC-0001 §Testing strategy)
 // ──────────────────────────────────────────────────────────────────────
