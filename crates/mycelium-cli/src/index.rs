@@ -14,6 +14,7 @@ use walkdir::WalkDir;
 
 // ── embedded pack sources ─────────────────────────────────────────────────────
 
+const JAVASCRIPT_QUERIES: &str = include_str!("../../../packs/javascript/queries.scm");
 const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
 const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
 const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
@@ -31,13 +32,18 @@ pub struct IndexStats {
 
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
-/// Supported languages: Python (`.py`, `.pyi`), TypeScript (`.ts`), Rust (`.rs`).
+/// Supported languages: JavaScript (`.js`, `.jsx`), Python (`.py`, `.pyi`),
+/// TypeScript (`.ts`, `.tsx`), Rust (`.rs`).
 ///
 /// # Errors
 ///
 /// Returns an error only if `root` cannot be accessed. Individual file errors
 /// are counted in [`IndexStats::errors`] but do not stop the run.
 pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
+    let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
+    let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
+        .context("failed to compile JavaScript extractor")?;
+
     let python_lang: tree_sitter::Language = tree_sitter_python::LANGUAGE.into();
     let python_ext = Extractor::new(python_lang, PYTHON_QUERIES)
         .context("failed to compile Python extractor")?;
@@ -65,8 +71,9 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
         };
 
         let extractor = match ext {
+            "js" | "jsx" => &js_ext,
             "py" | "pyi" => &python_ext,
-            "ts" => &ts_ext,
+            "ts" | "tsx" => &ts_ext,
             "rs" => &rs_ext,
             _ => continue,
         };
@@ -224,14 +231,47 @@ mod tests {
     }
 
     #[test]
-    fn index_path_skips_tsx_files() {
+    fn index_path_indexes_tsx_as_typescript() {
         let tmp = tempfile::tempdir().unwrap();
-        write_temp_ts(tmp.path(), "app.tsx", "const App = () => <div />;");
-        let (_, stats) = index_path(tmp.path()).unwrap();
+        // TSX is treated as TypeScript; JSX nodes are transparent to symbol extraction.
+        write_temp_ts(tmp.path(), "app.tsx", "function App() { return null; }");
+        let (store, stats) = index_path(tmp.path()).unwrap();
         assert_eq!(
-            stats.files, 0,
-            "tsx files not in the TypeScript pack's extensions"
+            stats.files, 1,
+            "tsx should be indexed via the TypeScript extractor"
         );
+        assert!(
+            store.lookup("app.tsx>App").is_some(),
+            "App function must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_indexes_jsx_as_javascript() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_ts(tmp.path(), "app.jsx", "function App() { return null; }");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(
+            stats.files, 1,
+            "jsx should be indexed via the JavaScript extractor"
+        );
+        assert!(
+            store.lookup("app.jsx>App").is_some(),
+            "App function must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_indexes_js_function() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_ts(
+            tmp.path(),
+            "utils.js",
+            "function add(a, b) { return a + b; }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(store.lookup("utils.js>add").is_some());
     }
 
     // ── Rust tests ───────────────────────────────────────────────────

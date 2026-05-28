@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0004 MCP server (`mycelium-mcp`): `mycelium serve --mcp` starts a stdio JSON-RPC 2.0 server with three tools — `mycelium_index_workspace`, `mycelium_search_symbol`, `mycelium_get_ancestors`.
 - `Store::search_symbol` — case-insensitive substring search over all materialized path name-segments; returns sorted results up to a configurable limit.
 - `Store::ancestors_of_path` — returns ancestor path strings (child-to-root) for a given trunk path string.
+- RFC-0005: JavaScript language pack (`packs/javascript/`) — top-level functions, arrow functions, class declarations, methods, and import references for `.js` and `.jsx` files.
+- RFC-0005: `.jsx` and `.tsx` extension dispatch in CLI and MCP indexing layers.
+- RFC-0005: `mycelium_get_descendants` MCP tool — returns all symbols nested under a trunk path.
+- RFC-0005: `mycelium_index_workspace` now includes a `"languages"` field listing all indexed language names.
+- RFC-0005: `Store::descendants_of_path` — symmetric counterpart to `ancestors_of_path`; returns descendant path strings in unspecified order.
+- RFC-0005: MCP server identity corrected — `get_info()` now reports `{"name":"mycelium-mcp","version":"0.0.1"}` instead of the rmcp library name.
 
 ### Changed
 

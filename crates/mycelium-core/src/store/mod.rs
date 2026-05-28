@@ -183,6 +183,35 @@ impl Store {
         )
     }
 
+    /// Return descendant path strings for `path` in unspecified order.
+    ///
+    /// Returns `None` if `path` is not materialized. Returns an empty
+    /// `Vec` if `path` is a leaf node (no materialized descendants).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    ///
+    /// let mut store = Store::new();
+    /// store.upsert_node(TrunkPath::parse("src/lib.rs").unwrap());
+    /// store.upsert_node(TrunkPath::parse("src/lib.rs>Foo").unwrap());
+    ///
+    /// let desc = store.descendants_of_path("src/lib.rs").unwrap();
+    /// assert!(desc.contains(&"src/lib.rs>Foo".to_string()));
+    /// ```
+    #[must_use]
+    pub fn descendants_of_path(&self, path: &str) -> Option<Vec<String>> {
+        let id = self.trunk.lookup_path(path)?;
+        Some(
+            self.trunk
+                .descendants(id)
+                .filter_map(|did| self.trunk.path_of(did).map(str::to_owned))
+                .collect(),
+        )
+    }
+
     /// Iterate all materialized ancestors of `id` in child-to-root order.
     pub fn ancestors(&self, id: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.trunk.ancestors(id)

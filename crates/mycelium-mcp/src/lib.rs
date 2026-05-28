@@ -3,24 +3,26 @@
 //! Model Context Protocol server for Mycelium.
 //!
 //! Exposes the code intelligence graph over MCP stdio transport (JSON-RPC 2.0).
-//! Three tools are provided:
+//! Four tools are provided:
 //!
 //! | Tool | Description |
 //! |------|-------------|
 //! | `mycelium_index_workspace` | Index a directory into the in-memory graph |
 //! | `mycelium_search_symbol` | Search symbols by name prefix / substring |
 //! | `mycelium_get_ancestors` | Return the containment chain for a trunk path |
+//! | `mycelium_get_descendants` | Return all symbols nested under a trunk path |
 //!
-//! See RFC-0004 for the full design.
+//! See RFC-0004 and RFC-0005 for the design.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context as _;
 use mycelium_core::{extractor::Extractor, store::Store};
 use rmcp::{
-    ServerHandler, ServiceExt, handler::server::wrapper::Parameters, tool, tool_handler,
-    tool_router,
+    ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::Implementation,
+    model::ServerCapabilities, model::ServerInfo, tool, tool_handler, tool_router,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -29,6 +31,7 @@ use tracing::warn;
 
 // ── embedded pack queries ─────────────────────────────────────────────────────
 
+const JAVASCRIPT_QUERIES: &str = include_str!("../../../packs/javascript/queries.scm");
 const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
 const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
 const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
@@ -56,6 +59,13 @@ pub struct SearchSymbolRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetAncestorsRequest {
     /// Trunk path to look up, e.g. `"src/main.rs>greet"`.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_descendants`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetDescendantsRequest {
+    /// Trunk path to look up, e.g. `"src/lib.rs"`.
     pub path: String,
 }
 
@@ -92,7 +102,8 @@ impl MyceliumServer {
 impl MyceliumServer {
     #[tool(
         description = "Index a workspace directory and populate the in-memory symbol graph. \
-                       Call this before searching. Returns file and error counts."
+                       Call this before searching. Returns file count, error count, and the \
+                       list of indexed language names."
     )]
     async fn mycelium_index_workspace(
         &self,
@@ -103,10 +114,11 @@ impl MyceliumServer {
         match result {
             Err(e) => serde_json::json!({ "error": format!("task panicked: {e}") }).to_string(),
             Ok(Err(e)) => serde_json::json!({ "error": e.to_string() }).to_string(),
-            Ok(Ok((new_store, files, errors))) => {
+            Ok(Ok((new_store, files, errors, languages))) => {
                 *self.store.write().await = new_store;
                 *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
-                serde_json::json!({ "files": files, "errors": errors }).to_string()
+                serde_json::json!({ "files": files, "errors": errors, "languages": languages })
+                    .to_string()
             }
         }
     }
@@ -140,14 +152,41 @@ impl MyceliumServer {
             .unwrap_or_default();
         serde_json::json!({ "ancestors": ancestors }).to_string()
     }
+
+    #[tool(
+        description = "Return all symbols nested under a given trunk path (strict descendants). \
+                       Returns an empty list if the path is a leaf node or is not in the index."
+    )]
+    async fn mycelium_get_descendants(
+        &self,
+        Parameters(req): Parameters<GetDescendantsRequest>,
+    ) -> String {
+        let descendants = self
+            .store
+            .read()
+            .await
+            .descendants_of_path(&req.path)
+            .unwrap_or_default();
+        serde_json::json!({ "descendants": descendants }).to_string()
+    }
 }
 
 #[tool_handler]
-impl ServerHandler for MyceliumServer {}
+impl ServerHandler for MyceliumServer {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_server_info(
+            Implementation::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
+        )
+    }
+}
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
 
-fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize)> {
+fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec<String>)> {
+    let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
+    let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
+        .context("failed to compile JavaScript extractor")?;
+
     let py_lang: tree_sitter::Language = tree_sitter_python::LANGUAGE.into();
     let py_ext =
         Extractor::new(py_lang, PYTHON_QUERIES).context("failed to compile Python extractor")?;
@@ -163,6 +202,7 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize)> {
     let mut store = Store::new();
     let mut files = 0usize;
     let mut errors = 0usize;
+    let mut languages: BTreeSet<&'static str> = BTreeSet::new();
 
     for entry in walkdir::WalkDir::new(root)
         .follow_links(false)
@@ -174,10 +214,11 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize)> {
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             continue;
         };
-        let extractor = match ext {
-            "py" | "pyi" => &py_ext,
-            "ts" => &ts_ext,
-            "rs" => &rs_ext,
+        let (extractor, lang_name) = match ext {
+            "js" | "jsx" => (&js_ext, "javascript"),
+            "py" | "pyi" => (&py_ext, "python"),
+            "ts" | "tsx" => (&ts_ext, "typescript"),
+            "rs" => (&rs_ext, "rust"),
             _ => continue,
         };
         let rel = path
@@ -196,11 +237,17 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize)> {
                     errors += 1;
                 } else {
                     files += 1;
+                    languages.insert(lang_name);
                 }
             }
         }
     }
-    Ok((store, files, errors))
+    Ok((
+        store,
+        files,
+        errors,
+        languages.into_iter().map(str::to_owned).collect(),
+    ))
 }
 
 // ── stdio entry point ─────────────────────────────────────────────────────────
@@ -257,7 +304,8 @@ mod tests {
             "greet symbol should match"
         );
         assert!(
-            !arr.iter().any(|v| v.as_str() == Some("src/greet.rs>helper")),
+            !arr.iter()
+                .any(|v| v.as_str() == Some("src/greet.rs>helper")),
             "helper should not match query 'greet'"
         );
     }
@@ -328,10 +376,97 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["files"], 1, "should report one indexed file");
         assert_eq!(val["errors"], 0, "no errors expected");
+        assert!(
+            val["languages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v.as_str() == Some("rust")),
+            "rust must appear in languages list"
+        );
 
         assert!(
             server.store.read().await.lookup("lib.rs>hello").is_some(),
             "function node must be in the store after indexing"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_includes_languages_for_js_file() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("app.js"), "function greet() {}").unwrap();
+
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["files"], 1, "should report one indexed file");
+        assert!(
+            val["languages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v.as_str() == Some("javascript")),
+            "javascript must appear in languages list"
+        );
+        assert!(
+            server.store.read().await.lookup("app.js>greet").is_some(),
+            "function node must be in the store after indexing"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_descendants_returns_all_nested_symbols() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "src/greet.rs".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let arr = val["descendants"].as_array().unwrap();
+        assert!(
+            arr.iter().any(|v| v.as_str() == Some("src/greet.rs>greet")),
+            "greet must be a descendant of the file"
+        );
+        assert!(
+            arr.iter()
+                .any(|v| v.as_str() == Some("src/greet.rs>helper")),
+            "helper must be a descendant of the file"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_descendants_returns_empty_list_for_leaf_node() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "src/greet.rs>greet".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val["descendants"].as_array().unwrap().is_empty(),
+            "leaf node should yield empty descendants list"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_descendants_returns_empty_list_for_unknown_path() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "no/such>path".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val["descendants"].as_array().unwrap().is_empty(),
+            "unknown path should yield empty descendants list"
         );
     }
 

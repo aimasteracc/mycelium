@@ -237,6 +237,49 @@ fn store_ancestors_of_path_returns_empty_vec_for_root_node() {
     assert!(ancestors.is_empty(), "a root node has no ancestors");
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// descendants_of_path
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_descendants_of_path_returns_all_nested_symbols() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/lib.rs"));
+    store.upsert_node(path("src/lib.rs>Foo"));
+    store.upsert_node(path("src/lib.rs>Foo>bar"));
+    store.upsert_node(path("src/other.rs>Baz"));
+
+    let mut desc = store
+        .descendants_of_path("src/lib.rs")
+        .expect("path is materialized");
+    desc.sort_unstable();
+    assert_eq!(
+        desc,
+        vec![
+            "src/lib.rs>Foo".to_string(),
+            "src/lib.rs>Foo>bar".to_string()
+        ]
+    );
+}
+
+#[test]
+fn store_descendants_of_path_returns_none_for_unknown_path() {
+    let store = Store::new();
+    assert!(store.descendants_of_path("no/such>path").is_none());
+}
+
+#[test]
+fn store_descendants_of_path_returns_empty_vec_for_leaf_node() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/lib.rs"));
+    store.upsert_node(path("src/lib.rs>leaf"));
+
+    let desc = store
+        .descendants_of_path("src/lib.rs>leaf")
+        .expect("leaf node is materialized");
+    assert!(desc.is_empty(), "a leaf node has no descendants");
+}
+
 #[test]
 fn store_delegates_ancestors_and_descendants() {
     let mut store = Store::new();
