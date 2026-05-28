@@ -148,7 +148,7 @@ impl Extractor {
 
                 "definition.method" => {
                     let method_name = name_text.unwrap_or("_unknown");
-                    // anchor is the class_definition node.
+                    // anchor is a class/impl node (class_definition, class_declaration, impl_item).
                     let class_chain = build_class_chain(anchor, source);
                     let chain_str = class_chain.join(">");
                     let path_str = format!("{file_path}>{chain_str}>{method_name}");
@@ -183,34 +183,28 @@ impl Extractor {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-/// Walk ancestor nodes of `node`, collecting names of enclosing class nodes
-/// in outermost→innermost order.
+/// Walk ancestor nodes of `node`, collecting names of enclosing class/impl
+/// nodes in outermost→innermost order.
 ///
-/// `node` itself is the *innermost* class; this function returns the chain of
-/// classes that contain it (its ancestors), NOT including `node` itself.
-/// Callers combine the result with `node`'s own name to get the full chain.
+/// `node` itself is the *innermost* such node; this function returns the chain
+/// of containers that contain it, then appends `node`'s own name.
 ///
-/// Recognises both `class_definition` (Python) and `class_declaration`
-/// (TypeScript / JavaScript) as class-like ancestor nodes.
+/// Recognised container node kinds and their name sources:
+/// - `class_definition` (Python) → `"name"` field
+/// - `class_declaration` (TypeScript/JavaScript) → `"name"` field
+/// - `impl_item` (Rust) → `"type"` field, base identifier only (strips
+///   generics like `<T>`)
 fn build_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
-    // anchor IS the innermost class node.  Get ITS name first.
-    let own_name = node
-        .child_by_field_name("name")
-        .and_then(|n| n.utf8_text(source).ok())
-        .unwrap_or("_Unknown")
-        .to_owned();
+    // anchor IS the innermost container node.  Get ITS name first.
+    let own_name = container_name(node, source).to_owned();
 
     // Then collect any enclosing class-like ancestors.
     let mut ancestors: Vec<String> = Vec::new();
     let mut cur = node;
     while let Some(parent) = cur.parent() {
         let kind = parent.kind();
-        if kind == "class_definition" || kind == "class_declaration" {
-            if let Some(name_node) = parent.child_by_field_name("name") {
-                if let Ok(name) = name_node.utf8_text(source) {
-                    ancestors.push(name.to_owned());
-                }
-            }
+        if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item" {
+            ancestors.push(container_name(parent, source).to_owned());
         }
         cur = parent;
     }
@@ -218,6 +212,24 @@ fn build_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> 
 
     ancestors.push(own_name);
     ancestors
+}
+
+/// Extract the identifier name from a container node.
+///
+/// Uses `"name"` field for class nodes and `"type"` field for Rust `impl_item`
+/// (taking only the base type name before any `<` to strip generics).
+fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str {
+    let field = if node.kind() == "impl_item" {
+        "type"
+    } else {
+        "name"
+    };
+    let text = node
+        .child_by_field_name(field)
+        .and_then(|n| n.utf8_text(source).ok())
+        .unwrap_or("_Unknown");
+    // Strip generic parameters (e.g. "Vec<T>" → "Vec").
+    text.split('<').next().unwrap_or(text)
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────

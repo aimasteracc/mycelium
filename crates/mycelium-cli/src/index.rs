@@ -16,6 +16,7 @@ use walkdir::WalkDir;
 
 const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
 const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
+const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
 
 // ── public surface ────────────────────────────────────────────────────────────
 
@@ -30,7 +31,7 @@ pub struct IndexStats {
 
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
-/// Supported languages: Python (`.py`, `.pyi`), TypeScript (`.ts`).
+/// Supported languages: Python (`.py`, `.pyi`), TypeScript (`.ts`), Rust (`.rs`).
 ///
 /// # Errors
 ///
@@ -44,6 +45,10 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
     let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
     let ts_ext = Extractor::new(ts_lang, TYPESCRIPT_QUERIES)
         .context("failed to compile TypeScript extractor")?;
+
+    let rs_lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
+    let rs_ext =
+        Extractor::new(rs_lang, RUST_QUERIES).context("failed to compile Rust extractor")?;
 
     let mut store = Store::new();
     let mut stats = IndexStats::default();
@@ -62,6 +67,7 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
         let extractor = match ext {
             "py" | "pyi" => &python_ext,
             "ts" => &ts_ext,
+            "rs" => &rs_ext,
             _ => continue,
         };
 
@@ -226,5 +232,50 @@ mod tests {
             stats.files, 0,
             "tsx files not in the TypeScript pack's extensions"
         );
+    }
+
+    // ── Rust tests ───────────────────────────────────────────────────
+
+    fn write_temp_rs(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    #[test]
+    fn index_path_extracts_rust_function() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_rs(tmp.path(), "lib.rs", "fn greet() {}");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(store.lookup("lib.rs").is_some());
+        assert!(store.lookup("lib.rs>greet").is_some());
+    }
+
+    #[test]
+    fn index_path_extracts_rust_struct_and_impl_method() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_rs(
+            tmp.path(),
+            "model.rs",
+            "struct Point { x: i32 } impl Point { fn new() -> Self { Point { x: 0 } } }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(store.lookup("model.rs>Point").is_some());
+        assert!(store.lookup("model.rs>Point>new").is_some());
+    }
+
+    #[test]
+    fn index_path_extracts_rust_enum_and_trait() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_rs(
+            tmp.path(),
+            "types.rs",
+            "enum Color { Red } trait Drawable { fn draw(&self); }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(store.lookup("types.rs>Color").is_some());
+        assert!(store.lookup("types.rs>Drawable").is_some());
     }
 }
