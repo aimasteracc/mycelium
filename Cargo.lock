@@ -647,8 +647,13 @@ dependencies = [
  "anyhow",
  "clap",
  "mycelium-core",
+ "mycelium-pack",
+ "tempfile",
  "tracing",
  "tracing-subscriber",
+ "tree-sitter",
+ "tree-sitter-python",
+ "walkdir",
 ]
 
 [[package]]

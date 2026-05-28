@@ -1,10 +1,11 @@
 //! `mycelium` — the command-line entry point.
-//!
-//! Subcommands are intentionally limited at v0.0; the Hive will flesh
-//! them out per RFCs.
+
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+
+mod index;
 
 /// The `mycelium` CLI. See `mycelium --help` for details.
 #[derive(Debug, Parser)]
@@ -26,8 +27,12 @@ enum Cmd {
     Version,
     /// Placeholder for `mycelium init` (creates a `.mycelium/` config dir).
     Init,
-    /// Placeholder for `mycelium index` (full re-index of a project).
-    Index,
+    /// Index a project directory and report symbol statistics.
+    Index {
+        /// Root directory to index (defaults to current directory).
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
     /// Placeholder for `mycelium query <hyphae>`.
     Query {
         /// The Hyphae expression. Syntax is RFC-0003 (forthcoming).
@@ -41,8 +46,6 @@ enum Cmd {
     },
 }
 
-// Subcommand implementations will use `?` once they land (RFC-0001 follow-up).
-#[allow(clippy::unnecessary_wraps)]
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -55,28 +58,34 @@ fn main() -> Result<()> {
     match cli.command {
         Cmd::Version => {
             println!("mycelium {}", env!("CARGO_PKG_VERSION"));
-            Ok(())
         }
         Cmd::Init => {
-            // Placeholder. Real implementation arrives with the Store API.
             tracing::warn!(
                 "`mycelium init` is not implemented yet — tracked under RFC-0001 follow-up"
             );
-            Ok(())
         }
-        Cmd::Index => {
-            tracing::warn!("`mycelium index` is not implemented yet");
-            Ok(())
+        Cmd::Index { path } => {
+            let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+            println!("Indexing {} …", canonical.display());
+            let (store, stats) = index::index_path(&canonical)?;
+
+            // Summarize results.
+            // v0.1: count nodes by sampling ancestor traversal depth 0 (file nodes).
+            // A proper node/edge counter arrives with the persistence layer (P4).
+            let _ = store; // store is populated but not yet persisted
+            println!(
+                "Done.  {} file(s) indexed, {} error(s).",
+                stats.files, stats.errors
+            );
         }
         Cmd::Query { expr } => {
             tracing::warn!(
                 "`mycelium query` is not implemented yet (query={expr:?}) — see RFC-0003"
             );
-            Ok(())
         }
         Cmd::Serve { mcp } => {
             tracing::warn!("`mycelium serve --mcp={mcp}` is not implemented yet");
-            Ok(())
         }
     }
+    Ok(())
 }
