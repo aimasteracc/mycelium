@@ -984,6 +984,8 @@ dependencies = [
  "tracing",
  "tree-sitter",
  "tree-sitter-python",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
 ]
 
 [[package]]
