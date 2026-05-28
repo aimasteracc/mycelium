@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0014: `AdjacencyList::redirect_node` and `Synapse::redirect_node` — edge-rewiring primitives used by stub resolution.
 - RFC-0014: `mycelium_index_workspace` response now includes `"stubs_resolved"` count.
 - RFC-0015: Watch-mode stub resolution — `resolve_bare_call_stubs()` is called at the end of each FSE debounce batch, so cross-file call edges are kept accurate during incremental re-indexing without requiring a full re-index.
+- RFC-0016: `mycelium_get_symbol_info` MCP tool — returns ancestors, descendants, callers, and callees for any symbol path in a single call; all lists are sorted lexicographically.
 
 ### Fixed
 
