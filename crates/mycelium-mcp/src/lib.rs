@@ -164,6 +164,17 @@ pub struct BatchSymbolInfoRequest {
     pub paths: Vec<String>,
 }
 
+/// Input parameters for `mycelium_find_import_path`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FindImportPathRequest {
+    /// Start of the import chain, e.g. `"src/main.rs"`.
+    pub from_path: String,
+    /// End of the import chain, e.g. `"src/db.rs"`.
+    pub to_path: String,
+    /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
+    pub max_depth: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_extends`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetExtendsRequest {
@@ -991,6 +1002,51 @@ impl MyceliumServer {
                     "path": [],
                     "hops": serde_json::Value::Null,
                     "message": format!("no call path found within depth {max_depth}"),
+                })
+                .to_string()
+            },
+            |path| {
+                let hops = path.len().saturating_sub(1);
+                serde_json::json!({ "path": path, "hops": hops }).to_string()
+            },
+        )
+    }
+
+    #[tool(
+        description = "Find the shortest import-dependency path between two paths via BFS over \
+                       Imports edges. Returns { path, hops } on success or \
+                       { path: [], hops: null, message } when unreachable. \
+                       max_depth defaults to 8, capped at 20. Unknown paths return { error }."
+    )]
+    async fn mycelium_find_import_path(
+        &self,
+        Parameters(req): Parameters<FindImportPathRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(8).min(20);
+        let store_guard = self.store.read().await;
+        let Some(from_id) = store_guard.lookup(&req.from_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
+                .to_string();
+        };
+        let Some(to_id) = store_guard.lookup(&req.to_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
+                .to_string();
+        };
+        let maybe_path = store_guard.find_import_path(from_id, to_id, max_depth);
+        let path_strings: Option<Vec<String>> = maybe_path.as_ref().map(|ids| {
+            ids.iter()
+                .filter_map(|&id| store_guard.path_of(id).map(str::to_owned))
+                .collect()
+        });
+        drop(store_guard);
+        path_strings.map_or_else(
+            || {
+                serde_json::json!({
+                    "path": [],
+                    "hops": serde_json::Value::Null,
+                    "message": format!("no import path found within max_depth={max_depth}"),
                 })
                 .to_string()
             },
@@ -2640,6 +2696,114 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0027: mycelium_find_import_path ──────────────────────────────
+
+    async fn server_with_import_chain_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        // a → b → c (import chain)
+        let a = store.upsert_node(mycelium_core::trunk::TrunkPath::parse("a.rs").unwrap());
+        let b = store.upsert_node(mycelium_core::trunk::TrunkPath::parse("b.rs").unwrap());
+        let c = store.upsert_node(mycelium_core::trunk::TrunkPath::parse("c.rs").unwrap());
+        store.upsert_edge(mycelium_core::types::EdgeKind::Imports, a, b);
+        store.upsert_edge(mycelium_core::types::EdgeKind::Imports, b, c);
+        drop(store);
+        let _ = (a, b, c);
+        server
+    }
+
+    #[tokio::test]
+    async fn find_import_path_direct() {
+        let server = server_with_import_chain_fixture().await;
+        let raw = server
+            .mycelium_find_import_path(Parameters(FindImportPathRequest {
+                from_path: "a.rs".to_string(),
+                to_path: "b.rs".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert_eq!(val["hops"].as_u64(), Some(1));
+        let path = val["path"].as_array().unwrap();
+        assert_eq!(path.len(), 2);
+        assert_eq!(path[0].as_str(), Some("a.rs"));
+        assert_eq!(path[1].as_str(), Some("b.rs"));
+    }
+
+    #[tokio::test]
+    async fn find_import_path_transitive() {
+        let server = server_with_import_chain_fixture().await;
+        let raw = server
+            .mycelium_find_import_path(Parameters(FindImportPathRequest {
+                from_path: "a.rs".to_string(),
+                to_path: "c.rs".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert_eq!(val["hops"].as_u64(), Some(2));
+        let path = val["path"].as_array().unwrap();
+        assert_eq!(path, &["a.rs", "b.rs", "c.rs"]);
+    }
+
+    #[tokio::test]
+    async fn find_import_path_unreachable_returns_empty() {
+        let server = server_with_import_chain_fixture().await;
+        let raw = server
+            .mycelium_find_import_path(Parameters(FindImportPathRequest {
+                from_path: "c.rs".to_string(),
+                to_path: "a.rs".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert!(val["path"].as_array().unwrap().is_empty());
+        assert!(val["hops"].is_null());
+        assert!(val["message"].is_string());
+    }
+
+    #[tokio::test]
+    async fn find_import_path_unknown_from_returns_error() {
+        let server = server_with_import_chain_fixture().await;
+        let raw = server
+            .mycelium_find_import_path(Parameters(FindImportPathRequest {
+                from_path: "no/such.rs".to_string(),
+                to_path: "b.rs".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn find_import_path_max_depth_respected() {
+        let server = server_with_import_chain_fixture().await;
+        // a → b → c; max_depth=1 cannot reach c
+        let raw_shallow = server
+            .mycelium_find_import_path(Parameters(FindImportPathRequest {
+                from_path: "a.rs".to_string(),
+                to_path: "c.rs".to_string(),
+                max_depth: Some(1),
+            }))
+            .await;
+        let val_shallow: serde_json::Value = serde_json::from_str(&raw_shallow).unwrap();
+        assert!(val_shallow["path"].as_array().unwrap().is_empty());
+
+        let raw_deep = server
+            .mycelium_find_import_path(Parameters(FindImportPathRequest {
+                from_path: "a.rs".to_string(),
+                to_path: "c.rs".to_string(),
+                max_depth: Some(2),
+            }))
+            .await;
+        let val_deep: serde_json::Value = serde_json::from_str(&raw_deep).unwrap();
+        assert_eq!(val_deep["hops"].as_u64(), Some(2));
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
