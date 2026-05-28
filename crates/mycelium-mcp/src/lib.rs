@@ -12,10 +12,10 @@
 //! | `mycelium_get_ancestors` | Return the containment chain for a trunk path |
 //! | `mycelium_get_descendants` | Return all symbols nested under a trunk path |
 //! | `mycelium_load_index` | Load a previously saved `.mycelium/index.rmp` |
-//! | `mycelium_server_status` | Return node count, root, and ready status |
+//! | `mycelium_server_status` | Return node count, edge count, root, and ready status |
 //! | `mycelium_watch_status` | Return file-watch loop status and batch count |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, and RFC-0008 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, and RFC-0010 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -417,7 +417,10 @@ impl MyceliumServer {
                        confirming the server is ready before issuing queries."
     )]
     async fn mycelium_server_status(&self) -> String {
-        let node_count = self.store.read().await.node_count();
+        let store_guard = self.store.read().await;
+        let node_count = store_guard.node_count();
+        let edge_count = store_guard.edge_count();
+        drop(store_guard);
         let root_guard = self.indexed_root.read().await;
         let indexed_root = root_guard
             .as_ref()
@@ -427,6 +430,7 @@ impl MyceliumServer {
         drop(root_guard);
         serde_json::json!({
             "node_count": node_count,
+            "edge_count": edge_count,
             "indexed_root": indexed_root,
             "is_loaded": is_loaded,
         })
@@ -991,13 +995,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn server_status_returns_node_count() {
+    async fn server_status_returns_node_and_edge_count() {
         let server = server_with_fixture().await;
         let raw = server.mycelium_server_status().await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(
             val["node_count"].as_u64().unwrap() > 0,
             "node_count must be non-zero"
+        );
+        assert!(
+            val.get("edge_count").is_some(),
+            "edge_count key must be present"
         );
         assert!(
             val.get("indexed_root").is_some(),

@@ -401,3 +401,32 @@ fn store_delegates_ancestors_and_descendants() {
         "descendants of file must include method"
     );
 }
+
+// ── RFC-0010: Store::edge_count ───────────────────────────────────────
+
+#[test]
+fn store_edge_count_empty() {
+    assert_eq!(Store::new().edge_count(), 0);
+}
+
+#[test]
+fn store_edge_count_counts_synapse_edges() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    let c = store.upsert_node(path("c.rs"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    store.upsert_edge(EdgeKind::Imports, b, c);
+    assert_eq!(store.edge_count(), 3);
+}
+
+#[test]
+fn store_edge_count_excludes_contains_edges() {
+    // Contains edges live in Trunk, not Synapse; edge_count() counts Synapse only.
+    let mut store = Store::new();
+    let _file = store.upsert_node(path("a.rs"));
+    let _func = store.upsert_node(path("a.rs>foo"));
+    // No explicit synapse edge added — Contains is implicit in Trunk.
+    assert_eq!(store.edge_count(), 0);
+}

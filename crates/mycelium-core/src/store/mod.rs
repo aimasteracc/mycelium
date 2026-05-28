@@ -161,6 +161,12 @@ impl Store {
         self.trunk.len()
     }
 
+    /// Total number of directed synapse edges across all edge kinds.
+    #[must_use]
+    pub fn edge_count(&self) -> usize {
+        self.synapse.edge_count()
+    }
+
     /// Iterate all materialized path strings (delegates to the inner Trunk).
     pub fn all_paths(&self) -> impl Iterator<Item = &str> + '_ {
         self.trunk.all_paths()
