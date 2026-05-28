@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0009: `target/` and `.mycelium/` are always excluded from indexing, even without an ignore file.
 - RFC-0009: Background FSE watch loop filters events for ignored paths before re-indexing.
 - RFC-0009: `.myceliumignore` is registered as a custom ignore filename in `WalkBuilder`.
+- RFC-0010: `Synapse::edge_count()` — total directed edges across all `EdgeKind` buckets.
+- RFC-0010: `Store::edge_count()` — delegates to `Synapse::edge_count()`.
+- RFC-0010: `mycelium_server_status` now includes `"edge_count"` alongside `"node_count"`.
 
 ### Fixed
 
