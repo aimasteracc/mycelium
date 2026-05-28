@@ -1,20 +1,61 @@
 //! # mycelium-pack
 //!
-//! Loads language packs from `packs/<lang>/{pack.toml, queries.scm, [hooks.wasm]}`
-//! and provides the runtime surface the extractor uses.
+//! Loads language packs from `packs/<lang>/{pack.toml, queries.scm}` and
+//! provides the runtime surface the extractor uses.
 //!
-//! **Status: scaffold only.** RFC for the pack format will accompany the
-//! first real language pack PR.
+//! ## Pack directory layout (Charter §4)
+//!
+//! ```text
+//! packs/<lang>/
+//! ├── pack.toml     — metadata (name, extensions, grammar source)
+//! └── queries.scm   — tree-sitter capture queries for symbol extraction
+//! ```
+//!
+//! No more than 3 files per pack. No modifications to core code are ever
+//! needed to add a language — the Charter §4 hard constraint.
+//!
+//! ## Quick example
+//!
+//! ```no_run
+//! use std::path::Path;
+//! use mycelium_pack::LanguagePack;
+//!
+//! let pack = LanguagePack::load(Path::new("packs/python")).unwrap();
+//! assert_eq!(pack.manifest.meta.name, "python");
+//! println!("{} extensions: {:?}", pack.manifest.meta.name, pack.manifest.meta.extensions);
+//! ```
 
 #![doc(html_root_url = "https://docs.rs/mycelium-pack")]
 
+use std::path::{Path, PathBuf};
+
 use serde::Deserialize;
 
-/// Top-level `pack.toml` shape (subset, expanded incrementally).
+// ── error type ────────────────────────────────────────────────────────────────
+
+/// Errors that can occur while loading a language pack.
+#[derive(Debug, thiserror::Error)]
+pub enum PackError {
+    /// A required file in the pack directory could not be read.
+    #[error("failed to read `{path}`: {source}")]
+    Io {
+        /// The path that failed.
+        path: PathBuf,
+        /// The underlying I/O error.
+        source: std::io::Error,
+    },
+
+    /// `pack.toml` is malformed.
+    #[error("failed to parse pack.toml: {0}")]
+    Toml(#[from] toml::de::Error),
+}
+
+// ── manifest schema ───────────────────────────────────────────────────────────
+
+/// Parsed `pack.toml`.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub struct PackManifest {
-    /// `[meta]` section.
+    /// `[meta]` section — required.
     pub meta: Meta,
 }
 
@@ -23,8 +64,109 @@ pub struct PackManifest {
 pub struct Meta {
     /// Human-readable language name, e.g. `"python"`.
     pub name: String,
-    /// File extensions, leading dot included, e.g. `[".py", ".pyi"]`.
+    /// File extensions with leading dot, e.g. `[".py", ".pyi"]`.
     pub extensions: Vec<String>,
-    /// Grammar source, e.g. `"npm:tree-sitter-python@^0.21"`.
+    /// Grammar source reference, e.g. `"npm:tree-sitter-python@^0.21"`.
     pub grammar: String,
+    /// Optional human-readable description.
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+// ── loaded pack ───────────────────────────────────────────────────────────────
+
+/// A fully loaded language pack ready for use by the extractor.
+pub struct LanguagePack {
+    /// Parsed `pack.toml` metadata.
+    pub manifest: PackManifest,
+    /// Raw tree-sitter query source from `queries.scm`.
+    pub queries: String,
+}
+
+impl LanguagePack {
+    /// Load a language pack from `pack_dir`.
+    ///
+    /// Reads `pack.toml` and `queries.scm` from `pack_dir`. Returns an error
+    /// if either file is missing, unreadable, or `pack.toml` is malformed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PackError::Io`] if a file cannot be read, or
+    /// [`PackError::Toml`] if `pack.toml` is malformed TOML.
+    pub fn load(pack_dir: &Path) -> Result<Self, PackError> {
+        let manifest_path = pack_dir.join("pack.toml");
+        let toml_src = std::fs::read_to_string(&manifest_path).map_err(|source| PackError::Io {
+            path: manifest_path,
+            source,
+        })?;
+        let manifest: PackManifest = toml::from_str(&toml_src)?;
+
+        let queries_path = pack_dir.join("queries.scm");
+        let queries = std::fs::read_to_string(&queries_path).map_err(|source| PackError::Io {
+            path: queries_path,
+            source,
+        })?;
+
+        Ok(Self { manifest, queries })
+    }
+
+    /// Return the language name from the manifest `[meta]` section.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.manifest.meta.name
+    }
+
+    /// Return the file extensions this pack handles.
+    #[must_use]
+    pub fn extensions(&self) -> &[String] {
+        &self.manifest.meta.extensions
+    }
+}
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+
+    /// Resolve the workspace root from this crate's `CARGO_MANIFEST_DIR`.
+    fn workspace_root() -> PathBuf {
+        // CARGO_MANIFEST_DIR = .../crates/mycelium-pack
+        // two parents up = workspace root
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf()
+    }
+
+    #[test]
+    fn pack_loader_reads_python_pack() {
+        let pack_dir = workspace_root().join("packs/python");
+        let pack = LanguagePack::load(&pack_dir).expect("python pack should load");
+
+        assert_eq!(pack.name(), "python");
+        assert!(
+            pack.extensions().contains(&".py".to_string()),
+            "python pack must list .py extension"
+        );
+        assert!(
+            pack.extensions().contains(&".pyi".to_string()),
+            "python pack must list .pyi stub extension"
+        );
+        assert!(!pack.queries.is_empty(), "queries.scm must be non-empty");
+        assert!(
+            pack.queries.contains("@definition"),
+            "queries.scm must contain @definition captures"
+        );
+    }
+
+    #[test]
+    fn pack_loader_errors_on_missing_dir() {
+        let result = LanguagePack::load(Path::new("/nonexistent/does/not/exist"));
+        assert!(result.is_err());
+    }
 }
