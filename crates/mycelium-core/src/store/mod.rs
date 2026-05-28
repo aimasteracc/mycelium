@@ -281,6 +281,48 @@ impl Store {
         self.trunk.descendants(id)
     }
 
+    /// Resolve unambiguous bare call stubs to their definition nodes.
+    ///
+    /// After a workspace index, callee names that could not be found
+    /// in the same file are stored as "bare" stub nodes (path has no
+    /// `>` separator, e.g. `"bar"`). This pass scans all bare nodes and
+    /// for each stub whose simple name matches **exactly one** definition
+    /// in the store, redirects all `Calls` edges to that definition and
+    /// removes the stub node.
+    ///
+    /// Stubs with 0 or ≥2 matching definitions are left unchanged.
+    ///
+    /// Returns the count of stubs successfully resolved.
+    pub fn resolve_bare_call_stubs(&mut self) -> usize {
+        // Snapshot all paths to avoid borrow conflicts during mutation.
+        let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
+
+        // Bare stubs: paths with no `>` separator.
+        let stubs: Vec<(NodeId, String)> = all_paths
+            .iter()
+            .filter(|p| !p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p).map(|id| (id, p.clone())))
+            .collect();
+
+        let mut resolved = 0;
+        for (stub_id, stub_name) in stubs {
+            let suffix = format!(">{stub_name}");
+            let matches: Vec<NodeId> = all_paths
+                .iter()
+                .filter(|p| p.ends_with(&suffix) && p.contains('>'))
+                .filter_map(|p| self.trunk.lookup_path(p))
+                .collect();
+
+            if matches.len() == 1 {
+                let def_id = matches[0];
+                self.synapse.redirect_node(stub_id, def_id);
+                self.trunk.remove(stub_id);
+                resolved += 1;
+            }
+        }
+        resolved
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {

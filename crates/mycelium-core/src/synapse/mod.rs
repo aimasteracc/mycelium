@@ -60,6 +60,49 @@ impl AdjacencyList {
         self.reverse.get(&dst).map_or(&[], Vec::as_slice)
     }
 
+    /// Rewire all edges touching `from` so they touch `to` instead, then
+    /// remove `from` from both adjacency maps.
+    ///
+    /// After this call every `src → from` becomes `src → to` and every
+    /// `from → dst` becomes `to → dst`. Self-edges (`to → to`) are
+    /// silently dropped to avoid degenerate cycles.
+    pub fn redirect_node(&mut self, from: NodeId, to: NodeId) {
+        // Redirect incoming: src → from  ⟹  src → to
+        if let Some(sources) = self.reverse.remove(&from) {
+            for &src in &sources {
+                if let Some(dsts) = self.forward.get_mut(&src) {
+                    dsts.retain(|&d| d != from);
+                    if src != to && !dsts.contains(&to) {
+                        dsts.push(to);
+                    }
+                }
+            }
+            let rev_to = self.reverse.entry(to).or_default();
+            for src in sources {
+                if src != to && !rev_to.contains(&src) {
+                    rev_to.push(src);
+                }
+            }
+        }
+        // Redirect outgoing: from → dst  ⟹  to → dst
+        if let Some(targets) = self.forward.remove(&from) {
+            for &dst in &targets {
+                if let Some(srcs) = self.reverse.get_mut(&dst) {
+                    srcs.retain(|&s| s != from);
+                    if dst != to && !srcs.contains(&to) {
+                        srcs.push(to);
+                    }
+                }
+            }
+            let fwd_to = self.forward.entry(to).or_default();
+            for dst in targets {
+                if dst != to && !fwd_to.contains(&dst) {
+                    fwd_to.push(dst);
+                }
+            }
+        }
+    }
+
     /// Remove all edges involving `id` (both as source and target).
     pub fn remove_node(&mut self, id: NodeId) {
         if let Some(targets) = self.forward.remove(&id) {
@@ -121,6 +164,14 @@ impl Synapse {
     #[must_use]
     pub fn edge_count(&self) -> usize {
         self.by_kind.values().map(AdjacencyList::edge_count).sum()
+    }
+
+    /// Rewire all edges touching `from` to touch `to` instead, across all
+    /// edge kinds. Delegates to [`AdjacencyList::redirect_node`].
+    pub fn redirect_node(&mut self, from: NodeId, to: NodeId) {
+        for adj in self.by_kind.values_mut() {
+            adj.redirect_node(from, to);
+        }
     }
 
     /// Remove all edges involving `id`, across all edge kinds.

@@ -171,7 +171,7 @@ impl MyceliumServer {
 
         // Fall back: run live index.
         let root_clone = root.clone();
-        let (new_store, files, errors, _languages) =
+        let (new_store, files, errors, _languages, _stubs) =
             tokio::task::spawn_blocking(move || run_index(&root_clone))
                 .await
                 .map_err(|e| anyhow::anyhow!("indexing task panicked: {e}"))??;
@@ -344,7 +344,7 @@ impl MyceliumServer {
         match result {
             Err(e) => serde_json::json!({ "error": format!("task panicked: {e}") }).to_string(),
             Ok(Err(e)) => serde_json::json!({ "error": e.to_string() }).to_string(),
-            Ok(Ok((new_store, files, errors, languages))) => {
+            Ok(Ok((new_store, files, errors, languages, stubs_resolved))) => {
                 // RFC-0006: auto-save snapshot alongside the workspace
                 let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
                 if let Err(e) = new_store.save(&snap) {
@@ -352,8 +352,13 @@ impl MyceliumServer {
                 }
                 *self.store.write().await = new_store;
                 *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
-                serde_json::json!({ "files": files, "errors": errors, "languages": languages })
-                    .to_string()
+                serde_json::json!({
+                    "files": files,
+                    "errors": errors,
+                    "languages": languages,
+                    "stubs_resolved": stubs_resolved,
+                })
+                .to_string()
             }
         }
     }
@@ -536,7 +541,7 @@ impl ServerHandler for MyceliumServer {
 
 // ts_lang / tsx_lang differ only by one letter — similarity is intentional.
 #[allow(clippy::similar_names)]
-fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec<String>)> {
+fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec<String>, usize)> {
     let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
     let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
         .context("failed to compile JavaScript extractor")?;
@@ -619,11 +624,13 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
             }
         }
     }
+    let stubs_resolved = store.resolve_bare_call_stubs();
     Ok((
         store,
         files,
         errors,
         languages.into_iter().map(str::to_owned).collect(),
+        stubs_resolved,
     ))
 }
 

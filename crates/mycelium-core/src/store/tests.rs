@@ -402,6 +402,90 @@ fn store_delegates_ancestors_and_descendants() {
     );
 }
 
+// ── RFC-0014: Store::resolve_bare_call_stubs ──────────────────────────
+
+#[test]
+fn store_resolve_bare_stubs_resolves_unambiguous_stub() {
+    // foo in a.py calls bar; bar is defined in b.py.
+    // After resolving stubs, the Calls edge must point to b.py>bar.
+    let mut store = Store::new();
+    let foo = store.upsert_node(path("a.py>foo"));
+    let stub = store.upsert_node(TrunkPath::parse("bar").unwrap());
+    let def = store.upsert_node(path("b.py>bar"));
+    store.upsert_edge(EdgeKind::Calls, foo, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 1, "one stub should be resolved");
+    assert_eq!(
+        store.lookup("bar"),
+        None,
+        "bare stub node must be removed after resolution"
+    );
+    assert!(
+        store.outgoing(foo, EdgeKind::Calls).contains(&def),
+        "Calls edge must point to definition node"
+    );
+    assert!(
+        !store.outgoing(foo, EdgeKind::Calls).contains(&stub),
+        "Calls edge must not still point to stub"
+    );
+}
+
+#[test]
+fn store_resolve_bare_stubs_reverse_edge_rewired() {
+    // Callers of b.py>bar must include a.py>foo after resolution.
+    let mut store = Store::new();
+    let foo = store.upsert_node(path("a.py>foo"));
+    let stub = store.upsert_node(TrunkPath::parse("bar").unwrap());
+    let def = store.upsert_node(path("b.py>bar"));
+    store.upsert_edge(EdgeKind::Calls, foo, stub);
+    let _ = stub; // suppress warning
+
+    store.resolve_bare_call_stubs();
+
+    assert!(
+        store.incoming(def, EdgeKind::Calls).contains(&foo),
+        "reverse Calls edge must point to a.py>foo after resolution"
+    );
+}
+
+#[test]
+fn store_resolve_bare_stubs_ambiguous_left_unchanged() {
+    // Two definitions with the same simple name — stub must stay.
+    let mut store = Store::new();
+    let foo = store.upsert_node(path("a.py>foo"));
+    let stub = store.upsert_node(TrunkPath::parse("bar").unwrap());
+    store.upsert_node(path("b.py>bar"));
+    store.upsert_node(path("c.py>bar"));
+    store.upsert_edge(EdgeKind::Calls, foo, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 0, "ambiguous stub must not be resolved");
+    assert!(
+        store.lookup("bar").is_some(),
+        "ambiguous stub node must remain in store"
+    );
+}
+
+#[test]
+fn store_resolve_bare_stubs_no_match_left_unchanged() {
+    // Stub with no matching definition (external/stdlib call) — must stay.
+    let mut store = Store::new();
+    let foo = store.upsert_node(path("a.py>foo"));
+    let stub = store.upsert_node(TrunkPath::parse("os").unwrap());
+    store.upsert_edge(EdgeKind::Calls, foo, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 0, "unresolvable stub must not be resolved");
+    assert!(
+        store.lookup("os").is_some(),
+        "unresolvable stub node must remain in store"
+    );
+}
+
 // ── RFC-0010: Store::edge_count ───────────────────────────────────────
 
 #[test]
