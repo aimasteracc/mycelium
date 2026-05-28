@@ -602,3 +602,54 @@ fn store_edge_count_excludes_contains_edges() {
     // No explicit synapse edge added — Contains is implicit in Trunk.
     assert_eq!(store.edge_count(), 0);
 }
+
+// ── RFC-0018: Store::all_file_paths ──────────────────────────────────
+
+#[test]
+fn store_all_file_paths_returns_only_file_nodes() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/auth.rs"));
+    store.upsert_node(path("src/auth.rs>AuthService"));
+    store.upsert_node(path("src/main.rs"));
+    store.upsert_node(path("src/main.rs>main"));
+    let files = store.all_file_paths();
+    // Only file-level paths (no `>`) should be returned.
+    assert!(
+        files.contains(&"src/auth.rs".to_string()),
+        "auth.rs must be listed"
+    );
+    assert!(
+        files.contains(&"src/main.rs".to_string()),
+        "main.rs must be listed"
+    );
+    assert!(
+        !files.iter().any(|p| p.contains('>')),
+        "symbol-level paths must not appear in file list"
+    );
+}
+
+#[test]
+fn store_all_file_paths_returns_sorted_order() {
+    let mut store = Store::new();
+    store.upsert_node(path("z.rs"));
+    store.upsert_node(path("a.rs"));
+    store.upsert_node(path("m.rs"));
+    let files = store.all_file_paths();
+    let mut sorted = files.clone();
+    sorted.sort_unstable();
+    assert_eq!(files, sorted, "all_file_paths must return sorted results");
+}
+
+#[test]
+fn store_all_file_paths_empty_when_only_symbols() {
+    let mut store = Store::new();
+    // Insert only symbol-level nodes, no file-level nodes.
+    store.upsert_node(path("src/lib.rs>Foo"));
+    store.upsert_node(path("src/lib.rs>Bar"));
+    let files = store.all_file_paths();
+    // Bare stubs and symbol nodes must not appear.
+    assert!(
+        files.is_empty(),
+        "no file-level nodes means empty file list"
+    );
+}

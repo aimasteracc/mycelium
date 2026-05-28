@@ -18,8 +18,9 @@
 //! | `mycelium_get_callers` | Return all symbols that call a given path |
 //! | `mycelium_get_symbol_info` | Return ancestors, descendants, callers, and callees in one call |
 //! | `mycelium_find_call_path` | Find the shortest call chain between two symbols via BFS |
+//! | `mycelium_get_files` | List all indexed source files with optional path-prefix filter |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, and RFC-0017 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, and RFC-0018 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -111,6 +112,13 @@ pub struct GetCallersRequest {
 pub struct GetSymbolInfoRequest {
     /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
     pub path: String,
+}
+
+/// Input parameters for `mycelium_get_files`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetFilesRequest {
+    /// Optional path prefix to filter results (e.g. `"src/"`).
+    pub path_prefix: Option<String>,
 }
 
 /// Input parameters for `mycelium_find_call_path`.
@@ -602,6 +610,23 @@ impl MyceliumServer {
             "callees": callees,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Return all source files currently in the index as a sorted list of trunk \
+                       paths. An optional path_prefix filters results to files whose path starts \
+                       with the given string (e.g. \"src/\")."
+    )]
+    async fn mycelium_get_files(&self, Parameters(req): Parameters<GetFilesRequest>) -> String {
+        let files = self.store.read().await.all_file_paths();
+        let files: Vec<String> = match req.path_prefix {
+            None => files,
+            Some(ref prefix) => files
+                .into_iter()
+                .filter(|p| p.starts_with(prefix.as_str()))
+                .collect(),
+        };
+        serde_json::json!({ "files": files }).to_string()
     }
 
     #[tool(
@@ -1588,6 +1613,88 @@ mod tests {
             val.get("error").is_some(),
             "unknown to_path must return error"
         );
+    }
+
+    // ── RFC-0018: mycelium_get_files ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn get_files_returns_only_file_paths() {
+        let server = server_with_fixture().await;
+        // server_with_fixture has src/greet.rs, src/greet.rs>greet, src/greet.rs>helper
+        let raw = server
+            .mycelium_get_files(Parameters(GetFilesRequest { path_prefix: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let files: Vec<&str> = val["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(files.contains(&"src/greet.rs"), "greet.rs must be listed");
+        assert!(
+            !files.iter().any(|p| p.contains('>')),
+            "symbol paths must not appear in file list"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_files_filters_by_prefix() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/auth.rs").unwrap());
+            store.upsert_node(TrunkPath::parse("tests/auth_test.rs").unwrap());
+            store.upsert_node(TrunkPath::parse("src/main.rs").unwrap());
+        }
+        let raw = server
+            .mycelium_get_files(Parameters(GetFilesRequest {
+                path_prefix: Some("src/".to_string()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let files: Vec<&str> = val["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(
+            files.contains(&"src/auth.rs"),
+            "src/auth.rs must match prefix"
+        );
+        assert!(
+            files.contains(&"src/main.rs"),
+            "src/main.rs must match prefix"
+        );
+        assert!(
+            !files.contains(&"tests/auth_test.rs"),
+            "tests/ file must not match src/ prefix"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_files_returns_sorted_order() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("z.rs").unwrap());
+            store.upsert_node(TrunkPath::parse("a.rs").unwrap());
+            store.upsert_node(TrunkPath::parse("m.rs").unwrap());
+        }
+        let raw = server
+            .mycelium_get_files(Parameters(GetFilesRequest { path_prefix: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let files: Vec<&str> = val["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        let mut sorted = files.clone();
+        sorted.sort_unstable();
+        assert_eq!(files, sorted, "files must be returned in sorted order");
     }
 
     // ── RFC-0015: watch-mode stub resolution ─────────────────────────────
