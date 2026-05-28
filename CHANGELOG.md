@@ -55,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0010: `Synapse::edge_count()` — total directed edges across all `EdgeKind` buckets.
 - RFC-0010: `Store::edge_count()` — delegates to `Synapse::edge_count()`.
 - RFC-0010: `mycelium_server_status` now includes `"edge_count"` alongside `"node_count"`.
+- RFC-0011: Call graph edges — `reference.call` patterns added to Python, TypeScript, JavaScript, and Rust language packs.
+- RFC-0011: `Extractor` now populates `EdgeKind::Calls` edges between caller and callee nodes.
+- RFC-0011: Intra-file call resolution: callees defined before callers in the same file are resolved to their definition nodes rather than bare stubs.
 
 ### Fixed
 
