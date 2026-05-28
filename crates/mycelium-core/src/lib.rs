@@ -29,16 +29,18 @@
 //! | [`types`] (NodeId, NodeKind, EdgeKind, Language) | minimal, ready |
 //! | [`trunk`] (containment store) | **v0.1 spike**: HashMap-backed (correct semantics, sub-optimal layout). Radix trie optimization tracked under RFC-0001 Open Question #2. |
 //! | [`synapse`] (edges) | scaffolded, implementation pending |
-//! | [`store`] (unified API) | scaffolded, implementation pending |
+//! | [`store`] (unified API) | **v0.1**: in-memory Trunk + Synapse wiring. Persistence deferred to P4. |
 //! | Cortex (reactivity) | RFC-0002 not yet drafted |
 
 #![doc(html_root_url = "https://docs.rs/mycelium-core")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod error;
+pub mod store;
 pub mod synapse;
 pub mod trunk;
 pub mod types;
 
 pub use error::{Error, Result};
+pub use store::Store;
 pub use types::{EdgeKind, Language, NodeId, NodeKind, SourceSpan};
