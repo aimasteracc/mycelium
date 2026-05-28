@@ -17,8 +17,9 @@
 //! | `mycelium_get_callees` | Return all symbols a given path calls directly |
 //! | `mycelium_get_callers` | Return all symbols that call a given path |
 //! | `mycelium_get_symbol_info` | Return ancestors, descendants, callers, and callees in one call |
+//! | `mycelium_find_call_path` | Find the shortest call chain between two symbols via BFS |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, and RFC-0016 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, and RFC-0017 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -110,6 +111,17 @@ pub struct GetCallersRequest {
 pub struct GetSymbolInfoRequest {
     /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
     pub path: String,
+}
+
+/// Input parameters for `mycelium_find_call_path`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FindCallPathRequest {
+    /// Start of the call chain, e.g. `"src/main.rs>main"`.
+    pub from_path: String,
+    /// End of the call chain, e.g. `"src/db.rs>query"`.
+    pub to_path: String,
+    /// Maximum traversal depth (hops). Defaults to 10, capped at 20.
+    pub max_depth: Option<usize>,
 }
 
 // ── server ────────────────────────────────────────────────────────────────────
@@ -590,6 +602,52 @@ impl MyceliumServer {
             "callees": callees,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Find the shortest call path from one symbol to another using BFS over \
+                       Calls edges. Returns the path as an ordered list of trunk paths (including \
+                       both endpoints) and the number of hops. Returns an empty path with \
+                       hops=null if unreachable within max_depth. max_depth defaults to 10, \
+                       capped at 20."
+    )]
+    async fn mycelium_find_call_path(
+        &self,
+        Parameters(req): Parameters<FindCallPathRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(10).min(20);
+        let store_guard = self.store.read().await;
+        let Some(from_id) = store_guard.lookup(&req.from_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
+                .to_string();
+        };
+        let Some(to_id) = store_guard.lookup(&req.to_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
+                .to_string();
+        };
+        let maybe_path = store_guard.find_call_path(from_id, to_id, max_depth);
+        let path_strings: Option<Vec<String>> = maybe_path.as_ref().map(|ids| {
+            ids.iter()
+                .filter_map(|&id| store_guard.path_of(id).map(str::to_owned))
+                .collect()
+        });
+        drop(store_guard);
+        path_strings.map_or_else(
+            || {
+                serde_json::json!({
+                    "path": [],
+                    "hops": serde_json::Value::Null,
+                    "message": format!("no call path found within depth {max_depth}"),
+                })
+                .to_string()
+            },
+            |path| {
+                let hops = path.len().saturating_sub(1);
+                serde_json::json!({ "path": path, "hops": hops }).to_string()
+            },
+        )
     }
 }
 
@@ -1410,6 +1468,126 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some(), "unknown path must return error");
+    }
+
+    // ── RFC-0017: mycelium_find_call_path ────────────────────────────────
+
+    #[tokio::test]
+    async fn find_call_path_direct() {
+        let server = server_with_call_fixture().await;
+        // foo → bar is a direct Calls edge (hops = 1)
+        let raw = server
+            .mycelium_find_call_path(Parameters(FindCallPathRequest {
+                from_path: "src/lib.rs>foo".to_string(),
+                to_path: "src/lib.rs>bar".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_none(),
+            "direct path must not return error"
+        );
+        let path = val["path"].as_array().unwrap();
+        assert_eq!(path.len(), 2, "direct path must contain 2 nodes");
+        assert_eq!(path[0].as_str(), Some("src/lib.rs>foo"));
+        assert_eq!(path[1].as_str(), Some("src/lib.rs>bar"));
+        assert_eq!(val["hops"].as_u64(), Some(1), "direct call is 1 hop");
+    }
+
+    #[tokio::test]
+    async fn find_call_path_transitive() {
+        // Build a chain a → b → c with no direct a → c edge.
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("x.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("x.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("x.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+        }
+        let raw = server
+            .mycelium_find_call_path(Parameters(FindCallPathRequest {
+                from_path: "x.rs>a".to_string(),
+                to_path: "x.rs>c".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_none(),
+            "transitive path must not return error"
+        );
+        let path = val["path"].as_array().unwrap();
+        assert_eq!(path.len(), 3, "transitive path must contain 3 nodes");
+        assert_eq!(path[0].as_str(), Some("x.rs>a"));
+        assert_eq!(path[2].as_str(), Some("x.rs>c"));
+        assert_eq!(val["hops"].as_u64(), Some(2), "transitive call is 2 hops");
+    }
+
+    #[tokio::test]
+    async fn find_call_path_no_path() {
+        let server = server_with_call_fixture().await;
+        // bar has no outgoing Calls edge to foo, so bar → foo is unreachable.
+        let raw = server
+            .mycelium_find_call_path(Parameters(FindCallPathRequest {
+                from_path: "src/lib.rs>bar".to_string(),
+                to_path: "src/lib.rs>foo".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_none(),
+            "no-path result must not return error"
+        );
+        assert!(
+            val["path"].as_array().unwrap().is_empty(),
+            "unreachable path must return empty path array"
+        );
+        assert!(
+            val["hops"].is_null(),
+            "unreachable path must return null hops"
+        );
+        assert!(
+            val.get("message").is_some(),
+            "unreachable path must include a human-readable message"
+        );
+    }
+
+    #[tokio::test]
+    async fn find_call_path_unknown_from_path() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_find_call_path(Parameters(FindCallPathRequest {
+                from_path: "no/such>symbol".to_string(),
+                to_path: "src/lib.rs>bar".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_some(),
+            "unknown from_path must return error"
+        );
+    }
+
+    #[tokio::test]
+    async fn find_call_path_unknown_to_path() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_find_call_path(Parameters(FindCallPathRequest {
+                from_path: "src/lib.rs>foo".to_string(),
+                to_path: "no/such>symbol".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_some(),
+            "unknown to_path must return error"
+        );
     }
 
     // ── RFC-0015: watch-mode stub resolution ─────────────────────────────
