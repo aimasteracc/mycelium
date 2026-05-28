@@ -173,6 +173,35 @@ impl Store {
         self.trunk.all_paths()
     }
 
+    /// Return all file-level paths (trunk paths with no `>` separator),
+    /// sorted lexicographically.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    ///
+    /// let mut store = Store::new();
+    /// store.upsert_node(TrunkPath::parse("src/auth.rs").unwrap());
+    /// store.upsert_node(TrunkPath::parse("src/auth.rs>login").unwrap());
+    /// store.upsert_node(TrunkPath::parse("src/main.rs").unwrap());
+    ///
+    /// let files = store.all_file_paths();
+    /// assert_eq!(files, vec!["src/auth.rs", "src/main.rs"]);
+    /// ```
+    #[must_use]
+    pub fn all_file_paths(&self) -> Vec<String> {
+        let mut files: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| !p.contains('>'))
+            .map(str::to_owned)
+            .collect();
+        files.sort_unstable();
+        files
+    }
+
     /// Return the path string for a node id, if present.
     #[must_use]
     pub fn path_of(&self, id: NodeId) -> Option<&str> {

@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0016: `mycelium_get_symbol_info` MCP tool — returns ancestors, descendants, callers, and callees for any symbol path in a single call; all lists are sorted lexicographically.
 - RFC-0017: `Store::find_call_path(from, to, max_depth)` — BFS shortest call path search; returns `Some(Vec<NodeId>)` including both endpoints, or `None` if unreachable; cycle-safe via visited set; `max_depth` limits hops.
 - RFC-0017: `mycelium_find_call_path` MCP tool — BFS call chain tool; request `{ from_path, to_path, max_depth? }`; returns `{ path, hops }` on success or `{ path: [], hops: null, message }` when unreachable; unknown paths return `{ error }`.
+- RFC-0018: `Store::all_file_paths()` — returns all trunk paths with no `>` separator (file-level nodes), sorted lexicographically.
+- RFC-0018: `mycelium_get_files` MCP tool — enumerates all indexed source files; optional `path_prefix` parameter filters results; returns `{ files: [...] }` sorted.
 
 ### Fixed
 
