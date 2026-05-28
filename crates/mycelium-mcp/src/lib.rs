@@ -24,8 +24,9 @@
 //! | `mycelium_get_caller_tree` | Return depth-limited transitive caller tree for a symbol |
 //! | `mycelium_get_entry_points` | Return all zero-caller symbols (entry points or dead code candidates) |
 //! | `mycelium_get_imports` | Return direct import neighbors (`imports` / `imported_by`) for a path |
+//! | `mycelium_get_import_tree` | Return depth-limited transitive import dependency tree |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, and RFC-0023 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, and RFC-0024 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -33,7 +34,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
-use mycelium_core::{CalleeNode, CallerNode, extractor::Extractor, store::Store};
+use mycelium_core::{CalleeNode, CallerNode, ImportNode, extractor::Extractor, store::Store};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
     ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::Implementation,
@@ -142,6 +143,15 @@ pub struct GetCallerTreeRequest {
 pub struct GetImportsRequest {
     /// Trunk path to query, e.g. `"src/auth.rs"`.
     pub path: String,
+}
+
+/// Input parameters for `mycelium_get_import_tree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetImportTreeRequest {
+    /// Root path, e.g. `"src/auth.rs"`.
+    pub path: String,
+    /// Maximum traversal depth. Defaults to 4, capped at 10.
+    pub max_depth: Option<usize>,
 }
 
 /// Input parameters for `mycelium_get_entry_points`.
@@ -719,6 +729,29 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "Return a depth-limited tree of all transitive import dependencies for a \
+                       path, walking outgoing Imports edges up to max_depth hops. Each node \
+                       contains its path and a list of import subtrees. Cycles are represented \
+                       as leaf nodes. max_depth defaults to 4, capped at 10."
+    )]
+    async fn mycelium_get_import_tree(
+        &self,
+        Parameters(req): Parameters<GetImportTreeRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let store_guard = self.store.read().await;
+        let Some(root_id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let tree = store_guard.import_tree(root_id, max_depth);
+        let json_tree = import_node_to_json(&tree, &store_guard);
+        drop(store_guard);
+        serde_json::json!({ "root": json_tree }).to_string()
+    }
+
+    #[tool(
         description = "Return all indexed symbols (non-file nodes) that have zero incoming Calls \
                        edges. These are either genuine entry points (main, test functions, public \
                        API handlers) or potentially dead code. Optional path_prefix restricts \
@@ -850,6 +883,16 @@ fn caller_node_to_json(node: &CallerNode, store: &Store) -> serde_json::Value {
         .map(|caller| caller_node_to_json(caller, store))
         .collect();
     serde_json::json!({ "path": path, "callers": callers })
+}
+
+fn import_node_to_json(node: &ImportNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let imports: Vec<serde_json::Value> = node
+        .imports
+        .iter()
+        .map(|dep| import_node_to_json(dep, store))
+        .collect();
+    serde_json::json!({ "path": path, "imports": imports })
 }
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
@@ -2023,6 +2066,76 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["imports"].as_array().unwrap().is_empty());
         assert!(val["imported_by"].as_array().unwrap().is_empty());
+    }
+
+    // ── RFC-0024: mycelium_get_import_tree ───────────────────────────────
+
+    #[tokio::test]
+    async fn get_import_tree_returns_nested_structure() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("a.rs").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("b.rs").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("c.rs").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, b);
+            store.upsert_edge(EdgeKind::Imports, b, c);
+        }
+        let raw = server
+            .mycelium_get_import_tree(Parameters(GetImportTreeRequest {
+                path: "a.rs".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "known path must not error");
+        let root = &val["root"];
+        assert_eq!(root["path"].as_str(), Some("a.rs"));
+        assert_eq!(root["imports"].as_array().unwrap().len(), 1);
+        assert_eq!(root["imports"][0]["path"].as_str(), Some("b.rs"));
+        assert_eq!(
+            root["imports"][0]["imports"][0]["path"].as_str(),
+            Some("c.rs")
+        );
+    }
+
+    #[tokio::test]
+    async fn get_import_tree_returns_error_for_unknown_path() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_import_tree(Parameters(GetImportTreeRequest {
+                path: "no/such.rs".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some(), "unknown path must return error");
+    }
+
+    #[tokio::test]
+    async fn get_import_tree_leaf_at_max_depth() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("a.rs").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("b.rs").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("c.rs").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, b);
+            store.upsert_edge(EdgeKind::Imports, b, c);
+        }
+        let raw = server
+            .mycelium_get_import_tree(Parameters(GetImportTreeRequest {
+                path: "a.rs".to_string(),
+                max_depth: Some(1),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let b_node = &val["root"]["imports"][0];
+        assert_eq!(b_node["path"].as_str(), Some("b.rs"));
+        assert!(
+            b_node["imports"].as_array().unwrap().is_empty(),
+            "b must be a leaf at max_depth=1"
+        );
     }
 
     // ── RFC-0019: mycelium_rank_symbols ──────────────────────────────────

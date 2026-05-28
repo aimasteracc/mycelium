@@ -44,5 +44,5 @@ pub mod trunk;
 pub mod types;
 
 pub use error::{Error, Result};
-pub use store::{CalleeNode, CallerNode, Store};
+pub use store::{CalleeNode, CallerNode, ImportNode, Store};
 pub use types::{EdgeKind, Language, NodeId, NodeKind, SourceSpan};

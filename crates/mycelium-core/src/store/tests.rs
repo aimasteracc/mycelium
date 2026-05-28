@@ -997,3 +997,75 @@ fn store_imports_sorted_lexicographically() {
     sorted.sort_unstable();
     assert_eq!(imports, sorted);
 }
+
+// ── RFC-0024: Store::import_tree ─────────────────────────────────────
+
+#[test]
+fn store_import_tree_direct_imports() {
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/a.rs"));
+    let dep = store.upsert_node(path("os"));
+    store.upsert_edge(EdgeKind::Imports, root, dep);
+    let tree = store.import_tree(root, 4);
+    assert_eq!(tree.id, root);
+    assert_eq!(tree.imports.len(), 1);
+    assert_eq!(tree.imports[0].id, dep);
+    assert!(tree.imports[0].imports.is_empty());
+}
+
+#[test]
+fn store_import_tree_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    let c = store.upsert_node(path("c.rs"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, c);
+    let tree = store.import_tree(a, 4);
+    assert_eq!(tree.imports.len(), 1);
+    assert_eq!(tree.imports[0].id, b);
+    assert_eq!(tree.imports[0].imports.len(), 1);
+    assert_eq!(tree.imports[0].imports[0].id, c);
+}
+
+#[test]
+fn store_import_tree_max_depth_respected() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    let c = store.upsert_node(path("c.rs"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, c);
+    let tree = store.import_tree(a, 1);
+    assert_eq!(tree.imports.len(), 1);
+    assert_eq!(tree.imports[0].id, b);
+    assert!(tree.imports[0].imports.is_empty(), "depth limit cuts off c");
+}
+
+#[test]
+fn store_import_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let b = store.upsert_node(path("b.rs"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, a); // cycle
+    let tree = store.import_tree(a, 10);
+    assert_eq!(tree.imports.len(), 1);
+    assert_eq!(tree.imports[0].id, b);
+    // b imports a, but a is in path → leaf
+    assert_eq!(tree.imports[0].imports.len(), 1);
+    assert_eq!(tree.imports[0].imports[0].id, a);
+    assert!(
+        tree.imports[0].imports[0].imports.is_empty(),
+        "cycle produces leaf"
+    );
+}
+
+#[test]
+fn store_import_tree_leaf_when_no_imports() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs"));
+    let tree = store.import_tree(a, 4);
+    assert_eq!(tree.id, a);
+    assert!(tree.imports.is_empty());
+}

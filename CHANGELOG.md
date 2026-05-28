@@ -82,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0022: `mycelium_get_entry_points` MCP tool — returns `{ entry_points: [...] }`; optional `path_prefix` filter; excludes file-level nodes.
 - RFC-0023: `Store::imports_of(id)` / `Store::imported_by(id)` — outgoing/incoming `Imports` edge resolvers; results sorted lexicographically.
 - RFC-0023: `mycelium_get_imports` MCP tool — returns `{ imports: [...], imported_by: [...] }` for a path; unknown path returns `{ error }`.
+- RFC-0024: `ImportNode { id, imports }` struct — DFS import dependency tree node; cycle-safe via path-tracking visited set.
+- RFC-0024: `Store::import_tree(id, max_depth)` — depth-limited recursive DFS over outgoing `Imports` edges.
+- RFC-0024: `mycelium_get_import_tree` MCP tool — returns `{ root: { path, imports: [...] } }`; max_depth defaults to 4, capped at 10; unknown path returns `{ error }`.
 
 ### Fixed
 
