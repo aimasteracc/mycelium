@@ -13,15 +13,18 @@
 //! | `mycelium_get_descendants` | Return all symbols nested under a trunk path |
 //! | `mycelium_load_index` | Load a previously saved `.mycelium/index.rmp` |
 //! | `mycelium_server_status` | Return node count, root, and ready status |
+//! | `mycelium_watch_status` | Return file-watch loop status and batch count |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, and RFC-0007 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, and RFC-0008 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{extractor::Extractor, store::Store};
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
     ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::Implementation,
     model::ServerCapabilities, model::ServerInfo, tool, tool_handler, tool_router,
@@ -30,6 +33,13 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 use tracing::warn;
+
+/// Shared state for the background watch loop.
+#[derive(Debug, Default)]
+struct WatchState {
+    watching: AtomicBool,
+    batches_processed: AtomicU64,
+}
 
 // ── embedded pack queries ─────────────────────────────────────────────────────
 
@@ -88,6 +98,8 @@ pub struct LoadIndexRequest {
 pub struct MyceliumServer {
     store: Arc<RwLock<Store>>,
     indexed_root: Arc<RwLock<Option<PathBuf>>>,
+    watch_state: Arc<WatchState>,
+    watch_abort: Arc<tokio::sync::Mutex<Option<tokio::task::AbortHandle>>>,
 }
 
 impl Default for MyceliumServer {
@@ -103,6 +115,8 @@ impl MyceliumServer {
         Self {
             store: Arc::new(RwLock::new(Store::new())),
             indexed_root: Arc::new(RwLock::new(None)),
+            watch_state: Arc::new(WatchState::default()),
+            watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 
@@ -129,7 +143,8 @@ impl MyceliumServer {
                         "loaded index from snapshot"
                     );
                     *server.store.write().await = loaded;
-                    *server.indexed_root.write().await = Some(root);
+                    *server.indexed_root.write().await = Some(root.clone());
+                    server.start_watch(root).await?;
                     return Ok(server);
                 }
                 Err(e) => {
@@ -149,8 +164,120 @@ impl MyceliumServer {
             tracing::warn!("could not save snapshot after live index: {e}");
         }
         *server.store.write().await = new_store;
-        *server.indexed_root.write().await = Some(root);
+        *server.indexed_root.write().await = Some(root.clone());
+        server.start_watch(root).await?;
         Ok(server)
+    }
+
+    /// Start the background file-system watch loop for `root`.
+    ///
+    /// Events are debounced over a 300 ms window.  Modified/created files
+    /// are re-extracted; deleted files are removed from the store.  A new
+    /// snapshot is saved after each batch.
+    ///
+    /// Calling `start_watch` on an already-watching server replaces the
+    /// previous watcher.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the OS watcher cannot be created or `root` cannot
+    /// be watched.
+    pub async fn start_watch(&self, root: PathBuf) -> anyhow::Result<()> {
+        use tokio::time::{Duration, Instant, timeout_at};
+
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<notify::Event>();
+
+        let mut watcher = RecommendedWatcher::new(
+            move |res: notify::Result<notify::Event>| {
+                if let Ok(ev) = res {
+                    tx.send(ev).ok();
+                }
+            },
+            Config::default(),
+        )
+        .context("creating file system watcher")?;
+
+        watcher
+            .watch(&root, RecursiveMode::Recursive)
+            .context("starting recursive watch")?;
+
+        let store = Arc::clone(&self.store);
+        let watch_state = Arc::clone(&self.watch_state);
+        let snap = root.join(".mycelium").join("index.rmp");
+
+        watch_state.watching.store(true, Ordering::Relaxed);
+
+        let handle = tokio::spawn(async move {
+            let _watcher = watcher; // keep the watcher alive for the task lifetime
+
+            loop {
+                // Wait for the first event of a batch.
+                let Some(first) = rx.recv().await else {
+                    break; // channel closed
+                };
+
+                let mut batch: Vec<PathBuf> = first.paths;
+
+                // Debounce: collect additional events arriving within 300 ms.
+                let deadline = Instant::now() + Duration::from_millis(300);
+                while let Ok(Some(ev)) = timeout_at(deadline, rx.recv()).await {
+                    batch.extend(ev.paths);
+                }
+
+                // Deduplicate and process.
+                batch.sort_unstable();
+                batch.dedup();
+
+                let mut store_w = store.write().await;
+                let mut changed = false;
+
+                for abs_path in &batch {
+                    let rel = abs_path
+                        .strip_prefix(&root)
+                        .unwrap_or(abs_path)
+                        .to_string_lossy()
+                        .replace('\\', "/");
+
+                    // Remove old data for this file regardless of event kind.
+                    store_w.remove_file(&rel);
+
+                    // Re-index if the file still exists and is a known type.
+                    if abs_path.is_file() {
+                        if let Some(ext) = abs_path.extension().and_then(|e| e.to_str()) {
+                            if matches!(ext, "js" | "jsx" | "py" | "pyi" | "ts" | "tsx" | "rs") {
+                                if let Ok(src) = std::fs::read(abs_path) {
+                                    let rel_owned = rel.clone();
+                                    let src_owned = src;
+                                    // Re-use run_index logic via a single-file helper.
+                                    reindex_file(&rel_owned, &src_owned, ext, &mut store_w);
+                                }
+                            }
+                        }
+                    }
+                    changed = true;
+                }
+                drop(store_w);
+
+                if changed {
+                    watch_state
+                        .batches_processed
+                        .fetch_add(1, Ordering::Relaxed);
+                    // Save snapshot (best-effort; failures are non-fatal).
+                    store.read().await.save(&snap).ok();
+                }
+            }
+
+            watch_state.watching.store(false, Ordering::Relaxed);
+        });
+
+        {
+            let mut guard = self.watch_abort.lock().await;
+            if let Some(old) = guard.replace(handle.abort_handle()) {
+                old.abort();
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -274,6 +401,27 @@ impl MyceliumServer {
         })
         .to_string()
     }
+
+    #[tool(
+        description = "Return the current file-watch loop status: whether the watcher is active, \
+                       the root being watched, and how many change batches have been processed."
+    )]
+    async fn mycelium_watch_status(&self) -> String {
+        let watching = self.watch_state.watching.load(Ordering::Relaxed);
+        let batches_processed = self.watch_state.batches_processed.load(Ordering::Relaxed);
+        let root_guard = self.indexed_root.read().await;
+        let root = root_guard
+            .as_ref()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        drop(root_guard);
+        serde_json::json!({
+            "watching": watching,
+            "root": root,
+            "batches_processed": batches_processed,
+        })
+        .to_string()
+    }
 }
 
 #[tool_handler]
@@ -361,6 +509,35 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
         errors,
         languages.into_iter().map(str::to_owned).collect(),
     ))
+}
+
+/// Extract a single file into an existing store.  Called from the watch loop.
+///
+/// `ext` must be one of `js`, `jsx`, `py`, `pyi`, `ts`, `tsx`, `rs`.
+/// Errors are silently ignored (the watcher should not crash on bad files).
+fn reindex_file(rel: &str, src: &[u8], ext: &str, store: &mut Store) {
+    let make_ext = |lang: tree_sitter::Language, queries: &str| Extractor::new(lang, queries).ok();
+
+    let extractor = match ext {
+        "js" | "jsx" => make_ext(tree_sitter_javascript::LANGUAGE.into(), JAVASCRIPT_QUERIES),
+        "py" | "pyi" => make_ext(tree_sitter_python::LANGUAGE.into(), PYTHON_QUERIES),
+        "ts" => make_ext(
+            tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            TYPESCRIPT_QUERIES,
+        ),
+        "tsx" => make_ext(
+            tree_sitter_typescript::LANGUAGE_TSX.into(),
+            TYPESCRIPT_QUERIES,
+        ),
+        "rs" => make_ext(tree_sitter_rust::LANGUAGE.into(), RUST_QUERIES),
+        _ => return,
+    };
+
+    if let Some(ext_obj) = extractor {
+        if let Err(e) = ext_obj.extract(rel, src, store) {
+            warn!("watch re-extract failed for {rel}: {e}");
+        }
+    }
 }
 
 // ── stdio entry point ─────────────────────────────────────────────────────────
@@ -782,5 +959,142 @@ mod tests {
             val.get("is_loaded").is_some(),
             "is_loaded key must be present"
         );
+    }
+
+    // ── RFC-0008 watch mode tests ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn watch_status_not_watching_by_default() {
+        let server = MyceliumServer::new();
+        let raw = server.mycelium_watch_status().await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(
+            val["watching"].as_bool(),
+            Some(false),
+            "brand-new server must not be watching"
+        );
+    }
+
+    #[tokio::test]
+    async fn start_watch_sets_watching_true() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("lib.rs"), "fn hello() {}").unwrap();
+
+        let server = MyceliumServer::with_root(tmp.path().to_owned())
+            .await
+            .unwrap();
+
+        let raw = server.mycelium_watch_status().await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(
+            val["watching"].as_bool(),
+            Some(true),
+            "with_root must start the watch loop"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn watch_mode_detects_modified_file() {
+        use std::fs;
+        use tokio::time::Duration;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("app.py"), "def hello(): pass").unwrap();
+
+        let server = MyceliumServer::with_root(tmp.path().to_owned())
+            .await
+            .unwrap();
+
+        assert!(
+            server.store.read().await.lookup("app.py>hello").is_some(),
+            "initial symbol must be present"
+        );
+
+        // Modify the file: replace hello with goodbye
+        fs::write(tmp.path().join("app.py"), "def goodbye(): pass").unwrap();
+
+        // Poll up to 2 seconds for the watcher to pick up the change.
+        let found = poll_for(
+            Duration::from_secs(2),
+            Duration::from_millis(100),
+            || async { server.store.read().await.lookup("app.py>goodbye").is_some() },
+        )
+        .await;
+
+        assert!(found, "watcher must detect modification and update store");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn watch_mode_detects_deleted_file() {
+        use std::fs;
+        use tokio::time::Duration;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("del.rs"), "fn drop_me() {}").unwrap();
+
+        let server = MyceliumServer::with_root(tmp.path().to_owned())
+            .await
+            .unwrap();
+
+        assert!(
+            server.store.read().await.lookup("del.rs>drop_me").is_some(),
+            "initial symbol must be present"
+        );
+
+        fs::remove_file(tmp.path().join("del.rs")).unwrap();
+
+        let removed = poll_for(
+            Duration::from_secs(2),
+            Duration::from_millis(100),
+            || async { server.store.read().await.lookup("del.rs>drop_me").is_none() },
+        )
+        .await;
+
+        assert!(removed, "watcher must detect deletion and remove nodes");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn watch_mode_detects_new_file() {
+        use std::fs;
+        use tokio::time::Duration;
+        let tmp = tempfile::tempdir().unwrap();
+        // Start with an empty directory.
+        let server = MyceliumServer::with_root(tmp.path().to_owned())
+            .await
+            .unwrap();
+
+        // Create a new file after the server is running.
+        fs::write(tmp.path().join("new.rs"), "fn fresh() {}").unwrap();
+
+        let found = poll_for(
+            Duration::from_secs(2),
+            Duration::from_millis(100),
+            || async { server.store.read().await.lookup("new.rs>fresh").is_some() },
+        )
+        .await;
+
+        assert!(found, "watcher must detect new file and index it");
+    }
+
+    /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
+    /// when the predicate first returns `true`, `false` on timeout.
+    async fn poll_for<F, Fut>(
+        timeout: tokio::time::Duration,
+        interval: tokio::time::Duration,
+        predicate: F,
+    ) -> bool
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = bool>,
+    {
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            if predicate().await {
+                return true;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return false;
+            }
+            tokio::time::sleep(interval).await;
+        }
     }
 }
