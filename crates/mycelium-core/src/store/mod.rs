@@ -173,6 +173,50 @@ impl Store {
         self.trunk.all_paths()
     }
 
+    /// Return the top `limit` symbols ranked by incoming `Calls` edge count,
+    /// sorted by caller count descending (ties broken by path ascending).
+    ///
+    /// Only symbols with at least one caller are included.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    /// use mycelium_core::types::EdgeKind;
+    ///
+    /// let mut store = Store::new();
+    /// let a = store.upsert_node(TrunkPath::parse("a.rs>a").unwrap());
+    /// let b = store.upsert_node(TrunkPath::parse("b.rs>b").unwrap());
+    /// let c = store.upsert_node(TrunkPath::parse("c.rs>c").unwrap());
+    /// store.upsert_edge(EdgeKind::Calls, a, b);
+    /// store.upsert_edge(EdgeKind::Calls, c, b);
+    /// store.upsert_edge(EdgeKind::Calls, a, c);
+    ///
+    /// let ranked = store.top_callee_symbols(10);
+    /// assert_eq!(ranked[0], ("b.rs>b".to_string(), 2));
+    /// assert_eq!(ranked[1], ("c.rs>c".to_string(), 1));
+    /// ```
+    #[must_use]
+    pub fn top_callee_symbols(&self, limit: usize) -> Vec<(String, usize)> {
+        let mut ranked: Vec<(String, usize)> = self
+            .trunk
+            .all_paths()
+            .filter_map(|p| {
+                let id = self.trunk.lookup_path(p)?;
+                let count = self.synapse.incoming(id, EdgeKind::Calls).len();
+                if count > 0 {
+                    Some((p.to_owned(), count))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        ranked.truncate(limit);
+        ranked
+    }
+
     /// Return all file-level paths (trunk paths with no `>` separator),
     /// sorted lexicographically.
     ///

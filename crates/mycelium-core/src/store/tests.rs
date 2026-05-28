@@ -653,3 +653,81 @@ fn store_all_file_paths_empty_when_only_symbols() {
         "no file-level nodes means empty file list"
     );
 }
+
+// ── RFC-0019: Store::top_callee_symbols ──────────────────────────────
+
+#[test]
+fn store_top_callee_symbols_ranks_by_caller_count() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let c = store.upsert_node(path("c.rs>c"));
+    let d = store.upsert_node(path("d.rs>d"));
+    // c is called by a, b, d (3 callers)
+    // b is called by a, d   (2 callers)
+    // d is called by a       (1 caller)
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, d, c);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, d, b);
+    store.upsert_edge(EdgeKind::Calls, a, d);
+
+    let ranked = store.top_callee_symbols(10);
+    assert_eq!(
+        ranked[0],
+        ("c.rs>c".to_string(), 3),
+        "c must be ranked first"
+    );
+    assert_eq!(
+        ranked[1],
+        ("b.rs>b".to_string(), 2),
+        "b must be ranked second"
+    );
+    assert_eq!(
+        ranked[2],
+        ("d.rs>d".to_string(), 1),
+        "d must be ranked third"
+    );
+    // a has no callers, must not appear
+    assert!(
+        !ranked.iter().any(|(p, _)| p == "a.rs>a"),
+        "a has no callers and must be excluded"
+    );
+}
+
+#[test]
+fn store_top_callee_symbols_respects_limit() {
+    let mut store = Store::new();
+    for i in 0..5usize {
+        let src = store.upsert_node(path(&format!("s{i}.rs>s{i}")));
+        let dst = store.upsert_node(path(&format!("d{i}.rs>d{i}")));
+        store.upsert_edge(EdgeKind::Calls, src, dst);
+    }
+    let ranked = store.top_callee_symbols(3);
+    assert_eq!(ranked.len(), 3, "limit must be respected");
+}
+
+#[test]
+fn store_top_callee_symbols_empty_when_no_edges() {
+    let mut store = Store::new();
+    store.upsert_node(path("a.rs>a"));
+    let ranked = store.top_callee_symbols(10);
+    assert!(ranked.is_empty(), "no call edges means empty ranking");
+}
+
+#[test]
+fn store_top_callee_symbols_breaks_ties_by_path() {
+    let mut store = Store::new();
+    let caller = store.upsert_node(path("caller.rs>f"));
+    let z = store.upsert_node(path("z.rs>z"));
+    let a = store.upsert_node(path("a.rs>a"));
+    // Both z and a have exactly 1 caller.
+    store.upsert_edge(EdgeKind::Calls, caller, z);
+    store.upsert_edge(EdgeKind::Calls, caller, a);
+
+    let ranked = store.top_callee_symbols(10);
+    assert_eq!(ranked.len(), 2, "both tied symbols must appear");
+    assert_eq!(ranked[0].0, "a.rs>a", "a.rs must sort before z.rs on tie");
+    assert_eq!(ranked[1].0, "z.rs>z", "z.rs must sort after a.rs on tie");
+}
