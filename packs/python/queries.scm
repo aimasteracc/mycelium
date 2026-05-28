@@ -68,3 +68,14 @@
 
 (import_from_statement
   module_name: (relative_import) @name) @reference.import_from
+
+; ── Call expressions (Synapse Calls edges) ──────────────────────────
+
+; Simple function calls: foo()
+(call
+  function: (identifier) @name) @reference.call
+
+; Method calls: obj.method() — capture the method name only
+(call
+  function: (attribute
+    attribute: (identifier) @name)) @reference.call

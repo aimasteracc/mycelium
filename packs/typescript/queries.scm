@@ -83,3 +83,14 @@
 (import_statement
   source: (string
     (string_fragment) @name)) @reference.import
+
+; ── Call expressions (Synapse Calls edges) ──────────────────────────
+
+; Simple calls: foo()
+(call_expression
+  function: (identifier) @name) @reference.call
+
+; Method calls: obj.method()
+(call_expression
+  function: (member_expression
+    property: (property_identifier) @name)) @reference.call

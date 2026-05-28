@@ -78,6 +78,8 @@ impl Extractor {
     /// Will not panic in practice. If `file_path` is an invalid `TrunkPath`
     /// the implementation falls back to the compile-time literal `"_unknown"`,
     /// which is always a valid path.
+    // caller_id / callee_id are semantically distinct despite the shared prefix.
+    #[allow(clippy::similar_names)]
     pub fn extract(
         &self,
         file_path: &str,
@@ -173,6 +175,27 @@ impl Extractor {
                     }
                 }
 
+                "reference.call" => {
+                    let callee_name = name_text.unwrap_or("_unknown");
+
+                    // Determine the caller: the nearest enclosing function/method.
+                    let caller_path = enclosing_function_path(anchor, source)
+                        .and_then(|suffix| TrunkPath::parse(&format!("{file_path}>{suffix}")).ok());
+                    let caller_id = caller_path.map_or(file_id, |p| store.upsert_node(p));
+
+                    // Try intra-file callee resolution; fall back to a bare stub.
+                    let intra = format!("{file_path}>{callee_name}");
+                    let callee_id = if let Some(id) = store.lookup(&intra) {
+                        id
+                    } else if let Ok(bare) = TrunkPath::parse(callee_name) {
+                        store.upsert_node(bare)
+                    } else {
+                        continue;
+                    };
+
+                    store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
+                }
+
                 _ => {}
             }
         }
@@ -182,6 +205,53 @@ impl Extractor {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+/// Walk ancestors of `node` looking for the nearest enclosing function-like
+/// definition. Returns a path suffix like `"fn_name"` or `"ClassName>method_name"`
+/// that can be appended to `file_path>` to build the full caller path.
+///
+/// Returns `None` if the call is at module level (no enclosing function).
+fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
+    const FUNCTION_KINDS: &[&str] = &[
+        "function_definition",  // Python
+        "function_declaration", // TS/JS
+        "function_expression",  // JS/TS
+        "method_definition",    // TS/JS
+        "function_item",        // Rust
+    ];
+
+    let mut cur = node;
+    while let Some(parent) = cur.parent() {
+        if FUNCTION_KINDS.contains(&parent.kind()) {
+            let fn_name = parent
+                .child_by_field_name("name")
+                .and_then(|n| n.utf8_text(source).ok())
+                .unwrap_or("_unknown")
+                .to_owned();
+
+            // Collect enclosing class/impl containers (outermost first).
+            let mut containers: Vec<String> = Vec::new();
+            let mut scan = parent;
+            while let Some(ancestor) = scan.parent() {
+                let kind = ancestor.kind();
+                if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item"
+                {
+                    containers.push(container_name(ancestor, source).to_owned());
+                }
+                scan = ancestor;
+            }
+            containers.reverse();
+
+            return Some(if containers.is_empty() {
+                fn_name
+            } else {
+                format!("{}>{}", containers.join(">"), fn_name)
+            });
+        }
+        cur = parent;
+    }
+    None
+}
 
 /// Walk ancestor nodes of `node`, collecting names of enclosing class/impl
 /// nodes in outermost→innermost order.
