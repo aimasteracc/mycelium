@@ -296,6 +296,32 @@ impl Store {
         result
     }
 
+    /// Return all paths that `id` imports (outgoing `Imports` edges), sorted.
+    #[must_use]
+    pub fn imports_of(&self, id: NodeId) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .synapse
+            .outgoing(id, EdgeKind::Imports)
+            .iter()
+            .filter_map(|&dep| self.trunk.path_of(dep).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
+    /// Return all paths that import `id` (incoming `Imports` edges), sorted.
+    #[must_use]
+    pub fn imported_by(&self, id: NodeId) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .synapse
+            .incoming(id, EdgeKind::Imports)
+            .iter()
+            .filter_map(|&src| self.trunk.path_of(src).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return the path string for a node id, if present.
     #[must_use]
     pub fn path_of(&self, id: NodeId) -> Option<&str> {

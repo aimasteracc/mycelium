@@ -23,8 +23,9 @@
 //! | `mycelium_get_callee_tree` | Return depth-limited transitive callee tree for a symbol |
 //! | `mycelium_get_caller_tree` | Return depth-limited transitive caller tree for a symbol |
 //! | `mycelium_get_entry_points` | Return all zero-caller symbols (entry points or dead code candidates) |
+//! | `mycelium_get_imports` | Return direct import neighbors (`imports` / `imported_by`) for a path |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, and RFC-0022 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, and RFC-0023 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -134,6 +135,13 @@ pub struct GetCallerTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_imports`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetImportsRequest {
+    /// Trunk path to query, e.g. `"src/auth.rs"`.
+    pub path: String,
 }
 
 /// Input parameters for `mycelium_get_entry_points`.
@@ -691,6 +699,23 @@ impl MyceliumServer {
         let json_tree = caller_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json_tree }).to_string()
+    }
+
+    #[tool(description = "Return the direct import neighbors for a trunk path: \
+                       'imports' (outgoing Imports edges — what this node imports) and \
+                       'imported_by' (incoming Imports edges — what imports this node). \
+                       Both lists sorted lexicographically. Unknown path returns { error }.")]
+    async fn mycelium_get_imports(&self, Parameters(req): Parameters<GetImportsRequest>) -> String {
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let imports = store_guard.imports_of(id);
+        let imported_by = store_guard.imported_by(id);
+        drop(store_guard);
+        serde_json::json!({ "imports": imports, "imported_by": imported_by }).to_string()
     }
 
     #[tool(
@@ -1941,6 +1966,63 @@ mod tests {
         let ep_paths: Vec<&str> = eps.iter().map(|v| v.as_str().unwrap()).collect();
         assert!(ep_paths.contains(&"src/a.rs>fn_a"));
         assert!(!ep_paths.contains(&"tests/t.rs>test_foo"));
+    }
+
+    // ── RFC-0023: mycelium_get_imports ───────────────────────────────────
+
+    #[tokio::test]
+    async fn get_imports_returns_import_neighbors() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let file = store.upsert_node(TrunkPath::parse("src/auth.rs").unwrap());
+            let os_mod = store.upsert_node(TrunkPath::parse("os").unwrap());
+            let hash_mod = store.upsert_node(TrunkPath::parse("hashlib").unwrap());
+            let importer = store.upsert_node(TrunkPath::parse("src/main.rs").unwrap());
+            store.upsert_edge(EdgeKind::Imports, file, os_mod);
+            store.upsert_edge(EdgeKind::Imports, file, hash_mod);
+            store.upsert_edge(EdgeKind::Imports, importer, file);
+        }
+        let raw = server
+            .mycelium_get_imports(Parameters(GetImportsRequest {
+                path: "src/auth.rs".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "known path must not error");
+        let imports = val["imports"].as_array().unwrap();
+        let imported_by = val["imported_by"].as_array().unwrap();
+        assert_eq!(imports.len(), 2, "auth.rs imports os and hashlib");
+        assert_eq!(imported_by.len(), 1, "auth.rs imported_by src/main.rs");
+    }
+
+    #[tokio::test]
+    async fn get_imports_returns_error_for_unknown_path() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_imports(Parameters(GetImportsRequest {
+                path: "no/such.rs".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some(), "unknown path must return error");
+    }
+
+    #[tokio::test]
+    async fn get_imports_empty_when_no_import_edges() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/isolated.rs").unwrap());
+        }
+        let raw = server
+            .mycelium_get_imports(Parameters(GetImportsRequest {
+                path: "src/isolated.rs".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["imports"].as_array().unwrap().is_empty());
+        assert!(val["imported_by"].as_array().unwrap().is_empty());
     }
 
     // ── RFC-0019: mycelium_rank_symbols ──────────────────────────────────
