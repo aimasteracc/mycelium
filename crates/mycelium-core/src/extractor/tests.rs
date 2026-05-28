@@ -304,3 +304,53 @@ fn extractor_rust_call_creates_calls_edge() {
         "foo should have a Calls edge to bar"
     );
 }
+
+// ── RFC-0013: forward-reference call resolution ──────────────────────────────
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_resolves_forward_reference_call_to_definition_node() {
+    // foo is defined before bar, and calls bar which is defined after.
+    // Two-pass extraction must resolve bar to its definition node, not a stub.
+    let source = "def foo():\n    bar()\ndef bar(): pass";
+    let store = extract(source);
+    let caller = store.lookup("test.py>foo").expect("foo must exist");
+    let callee = store.lookup("test.py>bar").expect("bar must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo->bar Calls edge must point to the definition node, not a stub"
+    );
+    // Ensure no bare 'bar' stub was created alongside the definition.
+    // (a stub would be at path "bar", while the definition is "test.py>bar")
+    assert_eq!(
+        store.outgoing(caller, EdgeKind::Calls).len(),
+        1,
+        "there should be exactly one Calls edge from foo — no duplicates"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_forward_reference_typescript() {
+    let source = "function foo(): void { bar(); }\nfunction bar(): void {}";
+    let store = extract_ts(source);
+    let caller = store.lookup("test.ts>foo").expect("foo must exist");
+    let callee = store.lookup("test.ts>bar").expect("bar must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo->bar Calls edge must use definition node for forward reference"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_forward_reference_rust() {
+    let source = "fn foo() { bar(); }\nfn bar() {}";
+    let store = extract_rs(source);
+    let caller = store.lookup("test.rs>foo").expect("foo must exist");
+    let callee = store.lookup("test.rs>bar").expect("bar must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo->bar Calls edge must use definition node for forward reference"
+    );
+}

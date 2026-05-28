@@ -80,6 +80,7 @@ impl Extractor {
     /// which is always a valid path.
     // caller_id / callee_id are semantically distinct despite the shared prefix.
     #[allow(clippy::similar_names)]
+    #[allow(clippy::too_many_lines)]
     pub fn extract(
         &self,
         file_path: &str,
@@ -104,99 +105,114 @@ impl Extractor {
         );
 
         let names = self.query.capture_names();
-        let mut cursor = QueryCursor::new();
-        let mut matches = cursor.matches(&self.query, root, source);
 
-        while let Some(m) = matches.next() {
-            // Identify the "definition" or "reference" capture in this match.
-            let def_cap = m.captures.iter().find(|c| {
-                let n = names[c.index as usize];
-                n.starts_with("definition.") || n.starts_with("reference.")
-            });
-
-            let Some(def_cap) = def_cap else { continue };
-            let cap_name = names[def_cap.index as usize];
-            let anchor = def_cap.node;
-
-            // Find the @name capture (identifier text), if present.
-            let name_text: Option<&str> = m.captures.iter().find_map(|c| {
-                if names[c.index as usize] == "name" {
-                    c.node.utf8_text(source).ok()
-                } else {
-                    None
-                }
-            });
-
-            match cap_name {
-                "definition.module" => {
-                    // File node already created above.
-                    let _ = file_id;
-                }
-
-                // Any top-level definition (function, class, interface,
-                // type_alias, enum, …) becomes a direct child of the file node.
-                other
-                    if other.starts_with("definition.")
-                        && other != "definition.module"
-                        && other != "definition.method" =>
-                {
-                    let name = name_text.unwrap_or("_unknown");
-                    let path_str = format!("{file_path}>{name}");
-                    if let Ok(path) = TrunkPath::parse(&path_str) {
-                        let child_id = store.upsert_node(path);
-                        store.upsert_edge(EdgeKind::Contains, file_id, child_id);
+        // ─── Pass 1: definitions ─────────────────────────────────────────
+        // Populate all Trunk nodes and Contains edges first so that Pass 2
+        // can resolve forward-reference call targets to definition nodes.
+        {
+            let mut cursor = QueryCursor::new();
+            let mut matches = cursor.matches(&self.query, root, source);
+            while let Some(m) = matches.next() {
+                let cap = m
+                    .captures
+                    .iter()
+                    .find(|c| names[c.index as usize].starts_with("definition."));
+                let Some(cap) = cap else { continue };
+                let cap_name = names[cap.index as usize];
+                let anchor = cap.node;
+                let name_text: Option<&str> = m.captures.iter().find_map(|c| {
+                    if names[c.index as usize] == "name" {
+                        c.node.utf8_text(source).ok()
+                    } else {
+                        None
                     }
-                }
+                });
 
-                "definition.method" => {
-                    let method_name = name_text.unwrap_or("_unknown");
-                    // anchor is a class/impl node (class_definition, class_declaration, impl_item).
-                    let class_chain = build_class_chain(anchor, source);
-                    let chain_str = class_chain.join(">");
-                    let path_str = format!("{file_path}>{chain_str}>{method_name}");
-                    if let Ok(path) = TrunkPath::parse(&path_str) {
-                        let method_id = store.upsert_node(path);
-                        // Upsert the class node (may already exist).
-                        let class_path_str = format!("{file_path}>{chain_str}");
-                        if let Ok(cls_path) = TrunkPath::parse(&class_path_str) {
-                            let cls_id = store.upsert_node(cls_path);
-                            store.upsert_edge(EdgeKind::Contains, file_id, cls_id);
-                            store.upsert_edge(EdgeKind::Contains, cls_id, method_id);
+                match cap_name {
+                    "definition.module" => {
+                        let _ = file_id;
+                    }
+                    other
+                        if other.starts_with("definition.")
+                            && other != "definition.module"
+                            && other != "definition.method" =>
+                    {
+                        let name = name_text.unwrap_or("_unknown");
+                        let path_str = format!("{file_path}>{name}");
+                        if let Ok(path) = TrunkPath::parse(&path_str) {
+                            let child_id = store.upsert_node(path);
+                            store.upsert_edge(EdgeKind::Contains, file_id, child_id);
                         }
                     }
-                }
-
-                "reference.import" | "reference.import_from" => {
-                    let mod_name = name_text.unwrap_or("_unknown");
-                    // Module path may be dotted (e.g., "os.path") — use as-is.
-                    if let Ok(mod_path) = TrunkPath::parse(mod_name) {
-                        let mod_id = store.upsert_node(mod_path);
-                        store.upsert_edge(EdgeKind::Imports, file_id, mod_id);
+                    "definition.method" => {
+                        let method_name = name_text.unwrap_or("_unknown");
+                        let class_chain = build_class_chain(anchor, source);
+                        let chain_str = class_chain.join(">");
+                        let path_str = format!("{file_path}>{chain_str}>{method_name}");
+                        if let Ok(path) = TrunkPath::parse(&path_str) {
+                            let method_id = store.upsert_node(path);
+                            let class_path_str = format!("{file_path}>{chain_str}");
+                            if let Ok(cls_path) = TrunkPath::parse(&class_path_str) {
+                                let cls_id = store.upsert_node(cls_path);
+                                store.upsert_edge(EdgeKind::Contains, file_id, cls_id);
+                                store.upsert_edge(EdgeKind::Contains, cls_id, method_id);
+                            }
+                        }
                     }
+                    _ => {}
                 }
+            }
+        }
 
-                "reference.call" => {
-                    let callee_name = name_text.unwrap_or("_unknown");
-
-                    // Determine the caller: the nearest enclosing function/method.
-                    let caller_path = enclosing_function_path(anchor, source)
-                        .and_then(|suffix| TrunkPath::parse(&format!("{file_path}>{suffix}")).ok());
-                    let caller_id = caller_path.map_or(file_id, |p| store.upsert_node(p));
-
-                    // Try intra-file callee resolution; fall back to a bare stub.
-                    let intra = format!("{file_path}>{callee_name}");
-                    let callee_id = if let Some(id) = store.lookup(&intra) {
-                        id
-                    } else if let Ok(bare) = TrunkPath::parse(callee_name) {
-                        store.upsert_node(bare)
+        // ─── Pass 2: references ──────────────────────────────────────────
+        // All definitions are now in the store; intra-file callee lookup
+        // will succeed for both backward and forward references.
+        {
+            let mut cursor = QueryCursor::new();
+            let mut matches = cursor.matches(&self.query, root, source);
+            while let Some(m) = matches.next() {
+                let cap = m
+                    .captures
+                    .iter()
+                    .find(|c| names[c.index as usize].starts_with("reference."));
+                let Some(cap) = cap else { continue };
+                let cap_name = names[cap.index as usize];
+                let anchor = cap.node;
+                let name_text: Option<&str> = m.captures.iter().find_map(|c| {
+                    if names[c.index as usize] == "name" {
+                        c.node.utf8_text(source).ok()
                     } else {
-                        continue;
-                    };
+                        None
+                    }
+                });
 
-                    store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
+                match cap_name {
+                    "reference.import" | "reference.import_from" => {
+                        let mod_name = name_text.unwrap_or("_unknown");
+                        if let Ok(mod_path) = TrunkPath::parse(mod_name) {
+                            let mod_id = store.upsert_node(mod_path);
+                            store.upsert_edge(EdgeKind::Imports, file_id, mod_id);
+                        }
+                    }
+                    "reference.call" => {
+                        let callee_name = name_text.unwrap_or("_unknown");
+                        let caller_path =
+                            enclosing_function_path(anchor, source).and_then(|suffix| {
+                                TrunkPath::parse(&format!("{file_path}>{suffix}")).ok()
+                            });
+                        let caller_id = caller_path.map_or(file_id, |p| store.upsert_node(p));
+                        let intra = format!("{file_path}>{callee_name}");
+                        let callee_id = if let Some(id) = store.lookup(&intra) {
+                            id
+                        } else if let Ok(bare) = TrunkPath::parse(callee_name) {
+                            store.upsert_node(bare)
+                        } else {
+                            continue;
+                        };
+                        store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
+                    }
+                    _ => {}
                 }
-
-                _ => {}
             }
         }
 
