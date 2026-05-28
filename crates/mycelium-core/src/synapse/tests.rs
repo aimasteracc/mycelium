@@ -107,3 +107,105 @@ fn synapse_remove_node_drops_across_all_kinds() {
     assert!(syn.incoming(n(1), EdgeKind::Implements).is_empty());
     assert!(syn.outgoing(n(4), EdgeKind::Implements).is_empty());
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Proptest — property-based invariants (RFC-0001 §Testing strategy)
+// ──────────────────────────────────────────────────────────────────────
+
+mod prop {
+    use crate::synapse::{AdjacencyList, Synapse};
+    use crate::types::{EdgeKind, NodeId};
+    use proptest::prelude::*;
+
+    /// Small node-id pool; low byte = 0 (shard tag reserved per RFC-0001).
+    fn nid() -> impl Strategy<Value = NodeId> {
+        (1_u64..=5).prop_map(|x| NodeId(x << 8))
+    }
+
+    fn kind() -> impl Strategy<Value = EdgeKind> {
+        prop_oneof![
+            Just(EdgeKind::Calls),
+            Just(EdgeKind::Extends),
+            Just(EdgeKind::Imports),
+        ]
+    }
+
+    proptest! {
+        /// For any sequence of `add` calls, forward and reverse are mutually
+        /// consistent (RFC-0001 §Testing strategy, synapse invariant).
+        #[test]
+        fn forward_reverse_consistent_after_adds(
+            edges in proptest::collection::vec((kind(), nid(), nid()), 0..=20_usize)
+        ) {
+            let mut syn = Synapse::new();
+            for &(k, src, tgt) in &edges {
+                syn.add(k, src, tgt);
+            }
+            for &(k, src, tgt) in &edges {
+                prop_assert!(
+                    syn.outgoing(src, k).contains(&tgt),
+                    "forward edge missing after add: {src:?} -[{k}]-> {tgt:?}",
+                );
+                prop_assert!(
+                    syn.incoming(tgt, k).contains(&src),
+                    "reverse edge missing after add: {src:?} -[{k}]-> {tgt:?}",
+                );
+            }
+        }
+
+        /// `AdjacencyList::add` is idempotent: calling it N times has the
+        /// same effect as calling it once.
+        #[test]
+        fn adjacency_add_is_idempotent(
+            src in nid(),
+            tgt in nid(),
+            times in 1_u32..=5,
+        ) {
+            let mut adj = AdjacencyList::new();
+            for _ in 0..times {
+                adj.add(src, tgt);
+            }
+            prop_assert_eq!(adj.edge_count(), 1);
+        }
+
+        /// After `remove_node`, the removed id does not appear in any
+        /// outgoing or incoming list for the edge kinds that were used.
+        #[test]
+        fn remove_node_leaves_no_trace(
+            edges in proptest::collection::vec((kind(), nid(), nid()), 1..=20_usize),
+            removed in nid(),
+        ) {
+            let mut syn = Synapse::new();
+            for &(k, src, tgt) in &edges {
+                syn.add(k, src, tgt);
+            }
+            syn.remove_node(removed);
+
+            for &(k, src, tgt) in &edges {
+                // `removed` must not appear as source.
+                prop_assert!(
+                    !syn.outgoing(removed, k).contains(&tgt),
+                    "removed node still has outgoing edge: {removed:?} -[{k}]-> {tgt:?}",
+                );
+                // `removed` must not appear as target.
+                prop_assert!(
+                    !syn.incoming(removed, k).contains(&src),
+                    "removed node still has incoming edge: {src:?} -[{k}]-> {removed:?}",
+                );
+                // Peers must not still point at `removed`.
+                if src == removed {
+                    prop_assert!(
+                        !syn.incoming(tgt, k).contains(&removed),
+                        "removed source still in target's incoming: {tgt:?} incoming for [{k}]",
+                    );
+                }
+                if tgt == removed {
+                    prop_assert!(
+                        !syn.outgoing(src, k).contains(&removed),
+                        "removed target still in source's outgoing: {src:?} outgoing for [{k}]",
+                    );
+                }
+            }
+        }
+    }
+}

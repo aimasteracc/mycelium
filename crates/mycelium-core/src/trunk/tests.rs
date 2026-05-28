@@ -293,3 +293,90 @@ fn path_parent_helper_handles_edges() {
     assert_eq!(path::parent("a"), None);
     assert_eq!(path::parent(""), None);
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Proptest — property-based invariants (RFC-0001 §Testing strategy)
+// ──────────────────────────────────────────────────────────────────────
+
+mod prop {
+    use crate::trunk::{Trunk, TrunkPath};
+    use crate::types::NodeId;
+    use proptest::prelude::*;
+
+    fn valid_path_str() -> impl Strategy<Value = String> {
+        proptest::collection::vec(
+            proptest::string::string_regex("[a-z][a-z0-9]{0,7}").unwrap(),
+            1..=4_usize,
+        )
+        .prop_map(|segs| segs.join(">"))
+    }
+
+    proptest! {
+        /// After any sequence of upserts, `lookup_path` and `path_of` are
+        /// mutually consistent (RFC-0001 §Testing strategy, invariant 1).
+        #[test]
+        fn indices_consistent_after_upserts(
+            strs in proptest::collection::vec(valid_path_str(), 1..=20_usize)
+        ) {
+            let mut trunk = Trunk::new();
+            // Track unique (path_str, id) pairs; skip hash collisions (negligible).
+            let mut pairs: Vec<(String, NodeId)> = Vec::new();
+            for s in &strs {
+                if let Ok(p) = TrunkPath::parse(s) {
+                    let id = trunk.upsert(p);
+                    if !pairs.iter().any(|(_, eid)| *eid == id) {
+                        pairs.push((s.clone(), id));
+                    }
+                }
+            }
+            for (s, id) in &pairs {
+                prop_assert_eq!(trunk.lookup_path(s), Some(*id));
+                prop_assert_eq!(trunk.path_of(*id), Some(s.as_str()));
+            }
+        }
+
+        /// `upsert` is idempotent: same path yields same id and the trunk
+        /// does not grow (RFC-0001 §3.1 "idempotent upsert" requirement).
+        #[test]
+        fn upsert_is_idempotent(s in valid_path_str()) {
+            let mut trunk = Trunk::new();
+            let id1 = trunk.upsert(TrunkPath::parse(&s).unwrap());
+            let id2 = trunk.upsert(TrunkPath::parse(&s).unwrap());
+            prop_assert_eq!(id1, id2);
+            prop_assert_eq!(trunk.len(), 1);
+        }
+
+        /// After removing a prefix of nodes, removed nodes are inaccessible
+        /// and the remaining nodes remain consistent.
+        #[test]
+        fn consistent_after_removes(
+            strs in proptest::collection::vec(valid_path_str(), 2..=20_usize),
+            remove_count in 0..=5_usize,
+        ) {
+            let mut trunk = Trunk::new();
+            let mut pairs: Vec<(String, NodeId)> = Vec::new();
+            for s in &strs {
+                if let Ok(p) = TrunkPath::parse(s) {
+                    let id = trunk.upsert(p);
+                    if !pairs.iter().any(|(_, eid)| *eid == id) {
+                        pairs.push((s.clone(), id));
+                    }
+                }
+            }
+            let cut = remove_count.min(pairs.len());
+            for (_, id) in &pairs[..cut] {
+                trunk.remove(*id);
+            }
+            // Removed: gone from both directions.
+            for (s, id) in &pairs[..cut] {
+                prop_assert!(trunk.lookup_path(s).is_none());
+                prop_assert!(trunk.path_of(*id).is_none());
+            }
+            // Remaining: still accessible.
+            for (s, id) in &pairs[cut..] {
+                prop_assert_eq!(trunk.lookup_path(s), Some(*id));
+                prop_assert_eq!(trunk.path_of(*id), Some(s.as_str()));
+            }
+        }
+    }
+}
