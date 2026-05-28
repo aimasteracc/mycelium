@@ -303,6 +303,7 @@ impl MyceliumServer {
                     }
                     changed = true;
                 }
+                store_w.resolve_bare_call_stubs();
                 drop(store_w);
 
                 if changed {
@@ -1285,6 +1286,55 @@ mod tests {
         assert!(
             val.get("error").is_some(),
             "unknown path should return error"
+        );
+    }
+
+    // ── RFC-0015: watch-mode stub resolution ─────────────────────────────
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn watch_mode_resolves_stub_after_callee_file_added() {
+        use std::fs;
+        use tokio::time::Duration;
+
+        let tmp = tempfile::tempdir().unwrap();
+        // a.py calls bar() which is not yet defined anywhere.
+        fs::write(tmp.path().join("a.py"), "def foo():\n    bar()").unwrap();
+
+        let server = MyceliumServer::with_root(tmp.path().to_owned())
+            .await
+            .unwrap();
+
+        // After initial index, bare stub "bar" exists.
+        assert!(
+            server.store.read().await.lookup("a.py>foo").is_some(),
+            "a.py>foo must be indexed"
+        );
+
+        // Now create b.py which defines bar().
+        fs::write(tmp.path().join("b.py"), "def bar(): pass").unwrap();
+
+        // Poll until the watcher picks up b.py and resolve_bare_call_stubs runs.
+        let resolved = poll_for(
+            Duration::from_secs(3),
+            Duration::from_millis(100),
+            || async {
+                let store = server.store.read().await;
+                let foo = store.lookup("a.py>foo");
+                let bar_def = store.lookup("b.py>bar");
+                let bar_stub = store.lookup("bar");
+                match (foo, bar_def) {
+                    (Some(f), Some(b)) => {
+                        store.outgoing(f, EdgeKind::Calls).contains(&b) && bar_stub.is_none()
+                    }
+                    _ => false,
+                }
+            },
+        )
+        .await;
+
+        assert!(
+            resolved,
+            "watch mode must resolve bare 'bar' stub to 'b.py>bar' after b.py is created"
         );
     }
 
