@@ -25,8 +25,9 @@
 //! | `mycelium_get_entry_points` | Return all zero-caller symbols (entry points or dead code candidates) |
 //! | `mycelium_get_imports` | Return direct import neighbors (`imports` / `imported_by`) for a path |
 //! | `mycelium_get_import_tree` | Return depth-limited transitive import dependency tree |
+//! | `mycelium_batch_symbol_info` | Get symbol info for multiple paths in one call (max 50) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, and RFC-0024 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, and RFC-0025 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -152,6 +153,13 @@ pub struct GetImportTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_batch_symbol_info`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BatchSymbolInfoRequest {
+    /// List of trunk paths to query (maximum 50).
+    pub paths: Vec<String>,
 }
 
 /// Input parameters for `mycelium_get_entry_points`.
@@ -664,6 +672,67 @@ impl MyceliumServer {
             "callees": callees,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Return symbol info for multiple paths in one call. Equivalent to calling \
+                       mycelium_get_symbol_info for each path individually, but as a single \
+                       round-trip. Each entry contains ancestors, descendants, callers, and \
+                       callees for found paths, or an error field for unknown paths. \
+                       Maximum 50 paths per request."
+    )]
+    async fn mycelium_batch_symbol_info(
+        &self,
+        Parameters(req): Parameters<BatchSymbolInfoRequest>,
+    ) -> String {
+        let store_guard = self.store.read().await;
+        let symbols: Vec<serde_json::Value> = req
+            .paths
+            .iter()
+            .take(50)
+            .map(|path| {
+                let Some(id) = store_guard.lookup(path) else {
+                    return serde_json::json!({ "path": path, "error": "path not found" });
+                };
+
+                let ancestors: Vec<String> = store_guard
+                    .ancestors(id)
+                    .filter_map(|aid| store_guard.path_of(aid).map(str::to_owned))
+                    .collect();
+
+                let mut descendants: Vec<String> = store_guard
+                    .descendants(id)
+                    .filter_map(|did| store_guard.path_of(did).map(str::to_owned))
+                    .collect();
+                descendants.sort_unstable();
+
+                let mut callers: Vec<String> = store_guard
+                    .incoming(id, mycelium_core::types::EdgeKind::Calls)
+                    .iter()
+                    .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
+                    .collect();
+                callers.sort_unstable();
+                callers.dedup();
+
+                let mut callees: Vec<String> = store_guard
+                    .outgoing(id, mycelium_core::types::EdgeKind::Calls)
+                    .iter()
+                    .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
+                    .collect();
+                callees.sort_unstable();
+                callees.dedup();
+
+                serde_json::json!({
+                    "path": path,
+                    "ancestors": ancestors,
+                    "descendants": descendants,
+                    "callers": callers,
+                    "callees": callees,
+                })
+            })
+            .collect();
+        drop(store_guard);
+        serde_json::json!({ "symbols": symbols }).to_string()
     }
 
     #[tool(
@@ -2136,6 +2205,69 @@ mod tests {
             b_node["imports"].as_array().unwrap().is_empty(),
             "b must be a leaf at max_depth=1"
         );
+    }
+
+    // ── RFC-0025: mycelium_batch_symbol_info ─────────────────────────────
+
+    #[tokio::test]
+    async fn batch_symbol_info_returns_info_for_each_path() {
+        let server = server_with_call_fixture().await;
+        // foo→bar, foo→baz
+        let raw = server
+            .mycelium_batch_symbol_info(Parameters(BatchSymbolInfoRequest {
+                paths: vec!["src/lib.rs>foo".to_string(), "src/lib.rs>bar".to_string()],
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert_eq!(symbols.len(), 2);
+        let foo = &symbols[0];
+        let bar = &symbols[1];
+        assert_eq!(foo["path"].as_str(), Some("src/lib.rs>foo"));
+        assert!(foo.get("error").is_none(), "foo should be found");
+        assert!(
+            !foo["callees"].as_array().unwrap().is_empty(),
+            "foo has callees"
+        );
+        assert_eq!(bar["path"].as_str(), Some("src/lib.rs>bar"));
+        assert!(bar.get("error").is_none(), "bar should be found");
+    }
+
+    #[tokio::test]
+    async fn batch_symbol_info_unknown_path_returns_error_entry() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_batch_symbol_info(Parameters(BatchSymbolInfoRequest {
+                paths: vec!["src/lib.rs>foo".to_string(), "no/such>path".to_string()],
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert_eq!(symbols.len(), 2);
+        assert!(symbols[0].get("error").is_none(), "foo is found");
+        assert!(
+            symbols[1].get("error").is_some(),
+            "unknown path has error field"
+        );
+    }
+
+    #[tokio::test]
+    async fn batch_symbol_info_preserves_input_order() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_batch_symbol_info(Parameters(BatchSymbolInfoRequest {
+                paths: vec![
+                    "src/lib.rs>bar".to_string(),
+                    "src/lib.rs>foo".to_string(),
+                    "src/lib.rs>baz".to_string(),
+                ],
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert_eq!(symbols[0]["path"].as_str(), Some("src/lib.rs>bar"));
+        assert_eq!(symbols[1]["path"].as_str(), Some("src/lib.rs>foo"));
+        assert_eq!(symbols[2]["path"].as_str(), Some("src/lib.rs>baz"));
     }
 
     // ── RFC-0019: mycelium_rank_symbols ──────────────────────────────────
