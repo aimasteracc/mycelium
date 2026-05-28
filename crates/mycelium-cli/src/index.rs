@@ -39,6 +39,8 @@ pub struct IndexStats {
 ///
 /// Returns an error only if `root` cannot be accessed. Individual file errors
 /// are counted in [`IndexStats::errors`] but do not stop the run.
+// ts_lang / tsx_lang differ only by one letter — similarity is intentional.
+#[allow(clippy::similar_names)]
 pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
     let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
     let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
@@ -51,6 +53,11 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
     let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
     let ts_ext = Extractor::new(ts_lang, TYPESCRIPT_QUERIES)
         .context("failed to compile TypeScript extractor")?;
+
+    // TSX uses a distinct grammar that extends TypeScript with JSX node types.
+    let tsx_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TSX.into();
+    let tsx_ext =
+        Extractor::new(tsx_lang, TYPESCRIPT_QUERIES).context("failed to compile TSX extractor")?;
 
     let rs_lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
     let rs_ext =
@@ -73,7 +80,8 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
         let extractor = match ext {
             "js" | "jsx" => &js_ext,
             "py" | "pyi" => &python_ext,
-            "ts" | "tsx" => &ts_ext,
+            "ts" => &ts_ext,
+            "tsx" => &tsx_ext,
             "rs" => &rs_ext,
             _ => continue,
         };

@@ -33,6 +33,12 @@
 #[cfg(test)]
 mod tests;
 
+use std::io::{BufReader, BufWriter};
+use std::path::Path;
+
+use anyhow::Context as _;
+use serde::{Deserialize, Serialize};
+
 use crate::synapse::Synapse;
 use crate::trunk::{Trunk, TrunkPath};
 use crate::types::{EdgeKind, NodeId};
@@ -45,7 +51,7 @@ use crate::types::{EdgeKind, NodeId};
 /// See the [module-level docs](self) for deferred features and the
 /// [RFC-0001](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0001-trunk-and-synapse.md)
 /// for the full design.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Store {
     trunk: Trunk,
     synapse: Synapse,
@@ -56,6 +62,42 @@ impl Store {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    // ── persistence ─────────────────────────────────────────────────────
+
+    /// Serialize the store to a `MessagePack` snapshot at `path`.
+    ///
+    /// Creates parent directories if they do not exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the parent directories cannot be created, the file
+    /// cannot be written, or serialization fails.
+    pub fn save(&self, path: &Path) -> anyhow::Result<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("creating snapshot dir {}", parent.display()))?;
+        }
+        let file = std::fs::File::create(path)
+            .with_context(|| format!("creating snapshot file {}", path.display()))?;
+        let mut writer = BufWriter::new(file);
+        rmp_serde::encode::write(&mut writer, self)
+            .with_context(|| format!("serializing store to {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Deserialize a `Store` from a `MessagePack` snapshot at `path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be opened or deserialization fails.
+    pub fn load(path: &Path) -> anyhow::Result<Self> {
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("opening snapshot file {}", path.display()))?;
+        let reader = BufReader::new(file);
+        rmp_serde::decode::from_read(reader)
+            .with_context(|| format!("deserializing store from {}", path.display()))
     }
 
     // ── writes ──────────────────────────────────────────────────────────
@@ -111,6 +153,17 @@ impl Store {
     #[must_use]
     pub fn lookup(&self, qpath: &str) -> Option<NodeId> {
         self.trunk.lookup_path(qpath)
+    }
+
+    /// Return the number of materialized nodes in the store.
+    #[must_use]
+    pub fn node_count(&self) -> usize {
+        self.trunk.len()
+    }
+
+    /// Iterate all materialized path strings (delegates to the inner Trunk).
+    pub fn all_paths(&self) -> impl Iterator<Item = &str> + '_ {
+        self.trunk.all_paths()
     }
 
     /// Return the path string for a node id, if present.

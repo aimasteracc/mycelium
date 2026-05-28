@@ -53,6 +53,7 @@ mod tests;
 pub use path::TrunkPath;
 
 use hashbrown::HashMap;
+use serde::{Deserialize, Serialize};
 
 use crate::types::NodeId;
 
@@ -60,7 +61,7 @@ use crate::types::NodeId;
 ///
 /// See the module-level docs for the data structure rationale and the
 /// v0.1 spike caveat.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Trunk {
     /// path string → `NodeId`.
     by_path: HashMap<String, NodeId>,
