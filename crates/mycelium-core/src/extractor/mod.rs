@@ -131,7 +131,13 @@ impl Extractor {
                     let _ = file_id;
                 }
 
-                "definition.function" | "definition.class" => {
+                // Any top-level definition (function, class, interface,
+                // type_alias, enum, …) becomes a direct child of the file node.
+                other
+                    if other.starts_with("definition.")
+                        && other != "definition.module"
+                        && other != "definition.method" =>
+                {
                     let name = name_text.unwrap_or("_unknown");
                     let path_str = format!("{file_path}>{name}");
                     if let Ok(path) = TrunkPath::parse(&path_str) {
@@ -177,25 +183,29 @@ impl Extractor {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-/// Walk ancestor nodes of `node`, collecting names of enclosing
-/// `class_definition` nodes in outermost→innermost order.
+/// Walk ancestor nodes of `node`, collecting names of enclosing class nodes
+/// in outermost→innermost order.
 ///
 /// `node` itself is the *innermost* class; this function returns the chain of
 /// classes that contain it (its ancestors), NOT including `node` itself.
 /// Callers combine the result with `node`'s own name to get the full chain.
+///
+/// Recognises both `class_definition` (Python) and `class_declaration`
+/// (TypeScript / JavaScript) as class-like ancestor nodes.
 fn build_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
-    // anchor IS the innermost class_definition.  Get ITS name first.
+    // anchor IS the innermost class node.  Get ITS name first.
     let own_name = node
         .child_by_field_name("name")
         .and_then(|n| n.utf8_text(source).ok())
         .unwrap_or("_Unknown")
         .to_owned();
 
-    // Then collect any enclosing class_definition ancestors.
+    // Then collect any enclosing class-like ancestors.
     let mut ancestors: Vec<String> = Vec::new();
     let mut cur = node;
     while let Some(parent) = cur.parent() {
-        if parent.kind() == "class_definition" {
+        let kind = parent.kind();
+        if kind == "class_definition" || kind == "class_declaration" {
             if let Some(name_node) = parent.child_by_field_name("name") {
                 if let Ok(name) = name_node.utf8_text(source) {
                     ancestors.push(name.to_owned());

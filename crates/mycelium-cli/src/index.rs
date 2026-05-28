@@ -15,6 +15,7 @@ use walkdir::WalkDir;
 // ── embedded pack sources ─────────────────────────────────────────────────────
 
 const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
+const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
 
 // ── public surface ────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ pub struct IndexStats {
 
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
-/// Supported languages at v0.1: Python (`.py`, `.pyi`).
+/// Supported languages: Python (`.py`, `.pyi`), TypeScript (`.ts`).
 ///
 /// # Errors
 ///
@@ -39,6 +40,10 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
     let python_lang: tree_sitter::Language = tree_sitter_python::LANGUAGE.into();
     let python_ext = Extractor::new(python_lang, PYTHON_QUERIES)
         .context("failed to compile Python extractor")?;
+
+    let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+    let ts_ext = Extractor::new(ts_lang, TYPESCRIPT_QUERIES)
+        .context("failed to compile TypeScript extractor")?;
 
     let mut store = Store::new();
     let mut stats = IndexStats::default();
@@ -53,9 +58,12 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             continue;
         };
-        if ext != "py" && ext != "pyi" {
-            continue;
-        }
+
+        let extractor = match ext {
+            "py" | "pyi" => &python_ext,
+            "ts" => &ts_ext,
+            _ => continue,
+        };
 
         let rel = path
             .strip_prefix(root)
@@ -72,7 +80,7 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
             }
         };
 
-        if let Err(e) = python_ext.extract(&rel, &source, &mut store) {
+        if let Err(e) = extractor.extract(&rel, &source, &mut store) {
             tracing::warn!("extraction failed for {}: {e}", path.display());
             stats.errors += 1;
             continue;
@@ -99,6 +107,10 @@ mod tests {
     use super::*;
 
     fn write_temp_py(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    fn write_temp_ts(dir: &Path, name: &str, src: &str) {
         fs::write(dir.join(name), src).unwrap();
     }
 
@@ -145,5 +157,74 @@ mod tests {
         let (_, stats) = index_path(tmp.path()).unwrap();
         assert_eq!(stats.files, 0);
         assert_eq!(stats.errors, 0);
+    }
+
+    // ── TypeScript tests ─────────────────────────────────────────────
+
+    #[test]
+    fn index_path_extracts_typescript_function() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_ts(
+            tmp.path(),
+            "greet.ts",
+            "function greet(name: string): void {}",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(store.lookup("greet.ts").is_some(), "module node must exist");
+        assert!(
+            store.lookup("greet.ts>greet").is_some(),
+            "function node must exist"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_typescript_class_and_method() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_ts(
+            tmp.path(),
+            "greeter.ts",
+            "class Greeter { greet(): string { return ''; } }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(store.lookup("greeter.ts>Greeter").is_some());
+        assert!(store.lookup("greeter.ts>Greeter>greet").is_some());
+    }
+
+    #[test]
+    fn index_path_extracts_typescript_interface() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_ts(
+            tmp.path(),
+            "types.ts",
+            "interface IGreeter { greet(): void; }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(store.lookup("types.ts>IGreeter").is_some());
+    }
+
+    #[test]
+    fn index_path_indexes_both_python_and_typescript() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
+        write_temp_ts(tmp.path(), "mod.ts", "function bar(): void {}");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 2);
+        assert!(store.lookup("mod.py>foo").is_some());
+        assert!(store.lookup("mod.ts>bar").is_some());
+    }
+
+    #[test]
+    fn index_path_skips_tsx_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_ts(tmp.path(), "app.tsx", "const App = () => <div />;");
+        let (_, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(
+            stats.files, 0,
+            "tsx files not in the TypeScript pack's extensions"
+        );
     }
 }
