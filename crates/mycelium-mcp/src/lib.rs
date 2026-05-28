@@ -26,8 +26,10 @@
 //! | `mycelium_get_imports` | Return direct import neighbors (`imports` / `imported_by`) for a path |
 //! | `mycelium_get_import_tree` | Return depth-limited transitive import dependency tree |
 //! | `mycelium_batch_symbol_info` | Get symbol info for multiple paths in one call (max 50) |
+//! | `mycelium_get_extends` | Return direct inheritance neighbors (`extends` / `extended_by`) for a path |
+//! | `mycelium_get_implements` | Return direct interface-implementation neighbors (`implements` / `implemented_by`) for a path |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, and RFC-0025 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, and RFC-0026 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -160,6 +162,20 @@ pub struct GetImportTreeRequest {
 pub struct BatchSymbolInfoRequest {
     /// List of trunk paths to query (maximum 50).
     pub paths: Vec<String>,
+}
+
+/// Input parameters for `mycelium_get_extends`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetExtendsRequest {
+    /// Trunk path to query, e.g. `"src/shapes.py>Rectangle"`.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_implements`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetImplementsRequest {
+    /// Trunk path to query, e.g. `"src/io.ts>FileReader"`.
+    pub path: String,
 }
 
 /// Input parameters for `mycelium_get_entry_points`.
@@ -818,6 +834,69 @@ impl MyceliumServer {
         let json_tree = import_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json_tree }).to_string()
+    }
+
+    #[tool(
+        description = "Return the direct inheritance relationships for a path. extends lists \
+                       symbols this path directly extends (outgoing Extends edges). extended_by \
+                       lists symbols that extend this path (incoming Extends edges). Both lists \
+                       are sorted lexicographically. Unknown path returns { error }."
+    )]
+    async fn mycelium_get_extends(&self, Parameters(req): Parameters<GetExtendsRequest>) -> String {
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let mut extends: Vec<String> = store_guard
+            .outgoing(id, mycelium_core::types::EdgeKind::Extends)
+            .iter()
+            .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
+            .collect();
+        extends.sort_unstable();
+        let mut extended_by: Vec<String> = store_guard
+            .incoming(id, mycelium_core::types::EdgeKind::Extends)
+            .iter()
+            .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
+            .collect();
+        extended_by.sort_unstable();
+        drop(store_guard);
+        serde_json::json!({ "extends": extends, "extended_by": extended_by }).to_string()
+    }
+
+    #[tool(
+        description = "Return the direct interface-implementation relationships for a path. \
+                       implements lists symbols this path directly implements (outgoing Implements \
+                       edges). implemented_by lists symbols that implement this path (incoming \
+                       Implements edges). Both lists are sorted lexicographically. Unknown path \
+                       returns { error }."
+    )]
+    async fn mycelium_get_implements(
+        &self,
+        Parameters(req): Parameters<GetImplementsRequest>,
+    ) -> String {
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let mut implements: Vec<String> = store_guard
+            .outgoing(id, mycelium_core::types::EdgeKind::Implements)
+            .iter()
+            .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
+            .collect();
+        implements.sort_unstable();
+        let mut implemented_by: Vec<String> = store_guard
+            .incoming(id, mycelium_core::types::EdgeKind::Implements)
+            .iter()
+            .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
+            .collect();
+        implemented_by.sort_unstable();
+        drop(store_guard);
+        serde_json::json!({ "implements": implements, "implemented_by": implemented_by })
+            .to_string()
     }
 
     #[tool(
@@ -2450,6 +2529,117 @@ mod tests {
             resolved,
             "watch mode must resolve bare 'bar' stub to 'b.py>bar' after b.py is created"
         );
+    }
+
+    // ── RFC-0026: mycelium_get_extends / mycelium_get_implements ─────────
+
+    async fn server_with_inheritance_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        // Shape ← Rectangle ← Square (extends chain)
+        let shape = store
+            .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/shapes.py>Shape").unwrap());
+        let rect = store.upsert_node(
+            mycelium_core::trunk::TrunkPath::parse("src/shapes.py>Rectangle").unwrap(),
+        );
+        let square = store
+            .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/shapes.py>Square").unwrap());
+        // IShape interface implemented by Shape
+        let ishape = store
+            .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/shapes.py>IShape").unwrap());
+        store.upsert_edge(mycelium_core::types::EdgeKind::Extends, rect, shape);
+        store.upsert_edge(mycelium_core::types::EdgeKind::Extends, square, rect);
+        store.upsert_edge(mycelium_core::types::EdgeKind::Implements, shape, ishape);
+        drop(store);
+        server
+    }
+
+    #[tokio::test]
+    async fn get_extends_returns_extends_and_extended_by() {
+        let server = server_with_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_extends(Parameters(GetExtendsRequest {
+                path: "src/shapes.py>Rectangle".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "rect is found");
+        let extends = val["extends"].as_array().unwrap();
+        let extended_by = val["extended_by"].as_array().unwrap();
+        assert_eq!(extends.len(), 1);
+        assert_eq!(extends[0].as_str(), Some("src/shapes.py>Shape"));
+        assert_eq!(extended_by.len(), 1);
+        assert_eq!(extended_by[0].as_str(), Some("src/shapes.py>Square"));
+    }
+
+    #[tokio::test]
+    async fn get_extends_empty_when_no_edges() {
+        let server = server_with_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_extends(Parameters(GetExtendsRequest {
+                path: "src/shapes.py>Shape".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["extends"].as_array().unwrap().is_empty());
+        assert_eq!(val["extended_by"].as_array().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn get_extends_unknown_path_returns_error() {
+        let server = server_with_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_extends(Parameters(GetExtendsRequest {
+                path: "no/such>Symbol".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn get_implements_returns_implements_and_implemented_by() {
+        let server = server_with_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_implements(Parameters(GetImplementsRequest {
+                path: "src/shapes.py>Shape".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        let implements = val["implements"].as_array().unwrap();
+        let implemented_by = val["implemented_by"].as_array().unwrap();
+        assert_eq!(implements.len(), 1);
+        assert_eq!(implements[0].as_str(), Some("src/shapes.py>IShape"));
+        assert!(implemented_by.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_implements_interface_side_shows_implemented_by() {
+        let server = server_with_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_implements(Parameters(GetImplementsRequest {
+                path: "src/shapes.py>IShape".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert!(val["implements"].as_array().unwrap().is_empty());
+        let implemented_by = val["implemented_by"].as_array().unwrap();
+        assert_eq!(implemented_by.len(), 1);
+        assert_eq!(implemented_by[0].as_str(), Some("src/shapes.py>Shape"));
+    }
+
+    #[tokio::test]
+    async fn get_implements_unknown_path_returns_error() {
+        let server = server_with_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_implements(Parameters(GetImplementsRequest {
+                path: "no/such>Symbol".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`

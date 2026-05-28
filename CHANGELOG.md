@@ -86,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0024: `Store::import_tree(id, max_depth)` — depth-limited recursive DFS over outgoing `Imports` edges.
 - RFC-0024: `mycelium_get_import_tree` MCP tool — returns `{ root: { path, imports: [...] } }`; max_depth defaults to 4, capped at 10; unknown path returns `{ error }`.
 - RFC-0025: `mycelium_batch_symbol_info` MCP tool — batch variant of `mycelium_get_symbol_info`; accepts up to 50 paths in one call; returns `{ symbols: [{ path, ancestors, descendants, callers, callees }] }` in input order; unknown paths return `{ path, error }` without failing the whole request.
+- RFC-0026: `mycelium_get_extends` MCP tool — returns `{ extends, extended_by }` for a path using `EdgeKind::Extends`; both lists sorted lexicographically; unknown path returns `{ error }`.
+- RFC-0026: `mycelium_get_implements` MCP tool — returns `{ implements, implemented_by }` for a path using `EdgeKind::Implements`; both lists sorted lexicographically; unknown path returns `{ error }`.
 
 ### Fixed
 
