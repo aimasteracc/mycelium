@@ -22,8 +22,9 @@
 //! | `mycelium_rank_symbols` | Return top-N symbols by caller count (most-called first) |
 //! | `mycelium_get_callee_tree` | Return depth-limited transitive callee tree for a symbol |
 //! | `mycelium_get_caller_tree` | Return depth-limited transitive caller tree for a symbol |
+//! | `mycelium_get_entry_points` | Return all zero-caller symbols (entry points or dead code candidates) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, and RFC-0021 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, and RFC-0022 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -133,6 +134,13 @@ pub struct GetCallerTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_entry_points`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetEntryPointsRequest {
+    /// Optional path prefix to restrict results (e.g. `"src/handlers/"`).
+    pub path_prefix: Option<String>,
 }
 
 /// Input parameters for `mycelium_rank_symbols`.
@@ -683,6 +691,24 @@ impl MyceliumServer {
         let json_tree = caller_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json_tree }).to_string()
+    }
+
+    #[tool(
+        description = "Return all indexed symbols (non-file nodes) that have zero incoming Calls \
+                       edges. These are either genuine entry points (main, test functions, public \
+                       API handlers) or potentially dead code. Optional path_prefix restricts \
+                       results to a subdirectory. Results are sorted lexicographically."
+    )]
+    async fn mycelium_get_entry_points(
+        &self,
+        Parameters(req): Parameters<GetEntryPointsRequest>,
+    ) -> String {
+        let eps = self
+            .store
+            .read()
+            .await
+            .entry_points(req.path_prefix.as_deref());
+        serde_json::json!({ "entry_points": eps }).to_string()
     }
 
     #[tool(
@@ -1857,6 +1883,64 @@ mod tests {
             b_node["callers"].as_array().unwrap().is_empty(),
             "b must be a leaf at max_depth=1"
         );
+    }
+
+    // ── RFC-0022: mycelium_get_entry_points ──────────────────────────────
+
+    #[tokio::test]
+    async fn get_entry_points_returns_zero_caller_symbols() {
+        let server = server_with_call_fixture().await;
+        // Fixture: foo→bar, foo→baz, baz→bar
+        // foo has no callers → entry point; bar and baz have callers → not
+        let raw = server
+            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest { path_prefix: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let eps = val["entry_points"].as_array().unwrap();
+        let ep_paths: Vec<&str> = eps.iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(ep_paths.contains(&"src/lib.rs>foo"), "foo has no callers");
+        assert!(
+            !ep_paths.contains(&"src/lib.rs>bar"),
+            "bar is called by foo and baz"
+        );
+        assert!(
+            !ep_paths.contains(&"src/lib.rs>baz"),
+            "baz is called by foo"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_entry_points_excludes_file_nodes() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest { path_prefix: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let eps = val["entry_points"].as_array().unwrap();
+        for ep in eps {
+            let p = ep.as_str().unwrap();
+            assert!(p.contains('>'), "file nodes must not appear: {p}");
+        }
+    }
+
+    #[tokio::test]
+    async fn get_entry_points_prefix_filter() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>fn_a").unwrap());
+            store.upsert_node(TrunkPath::parse("tests/t.rs>test_foo").unwrap());
+        }
+        let raw = server
+            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
+                path_prefix: Some("src/".to_string()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let eps = val["entry_points"].as_array().unwrap();
+        let ep_paths: Vec<&str> = eps.iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(ep_paths.contains(&"src/a.rs>fn_a"));
+        assert!(!ep_paths.contains(&"tests/t.rs>test_foo"));
     }
 
     // ── RFC-0019: mycelium_rank_symbols ──────────────────────────────────
