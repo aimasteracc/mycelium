@@ -16,8 +16,9 @@
 //! | `mycelium_watch_status` | Return file-watch loop status and batch count |
 //! | `mycelium_get_callees` | Return all symbols a given path calls directly |
 //! | `mycelium_get_callers` | Return all symbols that call a given path |
+//! | `mycelium_get_symbol_info` | Return ancestors, descendants, callers, and callees in one call |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, and RFC-0012 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, and RFC-0016 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -101,6 +102,13 @@ pub struct GetCalleesRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetCallersRequest {
     /// Trunk path to look up callers for, e.g. `"src/lib.rs>helper"`.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_symbol_info`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSymbolInfoRequest {
+    /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
     pub path: String,
 }
 
@@ -526,6 +534,62 @@ impl MyceliumServer {
         paths.sort();
         paths.dedup();
         serde_json::json!({ "caller_paths": paths }).to_string()
+    }
+
+    #[tool(
+        description = "Return all structural information about a symbol in one call: \
+                       its ancestors (containing scopes), descendants (nested symbols), \
+                       callers (functions that call it), and callees (functions it calls). \
+                       Returns an error if the path is not in the index."
+    )]
+    async fn mycelium_get_symbol_info(
+        &self,
+        Parameters(req): Parameters<GetSymbolInfoRequest>,
+    ) -> String {
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+
+        let ancestors: Vec<String> = store_guard
+            .ancestors(id)
+            .filter_map(|aid| store_guard.path_of(aid).map(str::to_owned))
+            .collect();
+
+        let mut descendants: Vec<String> = store_guard
+            .descendants(id)
+            .filter_map(|did| store_guard.path_of(did).map(str::to_owned))
+            .collect();
+        descendants.sort_unstable();
+
+        let mut callers: Vec<String> = store_guard
+            .incoming(id, mycelium_core::types::EdgeKind::Calls)
+            .iter()
+            .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
+            .collect();
+        callers.sort_unstable();
+        callers.dedup();
+
+        let mut callees: Vec<String> = store_guard
+            .outgoing(id, mycelium_core::types::EdgeKind::Calls)
+            .iter()
+            .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
+            .collect();
+        callees.sort_unstable();
+        callees.dedup();
+
+        drop(store_guard);
+
+        serde_json::json!({
+            "path": req.path,
+            "ancestors": ancestors,
+            "descendants": descendants,
+            "callers": callers,
+            "callees": callees,
+        })
+        .to_string()
     }
 }
 
@@ -1287,6 +1351,65 @@ mod tests {
             val.get("error").is_some(),
             "unknown path should return error"
         );
+    }
+
+    // ── RFC-0016: mycelium_get_symbol_info ───────────────────────────────
+
+    #[tokio::test]
+    async fn get_symbol_info_returns_all_relationships() {
+        let server = server_with_call_fixture().await;
+        // Add containment so ancestors/descendants are non-empty
+        {
+            let mut store = server.store.write().await;
+            let file = store.upsert_node(TrunkPath::parse("src/lib.rs").unwrap());
+            let foo = store.lookup("src/lib.rs>foo").unwrap();
+            store.upsert_edge(mycelium_core::types::EdgeKind::Contains, file, foo);
+        }
+        let raw = server
+            .mycelium_get_symbol_info(Parameters(GetSymbolInfoRequest {
+                path: "src/lib.rs>foo".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["path"].as_str(), Some("src/lib.rs>foo"));
+        assert!(
+            val.get("ancestors").is_some(),
+            "ancestors field must be present"
+        );
+        assert!(
+            val.get("descendants").is_some(),
+            "descendants field must be present"
+        );
+        let callees: Vec<&str> = val["callees"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(
+            callees.contains(&"src/lib.rs>bar"),
+            "callees must include bar"
+        );
+        assert!(
+            callees.contains(&"src/lib.rs>baz"),
+            "callees must include baz"
+        );
+        // lists are sorted
+        let mut sorted = callees.clone();
+        sorted.sort_unstable();
+        assert_eq!(callees, sorted, "callees must be sorted");
+    }
+
+    #[tokio::test]
+    async fn get_symbol_info_returns_error_for_unknown_path() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_get_symbol_info(Parameters(GetSymbolInfoRequest {
+                path: "no/such>path".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some(), "unknown path must return error");
     }
 
     // ── RFC-0015: watch-mode stub resolution ─────────────────────────────
