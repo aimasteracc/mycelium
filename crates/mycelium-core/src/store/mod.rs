@@ -57,6 +57,19 @@ pub struct CalleeNode {
     pub children: Vec<Self>,
 }
 
+/// A node in the caller tree returned by [`Store::caller_tree`].
+///
+/// Represents a symbol and its direct callers (recursively up to the
+/// configured `max_depth`).  Cycles are represented as leaf nodes
+/// (`callers` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallerNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Caller subtrees, one per incoming `Calls` edge, up to `max_depth`.
+    pub callers: Vec<Self>,
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -488,6 +501,43 @@ impl Store {
             .collect();
         visited.remove(&id);
         CalleeNode { id, children }
+    }
+
+    /// Return a depth-limited tree of all transitive callers of `id`.
+    ///
+    /// Traverses incoming `Calls` edges up the call graph.  `max_depth`
+    /// controls how many hops to follow; 0 returns a leaf immediately.
+    ///
+    /// Cycles are broken via a visited set: a node already in the current
+    /// traversal path is returned as a leaf with no callers.
+    ///
+    /// `max_depth = 0` returns a leaf (no callers) regardless of edges.
+    #[must_use]
+    pub fn caller_tree(&self, id: NodeId, max_depth: usize) -> CallerNode {
+        let mut visited = HashSet::new();
+        self.caller_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn caller_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> CallerNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return CallerNode {
+                id,
+                callers: vec![],
+            };
+        }
+        let callers: Vec<CallerNode> = self
+            .synapse
+            .incoming(id, EdgeKind::Calls)
+            .iter()
+            .map(|&caller_id| self.caller_tree_inner(caller_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        CallerNode { id, callers }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.
