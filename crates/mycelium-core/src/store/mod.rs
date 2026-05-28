@@ -272,6 +272,30 @@ impl Store {
         files
     }
 
+    /// Return all symbol paths (paths containing `>`) that have zero
+    /// incoming `Calls` edges, sorted lexicographically.
+    ///
+    /// File-level nodes (no `>`) are excluded — they have no callers by
+    /// definition and would create noise.  Pass `prefix` to restrict
+    /// results to symbols whose path starts with that string.
+    #[must_use]
+    pub fn entry_points(&self, prefix: Option<&str>) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_some_and(|id| self.synapse.incoming(id, EdgeKind::Calls).is_empty())
+            })
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return the path string for a node id, if present.
     #[must_use]
     pub fn path_of(&self, id: NodeId) -> Option<&str> {

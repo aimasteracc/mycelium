@@ -896,3 +896,55 @@ fn store_caller_tree_leaf_when_no_callers() {
     assert_eq!(tree.id, a);
     assert!(tree.callers.is_empty(), "root caller has no callers");
 }
+
+// ── RFC-0022: Store::entry_points ────────────────────────────────────
+
+#[test]
+fn store_entry_points_returns_zero_caller_symbols() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a")); // zero callers
+    let b = store.upsert_node(path("b.rs>b")); // called by a
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let eps = store.entry_points(None);
+    assert!(eps.contains(&"a.rs>a".to_string()), "a has no callers");
+    assert!(!eps.contains(&"b.rs>b".to_string()), "b is called by a");
+    let _ = a; // used in the edge
+}
+
+#[test]
+fn store_entry_points_excludes_file_nodes() {
+    let mut store = Store::new();
+    store.upsert_node(path("a.rs")); // file node, no >
+    store.upsert_node(path("a.rs>a")); // symbol node
+    let eps = store.entry_points(None);
+    assert!(!eps.contains(&"a.rs".to_string()), "file nodes excluded");
+    assert!(eps.contains(&"a.rs>a".to_string()), "symbol node included");
+}
+
+#[test]
+fn store_entry_points_prefix_filter() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>a"));
+    store.upsert_node(path("tests/t.rs>test_foo"));
+    let eps = store.entry_points(Some("src/"));
+    assert!(eps.contains(&"src/a.rs>a".to_string()));
+    assert!(!eps.contains(&"tests/t.rs>test_foo".to_string()));
+}
+
+#[test]
+fn store_entry_points_sorted_lexicographically() {
+    let mut store = Store::new();
+    store.upsert_node(path("z.rs>z"));
+    store.upsert_node(path("a.rs>a"));
+    store.upsert_node(path("m.rs>m"));
+    let eps = store.entry_points(None);
+    let mut sorted = eps.clone();
+    sorted.sort_unstable();
+    assert_eq!(eps, sorted, "results must be sorted");
+}
+
+#[test]
+fn store_entry_points_empty_graph() {
+    let store = Store::new();
+    assert!(store.entry_points(None).is_empty());
+}
