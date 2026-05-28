@@ -72,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0018: `mycelium_get_files` MCP tool — enumerates all indexed source files; optional `path_prefix` parameter filters results; returns `{ files: [...] }` sorted.
 - RFC-0019: `Store::top_callee_symbols(limit)` — returns top-N `(path, caller_count)` pairs sorted by caller count descending (ties by path ascending); symbols with 0 callers excluded.
 - RFC-0019: `mycelium_rank_symbols` MCP tool — hot-spot analysis; request `{ limit? }`; returns `{ symbols: [{ path, caller_count }, ...] }`; limit defaults to 10, capped at 100.
+- RFC-0020: `CalleeNode { id, children }` struct — DFS callee tree node; cycle-safe via per-traversal visited set with backtrack removal.
+- RFC-0020: `Store::callee_tree(id, max_depth)` — depth-limited recursive DFS over Calls edges.
+- RFC-0020: `mycelium_get_callee_tree` MCP tool — returns `{ root: { path, children: [...] } }`; max_depth defaults to 4, capped at 10; unknown path returns `{ error }`.
 
 ### Fixed
 
