@@ -21,8 +21,15 @@ path = "src/main.rs"
 workspace = true
 
 [dependencies]
-mycelium-core = { workspace = true }
-clap          = { workspace = true }
-anyhow        = { workspace = true }
-tracing       = { workspace = true }
+mycelium-core      = { workspace = true }
+mycelium-pack      = { workspace = true }
+tree-sitter        = { workspace = true }
+tree-sitter-python = { workspace = true }
+clap               = { workspace = true }
+anyhow             = { workspace = true }
+tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
+walkdir            = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
