@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0008: `with_root` now automatically starts the watch loop after loading.
 - RFC-0008: `mycelium_watch_status` MCP tool — returns `watching`, `root`, and `batches_processed`.
 - RFC-0008: `reindex_file` helper — single-file extraction used by the watch loop.
+- RFC-0009: Gitignore-aware file walking — CLI `index_path` and MCP `run_index` now use `ignore::WalkBuilder` to respect `.gitignore` and `.myceliumignore` patterns.
+- RFC-0009: `target/` and `.mycelium/` are always excluded from indexing, even without an ignore file.
+- RFC-0009: Background FSE watch loop filters events for ignored paths before re-indexing.
+- RFC-0009: `.myceliumignore` is registered as a custom ignore filename in `WalkBuilder`.
 
 ### Fixed
 
