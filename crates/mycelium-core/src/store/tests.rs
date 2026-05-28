@@ -948,3 +948,52 @@ fn store_entry_points_empty_graph() {
     let store = Store::new();
     assert!(store.entry_points(None).is_empty());
 }
+
+// ── RFC-0023: Store::imports_of / imported_by ─────────────────────────
+
+#[test]
+fn store_imports_of_returns_import_targets() {
+    let mut store = Store::new();
+    let file = store.upsert_node(path("src/a.rs"));
+    let dep = store.upsert_node(path("os"));
+    store.upsert_edge(EdgeKind::Imports, file, dep);
+    let imports = store.imports_of(file);
+    assert_eq!(imports, vec!["os".to_string()]);
+}
+
+#[test]
+fn store_imported_by_returns_import_sources() {
+    let mut store = Store::new();
+    let file_a = store.upsert_node(path("src/a.rs"));
+    let file_b = store.upsert_node(path("src/b.rs"));
+    let dep = store.upsert_node(path("os"));
+    store.upsert_edge(EdgeKind::Imports, file_a, dep);
+    store.upsert_edge(EdgeKind::Imports, file_b, dep);
+    let mut importers = store.imported_by(dep);
+    importers.sort_unstable();
+    assert_eq!(
+        importers,
+        vec!["src/a.rs".to_string(), "src/b.rs".to_string()]
+    );
+}
+
+#[test]
+fn store_imports_of_empty_when_no_imports() {
+    let mut store = Store::new();
+    let file = store.upsert_node(path("src/a.rs"));
+    assert!(store.imports_of(file).is_empty());
+}
+
+#[test]
+fn store_imports_sorted_lexicographically() {
+    let mut store = Store::new();
+    let file = store.upsert_node(path("src/a.rs"));
+    let z_mod = store.upsert_node(path("z_mod"));
+    let a_mod = store.upsert_node(path("a_mod"));
+    store.upsert_edge(EdgeKind::Imports, file, z_mod);
+    store.upsert_edge(EdgeKind::Imports, file, a_mod);
+    let imports = store.imports_of(file);
+    let mut sorted = imports.clone();
+    sorted.sort_unstable();
+    assert_eq!(imports, sorted);
+}
