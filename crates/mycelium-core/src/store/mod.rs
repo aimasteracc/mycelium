@@ -70,6 +70,19 @@ pub struct CallerNode {
     pub callers: Vec<Self>,
 }
 
+/// A node in the import tree returned by [`Store::import_tree`].
+///
+/// Represents a module/file and its direct imports (recursively up to the
+/// configured `max_depth`).  Cycles are represented as leaf nodes
+/// (`imports` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImportNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Import subtrees, one per outgoing `Imports` edge, up to `max_depth`.
+    pub imports: Vec<Self>,
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -588,6 +601,41 @@ impl Store {
             .collect();
         visited.remove(&id);
         CallerNode { id, callers }
+    }
+
+    /// Return a depth-limited tree of all transitive imports of `id`.
+    ///
+    /// Traverses outgoing `Imports` edges.  `max_depth` controls how many
+    /// hops to follow; 0 returns a leaf immediately.
+    ///
+    /// Cycles are broken via a visited set: a node already in the current
+    /// traversal path is returned as a leaf with no imports.
+    #[must_use]
+    pub fn import_tree(&self, id: NodeId, max_depth: usize) -> ImportNode {
+        let mut visited = HashSet::new();
+        self.import_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn import_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> ImportNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return ImportNode {
+                id,
+                imports: vec![],
+            };
+        }
+        let imports: Vec<ImportNode> = self
+            .synapse
+            .outgoing(id, EdgeKind::Imports)
+            .iter()
+            .map(|&dep_id| self.import_tree_inner(dep_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        ImportNode { id, imports }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.
