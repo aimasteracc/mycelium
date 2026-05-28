@@ -61,6 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0012: `mycelium_get_callees` MCP tool — returns all symbols a given path calls, as a sorted list.
 - RFC-0012: `mycelium_get_callers` MCP tool — returns all symbols that call a given path, as a sorted list.
 - RFC-0013: Two-pass extraction — `Extractor::extract` now makes two sequential AST traversals (definitions first, references second) so forward-reference call edges always resolve to definition nodes rather than bare stubs.
+- RFC-0014: Cross-file call stub resolution — `Store::resolve_bare_call_stubs()` runs after each full workspace index, rewiring `Calls` edges that point to bare stub nodes to their actual definition nodes (unambiguous matches only).
+- RFC-0014: `AdjacencyList::redirect_node` and `Synapse::redirect_node` — edge-rewiring primitives used by stub resolution.
+- RFC-0014: `mycelium_index_workspace` response now includes `"stubs_resolved"` count.
 
 ### Fixed
 
