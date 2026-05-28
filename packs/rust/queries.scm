@@ -66,3 +66,14 @@
 (source_file
   (use_declaration
     argument: (_) @name)) @reference.import
+
+; ── Call expressions (Synapse Calls edges) ──────────────────────────
+
+; Simple calls: foo()
+(call_expression
+  function: (identifier) @name) @reference.call
+
+; Method calls: self.method() / obj.method()
+(call_expression
+  function: (field_expression
+    field: (field_identifier) @name)) @reference.call

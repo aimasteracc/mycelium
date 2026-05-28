@@ -221,3 +221,86 @@ fn extractor_handles_class_with_multiple_methods() {
     assert!(store.lookup("test.py>Svc>a").is_some());
     assert!(store.lookup("test.py>Svc>b").is_some());
 }
+
+// ── RFC-0011: reference.call (Calls edges) ───────────────────────────────────
+
+fn ts_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+    let query_src = include_str!("../../../../packs/typescript/queries.scm");
+    Extractor::new(language, query_src).expect("typescript extractor should build")
+}
+
+fn extract_ts(source: &str) -> Store {
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store
+}
+
+fn rs_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/rust/queries.scm");
+    Extractor::new(language, query_src).expect("rust extractor should build")
+}
+
+fn extract_rs(source: &str) -> Store {
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_python_call_inside_function_creates_calls_edge() {
+    // foo calls bar; bar is defined in the same file.
+    let source = "def bar(): pass\ndef foo():\n    bar()";
+    let store = extract(source);
+    let caller = store.lookup("test.py>foo").expect("foo must exist");
+    let callee = store.lookup("test.py>bar").expect("bar must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo should have a Calls edge to bar"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_python_method_call_creates_calls_edge() {
+    let source = "def helper(): pass\nclass Svc:\n    def run(self):\n        helper()";
+    let store = extract(source);
+    let caller = store.lookup("test.py>Svc>run").expect("run must exist");
+    let callee = store.lookup("test.py>helper").expect("helper must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "run should have a Calls edge to helper"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_typescript_call_creates_calls_edge() {
+    let source = "function bar(): void {}\nfunction foo(): void { bar(); }";
+    let store = extract_ts(source);
+    let caller = store.lookup("test.ts>foo").expect("foo must exist");
+    let callee = store.lookup("test.ts>bar").expect("bar must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo should have a Calls edge to bar"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_rust_call_creates_calls_edge() {
+    let source = "fn bar() {}\nfn foo() { bar(); }";
+    let store = extract_rs(source);
+    let caller = store.lookup("test.rs>foo").expect("foo must exist");
+    let callee = store.lookup("test.rs>bar").expect("bar must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo should have a Calls edge to bar"
+    );
+}
