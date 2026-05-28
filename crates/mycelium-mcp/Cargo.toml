@@ -33,6 +33,7 @@ tree-sitter-python      = { workspace = true }
 tree-sitter-typescript  = { workspace = true }
 tree-sitter-rust        = { workspace = true }
 notify                  = { workspace = true }
+ignore                  = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

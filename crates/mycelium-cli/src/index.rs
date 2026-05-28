@@ -9,8 +9,8 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use ignore::WalkBuilder;
 use mycelium_core::{extractor::Extractor, store::Store};
-use walkdir::WalkDir;
 
 // ── embedded pack sources ─────────────────────────────────────────────────────
 
@@ -66,11 +66,30 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
     let mut store = Store::new();
     let mut stats = IndexStats::default();
 
-    for entry in WalkDir::new(root)
+    // Build a walker that respects .gitignore, .ignore, and .myceliumignore.
+    // Hard-coded overrides ensure target/ and .mycelium/ are always excluded.
+    // We also explicitly add root-level .gitignore via add_ignore() so ignore
+    // rules work even when the root is not inside a git repository.
+    let mut walk_builder = WalkBuilder::new(root);
+    walk_builder
         .follow_links(false)
-        .into_iter()
+        .add_custom_ignore_filename(".myceliumignore");
+    for name in &[".gitignore", ".myceliumignore"] {
+        let p = root.join(name);
+        if p.exists() {
+            walk_builder.add_ignore(&p);
+        }
+    }
+    let walker = walk_builder
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !matches!(name.as_ref(), "target" | ".mycelium")
+        })
+        .build();
+
+    for entry in walker
         .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
     {
         let path = entry.path();
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
@@ -325,5 +344,77 @@ mod tests {
         assert_eq!(stats.files, 1);
         assert!(store.lookup("types.rs>Color").is_some());
         assert!(store.lookup("types.rs>Drawable").is_some());
+    }
+
+    // ── RFC-0009 ignore-filtering tests ──────────────────────────────
+
+    #[test]
+    fn index_path_skips_gitignored_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Write a .gitignore that excludes node_modules/
+        fs::write(tmp.path().join(".gitignore"), "node_modules/\n").unwrap();
+        let nm = tmp.path().join("node_modules");
+        fs::create_dir(&nm).unwrap();
+        fs::write(nm.join("dep.js"), "function dep() {}").unwrap();
+        // Also write a non-ignored file
+        write_temp_py(tmp.path(), "main.py", "def main(): pass");
+
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "only main.py should be indexed");
+        assert!(
+            store.lookup("main.py>main").is_some(),
+            "main.py symbols must be present"
+        );
+        assert!(
+            store.lookup("node_modules/dep.js").is_none(),
+            "node_modules must be skipped"
+        );
+    }
+
+    #[test]
+    fn index_path_always_skips_target_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        // No .gitignore — target/ must still be skipped by default.
+        let target = tmp.path().join("target");
+        fs::create_dir(&target).unwrap();
+        fs::write(target.join("artifact.rs"), "fn artifact() {}").unwrap();
+        write_temp_rs(tmp.path(), "lib.rs", "fn real() {}");
+
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "only lib.rs should be indexed");
+        assert!(
+            store.lookup("target/artifact.rs").is_none(),
+            "target/ must always be skipped"
+        );
+    }
+
+    #[test]
+    fn index_path_always_skips_mycelium_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let snap_dir = tmp.path().join(".mycelium");
+        fs::create_dir(&snap_dir).unwrap();
+        fs::write(snap_dir.join("index.rmp"), b"not real").unwrap();
+        write_temp_rs(tmp.path(), "lib.rs", "fn real() {}");
+
+        let (_store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, ".mycelium/ must not be indexed");
+    }
+
+    #[test]
+    fn index_path_respects_myceliumignore() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join(".myceliumignore"), "vendor/\n").unwrap();
+        let vendor = tmp.path().join("vendor");
+        fs::create_dir(&vendor).unwrap();
+        fs::write(vendor.join("third.py"), "def third(): pass").unwrap();
+        write_temp_py(tmp.path(), "app.py", "def app(): pass");
+
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(
+            stats.files, 1,
+            "vendor/ should be excluded via .myceliumignore"
+        );
+        assert!(store.lookup("app.py>app").is_some());
+        assert!(store.lookup("vendor/third.py").is_none());
     }
 }

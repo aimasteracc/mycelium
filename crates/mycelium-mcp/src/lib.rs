@@ -205,6 +205,19 @@ impl MyceliumServer {
         let watch_state = Arc::clone(&self.watch_state);
         let snap = root.join(".mycelium").join("index.rmp");
 
+        // Build ignore matcher from root .gitignore / .myceliumignore.
+        let gitignore = {
+            let mut gb = ignore::gitignore::GitignoreBuilder::new(&root);
+            for name in &[".gitignore", ".myceliumignore"] {
+                let p = root.join(name);
+                if p.exists() {
+                    gb.add(p);
+                }
+            }
+            gb.build()
+                .unwrap_or_else(|_| ignore::gitignore::Gitignore::empty())
+        };
+
         watch_state.watching.store(true, Ordering::Relaxed);
 
         let handle = tokio::spawn(async move {
@@ -232,6 +245,24 @@ impl MyceliumServer {
                 let mut changed = false;
 
                 for abs_path in &batch {
+                    // Skip paths that match the ignore rules or are always excluded.
+                    let is_ignored = abs_path
+                        .strip_prefix(&root)
+                        .ok()
+                        .and_then(|rel| rel.components().next())
+                        .is_some_and(|first_comp| {
+                            matches!(
+                                first_comp.as_os_str().to_string_lossy().as_ref(),
+                                "target" | ".mycelium"
+                            )
+                        });
+                    if is_ignored {
+                        continue;
+                    }
+                    if gitignore.matched(abs_path, abs_path.is_dir()).is_ignore() {
+                        continue;
+                    }
+
                     let rel = abs_path
                         .strip_prefix(&root)
                         .unwrap_or(abs_path)
@@ -464,11 +495,28 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
     let mut errors = 0usize;
     let mut languages: BTreeSet<&'static str> = BTreeSet::new();
 
-    for entry in walkdir::WalkDir::new(root)
+    // Build a walker that respects .gitignore / .myceliumignore; always skips
+    // target/ and .mycelium/ regardless of whether a .gitignore exists.
+    let mut walk_builder = ignore::WalkBuilder::new(root);
+    walk_builder
         .follow_links(false)
-        .into_iter()
+        .add_custom_ignore_filename(".myceliumignore");
+    for name in &[".gitignore", ".myceliumignore"] {
+        let p = root.join(name);
+        if p.exists() {
+            walk_builder.add_ignore(&p);
+        }
+    }
+    let walker = walk_builder
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !matches!(name.as_ref(), "target" | ".mycelium")
+        })
+        .build();
+
+    for entry in walker
         .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
     {
         let path = entry.path();
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
