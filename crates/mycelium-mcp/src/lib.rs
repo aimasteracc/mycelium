@@ -14,8 +14,10 @@
 //! | `mycelium_load_index` | Load a previously saved `.mycelium/index.rmp` |
 //! | `mycelium_server_status` | Return node count, edge count, root, and ready status |
 //! | `mycelium_watch_status` | Return file-watch loop status and batch count |
+//! | `mycelium_get_callees` | Return all symbols a given path calls directly |
+//! | `mycelium_get_callers` | Return all symbols that call a given path |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, and RFC-0010 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, and RFC-0012 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -85,6 +87,20 @@ pub struct GetDescendantsRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct LoadIndexRequest {
     /// Workspace root that contains a `.mycelium/index.rmp` snapshot.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_callees`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetCalleesRequest {
+    /// Trunk path to look up callees for, e.g. `"src/lib.rs>process"`.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_callers`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetCallersRequest {
+    /// Trunk path to look up callers for, e.g. `"src/lib.rs>helper"`.
     pub path: String,
 }
 
@@ -456,6 +472,54 @@ impl MyceliumServer {
             "batches_processed": batches_processed,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Return all symbols (callee paths) that a given symbol calls directly. \
+                       Uses the Calls edges populated during indexing. Returns a sorted list \
+                       of trunk paths."
+    )]
+    async fn mycelium_get_callees(&self, Parameters(req): Parameters<GetCalleesRequest>) -> String {
+        let store_guard = self.store.read().await;
+        let lookup_result = store_guard.lookup(&req.path);
+        let Some(id) = lookup_result else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let mut paths: Vec<String> = store_guard
+            .outgoing(id, mycelium_core::types::EdgeKind::Calls)
+            .iter()
+            .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
+            .collect();
+        drop(store_guard);
+        paths.sort();
+        paths.dedup();
+        serde_json::json!({ "callee_paths": paths }).to_string()
+    }
+
+    #[tool(
+        description = "Return all symbols (caller paths) that call a given symbol directly. \
+                       Uses the reverse Calls edges populated during indexing. Returns a sorted \
+                       list of trunk paths."
+    )]
+    async fn mycelium_get_callers(&self, Parameters(req): Parameters<GetCallersRequest>) -> String {
+        let store_guard = self.store.read().await;
+        let lookup_result = store_guard.lookup(&req.path);
+        let Some(id) = lookup_result else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let mut paths: Vec<String> = store_guard
+            .incoming(id, mycelium_core::types::EdgeKind::Calls)
+            .iter()
+            .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
+            .collect();
+        drop(store_guard);
+        paths.sort();
+        paths.dedup();
+        serde_json::json!({ "caller_paths": paths }).to_string()
     }
 }
 
@@ -1129,6 +1193,92 @@ mod tests {
         .await;
 
         assert!(found, "watcher must detect new file and index it");
+    }
+
+    // ── RFC-0012: call-graph MCP tools ───────────────────────────────────
+
+    async fn server_with_call_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let file = store.upsert_node(TrunkPath::parse("src/lib.rs").unwrap());
+            let foo = store.upsert_node(TrunkPath::parse("src/lib.rs>foo").unwrap());
+            let bar = store.upsert_node(TrunkPath::parse("src/lib.rs>bar").unwrap());
+            let baz = store.upsert_node(TrunkPath::parse("src/lib.rs>baz").unwrap());
+            store.upsert_edge(EdgeKind::Contains, file, foo);
+            store.upsert_edge(EdgeKind::Contains, file, bar);
+            store.upsert_edge(EdgeKind::Contains, file, baz);
+            // foo calls bar and baz; baz calls bar.
+            store.upsert_edge(EdgeKind::Calls, foo, bar);
+            store.upsert_edge(EdgeKind::Calls, foo, baz);
+            store.upsert_edge(EdgeKind::Calls, baz, bar);
+        }
+        server
+    }
+
+    #[tokio::test]
+    async fn get_callees_returns_functions_called_by_path() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_get_callees(Parameters(GetCalleesRequest {
+                path: "src/lib.rs>foo".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let paths: Vec<&str> = val["callee_paths"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(
+            paths.contains(&"src/lib.rs>bar"),
+            "callees of foo must include bar"
+        );
+        assert!(
+            paths.contains(&"src/lib.rs>baz"),
+            "callees of foo must include baz"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_callers_returns_functions_that_call_path() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "src/lib.rs>bar".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let paths: Vec<&str> = val["caller_paths"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(
+            paths.contains(&"src/lib.rs>foo"),
+            "callers of bar must include foo"
+        );
+        assert!(
+            paths.contains(&"src/lib.rs>baz"),
+            "callers of bar must include baz"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_callees_returns_error_for_unknown_path() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_get_callees(Parameters(GetCalleesRequest {
+                path: "no/such/path".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_some(),
+            "unknown path should return error"
+        );
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
