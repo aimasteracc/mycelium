@@ -23,6 +23,7 @@ workspace = true
 [dependencies]
 mycelium-core      = { workspace = true }
 mycelium-pack      = { workspace = true }
+mycelium-mcp       = { path = "../mycelium-mcp", version = "0.0.1" }
 tree-sitter             = { workspace = true }
 tree-sitter-python      = { workspace = true }
 tree-sitter-typescript  = { workspace = true }
@@ -32,6 +33,7 @@ anyhow             = { workspace = true }
 tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
 walkdir            = { workspace = true }
+tokio              = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

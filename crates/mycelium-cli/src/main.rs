@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use tokio::runtime::Runtime;
 
 mod index;
 
@@ -83,8 +84,12 @@ fn main() -> Result<()> {
                 "`mycelium query` is not implemented yet (query={expr:?}) — see RFC-0003"
             );
         }
-        Cmd::Serve { mcp } => {
-            tracing::warn!("`mycelium serve --mcp={mcp}` is not implemented yet");
+        Cmd::Serve { mcp: true } => {
+            let rt = Runtime::new()?;
+            rt.block_on(mycelium_mcp::serve_stdio())?;
+        }
+        Cmd::Serve { mcp: false } => {
+            tracing::warn!("`mycelium serve` requires `--mcp` flag (other transports are v0.2)");
         }
     }
     Ok(())
