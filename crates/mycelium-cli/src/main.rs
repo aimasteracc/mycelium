@@ -44,6 +44,12 @@ enum Cmd {
         /// Use MCP protocol over stdio.
         #[arg(long)]
         mcp: bool,
+        /// Pre-load (or build) the symbol index from this root directory.
+        ///
+        /// Loads `.mycelium/index.rmp` if present; otherwise runs a full index
+        /// and saves the snapshot before the server accepts connections.
+        #[arg(long)]
+        root: Option<PathBuf>,
     },
 }
 
@@ -83,11 +89,12 @@ fn main() -> Result<()> {
                 "`mycelium query` is not implemented yet (query={expr:?}) — see RFC-0003"
             );
         }
-        Cmd::Serve { mcp: true } => {
+        Cmd::Serve { mcp: true, root } => {
+            let root = root.map(|p| p.canonicalize().unwrap_or(p));
             let rt = Runtime::new()?;
-            rt.block_on(mycelium_mcp::serve_stdio())?;
+            rt.block_on(mycelium_mcp::serve_stdio(root))?;
         }
-        Cmd::Serve { mcp: false } => {
+        Cmd::Serve { mcp: false, .. } => {
             tracing::warn!("`mycelium serve` requires `--mcp` flag (other transports are v0.2)");
         }
     }
