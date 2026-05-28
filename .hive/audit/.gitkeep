@@ -1,0 +1,3 @@
+# This directory holds the Hive's append-only audit log, one file per UTC day.
+# Filename format: YYYY-MM-DD.jsonl
+# Files are excluded from git per .gitignore; only this .gitkeep tracks the directory.

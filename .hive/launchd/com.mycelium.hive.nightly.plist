@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTD/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        Mycelium Hive — Nightly Bench + Security
+        Triggers at 02:00 local. Runs Bench agent then Security agent.
+    -->
+
+    <key>Label</key>
+    <string>com.mycelium.hive.nightly</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-l</string>
+        <string>/Users/aisheng.yu/wiki/mycelium/scripts/hive-run.sh</string>
+        <string>bench</string>
+        <string>nightly</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/aisheng.yu/wiki/mycelium</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/aisheng.yu/wiki/mycelium/.hive/run/nightly.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/aisheng.yu/wiki/mycelium/.hive/run/nightly.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HIVE_ROLE</key>
+        <string>bench</string>
+        <key>HIVE_TRIGGER</key>
+        <string>nightly</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>

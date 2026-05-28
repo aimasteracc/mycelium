@@ -1,0 +1,53 @@
+name: ✨ Feature Request
+description: Propose a new feature or enhancement.
+title: "feat: <short summary>"
+labels: ["feature", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an idea! Larger features (public API, storage format, performance) become RFCs.
+        Small, focused features can usually be discussed inline.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem does this feature solve? Be concrete.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider? Why is the proposal preferred?
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Estimated scope
+      multiple: false
+      options:
+        - Small (no API change, contained)
+        - Medium (API addition, some refactor)
+        - Large (RFC required)
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Performance / SLA impact
+      description: Could this affect the Charter §2 SLAs? If yes, how?
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues for similar proposals.
+          required: true
+        - label: I have read the [Charter](https://github.com/aimasteracc/mycelium/blob/develop/CHARTER.md) §2 SLAs.
+          required: true

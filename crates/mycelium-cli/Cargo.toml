@@ -1,0 +1,28 @@
+[package]
+name          = "mycelium-cli"
+description   = "The `mycelium` command-line tool."
+version       = { workspace = true }
+edition       = { workspace = true }
+rust-version  = { workspace = true }
+license       = { workspace = true }
+authors       = { workspace = true }
+repository    = { workspace = true }
+homepage      = { workspace = true }
+documentation = { workspace = true }
+readme        = "../mycelium-core/README.md"
+keywords      = ["code-intelligence", "cli", "graph", "tree-sitter", "ai"]
+categories    = ["development-tools", "command-line-utilities"]
+
+[[bin]]
+name = "mycelium"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+mycelium-core = { workspace = true }
+clap          = { workspace = true }
+anyhow        = { workspace = true }
+tracing       = { workspace = true }
+tracing-subscriber = { workspace = true }

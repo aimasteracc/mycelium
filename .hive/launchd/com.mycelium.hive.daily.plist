@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTD/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        Mycelium Hive — Daily Standup
+        Triggers PM agent at 09:00 local Mac Pro time.
+
+        Install:
+            cp .hive/launchd/com.mycelium.hive.daily.plist ~/Library/LaunchAgents/
+            launchctl load ~/Library/LaunchAgents/com.mycelium.hive.daily.plist
+        Uninstall:
+            launchctl unload ~/Library/LaunchAgents/com.mycelium.hive.daily.plist
+            rm ~/Library/LaunchAgents/com.mycelium.hive.daily.plist
+
+        IMPORTANT: this plist references absolute paths. After install,
+        edit ~/Library/LaunchAgents/com.mycelium.hive.daily.plist to point
+        WorkingDirectory and the script path at your local clone.
+    -->
+
+    <key>Label</key>
+    <string>com.mycelium.hive.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-l</string>
+        <string>/Users/aisheng.yu/wiki/mycelium/scripts/hive-run.sh</string>
+        <string>pm</string>
+        <string>daily-standup</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/aisheng.yu/wiki/mycelium</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/aisheng.yu/wiki/mycelium/.hive/run/daily.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/aisheng.yu/wiki/mycelium/.hive/run/daily.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HIVE_ROLE</key>
+        <string>pm</string>
+        <key>HIVE_TRIGGER</key>
+        <string>daily-standup</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>

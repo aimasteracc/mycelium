@@ -1,0 +1,8 @@
+avoid-breaking-exported-api      = true
+disallowed-types                  = []
+disallowed-methods                = [
+    { path = "std::sync::Mutex::new", reason = "Use tokio::sync::Mutex for async contexts" },
+]
+msrv                              = "1.85.0"
+type-complexity-threshold         = 250
+too-many-arguments-threshold      = 8

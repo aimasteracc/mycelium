@@ -1,0 +1,92 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 02:00 UTC daily
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fuzz:
+    name: fuzz (1 hour)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@cargo-fuzz
+      - run: |
+          if [ -d "fuzz" ]; then
+            for target in $(cargo fuzz list 2>/dev/null); do
+              echo "::group::fuzzing $target for 10m"
+              cargo fuzz run "$target" -- -max_total_time=600 || true
+              echo "::endgroup::"
+            done
+          else
+            echo "no fuzz/ directory yet — skipping"
+          fi
+
+  bench:
+    name: benchmarks (criterion)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          if find . -name "*.rs" -path "*/benches/*" | grep -q .; then
+            cargo bench --workspace -- --output-format bencher | tee bench-results.txt
+          else
+            echo "no benches yet — skipping"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-results
+          path: bench-results.txt
+          if-no-files-found: ignore
+
+  e2e:
+    name: e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          if [ -d "tests/e2e" ]; then
+            cargo test --test '*e2e*' --release
+          else
+            echo "no tests/e2e yet — skipping"
+          fi
+        shell: bash
+
+  mutants:
+    name: mutation testing (weekly)
+    if: github.event.schedule == '0 2 * * 1'  # Monday only
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@cargo-mutants
+      - run: |
+          cargo mutants --workspace --timeout 60 --no-shuffle --json --output mutants-report.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutants-report
+          path: mutants-report.json
+          if-no-files-found: ignore

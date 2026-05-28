@@ -1,0 +1,35 @@
+# Mycelium CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Format: <pattern> <owner> [<owner> ...]
+# Default owner for everything: founder.
+
+* @aimasteracc
+
+# Governance documents — founder required
+/CHARTER.md      @aimasteracc
+/GOVERNANCE.md   @aimasteracc
+/LICENSE         @aimasteracc
+/CODE_OF_CONDUCT.md @aimasteracc
+/SECURITY.md     @aimasteracc
+/.github/        @aimasteracc
+
+# Hive — founder required for any change
+/.hive/          @aimasteracc
+
+# RFCs — founder + architect
+/rfcs/           @aimasteracc
+
+# Core engine
+/crates/mycelium-core/    @aimasteracc
+/crates/mycelium-hyphae/  @aimasteracc
+/crates/mycelium-pack/    @aimasteracc
+
+# Language packs — open to maintainers and contributors
+/packs/          @aimasteracc
+
+# Docs — open to all maintainers
+/docs/           @aimasteracc
+
+# CI — founder required
+/.github/workflows/ @aimasteracc

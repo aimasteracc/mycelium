@@ -1,0 +1,23 @@
+[package]
+name          = "mycelium-pack"
+description   = "Language pack loader and runtime for Mycelium. Reads pack.toml + queries.scm."
+version       = { workspace = true }
+edition       = { workspace = true }
+rust-version  = { workspace = true }
+license       = { workspace = true }
+authors       = { workspace = true }
+repository    = { workspace = true }
+homepage      = { workspace = true }
+documentation = { workspace = true }
+readme        = "../mycelium-core/README.md"
+keywords      = ["code-intelligence", "language-pack", "tree-sitter", "parser", "ai"]
+categories    = ["development-tools", "parser-implementations"]
+
+[lints]
+workspace = true
+
+[dependencies]
+mycelium-core = { workspace = true }
+serde         = { workspace = true }
+toml          = { workspace = true }
+thiserror     = { workspace = true }

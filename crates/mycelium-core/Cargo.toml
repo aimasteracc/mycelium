@@ -1,0 +1,33 @@
+[package]
+name          = "mycelium-core"
+description   = "The reactive code intelligence graph engine — Trunk (containment) + Synapse (cross-edges) + Cortex (reactivity)."
+version       = { workspace = true }
+edition       = { workspace = true }
+rust-version  = { workspace = true }
+license       = { workspace = true }
+authors       = { workspace = true }
+repository    = { workspace = true }
+homepage      = { workspace = true }
+documentation = { workspace = true }
+keywords      = ["code-intelligence", "tree-sitter", "graph", "ai", "mcp"]
+categories    = ["development-tools", "parser-implementations"]
+readme        = "README.md"
+
+[lints]
+workspace = true
+
+[dependencies]
+blake3      = { workspace = true }
+hashbrown   = { workspace = true }
+smol_str    = { workspace = true }
+thiserror   = { workspace = true }
+tracing     = { workspace = true }
+
+[dev-dependencies]
+insta       = { workspace = true }
+proptest    = { workspace = true }
+
+[[bench]]
+name    = "trunk_lookup"
+harness = false
+required-features = []

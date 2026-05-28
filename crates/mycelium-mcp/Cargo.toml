@@ -1,0 +1,26 @@
+[package]
+name          = "mycelium-mcp"
+description   = "Model Context Protocol server for Mycelium. Powers the AI agent surface."
+version       = { workspace = true }
+edition       = { workspace = true }
+rust-version  = { workspace = true }
+license       = { workspace = true }
+authors       = { workspace = true }
+repository    = { workspace = true }
+homepage      = { workspace = true }
+documentation = { workspace = true }
+readme        = "../mycelium-core/README.md"
+keywords      = ["mcp", "code-intelligence", "ai", "graph", "tree-sitter"]
+categories    = ["development-tools", "api-bindings"]
+
+[lints]
+workspace = true
+
+[dependencies]
+mycelium-core   = { workspace = true }
+mycelium-hyphae = { path = "../mycelium-hyphae" }
+serde           = { workspace = true }
+serde_json      = { workspace = true }
+tokio           = { workspace = true }
+tracing         = { workspace = true }
+thiserror       = { workspace = true }

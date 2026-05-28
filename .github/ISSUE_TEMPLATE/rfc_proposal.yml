@@ -1,0 +1,42 @@
+name: 📜 RFC Proposal (pre-draft)
+description: Surface a design idea that may become an RFC. Use for discussion before drafting.
+title: "rfc-pre: <short title>"
+labels: ["proposal", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to gauge interest BEFORE drafting a full RFC.
+        If discussion converges, a Spec Author (or you) will draft an RFC and PR it to `rfcs/`.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem are we solving? Who feels it?
+    validations:
+      required: true
+  - type: textarea
+    id: sketch
+    attributes:
+      label: Sketch of the proposed design
+      description: High-level idea. No need for full detail yet.
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Anticipated trade-offs
+  - type: textarea
+    id: charter
+    attributes:
+      label: Charter §2 SLA implications
+      description: Will this affect cold-query, traversal, reactive, or token efficiency?
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I have read the [RFC README](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/README.md).
+          required: true
+        - label: I searched existing RFCs and issues for overlap.
+          required: true

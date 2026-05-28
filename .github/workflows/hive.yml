@@ -1,0 +1,59 @@
+name: Hive (Autonomous)
+
+# The Hive runs primarily on the founder's local Mac Pro via launchd
+# (see .hive/launchd/). This workflow is the safety net + the kill-switch
+# integration: any push triggers a check that the Hive kill switch is
+# closed, and a daily cron writes a sentinel artifact so the local Hive
+# can confirm the workflow is alive.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # daily 09:00 UTC sentinel
+  workflow_dispatch:
+  issues:
+    types: [closed, reopened]
+
+jobs:
+  kill-switch-check:
+    name: kill-switch status
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+    outputs:
+      hive_active: ${{ steps.check.outputs.hive_active }}
+    steps:
+      - name: Check issue #1 (Hive kill switch)
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const issue = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: 1,
+              });
+              const active = issue.data.state === 'open';
+              core.setOutput('hive_active', active ? 'true' : 'false');
+              core.notice(`Hive kill-switch issue #1 is ${issue.data.state}. Hive ${active ? 'ACTIVE' : 'PAUSED'}.`);
+            } catch (e) {
+              core.setOutput('hive_active', 'false');
+              core.warning('Issue #1 (Hive kill switch) not found yet. Hive considered PAUSED until created.');
+            }
+
+  sentinel:
+    name: daily sentinel
+    needs: kill-switch-check
+    if: github.event_name == 'schedule' && needs.kill-switch-check.outputs.hive_active == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write sentinel
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          echo "{\"date\":\"$DATE\",\"hive_active\":true,\"workflow_run\":\"${{ github.run_id }}\"}" > sentinel.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hive-sentinel-${{ github.run_id }}
+          path: sentinel.json
+          retention-days: 7

@@ -1,0 +1,87 @@
+# Rust
+/target/
+**/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# IDE
+/.idea/
+/.vscode/*
+!/.vscode/settings.json
+!/.vscode/extensions.json
+*.iml
+*.swp
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Coverage
+/coverage/
+*.profraw
+*.profdata
+lcov.info
+cobertura.xml
+
+# Benchmark output
+/criterion/
+/target/criterion/
+
+# Documentation build
+/docs/book/
+/target/doc/
+
+# Local environment
+.env
+.env.local
+
+# Mycelium runtime
+*.myc
+.mycelium-cache/
+
+# Hive runtime (logs only — definitions and memory are committed)
+.hive/audit/*.jsonl
+!.hive/audit/.gitkeep
+.hive/run/
+.hive/scratch/
+
+# Fuzz
+/fuzz/corpus/
+/fuzz/artifacts/
+
+# Generated
+generated/
+*.gen.rs
+
+# Node (for napi-rs bindings)
+node_modules/
+*.node
+dist/
+*.tsbuildinfo
+
+# Python (for pyo3 bindings)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+build/
+
+# Temporary
+tmp/
+.tmp/

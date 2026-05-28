@@ -1,0 +1,64 @@
+name: 🌐 Language Pack Request
+description: Request support for a new programming language.
+title: "pack: add <language> support"
+labels: ["language-pack", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for asking for a new language! Every pack is at most 3 files
+        under `packs/<lang>/`. Help us scope it.
+  - type: input
+    id: language
+    attributes:
+      label: Language name
+      placeholder: "Elixir"
+    validations:
+      required: true
+  - type: input
+    id: extensions
+    attributes:
+      label: File extensions
+      placeholder: ".ex, .exs"
+    validations:
+      required: true
+  - type: input
+    id: grammar
+    attributes:
+      label: tree-sitter grammar source
+      description: Repo URL of a maintained tree-sitter grammar. Required.
+      placeholder: "https://github.com/elixir-lang/tree-sitter-elixir"
+    validations:
+      required: true
+  - type: textarea
+    id: importance
+    attributes:
+      label: Why this language?
+      description: What community uses it? How big? What problems would Mycelium solve for them?
+    validations:
+      required: true
+  - type: textarea
+    id: quirks
+    attributes:
+      label: Known language quirks
+      description: Macros, metaprogramming, unusual AST shapes — anything that might require `hooks.wasm`.
+  - type: dropdown
+    id: volunteer
+    attributes:
+      label: Are you volunteering to author this pack?
+      multiple: false
+      options:
+        - "Yes — I can submit the PR"
+        - "Partially — I can review and test"
+        - "No — requesting from the community"
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I confirmed the tree-sitter grammar exists and is maintained.
+          required: true
+        - label: I have read the [Pack Author](https://github.com/aimasteracc/mycelium/blob/develop/.hive/pack-author.agent.md) guidance and the §4 hard constraint.
+          required: true

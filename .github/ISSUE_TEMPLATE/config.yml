@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 Discussion / Question
+    url: https://github.com/aimasteracc/mycelium/discussions
+    about: Ask questions, share ideas, get help from the community.
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/aimasteracc/mycelium/security/advisories/new
+    about: Privately report a security issue. Do NOT open a public issue.
+  - name: 🤝 Sponsor the project
+    url: https://github.com/sponsors/aimasteracc
+    about: Help fund Mycelium's development.

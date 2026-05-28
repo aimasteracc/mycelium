@@ -1,0 +1,14 @@
+{"term":"Mycelium","canonical-en":"Mycelium","canonical-zh":"菌丝网络","canonical-ja":"マイセリウム","definition":"The project name; metaphor for the underground network connecting trees in a forest (Wood Wide Web)"}
+{"term":"Hyphae","canonical-en":"Hyphae","canonical-zh":"菌丝","canonical-ja":"ハイファ","definition":"The query language; a single thread of fungal mycelium. Pronounced /ˈhaɪfiː/"}
+{"term":"Trunk","canonical-en":"Trunk","canonical-zh":"树干","canonical-ja":"幹","definition":"The containment-tree storage layer: a materialized-path radix trie"}
+{"term":"Synapse","canonical-en":"Synapse","canonical-zh":"突触","canonical-ja":"シナプス","definition":"The cross-cutting-edge storage layer: CSR-encoded adjacency lists per edge kind"}
+{"term":"Cortex","canonical-en":"Cortex","canonical-zh":"皮层","canonical-ja":"皮質","definition":"The reactive query layer: Salsa-style dependency tracking with subscription-based invalidation"}
+{"term":"Hive","canonical-en":"Hive","canonical-zh":"蜂群","canonical-ja":"ハイブ","definition":"The team of AI agents developing Mycelium; defined under .hive/"}
+{"term":"Pack","canonical-en":"language pack","canonical-zh":"语言包","canonical-ja":"言語パック","definition":"A directory under packs/<lang>/ containing pack.toml, queries.scm, and optionally hooks.wasm. Adds support for one programming language."}
+{"term":"Pre-flight","canonical-en":"pre-flight","canonical-zh":"飞行前检查","canonical-ja":"プリフライト","definition":"The mandatory startup ritual for every agent invocation: read charter, role, memory, anti-patterns"}
+{"term":"Post-flight","canonical-en":"post-flight","canonical-zh":"飞行后回顾","canonical-ja":"ポストフライト","definition":"The mandatory shutdown ritual: append decisions/lessons/anti-patterns/audit entries"}
+{"term":"BDFL","canonical-en":"Benevolent Dictator for Life","canonical-zh":"终身仁慈独裁者","canonical-ja":"終身善良な独裁者","definition":"The human with final authority over the project. Currently @aimasteracc."}
+{"term":"DCO","canonical-en":"Developer Certificate of Origin","canonical-zh":"开发者原创证明","canonical-ja":"開発者原産地証明","definition":"The certification model used instead of a CLA. Signed-off-by: trailer on every commit."}
+{"term":"Quality Gate","canonical-en":"Quality Gate","canonical-zh":"质量门","canonical-ja":"品質ゲート","definition":"The single required CI status check on PRs; aggregates lint, test, coverage, security results."}
+{"term":"Kill Switch","canonical-en":"kill switch","canonical-zh":"急停开关","canonical-ja":"キルスイッチ","definition":"GitHub issue #1; closing it halts all autonomous Hive activity within 60 seconds."}
+{"term":"Registry-First Release","canonical-en":"registry-first release","canonical-zh":"先发包后合并","canonical-ja":"レジストリファーストリリース","definition":"Release process pattern (adopted from tree-sitter-analyzer): publish to crates.io/npm/PyPI BEFORE merging the release branch to main, ensuring tags always have published artifacts."}
