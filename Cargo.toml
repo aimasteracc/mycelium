@@ -39,6 +39,7 @@ missing_panics_doc   = "warn"
 [workspace.dependencies]
 # Core
 tree-sitter             = "0.25"
+tree-sitter-javascript  = "0.25"
 tree-sitter-python      = "0.25"
 tree-sitter-typescript  = "0.23"
 tree-sitter-rust        = "0.24"
