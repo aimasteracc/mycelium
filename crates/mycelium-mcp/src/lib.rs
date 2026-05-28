@@ -19,8 +19,9 @@
 //! | `mycelium_get_symbol_info` | Return ancestors, descendants, callers, and callees in one call |
 //! | `mycelium_find_call_path` | Find the shortest call chain between two symbols via BFS |
 //! | `mycelium_get_files` | List all indexed source files with optional path-prefix filter |
+//! | `mycelium_rank_symbols` | Return top-N symbols by caller count (most-called first) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, and RFC-0018 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, and RFC-0019 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -112,6 +113,13 @@ pub struct GetCallersRequest {
 pub struct GetSymbolInfoRequest {
     /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
     pub path: String,
+}
+
+/// Input parameters for `mycelium_rank_symbols`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RankSymbolsRequest {
+    /// Maximum results to return (default 10, capped at 100).
+    pub limit: Option<usize>,
 }
 
 /// Input parameters for `mycelium_get_files`.
@@ -610,6 +618,27 @@ impl MyceliumServer {
             "callees": callees,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Return the top-N symbols ranked by incoming Calls edge count (most-called \
+                       first). Useful for identifying architectural hot spots, widely-used \
+                       utilities, and high-coupling functions. limit defaults to 10, capped at 100. \
+                       Symbols with no callers are excluded."
+    )]
+    async fn mycelium_rank_symbols(
+        &self,
+        Parameters(req): Parameters<RankSymbolsRequest>,
+    ) -> String {
+        let limit = req.limit.unwrap_or(10).min(100);
+        let ranked = self.store.read().await.top_callee_symbols(limit);
+        let symbols: Vec<serde_json::Value> = ranked
+            .into_iter()
+            .map(|(path, caller_count)| {
+                serde_json::json!({ "path": path, "caller_count": caller_count })
+            })
+            .collect();
+        serde_json::json!({ "symbols": symbols }).to_string()
     }
 
     #[tool(
@@ -1612,6 +1641,57 @@ mod tests {
         assert!(
             val.get("error").is_some(),
             "unknown to_path must return error"
+        );
+    }
+
+    // ── RFC-0019: mycelium_rank_symbols ──────────────────────────────────
+
+    #[tokio::test]
+    async fn rank_symbols_returns_top_callee_descending() {
+        let server = server_with_call_fixture().await;
+        // Fixture: foo→bar, foo→baz, baz→bar → bar has 2 callers, baz has 1, foo has 0
+        let raw = server
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest { limit: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert!(!symbols.is_empty(), "ranked list must be non-empty");
+        // First symbol must have the highest caller_count
+        let first_count = symbols[0]["caller_count"].as_u64().unwrap();
+        assert!(first_count >= 2, "bar must be ranked first with 2 callers");
+        // Verify foo (no callers) is excluded
+        assert!(
+            !symbols
+                .iter()
+                .any(|s| s["path"].as_str() == Some("src/lib.rs>foo")),
+            "foo has no callers and must be excluded"
+        );
+    }
+
+    #[tokio::test]
+    async fn rank_symbols_respects_limit() {
+        let server = server_with_call_fixture().await;
+        let raw = server
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest { limit: Some(1) }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(
+            val["symbols"].as_array().unwrap().len(),
+            1,
+            "limit=1 must return exactly one symbol"
+        );
+    }
+
+    #[tokio::test]
+    async fn rank_symbols_empty_when_no_call_edges() {
+        let server = server_with_fixture().await; // only Contains edges, no Calls
+        let raw = server
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest { limit: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val["symbols"].as_array().unwrap().is_empty(),
+            "no call edges means empty ranking"
         );
     }
 
