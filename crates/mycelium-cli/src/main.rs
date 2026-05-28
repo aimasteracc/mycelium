@@ -69,15 +69,14 @@ fn main() -> Result<()> {
             let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
             println!("Indexing {} …", canonical.display());
             let (store, stats) = index::index_path(&canonical)?;
-
-            // Summarize results.
-            // v0.1: count nodes by sampling ancestor traversal depth 0 (file nodes).
-            // A proper node/edge counter arrives with the persistence layer (P4).
-            let _ = store; // store is populated but not yet persisted
             println!(
                 "Done.  {} file(s) indexed, {} error(s).",
                 stats.files, stats.errors
             );
+            // RFC-0006: auto-save to .mycelium/index.rmp
+            let snap = canonical.join(".mycelium").join("index.rmp");
+            store.save(&snap)?;
+            println!("Index saved to .mycelium/index.rmp");
         }
         Cmd::Query { expr } => {
             tracing::warn!(

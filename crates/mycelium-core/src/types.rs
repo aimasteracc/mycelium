@@ -6,6 +6,8 @@
 
 use core::fmt;
 
+use serde::{Deserialize, Serialize};
+
 /// A globally unique identifier for a node in the graph.
 ///
 /// `NodeId` is derived from a [`crate::trunk::TrunkPath`] by truncating the
@@ -15,7 +17,7 @@ use core::fmt;
 /// `Ambiguous` error to the caller — never silent.
 ///
 /// `NodeId(0)` is reserved as the **null node**, useful as a sentinel.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[repr(transparent)]
 pub struct NodeId(pub u64);
 
@@ -50,7 +52,7 @@ impl fmt::Display for NodeId {
 /// use cases.
 ///
 /// `as_str` and `try_from_wire` provide a stable wire/serialization form.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[non_exhaustive]
 pub enum NodeKind {
     /// A file in the source tree.
@@ -160,7 +162,7 @@ impl fmt::Display for NodeKind {
 /// code-intelligence ones (calls, imports). Each kind lives in its own
 /// CSR-encoded adjacency list, with forward and reverse adjacency stored
 /// separately so `callers` queries are O(degree) lookups.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[non_exhaustive]
 pub enum EdgeKind {
     /// Parent contains child (file→class, class→method).
@@ -229,7 +231,7 @@ impl fmt::Display for EdgeKind {
 ///
 /// Determined per-file by the language-pack engine, persisted on every node
 /// for fast filtering ("all `async` Python methods").
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[non_exhaustive]
 pub enum Language {
     /// Indicates the language could not be detected, or the source is a non-source file.

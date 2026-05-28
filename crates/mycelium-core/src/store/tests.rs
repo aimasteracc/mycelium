@@ -7,6 +7,9 @@ use super::Store;
 use crate::trunk::TrunkPath;
 use crate::types::{EdgeKind, NodeId};
 
+#[cfg(test)]
+extern crate tempfile;
+
 fn path(s: &str) -> TrunkPath {
     TrunkPath::parse(s).unwrap()
 }
@@ -278,6 +281,100 @@ fn store_descendants_of_path_returns_empty_vec_for_leaf_node() {
         .descendants_of_path("src/lib.rs>leaf")
         .expect("leaf node is materialized");
     assert!(desc.is_empty(), "a leaf node has no descendants");
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// save / load (persistence round-trip)
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_save_creates_snapshot_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    let snap = tmp.path().join(".mycelium").join("index.rmp");
+
+    let mut store = Store::new();
+    store.upsert_node(path("src/lib.rs"));
+    store.upsert_node(path("src/lib.rs>hello"));
+    store.save(&snap).expect("save must succeed");
+
+    assert!(snap.exists(), "snapshot file must be created");
+    assert!(
+        snap.metadata().unwrap().len() > 0,
+        "snapshot must not be empty"
+    );
+}
+
+#[test]
+fn store_load_roundtrips_nodes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let snap = tmp.path().join("index.rmp");
+
+    let mut store = Store::new();
+    let file_id = store.upsert_node(path("src/lib.rs"));
+    let fn_id = store.upsert_node(path("src/lib.rs>hello"));
+    store.upsert_edge(EdgeKind::Contains, file_id, fn_id);
+    store.save(&snap).expect("save must succeed");
+
+    let loaded = Store::load(&snap).expect("load must succeed");
+    assert_eq!(
+        loaded.lookup("src/lib.rs"),
+        Some(file_id),
+        "file node must survive round-trip"
+    );
+    assert_eq!(
+        loaded.lookup("src/lib.rs>hello"),
+        Some(fn_id),
+        "function node must survive round-trip"
+    );
+}
+
+#[test]
+fn store_load_roundtrips_edges() {
+    let tmp = tempfile::tempdir().unwrap();
+    let snap = tmp.path().join("index.rmp");
+
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>A"));
+    let b = store.upsert_node(path("src/b.rs>B"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.save(&snap).expect("save must succeed");
+
+    let loaded = Store::load(&snap).expect("load must succeed");
+    assert_eq!(
+        loaded.outgoing(a, EdgeKind::Calls),
+        &[b],
+        "calls edge must survive round-trip"
+    );
+    assert_eq!(
+        loaded.incoming(b, EdgeKind::Calls),
+        &[a],
+        "reverse edge must survive round-trip"
+    );
+}
+
+#[test]
+fn store_load_error_on_missing_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    let no_such = tmp.path().join("does_not_exist.rmp");
+    assert!(
+        Store::load(&no_such).is_err(),
+        "loading missing file must fail"
+    );
+}
+
+#[test]
+fn store_save_creates_parent_dirs() {
+    let tmp = tempfile::tempdir().unwrap();
+    let nested = tmp
+        .path()
+        .join("deep")
+        .join("nesting")
+        .join(".mycelium")
+        .join("index.rmp");
+
+    let store = Store::new();
+    store.save(&nested).expect("save must create parent dirs");
+    assert!(nested.exists());
 }
 
 #[test]

@@ -69,6 +69,13 @@ pub struct GetDescendantsRequest {
     pub path: String,
 }
 
+/// Input parameters for `mycelium_load_index`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct LoadIndexRequest {
+    /// Workspace root that contains a `.mycelium/index.rmp` snapshot.
+    pub path: String,
+}
+
 // ── server ────────────────────────────────────────────────────────────────────
 
 /// Stateful MCP server holding the in-memory symbol graph.
@@ -115,6 +122,11 @@ impl MyceliumServer {
             Err(e) => serde_json::json!({ "error": format!("task panicked: {e}") }).to_string(),
             Ok(Err(e)) => serde_json::json!({ "error": e.to_string() }).to_string(),
             Ok(Ok((new_store, files, errors, languages))) => {
+                // RFC-0006: auto-save snapshot alongside the workspace
+                let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
+                if let Err(e) = new_store.save(&snap) {
+                    warn!("could not save index snapshot: {e}");
+                }
                 *self.store.write().await = new_store;
                 *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
                 serde_json::json!({ "files": files, "errors": errors, "languages": languages })
@@ -169,6 +181,28 @@ impl MyceliumServer {
             .unwrap_or_default();
         serde_json::json!({ "descendants": descendants }).to_string()
     }
+
+    #[tool(
+        description = "Load a previously saved index from disk without re-indexing. \
+                       Reads the .mycelium/index.rmp snapshot created by mycelium_index_workspace. \
+                       Returns the number of nodes loaded."
+    )]
+    async fn mycelium_load_index(&self, Parameters(req): Parameters<LoadIndexRequest>) -> String {
+        let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
+        match Store::load(&snap) {
+            Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+            Ok(loaded) => {
+                let nodes = loaded.node_count();
+                *self.store.write().await = loaded;
+                *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
+                serde_json::json!({
+                    "nodes": nodes,
+                    "loaded_from": ".mycelium/index.rmp"
+                })
+                .to_string()
+            }
+        }
+    }
 }
 
 #[tool_handler]
@@ -182,6 +216,8 @@ impl ServerHandler for MyceliumServer {
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
 
+// ts_lang / tsx_lang differ only by one letter — similarity is intentional.
+#[allow(clippy::similar_names)]
 fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec<String>)> {
     let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
     let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
@@ -194,6 +230,11 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
     let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
     let ts_ext = Extractor::new(ts_lang, TYPESCRIPT_QUERIES)
         .context("failed to compile TypeScript extractor")?;
+
+    // TSX uses a distinct grammar that extends TypeScript with JSX node types.
+    let tsx_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TSX.into();
+    let tsx_ext =
+        Extractor::new(tsx_lang, TYPESCRIPT_QUERIES).context("failed to compile TSX extractor")?;
 
     let rs_lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
     let rs_ext =
@@ -217,7 +258,8 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
         let (extractor, lang_name) = match ext {
             "js" | "jsx" => (&js_ext, "javascript"),
             "py" | "pyi" => (&py_ext, "python"),
-            "ts" | "tsx" => (&ts_ext, "typescript"),
+            "ts" => (&ts_ext, "typescript"),
+            "tsx" => (&tsx_ext, "typescript"),
             "rs" => (&rs_ext, "rust"),
             _ => continue,
         };
@@ -522,6 +564,77 @@ mod tests {
                 .iter()
                 .any(|v| v.as_str().is_some_and(|s| s.ends_with("lib.rs"))),
             "file node must appear in ancestor chain"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_saves_snapshot() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("lib.rs"), "fn greet() {}").unwrap();
+
+        let server = MyceliumServer::new();
+        server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+
+        let snap = tmp.path().join(".mycelium").join("index.rmp");
+        assert!(snap.exists(), "snapshot must be created after indexing");
+        assert!(
+            snap.metadata().unwrap().len() > 0,
+            "snapshot must not be empty"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_index_restores_symbols() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        fs::write(tmp.path().join("lib.rs"), "fn greet() {}").unwrap();
+
+        // Index and save
+        let server1 = MyceliumServer::new();
+        server1
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+
+        // Load on a fresh server
+        let server2 = MyceliumServer::new();
+        let raw = server2
+            .mycelium_load_index(Parameters(LoadIndexRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "load must not return error");
+        assert!(
+            val["nodes"].as_u64().unwrap() > 0,
+            "loaded store must contain nodes"
+        );
+        assert!(
+            server2.store.read().await.lookup("lib.rs>greet").is_some(),
+            "greet symbol must be present after load"
+        );
+    }
+
+    #[tokio::test]
+    async fn load_index_errors_on_missing_snapshot() {
+        let tmp = tempfile::tempdir().unwrap();
+
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_load_index(Parameters(LoadIndexRequest {
+                path: tmp.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_some(),
+            "loading from a directory without a snapshot must return an error"
         );
     }
 }

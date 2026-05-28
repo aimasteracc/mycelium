@@ -17,8 +17,11 @@ readme        = "README.md"
 workspace = true
 
 [dependencies]
+anyhow        = { workspace = true }
 blake3        = { workspace = true }
 hashbrown     = { workspace = true }
+rmp-serde     = { workspace = true }
+serde         = { workspace = true }
 smol_str      = { workspace = true }
 thiserror     = { workspace = true }
 tracing       = { workspace = true }
@@ -28,6 +31,7 @@ tree-sitter   = { workspace = true }
 criterion          = { workspace = true }
 insta              = { workspace = true }
 proptest           = { workspace = true }
+tempfile           = { workspace = true }
 tree-sitter-python = { workspace = true }
 
 [[bench]]

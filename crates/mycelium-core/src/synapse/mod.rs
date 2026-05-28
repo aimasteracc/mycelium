@@ -14,6 +14,7 @@
 mod tests;
 
 use hashbrown::HashMap;
+use serde::{Deserialize, Serialize};
 
 use crate::types::{EdgeKind, NodeId};
 
@@ -21,7 +22,7 @@ use crate::types::{EdgeKind, NodeId};
 ///
 /// `forward[u]` = list of nodes that `u` points to with this edge kind.
 /// `reverse[v]` = list of nodes that point to `v` with this edge kind.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct AdjacencyList {
     forward: HashMap<NodeId, Vec<NodeId>>,
     reverse: HashMap<NodeId, Vec<NodeId>>,
@@ -87,7 +88,7 @@ impl AdjacencyList {
 /// A multi-kind synapse store.
 ///
 /// One [`AdjacencyList`] per [`EdgeKind`].
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Synapse {
     by_kind: HashMap<EdgeKind, AdjacencyList>,
 }
