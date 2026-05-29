@@ -3501,3 +3501,75 @@ fn store_batch_reachable_to_sorted_ascending() {
     let result = store.batch_reachable_to(&[tgt], EdgeKind::Calls, 10);
     assert_eq!(result, vec!["src/a.rs>a_dep", "src/z.rs>z_dep"]);
 }
+
+// RFC-0064: k_core
+
+#[test]
+fn store_k_core_2core_triangle() {
+    // a→b, b→c, c→a forms a cycle; every node has in+out=2 within the subgraph
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let core = store.k_core(EdgeKind::Calls, 2);
+    assert_eq!(core, vec!["src/a.rs>a", "src/b.rs>b", "src/c.rs>c"]);
+}
+
+#[test]
+fn store_k_core_peels_low_degree_nodes() {
+    // chain: x→a→b→c; only a,b are in the 2-core (each has degree 2)
+    // x has degree 1 (only outgoing to a); c has degree 1 (only incoming from b)
+    let mut store = Store::new();
+    let x = store.upsert_node(path("src/x.rs>x"));
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, x, a);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let core = store.k_core(EdgeKind::Calls, 2);
+    // x: 1 edge (x→a), peeled. c: 1 edge (b→c), peeled.
+    // After peeling x: a has degree 1 (only a→b remains). After peeling c: b has degree 1.
+    // So the 2-core is empty.
+    assert!(core.is_empty());
+}
+
+#[test]
+fn store_k_core_k0_returns_all_symbols() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>a"));
+    store.upsert_node(path("src/b.rs>b"));
+    // file node should be excluded
+    store.upsert_node(path("src/file.rs"));
+    let core = store.k_core(EdgeKind::Calls, 0);
+    assert_eq!(core.len(), 2);
+    assert!(core.contains(&"src/a.rs>a".to_owned()));
+    assert!(core.contains(&"src/b.rs>b".to_owned()));
+}
+
+#[test]
+fn store_k_core_empty_store() {
+    let store = Store::new();
+    let core = store.k_core(EdgeKind::Calls, 2);
+    assert!(core.is_empty());
+}
+
+#[test]
+fn store_k_core_sorted_ascending() {
+    let mut store = Store::new();
+    let z = store.upsert_node(path("src/z.rs>z"));
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let m = store.upsert_node(path("src/m.rs>m"));
+    // Complete directed 3-node graph: each has degree 4 (2 in + 2 out)
+    store.upsert_edge(EdgeKind::Calls, z, a);
+    store.upsert_edge(EdgeKind::Calls, z, m);
+    store.upsert_edge(EdgeKind::Calls, a, z);
+    store.upsert_edge(EdgeKind::Calls, a, m);
+    store.upsert_edge(EdgeKind::Calls, m, z);
+    store.upsert_edge(EdgeKind::Calls, m, a);
+    let core = store.k_core(EdgeKind::Calls, 2);
+    assert_eq!(core, vec!["src/a.rs>a", "src/m.rs>m", "src/z.rs>z"]);
+}
