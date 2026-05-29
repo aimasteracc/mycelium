@@ -1436,6 +1436,82 @@ impl Store {
         entries
     }
 
+    /// K-core decomposition of the symbol graph for `kind`.
+    ///
+    /// Returns the maximal induced subgraph where every node has total
+    /// degree (in + out within the subgraph) ≥ k.  `k = 0` returns all
+    /// symbol nodes.  Results sorted ascending.  File nodes excluded.
+    #[must_use]
+    pub fn k_core(&self, kind: EdgeKind, k: usize) -> Vec<String> {
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        if sym_ids.is_empty() {
+            return Vec::new();
+        }
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+        if k == 0 {
+            let mut result: Vec<String> = sym_ids
+                .iter()
+                .filter_map(|&id| self.path_of(id).map(str::to_owned))
+                .collect();
+            result.sort_unstable();
+            return result;
+        }
+        // Degree within the symbol subgraph only.
+        let mut degree: HashMap<NodeId, usize> = HashMap::new();
+        for &id in &sym_ids {
+            let in_d = self
+                .synapse
+                .incoming(id, kind)
+                .iter()
+                .filter(|&&n| sym_set.contains(&n))
+                .count();
+            let out_d = self
+                .synapse
+                .outgoing(id, kind)
+                .iter()
+                .filter(|&&n| sym_set.contains(&n))
+                .count();
+            degree.insert(id, in_d + out_d);
+        }
+        let mut active: HashSet<NodeId> = sym_ids.iter().copied().collect();
+        let mut queue: Vec<NodeId> = active.iter().copied().filter(|id| degree[id] < k).collect();
+        while let Some(u) = queue.pop() {
+            if !active.remove(&u) {
+                continue;
+            }
+            // Update neighbours that are still active.
+            let neighbors: Vec<NodeId> = self
+                .synapse
+                .incoming(u, kind)
+                .iter()
+                .chain(self.synapse.outgoing(u, kind).iter())
+                .copied()
+                .filter(|n| active.contains(n))
+                .collect();
+            for v in neighbors {
+                if let Some(d) = degree.get_mut(&v) {
+                    if *d > 0 {
+                        *d -= 1;
+                    }
+                    if *d < k {
+                        queue.push(v);
+                    }
+                }
+            }
+        }
+        let mut result: Vec<String> = active
+            .iter()
+            .filter_map(|&id| self.path_of(id).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Symbols with exactly one incoming edge for `kind`.
     ///
     /// Returns `(symbol_path, sole_referencing_path)` pairs sorted by symbol path

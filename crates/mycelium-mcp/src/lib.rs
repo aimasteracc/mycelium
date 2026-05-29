@@ -488,6 +488,15 @@ pub struct BatchReachableToRequest {
     pub max_depth: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_k_core`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetKCoreRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Minimum total degree (in + out) within the induced subgraph. Defaults to 2.
+    pub k: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_all_symbols`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetAllSymbolsRequest {
@@ -1912,6 +1921,35 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return the k-core of the symbol graph for a given EdgeKind — the maximal \
+                       induced subgraph where every node has total degree (in + out within the \
+                       subgraph) ≥ k. Identifies the tightly-interconnected core that is hardest \
+                       to refactor. k defaults to 2. k=0 returns all symbols. Returns { core, \
+                       count, k } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_get_k_core(&self, Parameters(req): Parameters<GetKCoreRequest>) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let k = req.k.unwrap_or(2);
+        let core = {
+            let store = self.store.read().await;
+            let result = store.k_core(kind, k);
+            drop(store);
+            result
+        };
+        let count = core.len();
+        serde_json::json!({ "core": core, "count": count, "k": k }).to_string()
     }
 
     #[tool(
@@ -5631,6 +5669,58 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["reachable"].as_array().unwrap().is_empty());
+    }
+
+    // ── RFC-0064: mycelium_get_k_core ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn get_k_core_basic_triangle() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+            store.upsert_edge(EdgeKind::Calls, c, a);
+        }
+        let raw = server
+            .mycelium_get_k_core(Parameters(GetKCoreRequest {
+                edge_kind: "calls".to_owned(),
+                k: Some(2),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 3);
+        assert_eq!(val["k"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_k_core_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_k_core(Parameters(GetKCoreRequest {
+                edge_kind: "nope".to_owned(),
+                k: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    #[tokio::test]
+    async fn get_k_core_empty_store_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_k_core(Parameters(GetKCoreRequest {
+                edge_kind: "calls".to_owned(),
+                k: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert!(val["core"].as_array().unwrap().is_empty());
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────
