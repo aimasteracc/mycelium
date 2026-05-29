@@ -72,8 +72,7 @@ jobs:
         shell: bash
 
   mutants:
-    name: mutation testing (weekly)
-    if: github.event.schedule == '0 2 * * 1'  # Monday only
+    name: mutation testing (kill-rate gate >= 70%)
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -81,12 +80,40 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-mutants
-        uses: taiki-e/install-action@cargo-mutants
-      - run: |
-          cargo mutants --workspace --timeout 60 --no-shuffle --json --output mutants-report.json || true
-      - uses: actions/upload-artifact@v4
+        run: cargo install cargo-mutants --locked
+      - name: Run mutation tests
+        run: |
+          cargo mutants --workspace --timeout 60 --jobs 4 2>&1 | tee mutants.out
+      - name: Enforce >= 70% kill rate
+        shell: bash
+        run: |
+          # cargo-mutants summary line looks like:
+          #   "42 missed, 120 caught, 3 unviable, 5 timeout in 5.00s"
+          # We extract caught and missed from that line.
+          SUMMARY=$(grep -E 'missed|caught' mutants.out | tail -1)
+          echo "Summary line: $SUMMARY"
+          CAUGHT=$(echo "$SUMMARY" | grep -oP '\d+(?= caught)')
+          MISSED=$(echo "$SUMMARY" | grep -oP '\d+(?= missed)')
+          # Default to 0 if not found (no mutants means nothing to gate)
+          CAUGHT=${CAUGHT:-0}
+          MISSED=${MISSED:-0}
+          TOTAL=$((CAUGHT + MISSED))
+          echo "caught=$CAUGHT  missed=$MISSED  total=$TOTAL"
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No viable mutants found -- skipping kill-rate gate."
+            exit 0
+          fi
+          KILL_RATE=$((CAUGHT * 100 / TOTAL))
+          echo "Kill rate: ${KILL_RATE}%  (threshold: 70%)"
+          if [ "$KILL_RATE" -lt 70 ]; then
+            echo "::error::Mutation kill rate ${KILL_RATE}% is below the required 70% threshold (Charter 2)."
+            exit 1
+          fi
+          echo "Kill rate ${KILL_RATE}% meets the >= 70% SLA."
+      - name: Upload mutants report
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mutants-report
-          path: mutants-report.json
+          path: mutants.out
           if-no-files-found: ignore
