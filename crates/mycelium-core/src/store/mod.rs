@@ -1571,6 +1571,36 @@ impl Store {
         result
     }
 
+    /// Symbols that appear as an outgoing neighbour for ALL sources for `kind`.
+    /// Empty `source_ids` returns empty `Vec`. Results sorted alphabetically.
+    #[must_use]
+    pub fn common_callees(&self, source_ids: &[NodeId], kind: EdgeKind) -> Vec<String> {
+        let mut iter = source_ids.iter();
+        let Some(&first) = iter.next() else {
+            return Vec::new();
+        };
+        let mut common: HashSet<NodeId> =
+            self.synapse.outgoing(first, kind).iter().copied().collect();
+        for &source in iter {
+            let outgoing: HashSet<NodeId> = self
+                .synapse
+                .outgoing(source, kind)
+                .iter()
+                .copied()
+                .collect();
+            common.retain(|id| outgoing.contains(id));
+            if common.is_empty() {
+                return Vec::new();
+            }
+        }
+        let mut result: Vec<String> = common
+            .iter()
+            .filter_map(|&id| self.path_of(id).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Top-N symbol nodes ranked by out-degree (outgoing edge count) for `kind`.
     /// Excludes file nodes and nodes with out-degree 0.  Sorted descending by
     /// out-degree; ties broken alphabetically.  `limit` capped at 100.

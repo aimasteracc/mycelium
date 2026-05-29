@@ -357,6 +357,15 @@ pub struct GetCommonCallersRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_common_callees`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetCommonCalleesRequest {
+    /// Source node paths to intersect (1–20 entries).
+    pub paths: Vec<String>,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_get_fan_out_rank`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetFanOutRankRequest {
@@ -1741,6 +1750,48 @@ impl MyceliumServer {
         let callers = callers_opt.unwrap();
         let count = callers.len();
         serde_json::json!({ "callers": callers, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return symbol nodes that are outgoing neighbours for ALL of the given \
+                       source paths via the specified edge kind — set intersection of each \
+                       source's out-neighbour set. Symmetric complement to common_callers. \
+                       Useful for finding shared callees, shared imports, common base classes, etc. \
+                       edge_kind: 'calls', 'imports', 'extends', or 'implements'. \
+                       Returns { callees, count } or { error }."
+    )]
+    async fn mycelium_get_common_callees(
+        &self,
+        Parameters(req): Parameters<GetCommonCalleesRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        if req.paths.is_empty() {
+            return serde_json::json!({ "callees": [], "count": 0 }).to_string();
+        }
+        let callees_opt: Result<Vec<String>, String> = {
+            let store = self.store.read().await;
+            let mut ids = Vec::with_capacity(req.paths.len());
+            for p in &req.paths {
+                let Some(id) = store.lookup(p) else {
+                    return serde_json::json!({ "error": format!("path not found: {p}") })
+                        .to_string();
+                };
+                ids.push(id);
+            }
+            Ok(store.common_callees(&ids, kind))
+        };
+        let callees = callees_opt.unwrap();
+        let count = callees.len();
+        serde_json::json!({ "callees": callees, "count": count }).to_string()
     }
 
     #[tool(
@@ -5583,6 +5634,72 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["error"].as_str().unwrap().contains("path not found"));
+    }
+
+    // ── RFC-0055: mycelium_get_common_callees ────────────────────────────────
+
+    #[tokio::test]
+    async fn get_common_callees_returns_intersection() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let shared = store.upsert_node(TrunkPath::parse("src/shared.rs>shared").unwrap());
+            let src_a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let src_b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, src_a, shared);
+            store.upsert_edge(EdgeKind::Calls, src_b, shared);
+        }
+        let raw = server
+            .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
+                paths: vec!["src/a.rs>a".to_owned(), "src/b.rs>b".to_owned()],
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(
+            val["callees"].as_array().unwrap()[0].as_str().unwrap(),
+            "src/shared.rs>shared"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_common_callees_empty_paths_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
+                paths: vec![],
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_common_callees_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
+                paths: vec!["no/such.rs>sym".to_owned()],
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("path not found"));
+    }
+
+    #[tokio::test]
+    async fn get_common_callees_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
+                paths: vec!["src/a.rs>a".to_owned()],
+                edge_kind: "bad".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0053: mycelium_get_fan_out_rank ──────────────────────────────────
