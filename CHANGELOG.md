@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Second wave of category Skills** (RFC-0090 Phase 2, v0.1.3):
+  - [`skills/import-graph/`](skills/import-graph/) — 3 capabilities
+    (`get_imports`, `get_import_tree`, `get_importers_tree`).
+  - [`skills/reachability/`](skills/reachability/) — 12 capabilities
+    including `get_shortest_path` (top-3 most useful per glm5.1).
+  - [`skills/centrality/`](skills/centrality/) — 14 capabilities
+    including `rank_symbols` and `get_top_files` (both top-10).
+  - 29 additional capabilities mapped in `skills/INDEX.md`. Combined
+    coverage now: 47/88 (54%, was 18/88 after wave 1).
 - **First wave of category Skills** (RFC-0090 Phase 2, v0.1.3):
   - [`skills/basic-queries/`](skills/basic-queries/) covers 10 foundation
     capabilities (`search_symbol`, `get_symbol_info`, `get_ancestors`,
