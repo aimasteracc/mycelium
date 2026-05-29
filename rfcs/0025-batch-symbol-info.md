@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0025                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0016 (get_symbol_info) |
@@ -67,8 +67,8 @@ each calls the existing `Store::ancestors_of_path`, `descendants_of_path`,
 
 ## Acceptance Criteria
 
-- [ ] Each found path returns `{ path, ancestors, descendants, callers, callees }`.
-- [ ] Each not-found path returns `{ path, error }`.
-- [ ] Results in same order as input.
-- [ ] More than 50 paths → only first 50 processed.
-- [ ] All prior tests pass.
+- [x] Each found path returns `{ path, ancestors, descendants, callers, callees }`.
+- [x] Each not-found path returns `{ path, error }`.
+- [x] Results in same order as input.
+- [x] More than 50 paths → only first 50 processed.
+- [x] All prior tests pass.

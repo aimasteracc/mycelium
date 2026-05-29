@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0080                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0079 (mutual_reachability), RFC-0050 (shortest_path) |
@@ -50,13 +50,13 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `reachable_set` returns empty for an isolated node.
-- [ ] Returns direct neighbors for a single-hop graph.
-- [ ] Returns full transitive closure for a chain A→B→C.
-- [ ] Does not include `id` itself (even if there is a cycle back to it).
-- [ ] Results are sorted alphabetically.
-- [ ] File nodes excluded from results.
-- [ ] `mycelium_get_reachable_set`: valid path returns `{ reachable, count }`.
-- [ ] `mycelium_get_reachable_set`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_reachable_set`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `reachable_set` returns empty for an isolated node.
+- [x] Returns direct neighbors for a single-hop graph.
+- [x] Returns full transitive closure for a chain A→B→C.
+- [x] Does not include `id` itself (even if there is a cycle back to it).
+- [x] Results are sorted alphabetically.
+- [x] File nodes excluded from results.
+- [x] `mycelium_get_reachable_set`: valid path returns `{ reachable, count }`.
+- [x] `mycelium_get_reachable_set`: unknown path returns `{ error }`.
+- [x] `mycelium_get_reachable_set`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

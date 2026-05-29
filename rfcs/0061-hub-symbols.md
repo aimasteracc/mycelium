@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0061                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0053 (fan_out_rank), RFC-0054 (fan_in_rank), RFC-0048 (most_connected) |
@@ -64,12 +64,12 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::hub_symbols(kind, min_in, min_out, limit)` filters by in AND out degree.
-- [ ] `limit` capped at 100.
-- [ ] Sorted by `in_degree + out_degree` descending; ties by path ascending.
-- [ ] File nodes excluded.
-- [ ] Returns `(path, in_degree, out_degree)` tuples.
-- [ ] `mycelium_get_hub_symbols`: valid request returns `{ hubs, count }`.
-- [ ] `mycelium_get_hub_symbols`: unknown edge_kind returns `{ error }`.
-- [ ] `min_in` and `min_out` default to 1 if omitted in the MCP request.
-- [ ] All prior tests pass.
+- [x] `Store::hub_symbols(kind, min_in, min_out, limit)` filters by in AND out degree.
+- [x] `limit` capped at 100.
+- [x] Sorted by `in_degree + out_degree` descending; ties by path ascending.
+- [x] File nodes excluded.
+- [x] Returns `(path, in_degree, out_degree)` tuples.
+- [x] `mycelium_get_hub_symbols`: valid request returns `{ hubs, count }`.
+- [x] `mycelium_get_hub_symbols`: unknown edge_kind returns `{ error }`.
+- [x] `min_in` and `min_out` default to 1 if omitted in the MCP request.
+- [x] All prior tests pass.

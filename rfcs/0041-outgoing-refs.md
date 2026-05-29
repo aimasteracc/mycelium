@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0041                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0039 (cross_refs)              |
@@ -64,9 +64,9 @@ Unknown path returns `{ "error": "path not found: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `OutgoingRefs` struct with `callees`, `imports`, `extends`, `implements`.
-- [ ] All four lists sorted lexicographically.
-- [ ] Empty lists present (not omitted).
-- [ ] `mycelium_get_outgoing_refs`: known path returns `{ callees, imports, extends, implements }`.
-- [ ] `mycelium_get_outgoing_refs`: unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `OutgoingRefs` struct with `callees`, `imports`, `extends`, `implements`.
+- [x] All four lists sorted lexicographically.
+- [x] Empty lists present (not omitted).
+- [x] `mycelium_get_outgoing_refs`: known path returns `{ callees, imports, extends, implements }`.
+- [x] `mycelium_get_outgoing_refs`: unknown path returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0065                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0043 (reachable_from), RFC-0063 (batch_reachable_to) |
@@ -66,14 +66,14 @@ Empty `paths` returns `{ "reachable": [], "count": 0 }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::batch_reachable_from(ids, kind, max_depth)` returns union of individual `reachable_from` results.
-- [ ] Input node ids excluded from result.
-- [ ] `max_depth` capped at 20.
-- [ ] Results sorted ascending.
-- [ ] Deduplication: a path reachable from multiple inputs appears only once.
-- [ ] `mycelium_batch_reachable_from`: valid request returns `{ reachable, count }`.
-- [ ] `mycelium_batch_reachable_from`: unknown edge_kind returns `{ error }`.
-- [ ] `mycelium_batch_reachable_from`: empty paths returns empty result.
-- [ ] `mycelium_batch_reachable_from`: unknown paths silently skipped.
-- [ ] `max_depth` defaults to 10; paths list capped at 20 entries.
-- [ ] All prior tests pass.
+- [x] `Store::batch_reachable_from(ids, kind, max_depth)` returns union of individual `reachable_from` results.
+- [x] Input node ids excluded from result.
+- [x] `max_depth` capped at 20.
+- [x] Results sorted ascending.
+- [x] Deduplication: a path reachable from multiple inputs appears only once.
+- [x] `mycelium_batch_reachable_from`: valid request returns `{ reachable, count }`.
+- [x] `mycelium_batch_reachable_from`: unknown edge_kind returns `{ error }`.
+- [x] `mycelium_batch_reachable_from`: empty paths returns empty result.
+- [x] `mycelium_batch_reachable_from`: unknown paths silently skipped.
+- [x] `max_depth` defaults to 10; paths list capped at 20 entries.
+- [x] All prior tests pass.

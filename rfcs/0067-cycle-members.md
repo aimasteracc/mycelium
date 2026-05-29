@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0067                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0064 (k_core), RFC-0063 (batch_reachable_to) |
@@ -62,10 +62,10 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::cycle_members(kind)` returns paths of symbols in cycles, sorted ascending.
-- [ ] Nodes in SCCs of size 1 (no self-loop, no mutual cycle) are excluded.
-- [ ] `cycle_members` returns `[]` when no cycles exist.
-- [ ] File nodes are excluded.
-- [ ] `mycelium_find_cycle_members`: valid edge_kind returns `{ members, count }`.
-- [ ] `mycelium_find_cycle_members`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::cycle_members(kind)` returns paths of symbols in cycles, sorted ascending.
+- [x] Nodes in SCCs of size 1 (no self-loop, no mutual cycle) are excluded.
+- [x] `cycle_members` returns `[]` when no cycles exist.
+- [x] File nodes are excluded.
+- [x] `mycelium_find_cycle_members`: valid edge_kind returns `{ members, count }`.
+- [x] `mycelium_find_cycle_members`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

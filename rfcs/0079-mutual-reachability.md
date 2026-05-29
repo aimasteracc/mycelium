@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0079                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0050 (shortest_path), RFC-0077 (eccentricity) |
@@ -66,11 +66,11 @@ Response (mutual):
 
 ## Acceptance Criteria
 
-- [ ] `mutual_reachability(id, id, kind)` returns both directions true, distances 0.
-- [ ] Forward-only edge returns forward=true, backward=false.
-- [ ] No connection returns both false, both distances null.
-- [ ] Mutual connection returns both true, correct distances.
-- [ ] `mycelium_get_mutual_reachability`: valid paths return full struct.
-- [ ] `mycelium_get_mutual_reachability`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_mutual_reachability`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `mutual_reachability(id, id, kind)` returns both directions true, distances 0.
+- [x] Forward-only edge returns forward=true, backward=false.
+- [x] No connection returns both false, both distances null.
+- [x] Mutual connection returns both true, correct distances.
+- [x] `mycelium_get_mutual_reachability`: valid paths return full struct.
+- [x] `mycelium_get_mutual_reachability`: unknown path returns `{ error }`.
+- [x] `mycelium_get_mutual_reachability`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0070                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0068 (WCC), RFC-0067 (cycle_members) |
@@ -52,11 +52,11 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::articulation_points(kind)` returns paths sorted ascending.
-- [ ] Removing an articulation point disconnects its WCC.
-- [ ] Non-articulation-point nodes (their removal leaves the graph connected) excluded.
-- [ ] Singleton nodes (degree 0) never returned.
-- [ ] File nodes excluded.
-- [ ] `mycelium_find_articulation_points`: valid edge_kind returns `{ points, count }`.
-- [ ] `mycelium_find_articulation_points`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::articulation_points(kind)` returns paths sorted ascending.
+- [x] Removing an articulation point disconnects its WCC.
+- [x] Non-articulation-point nodes (their removal leaves the graph connected) excluded.
+- [x] Singleton nodes (degree 0) never returned.
+- [x] File nodes excluded.
+- [x] `mycelium_find_articulation_points`: valid edge_kind returns `{ points, count }`.
+- [x] `mycelium_find_articulation_points`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

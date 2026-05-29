@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0027                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0017 (find_call_path), RFC-0023 (get_imports), RFC-0024 (import_tree) |
@@ -77,9 +77,9 @@ pub struct FindImportPathRequest {
 
 ## Acceptance Criteria
 
-- [ ] Direct import (`from` imports `to`) returns path of length 2, hops 1.
-- [ ] Transitive path returns correct intermediate nodes in order.
-- [ ] Unreachable pair returns `{ path: [], hops: null, message }`.
-- [ ] `max_depth` limits BFS; path longer than `max_depth` hops returns unreachable.
-- [ ] Unknown `from_path` or `to_path` returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Direct import (`from` imports `to`) returns path of length 2, hops 1.
+- [x] Transitive path returns correct intermediate nodes in order.
+- [x] Unreachable pair returns `{ path: [], hops: null, message }`.
+- [x] `max_depth` limits BFS; path longer than `max_depth` hops returns unreachable.
+- [x] Unknown `from_path` or `to_path` returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0052                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0019 (rank_symbols), RFC-0046 (node_degree) |
@@ -54,11 +54,11 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::common_callers(targets, kind)` returns intersection of all incoming-neighbour sets.
-- [ ] Empty targets returns empty `Vec`.
-- [ ] Single target equivalent to `incoming(target, kind)` resolved to paths.
-- [ ] Results sorted ascending by path.
-- [ ] `mycelium_get_common_callers`: valid request returns `{ callers, count }`.
-- [ ] `mycelium_get_common_callers`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_common_callers`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::common_callers(targets, kind)` returns intersection of all incoming-neighbour sets.
+- [x] Empty targets returns empty `Vec`.
+- [x] Single target equivalent to `incoming(target, kind)` resolved to paths.
+- [x] Results sorted ascending by path.
+- [x] `mycelium_get_common_callers`: valid request returns `{ callers, count }`.
+- [x] `mycelium_get_common_callers`: unknown path returns `{ error }`.
+- [x] `mycelium_get_common_callers`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

@@ -4,7 +4,7 @@
 |------------|-----------------------------|
 | RFC        | 0009                        |
 | Title      | Ignore filtering            |
-| Status     | Draft                       |
+| Status     | Implemented                       |
 | Author     | Hive / rust-implementer     |
 | Created    | 2026-05-29                  |
 

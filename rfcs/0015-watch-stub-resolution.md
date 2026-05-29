@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0015                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0008 (Watch mode), RFC-0014 (Cross-file stub resolution) |
@@ -45,8 +45,8 @@ unchanged; no new MCP tools are added.
 
 ## Acceptance Criteria
 
-- [ ] After watch-mode processes `b.py` (adding `def bar(): pass`), calling
+- [x] After watch-mode processes `b.py` (adding `def bar(): pass`), calling
   `mycelium_get_callers("b.py>bar")` returns the callers from `a.py` even
   without a fresh `mycelium_index_workspace`.
-- [ ] All prior tests pass.
-- [ ] No new clippy warnings.
+- [x] All prior tests pass.
+- [x] No new clippy warnings.

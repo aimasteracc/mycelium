@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0086                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0080 (reachable_set), RFC-0081 (reaches_into) |
@@ -75,17 +75,17 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] Empty graph → empty result.
-- [ ] Single node → one singleton SCC.
-- [ ] Two nodes, no edges → two singleton SCCs.
-- [ ] Two nodes, one directed edge A→B → two singleton SCCs.
-- [ ] Two nodes, mutual edges A→B and B→A → one SCC with both members.
-- [ ] Linear chain A→B→C (no back-edges) → three singleton SCCs.
-- [ ] Cycle A→B→C→A → one SCC with three members.
-- [ ] `min_size: 2` filters out singleton SCCs.
-- [ ] Members within each SCC are sorted alphabetically.
-- [ ] Results sorted descending by size.
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_strongly_connected_components`: valid edge_kind returns `{ components, total_components, symbol_count, min_size }`.
-- [ ] `mycelium_get_strongly_connected_components`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Empty graph → empty result.
+- [x] Single node → one singleton SCC.
+- [x] Two nodes, no edges → two singleton SCCs.
+- [x] Two nodes, one directed edge A→B → two singleton SCCs.
+- [x] Two nodes, mutual edges A→B and B→A → one SCC with both members.
+- [x] Linear chain A→B→C (no back-edges) → three singleton SCCs.
+- [x] Cycle A→B→C→A → one SCC with three members.
+- [x] `min_size: 2` filters out singleton SCCs.
+- [x] Members within each SCC are sorted alphabetically.
+- [x] Results sorted descending by size.
+- [x] File nodes excluded.
+- [x] `mycelium_get_strongly_connected_components`: valid edge_kind returns `{ components, total_components, symbol_count, min_size }`.
+- [x] `mycelium_get_strongly_connected_components`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0011                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0001 (Synapse), RFC-0002 (Extractor) |
@@ -62,9 +62,9 @@ Returns `(function_name, class_chain)`. `class_chain` is built by the existing
 
 ## Acceptance Criteria
 
-- [ ] Python: `foo()` call inside a function creates `Calls` edge.
-- [ ] Python: method call `self.bar()` inside a method creates `Calls` edge.
-- [ ] TypeScript: `foo()` and `obj.method()` calls are captured.
-- [ ] Rust: `foo()` and `self.method()` calls are captured.
-- [ ] Intra-file calls resolve to the callee's definition node, not a bare stub.
-- [ ] Extractor tests green. All prior tests pass.
+- [x] Python: `foo()` call inside a function creates `Calls` edge.
+- [x] Python: method call `self.bar()` inside a method creates `Calls` edge.
+- [x] TypeScript: `foo()` and `obj.method()` calls are captured.
+- [x] Rust: `foo()` and `self.method()` calls are captured.
+- [x] Intra-file calls resolve to the callee's definition node, not a bare stub.
+- [x] Extractor tests green. All prior tests pass.

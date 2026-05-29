@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0087                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0082 (page_rank), RFC-0085 (betweenness_centrality) |
@@ -79,14 +79,14 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] Empty graph → empty result.
-- [ ] Single node → score 0.0 for both centralities.
-- [ ] Two nodes, A→B: B has in_degree=1, in_centrality=1.0; A has out_degree=1, out_centrality=1.0.
-- [ ] Scores normalized to [0.0, 1.0].
-- [ ] Default sort is by `in_centrality` descending.
-- [ ] `sort_by: "out"` sorts by `out_centrality` descending.
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_degree_centrality`: valid edge_kind returns `{ nodes, symbol_count, top_n, sort_by }`.
-- [ ] `mycelium_get_degree_centrality`: unknown edge_kind returns `{ error }`.
-- [ ] `mycelium_get_degree_centrality`: unknown sort_by returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Empty graph → empty result.
+- [x] Single node → score 0.0 for both centralities.
+- [x] Two nodes, A→B: B has in_degree=1, in_centrality=1.0; A has out_degree=1, out_centrality=1.0.
+- [x] Scores normalized to [0.0, 1.0].
+- [x] Default sort is by `in_centrality` descending.
+- [x] `sort_by: "out"` sorts by `out_centrality` descending.
+- [x] File nodes excluded.
+- [x] `mycelium_get_degree_centrality`: valid edge_kind returns `{ nodes, symbol_count, top_n, sort_by }`.
+- [x] `mycelium_get_degree_centrality`: unknown edge_kind returns `{ error }`.
+- [x] `mycelium_get_degree_centrality`: unknown sort_by returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0047                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0019 (rank_symbols), RFC-0038 (graph_stats) |
@@ -51,11 +51,11 @@ Empty graph returns `{ "files": [], "count": 0 }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::top_files(limit)` counts direct child symbols per file node.
-- [ ] Files without symbols are excluded (count > 0 only).
-- [ ] Results sorted descending by count, then ascending by path for ties.
-- [ ] `limit` respected; capped at 100 internally.
-- [ ] `mycelium_get_top_files`: returns `{ files, count }`.
-- [ ] `mycelium_get_top_files`: limit defaults to 10, capped at 100.
-- [ ] Empty graph returns `{ files: [], count: 0 }`.
-- [ ] All prior tests pass.
+- [x] `Store::top_files(limit)` counts direct child symbols per file node.
+- [x] Files without symbols are excluded (count > 0 only).
+- [x] Results sorted descending by count, then ascending by path for ties.
+- [x] `limit` respected; capped at 100 internally.
+- [x] `mycelium_get_top_files`: returns `{ files, count }`.
+- [x] `mycelium_get_top_files`: limit defaults to 10, capped at 100.
+- [x] Empty graph returns `{ files: [], count: 0 }`.
+- [x] All prior tests pass.

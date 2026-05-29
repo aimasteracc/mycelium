@@ -4,7 +4,7 @@
 |------------|------------------------------|
 | RFC        | 0007                         |
 | Title      | Stateful MCP serve with root |
-| Status     | Draft                        |
+| Status     | Implemented                        |
 | Author     | Hive / rust-implementer      |
 | Created    | 2026-05-29                   |
 

@@ -67,12 +67,16 @@ jobs:
     name: integration tests (linux stable)
     needs: [fmt, clippy, unit]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # Run integration test binaries (tests/ directories).
       - run: cargo test --workspace --tests
+      # Run filesystem-watch tests (marked #[ignore] for local fast lane).
+      # Timeout budget raised to 15 min to absorb FSE debounce on GH runners.
+      - run: cargo test -p mycelium-mcp --lib -- --include-ignored watch_mode
 
   test-matrix:
     name: tests (${{ matrix.os }} / ${{ matrix.toolchain }})

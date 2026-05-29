@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0055                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0052 (common_callers — incoming intersection) |
@@ -55,11 +55,11 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::common_callees(sources, kind)` returns intersection of all outgoing-neighbour sets.
-- [ ] Empty sources returns empty `Vec`.
-- [ ] Single source equivalent to `outgoing(source, kind)` resolved to paths.
-- [ ] Results sorted ascending by path.
-- [ ] `mycelium_get_common_callees`: valid request returns `{ callees, count }`.
-- [ ] `mycelium_get_common_callees`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_common_callees`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::common_callees(sources, kind)` returns intersection of all outgoing-neighbour sets.
+- [x] Empty sources returns empty `Vec`.
+- [x] Single source equivalent to `outgoing(source, kind)` resolved to paths.
+- [x] Results sorted ascending by path.
+- [x] `mycelium_get_common_callees`: valid request returns `{ callees, count }`.
+- [x] `mycelium_get_common_callees`: unknown path returns `{ error }`.
+- [x] `mycelium_get_common_callees`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

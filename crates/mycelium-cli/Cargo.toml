@@ -23,7 +23,7 @@ workspace = true
 [dependencies]
 mycelium-core      = { workspace = true }
 mycelium-pack      = { workspace = true }
-mycelium-mcp       = { path = "../mycelium-mcp", version = "0.0.1" }
+mycelium-mcp       = { path = "../mycelium-mcp", version = "0.1.0" }
 tree-sitter             = { workspace = true }
 tree-sitter-javascript  = { workspace = true }
 tree-sitter-python      = { workspace = true }

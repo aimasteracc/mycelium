@@ -353,6 +353,10 @@ impl SourceSpan {
 mod tests {
     use super::*;
 
+    // ──────────────────────────────────────────────────────────────────
+    // NodeId
+    // ──────────────────────────────────────────────────────────────────
+
     #[test]
     fn node_id_null_is_null() {
         assert!(NodeId::NULL.is_null());
@@ -360,9 +364,29 @@ mod tests {
     }
 
     #[test]
+    fn node_id_null_constant_is_zero() {
+        assert_eq!(NodeId::NULL.as_u64(), 0);
+    }
+
+    #[test]
     fn node_id_display_is_hex() {
         assert_eq!(NodeId(0x1234_abcd).to_string(), "n#000000001234abcd");
     }
+
+    #[test]
+    fn node_id_display_null_is_zero_padded() {
+        assert_eq!(NodeId::NULL.to_string(), "n#0000000000000000");
+    }
+
+    #[test]
+    fn node_id_as_u64_round_trips() {
+        let id = NodeId(0xDEAD_BEEF_CAFE_1234);
+        assert_eq!(id.as_u64(), 0xDEAD_BEEF_CAFE_1234);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // NodeKind: all variants round-trip through wire representation
+    // ──────────────────────────────────────────────────────────────────
 
     #[test]
     fn node_kind_roundtrips_through_str() {
@@ -379,10 +403,186 @@ mod tests {
     }
 
     #[test]
+    fn node_kind_all_variants_round_trip() {
+        let all = [
+            NodeKind::File,
+            NodeKind::Module,
+            NodeKind::Class,
+            NodeKind::Struct,
+            NodeKind::Interface,
+            NodeKind::Function,
+            NodeKind::Method,
+            NodeKind::Property,
+            NodeKind::Field,
+            NodeKind::Variable,
+            NodeKind::Constant,
+            NodeKind::Enum,
+            NodeKind::EnumMember,
+            NodeKind::TypeAlias,
+            NodeKind::Parameter,
+            NodeKind::Import,
+            NodeKind::Export,
+            NodeKind::Route,
+            NodeKind::Component,
+        ];
+        for kind in all {
+            let wire = kind.as_str();
+            assert_eq!(
+                NodeKind::try_from_wire(wire),
+                Some(kind),
+                "round-trip failed for {wire}"
+            );
+        }
+    }
+
+    #[test]
+    fn node_kind_display_matches_as_str() {
+        let all = [
+            NodeKind::File,
+            NodeKind::Module,
+            NodeKind::Struct,
+            NodeKind::Interface,
+            NodeKind::Function,
+            NodeKind::Property,
+            NodeKind::Field,
+            NodeKind::Variable,
+            NodeKind::Constant,
+            NodeKind::Enum,
+            NodeKind::Parameter,
+            NodeKind::Import,
+            NodeKind::Export,
+            NodeKind::Route,
+        ];
+        for kind in all {
+            assert_eq!(kind.to_string(), kind.as_str());
+        }
+    }
+
+    #[test]
     fn node_kind_from_str_rejects_garbage() {
         assert_eq!(NodeKind::try_from_wire(""), None);
         assert_eq!(NodeKind::try_from_wire("not-a-kind"), None);
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // EdgeKind: all variants have stable wire strings and Display
+    // ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn edge_kind_as_str_all_variants() {
+        let cases = [
+            (EdgeKind::Contains, "contains"),
+            (EdgeKind::Calls, "calls"),
+            (EdgeKind::Imports, "imports"),
+            (EdgeKind::Exports, "exports"),
+            (EdgeKind::Extends, "extends"),
+            (EdgeKind::Implements, "implements"),
+            (EdgeKind::References, "references"),
+            (EdgeKind::TypeOf, "type_of"),
+            (EdgeKind::Returns, "returns"),
+            (EdgeKind::Instantiates, "instantiates"),
+            (EdgeKind::Overrides, "overrides"),
+            (EdgeKind::Decorates, "decorates"),
+            (EdgeKind::Aggregates, "aggregates"),
+            (EdgeKind::Composes, "composes"),
+            (EdgeKind::Uses, "uses"),
+        ];
+        for (kind, expected) in cases {
+            assert_eq!(kind.as_str(), expected, "as_str mismatch for {expected}");
+        }
+    }
+
+    #[test]
+    fn edge_kind_display_matches_as_str() {
+        let all = [
+            EdgeKind::Contains,
+            EdgeKind::Calls,
+            EdgeKind::Imports,
+            EdgeKind::Exports,
+            EdgeKind::Extends,
+            EdgeKind::Implements,
+            EdgeKind::References,
+            EdgeKind::TypeOf,
+            EdgeKind::Returns,
+            EdgeKind::Instantiates,
+            EdgeKind::Overrides,
+            EdgeKind::Decorates,
+            EdgeKind::Aggregates,
+            EdgeKind::Composes,
+            EdgeKind::Uses,
+        ];
+        for kind in all {
+            assert_eq!(kind.to_string(), kind.as_str());
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Language: all variants have stable wire strings and Display
+    // ──────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn language_as_str_all_variants() {
+        let cases = [
+            (Language::Unknown, "unknown"),
+            (Language::Python, "python"),
+            (Language::TypeScript, "typescript"),
+            (Language::JavaScript, "javascript"),
+            (Language::Go, "go"),
+            (Language::Rust, "rust"),
+            (Language::Java, "java"),
+            (Language::C, "c"),
+            (Language::Cpp, "cpp"),
+            (Language::CSharp, "csharp"),
+            (Language::Php, "php"),
+            (Language::Ruby, "ruby"),
+            (Language::Swift, "swift"),
+            (Language::Kotlin, "kotlin"),
+            (Language::Dart, "dart"),
+            (Language::Lua, "lua"),
+            (Language::Bash, "bash"),
+            (Language::Sql, "sql"),
+            (Language::Yaml, "yaml"),
+            (Language::Toml, "toml"),
+            (Language::Json, "json"),
+        ];
+        for (lang, expected) in cases {
+            assert_eq!(lang.as_str(), expected, "as_str mismatch for {expected}");
+        }
+    }
+
+    #[test]
+    fn language_display_matches_as_str() {
+        let all = [
+            Language::Unknown,
+            Language::Python,
+            Language::TypeScript,
+            Language::JavaScript,
+            Language::Go,
+            Language::Rust,
+            Language::Java,
+            Language::C,
+            Language::Cpp,
+            Language::CSharp,
+            Language::Php,
+            Language::Ruby,
+            Language::Swift,
+            Language::Kotlin,
+            Language::Dart,
+            Language::Lua,
+            Language::Bash,
+            Language::Sql,
+            Language::Yaml,
+            Language::Toml,
+            Language::Json,
+        ];
+        for lang in all {
+            assert_eq!(lang.to_string(), lang.as_str());
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // SourceSpan: constructor fields and methods
+    // ──────────────────────────────────────────────────────────────────
 
     #[test]
     fn source_span_emptiness() {
@@ -397,5 +597,50 @@ mod tests {
         };
         assert!(!nonempty.is_empty());
         assert_eq!(nonempty.len_bytes(), 15);
+    }
+
+    #[test]
+    fn source_span_all_fields_accessible() {
+        let span = SourceSpan {
+            start_line: 5,
+            start_col: 2,
+            end_line: 7,
+            end_col: 10,
+            start_byte: 100,
+            end_byte: 200,
+        };
+        assert_eq!(span.start_line, 5);
+        assert_eq!(span.start_col, 2);
+        assert_eq!(span.end_line, 7);
+        assert_eq!(span.end_col, 10);
+        assert_eq!(span.start_byte, 100);
+        assert_eq!(span.end_byte, 200);
+        assert!(!span.is_empty());
+        assert_eq!(span.len_bytes(), 100);
+    }
+
+    #[test]
+    fn source_span_len_bytes_saturates_on_inverted_range() {
+        // saturating_sub: end < start returns 0, not panic
+        let span = SourceSpan {
+            start_byte: 50,
+            end_byte: 10,
+            ..SourceSpan::default()
+        };
+        assert_eq!(span.len_bytes(), 0);
+    }
+
+    #[test]
+    fn source_span_zero_length_is_empty() {
+        let span = SourceSpan {
+            start_line: 3,
+            start_col: 4,
+            end_line: 3,
+            end_col: 4,
+            start_byte: 42,
+            end_byte: 42,
+        };
+        assert!(span.is_empty());
+        assert_eq!(span.len_bytes(), 0);
     }
 }

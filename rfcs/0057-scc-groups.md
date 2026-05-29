@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0057                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0040 (nodes_in_cycles — per-node cycle membership) |
@@ -57,11 +57,11 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::scc_groups(kind)` finds all SCCs of size ≥ 2 for symbol nodes.
-- [ ] File nodes excluded (paths not containing `>`).
-- [ ] Singletons (size 1) excluded from output.
-- [ ] Groups sorted by size descending, ties by first path ascending.
-- [ ] Paths within each group sorted ascending.
-- [ ] `mycelium_get_scc_groups`: valid edge_kind returns `{ groups, group_count, total_symbols }`.
-- [ ] `mycelium_get_scc_groups`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::scc_groups(kind)` finds all SCCs of size ≥ 2 for symbol nodes.
+- [x] File nodes excluded (paths not containing `>`).
+- [x] Singletons (size 1) excluded from output.
+- [x] Groups sorted by size descending, ties by first path ascending.
+- [x] Paths within each group sorted ascending.
+- [x] `mycelium_get_scc_groups`: valid edge_kind returns `{ groups, group_count, total_symbols }`.
+- [x] `mycelium_get_scc_groups`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0082                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0078 (harmonic_centrality), RFC-0077 (eccentricity) |
@@ -79,12 +79,12 @@ Response (top 10 by default):
 
 ## Acceptance Criteria
 
-- [ ] Empty graph → empty result.
-- [ ] Single isolated node → score 1.0.
-- [ ] Uniform graph (no edges) → all scores equal `1/n`.
-- [ ] Star graph (one hub) → hub has highest score after convergence.
-- [ ] Chain A→B→C → C has higher score than A (C is more depended-upon).
-- [ ] Damping 0.0 → all scores `1/n` (teleportation only).
-- [ ] `mycelium_page_rank`: valid edge_kind returns `{ nodes, symbol_count, top_n }`.
-- [ ] `mycelium_page_rank`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Empty graph → empty result.
+- [x] Single isolated node → score 1.0.
+- [x] Uniform graph (no edges) → all scores equal `1/n`.
+- [x] Star graph (one hub) → hub has highest score after convergence.
+- [x] Chain A→B→C → C has higher score than A (C is more depended-upon).
+- [x] Damping 0.0 → all scores `1/n` (teleportation only).
+- [x] `mycelium_page_rank`: valid edge_kind returns `{ nodes, symbol_count, top_n }`.
+- [x] `mycelium_page_rank`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0058                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0049 (entry_points — zero in-degree), RFC-0057 (scc_groups — cycle detection) |
@@ -66,13 +66,13 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::dependency_layers(kind)` returns symbols in Kahn BFS layers.
-- [ ] Layer 0 contains only symbols with zero outgoing edges (for `kind`) within the symbol subgraph.
-- [ ] Layer k+1 contains only symbols all of whose outgoing symbol-subgraph neighbours are in layers 0..=k.
-- [ ] File nodes excluded (paths not containing `>`).
-- [ ] Symbols in cycles excluded from all layers.
-- [ ] Paths within each layer sorted ascending.
-- [ ] `mycelium_get_dependency_layers`: valid edge_kind returns `{ layers, layer_count, total_symbols, cycle_excluded_count }`.
-- [ ] `mycelium_get_dependency_layers`: unknown edge_kind returns `{ error }`.
-- [ ] `cycle_excluded_count` correctly reports symbols not assigned to any layer.
-- [ ] All prior tests pass.
+- [x] `Store::dependency_layers(kind)` returns symbols in Kahn BFS layers.
+- [x] Layer 0 contains only symbols with zero outgoing edges (for `kind`) within the symbol subgraph.
+- [x] Layer k+1 contains only symbols all of whose outgoing symbol-subgraph neighbours are in layers 0..=k.
+- [x] File nodes excluded (paths not containing `>`).
+- [x] Symbols in cycles excluded from all layers.
+- [x] Paths within each layer sorted ascending.
+- [x] `mycelium_get_dependency_layers`: valid edge_kind returns `{ layers, layer_count, total_symbols, cycle_excluded_count }`.
+- [x] `mycelium_get_dependency_layers`: unknown edge_kind returns `{ error }`.
+- [x] `cycle_excluded_count` correctly reports symbols not assigned to any layer.
+- [x] All prior tests pass.

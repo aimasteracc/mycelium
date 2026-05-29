@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0049                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0022 (entry_points), RFC-0048 (most_connected), RFC-0046 (node_degree) |
@@ -52,11 +52,11 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::leaf_symbols(kind, limit)` returns symbol nodes with out-degree 0 for `kind`.
-- [ ] Symbol nodes only (paths containing `>`); file nodes excluded.
-- [ ] Results sorted ascending by path.
-- [ ] `limit` respected; capped at 100 internally.
-- [ ] `mycelium_get_leaf_symbols`: valid edge_kind returns `{ symbols, count }`.
-- [ ] `mycelium_get_leaf_symbols`: unknown edge_kind returns `{ error }`.
-- [ ] `limit` defaults to 10 when omitted.
-- [ ] All prior tests pass.
+- [x] `Store::leaf_symbols(kind, limit)` returns symbol nodes with out-degree 0 for `kind`.
+- [x] Symbol nodes only (paths containing `>`); file nodes excluded.
+- [x] Results sorted ascending by path.
+- [x] `limit` respected; capped at 100 internally.
+- [x] `mycelium_get_leaf_symbols`: valid edge_kind returns `{ symbols, count }`.
+- [x] `mycelium_get_leaf_symbols`: unknown edge_kind returns `{ error }`.
+- [x] `limit` defaults to 10 when omitted.
+- [x] All prior tests pass.

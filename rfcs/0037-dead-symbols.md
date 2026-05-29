@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0037                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0011 (Calls edges), RFC-0023 (Imports edges), RFC-0028 (NodeKind) |
@@ -62,11 +62,11 @@ Empty result: `{ "dead_symbols": [], "count": 0 }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::dead_symbols(prefix)` returns only symbol paths (containing `>`).
-- [ ] File-level nodes are excluded.
-- [ ] Symbols with any incoming Calls edge are excluded.
-- [ ] Symbols with any incoming Imports edge are excluded.
-- [ ] Optional `path_prefix` filters results.
-- [ ] Results are sorted lexicographically.
-- [ ] `mycelium_get_dead_symbols`: returns `{ dead_symbols, count }`.
-- [ ] All prior tests pass.
+- [x] `Store::dead_symbols(prefix)` returns only symbol paths (containing `>`).
+- [x] File-level nodes are excluded.
+- [x] Symbols with any incoming Calls edge are excluded.
+- [x] Symbols with any incoming Imports edge are excluded.
+- [x] Optional `path_prefix` filters results.
+- [x] Results are sorted lexicographically.
+- [x] `mycelium_get_dead_symbols`: returns `{ dead_symbols, count }`.
+- [x] All prior tests pass.

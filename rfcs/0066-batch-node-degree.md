@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0066                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0046 (node_degree), RFC-0025 (batch_symbol_info) |
@@ -64,10 +64,10 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::batch_node_degree(ids)` returns one `NodeDegree` per id in input order.
-- [ ] Unknown (not-in-synapse) ids return `NodeDegree::default()`.
-- [ ] `mycelium_batch_node_degree`: known paths return full degree breakdown.
-- [ ] `mycelium_batch_node_degree`: unknown paths return `{ path, error }`.
-- [ ] Results in input order.
-- [ ] `count` equals the number of paths supplied (up to 50).
-- [ ] All prior tests pass.
+- [x] `Store::batch_node_degree(ids)` returns one `NodeDegree` per id in input order.
+- [x] Unknown (not-in-synapse) ids return `NodeDegree::default()`.
+- [x] `mycelium_batch_node_degree`: known paths return full degree breakdown.
+- [x] `mycelium_batch_node_degree`: unknown paths return `{ path, error }`.
+- [x] Results in input order.
+- [x] `count` equals the number of paths supplied (up to 50).
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0023                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0002 (Extractor, Imports edges), RFC-0012 (get_callees/callers) |
@@ -65,8 +65,8 @@ Both resolve NodeIds to path strings via `path_of`, sort, and return.
 
 ## Acceptance Criteria
 
-- [ ] `imports` contains all outgoing `Imports` edge targets for the path.
-- [ ] `imported_by` contains all incoming `Imports` edge sources for the path.
-- [ ] Both lists sorted lexicographically.
-- [ ] Unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `imports` contains all outgoing `Imports` edge targets for the path.
+- [x] `imported_by` contains all incoming `Imports` edge sources for the path.
+- [x] Both lists sorted lexicographically.
+- [x] Unknown path returns `{ error }`.
+- [x] All prior tests pass.

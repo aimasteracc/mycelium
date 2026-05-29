@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0033                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0017 (find_call_path), RFC-0027 (find_import_path), RFC-0030 (find_extends_path), RFC-0026 (get_implements) |
@@ -58,12 +58,12 @@ Unknown from/to path returns `{ "error": "path not found: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::find_implements_path(self_node, self_node, _)` returns `Some([self])`.
-- [ ] `Store::find_implements_path` finds a direct hop.
-- [ ] `Store::find_implements_path` finds a transitive path.
-- [ ] `Store::find_implements_path` returns `None` for unreachable targets.
-- [ ] `max_depth` limits the number of hops.
-- [ ] `mycelium_find_implements_path`: known path returns `{ path, hops }`.
-- [ ] `mycelium_find_implements_path`: unknown path returns `{ path: [], hops: null, message }`.
-- [ ] `mycelium_find_implements_path`: unknown from/to path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::find_implements_path(self_node, self_node, _)` returns `Some([self])`.
+- [x] `Store::find_implements_path` finds a direct hop.
+- [x] `Store::find_implements_path` finds a transitive path.
+- [x] `Store::find_implements_path` returns `None` for unreachable targets.
+- [x] `max_depth` limits the number of hops.
+- [x] `mycelium_find_implements_path`: known path returns `{ path, hops }`.
+- [x] `mycelium_find_implements_path`: unknown path returns `{ path: [], hops: null, message }`.
+- [x] `mycelium_find_implements_path`: unknown from/to path returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0071                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0070 (articulation_points), RFC-0068 (WCC) |
@@ -54,12 +54,12 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::bridge_edges(kind)` returns `(from, to)` pairs with `from < to`, sorted ascending.
-- [ ] Removing a bridge edge disconnects its WCC.
-- [ ] Non-bridge edges (removing them leaves the graph connected) excluded.
-- [ ] Singleton nodes (degree 0) never produce bridges.
-- [ ] File nodes excluded.
-- [ ] Parallel edges between the same node pair are not bridges.
-- [ ] `mycelium_find_bridge_edges`: valid edge_kind returns `{ bridges, count }`.
-- [ ] `mycelium_find_bridge_edges`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::bridge_edges(kind)` returns `(from, to)` pairs with `from < to`, sorted ascending.
+- [x] Removing a bridge edge disconnects its WCC.
+- [x] Non-bridge edges (removing them leaves the graph connected) excluded.
+- [x] Singleton nodes (degree 0) never produce bridges.
+- [x] File nodes excluded.
+- [x] Parallel edges between the same node pair are not bridges.
+- [x] `mycelium_find_bridge_edges`: valid edge_kind returns `{ bridges, count }`.
+- [x] `mycelium_find_bridge_edges`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

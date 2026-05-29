@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0032                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0021 (caller_tree), RFC-0031 (extends_tree) |
@@ -70,10 +70,10 @@ Unknown path returns `{ "error": "path not found: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `SubclassNode` struct with `id` and `subclasses` fields defined in core.
-- [ ] `Store::subclasses_tree` returns a leaf node for `max_depth = 0`.
-- [ ] DFS follows **incoming** Extends edges.
-- [ ] Cycles produce leaf nodes (not infinite recursion).
-- [ ] `mycelium_get_subclasses_tree`: known path returns `{ root: { path, subclasses } }`.
-- [ ] `mycelium_get_subclasses_tree`: unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `SubclassNode` struct with `id` and `subclasses` fields defined in core.
+- [x] `Store::subclasses_tree` returns a leaf node for `max_depth = 0`.
+- [x] DFS follows **incoming** Extends edges.
+- [x] Cycles produce leaf nodes (not infinite recursion).
+- [x] `mycelium_get_subclasses_tree`: known path returns `{ root: { path, subclasses } }`.
+- [x] `mycelium_get_subclasses_tree`: unknown path returns `{ error }`.
+- [x] All prior tests pass.

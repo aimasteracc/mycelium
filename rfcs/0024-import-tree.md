@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0024                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0023 (get_imports), RFC-0020 (callee_tree) |
@@ -80,9 +80,9 @@ Mirrors `callee_tree_inner` but uses `synapse.outgoing(id, EdgeKind::Imports)`.
 
 ## Acceptance Criteria
 
-- [ ] Direct imports appear as level-1 imports.
-- [ ] Transitive imports appear at depth 2+.
-- [ ] `max_depth` limits traversal; nodes at the depth limit appear as leaves.
-- [ ] Cycles produce a leaf (not infinite recursion).
-- [ ] Unknown `path` returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Direct imports appear as level-1 imports.
+- [x] Transitive imports appear at depth 2+.
+- [x] `max_depth` limits traversal; nodes at the depth limit appear as leaves.
+- [x] Cycles produce a leaf (not infinite recursion).
+- [x] Unknown `path` returns `{ error }`.
+- [x] All prior tests pass.

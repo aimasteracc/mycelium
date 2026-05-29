@@ -3,7 +3,7 @@
 | Field       | Value                                |
 |-------------|--------------------------------------|
 | RFC         | 0005                                 |
-| Status      | Accepted                             |
+| Status      | Implemented                             |
 | Author      | Hive (rust-implementer, orchestrator)|
 | Date        | 2026-05-29                           |
 | Supersedes  | (none)                               |

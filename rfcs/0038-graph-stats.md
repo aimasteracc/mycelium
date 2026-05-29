@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0038                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0007 (server_status), RFC-0010 (edge_count), RFC-0028 (NodeKind) |
@@ -75,11 +75,11 @@ Kinds with zero count are omitted from the maps.
 
 ## Acceptance Criteria
 
-- [ ] `GraphStats` struct with `total_nodes`, `total_edges`, `nodes_by_kind`, `edges_by_kind`.
-- [ ] `Store::graph_stats()` counts nodes grouped by `NodeKind`.
-- [ ] `Store::graph_stats()` counts edges grouped by `EdgeKind`.
-- [ ] Kinds with zero count are omitted from the maps.
-- [ ] `total_nodes` equals the sum of all `nodes_by_kind` values.
-- [ ] `total_edges` equals the sum of all `edges_by_kind` values.
-- [ ] `mycelium_get_stats`: returns the full stats object.
-- [ ] All prior tests pass.
+- [x] `GraphStats` struct with `total_nodes`, `total_edges`, `nodes_by_kind`, `edges_by_kind`.
+- [x] `Store::graph_stats()` counts nodes grouped by `NodeKind`.
+- [x] `Store::graph_stats()` counts edges grouped by `EdgeKind`.
+- [x] Kinds with zero count are omitted from the maps.
+- [x] `total_nodes` equals the sum of all `nodes_by_kind` values.
+- [x] `total_edges` equals the sum of all `edges_by_kind` values.
+- [x] `mycelium_get_stats`: returns the full stats object.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0034                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0024 (import_tree), RFC-0031 (extends_tree), RFC-0033 (find_implements_path), RFC-0026 (get_implements) |
@@ -68,10 +68,10 @@ Unknown path returns `{ "error": "path not found: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `ImplementsNode` struct with `id` and `interfaces` fields defined in core.
-- [ ] `Store::implements_tree` returns a leaf node for `max_depth = 0`.
-- [ ] DFS follows outgoing Implements edges.
-- [ ] Cycles produce leaf nodes (not infinite recursion).
-- [ ] `mycelium_get_implements_tree`: known path returns `{ root: { path, interfaces } }`.
-- [ ] `mycelium_get_implements_tree`: unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `ImplementsNode` struct with `id` and `interfaces` fields defined in core.
+- [x] `Store::implements_tree` returns a leaf node for `max_depth = 0`.
+- [x] DFS follows outgoing Implements edges.
+- [x] Cycles produce leaf nodes (not infinite recursion).
+- [x] `mycelium_get_implements_tree`: known path returns `{ root: { path, interfaces } }`.
+- [x] `mycelium_get_implements_tree`: unknown path returns `{ error }`.
+- [x] All prior tests pass.

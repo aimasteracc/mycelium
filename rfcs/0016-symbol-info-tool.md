@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0016                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0004 (MCP server), RFC-0012 (Call graph tools) |
@@ -64,7 +64,7 @@ Sorted lists allow stable diffing between index runs.
 
 ## Acceptance Criteria
 
-- [ ] `mycelium_get_symbol_info` returns all 4 relationship types in one call.
-- [ ] Returns `{"error": "..."}` for an unknown path.
-- [ ] All lists are sorted lexicographically.
-- [ ] All prior tests pass.
+- [x] `mycelium_get_symbol_info` returns all 4 relationship types in one call.
+- [x] Returns `{"error": "..."}` for an unknown path.
+- [x] All lists are sorted lexicographically.
+- [x] All prior tests pass.

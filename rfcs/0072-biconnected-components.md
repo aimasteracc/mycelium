@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0072                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0071 (bridge_edges), RFC-0070 (articulation_points) |
@@ -59,12 +59,12 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::biconnected_components(kind)` returns groups sorted by size desc.
-- [ ] A triangle (cycle of 3) forms a single BCC of 3 nodes.
-- [ ] A bridge edge's endpoints each appear in their own 2-node BCC.
-- [ ] Singleton nodes (degree 0) are excluded.
-- [ ] File nodes excluded.
-- [ ] A "bowtie" (two triangles sharing one vertex) produces two BCCs of 3.
-- [ ] `mycelium_get_biconnected_components`: valid edge_kind returns `{ components, component_count, total_symbols }`.
-- [ ] `mycelium_get_biconnected_components`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::biconnected_components(kind)` returns groups sorted by size desc.
+- [x] A triangle (cycle of 3) forms a single BCC of 3 nodes.
+- [x] A bridge edge's endpoints each appear in their own 2-node BCC.
+- [x] Singleton nodes (degree 0) are excluded.
+- [x] File nodes excluded.
+- [x] A "bowtie" (two triangles sharing one vertex) produces two BCCs of 3.
+- [x] `mycelium_get_biconnected_components`: valid edge_kind returns `{ components, component_count, total_symbols }`.
+- [x] `mycelium_get_biconnected_components`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

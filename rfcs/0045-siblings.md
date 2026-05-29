@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0045                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0001 (Trunk), RFC-0005 (descendants) |
@@ -52,10 +52,10 @@ Root node (no parent) returns `{ "siblings": [], "count": 0 }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::siblings(id)` returns direct siblings (other children of the same parent).
-- [ ] The node itself is excluded from results.
-- [ ] Root nodes (no parent) return empty `Vec`.
-- [ ] Results sorted lexicographically.
-- [ ] `mycelium_get_siblings`: known path returns `{ siblings, count }`.
-- [ ] `mycelium_get_siblings`: unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::siblings(id)` returns direct siblings (other children of the same parent).
+- [x] The node itself is excluded from results.
+- [x] Root nodes (no parent) return empty `Vec`.
+- [x] Results sorted lexicographically.
+- [x] `mycelium_get_siblings`: known path returns `{ siblings, count }`.
+- [x] `mycelium_get_siblings`: unknown path returns `{ error }`.
+- [x] All prior tests pass.

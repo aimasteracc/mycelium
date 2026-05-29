@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0019                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0011 (Call graph), RFC-0012 (call MCP tools) |
@@ -67,9 +67,9 @@ Empty array when no Calls edges exist.
 
 ## Acceptance Criteria
 
-- [ ] Returns symbols sorted by caller count descending.
-- [ ] Ties broken by path ascending.
-- [ ] `limit` defaults to 10, capped at 100.
-- [ ] Symbols with 0 callers are excluded.
-- [ ] Empty store returns empty list.
-- [ ] All prior tests pass.
+- [x] Returns symbols sorted by caller count descending.
+- [x] Ties broken by path ascending.
+- [x] `limit` defaults to 10, capped at 100.
+- [x] Symbols with 0 callers are excluded.
+- [x] Empty store returns empty list.
+- [x] All prior tests pass.

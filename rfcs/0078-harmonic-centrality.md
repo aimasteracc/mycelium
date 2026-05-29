@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0078                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0077 (eccentricity), RFC-0050 (shortest_path) |
@@ -60,12 +60,12 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `harmonic_centrality` returns 0.0 for an isolated node.
-- [ ] Returns 1.0 when a node reaches all other symbols in exactly 1 hop.
-- [ ] Returns correct fractional value for a chain (1-hop and 2-hop reachable).
-- [ ] Unreachable nodes do not affect the result.
-- [ ] File nodes excluded from BFS and from symbol_count.
-- [ ] `mycelium_get_harmonic_centrality`: valid path returns `{ harmonic_centrality, reachable_count, symbol_count }`.
-- [ ] `mycelium_get_harmonic_centrality`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_harmonic_centrality`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `harmonic_centrality` returns 0.0 for an isolated node.
+- [x] Returns 1.0 when a node reaches all other symbols in exactly 1 hop.
+- [x] Returns correct fractional value for a chain (1-hop and 2-hop reachable).
+- [x] Unreachable nodes do not affect the result.
+- [x] File nodes excluded from BFS and from symbol_count.
+- [x] `mycelium_get_harmonic_centrality`: valid path returns `{ harmonic_centrality, reachable_count, symbol_count }`.
+- [x] `mycelium_get_harmonic_centrality`: unknown path returns `{ error }`.
+- [x] `mycelium_get_harmonic_centrality`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.
