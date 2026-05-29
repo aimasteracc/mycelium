@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Performance hardening — issue #153** (v0.1.4):
+  - Added `Trunk::symbol_nodes()` and `Store::symbol_nodes()` — O(V) iterator over
+    symbol nodes yielding `(NodeId, &str)` without trie navigation. Eliminates the
+    `all_paths() + lookup_path()` anti-pattern from five heavy-graph algorithms
+    (`leaf_symbols`, `degree_histogram`, `graph_metrics`, `page_rank`, `weakly_connected_components`).
+  - Replaced path-clone BFS in `find_call_path` with a parent-map BFS — O(V) space
+    instead of O(V·max_depth), eliminates per-frontier Vec allocations.
+  - Added 8 performance regression tests (`heavy_graph_*`) proving all six tools
+    complete in < 2 s on 1 K-node and < 10 s on 10 K-node graphs in debug mode.
+  - Added `benches/heavy_graph.rs` — Criterion benchmarks at 1 K and 10 K nodes for
+    all six tools; use `cargo bench -p mycelium-rcig-core --bench heavy_graph` for SLA tracking.
+  - Charter §2 SLA table extended with two new rows for heavy-graph algorithm classes.
+
 - **RFC-0090 Phase 2.3 — Skill coverage complete (89/89)** (v0.1.4):
   - New [`skills/index-management/`](skills/index-management/) Skill — 7 tools covering
     the server lifecycle: `index_workspace`, `load_index`, `server_status` (shared with

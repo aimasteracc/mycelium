@@ -51,3 +51,8 @@ required-features = []
 name    = "synapse_traversal"
 harness = false
 required-features = []
+
+[[bench]]
+name    = "heavy_graph"
+harness = false
+required-features = []
