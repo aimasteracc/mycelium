@@ -74,17 +74,20 @@ struct WatchState {
 }
 
 // ── embedded pack queries ─────────────────────────────────────────────────────
+// Paths are relative to this crate's root so the crate is self-contained
+// for `cargo publish` (workspace-level `packs/` is mirrored under `packs/`
+// inside this crate directory).
 
-const JAVASCRIPT_QUERIES: &str = include_str!("../../../packs/javascript/queries.scm");
-const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
-const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
-const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
-const GO_QUERIES: &str = include_str!("../../../packs/go/queries.scm");
-const JAVA_QUERIES: &str = include_str!("../../../packs/java/queries.scm");
-const C_QUERIES: &str = include_str!("../../../packs/c/queries.scm");
-const RUBY_QUERIES: &str = include_str!("../../../packs/ruby/queries.scm");
-const CPP_QUERIES: &str = include_str!("../../../packs/cpp/queries.scm");
-const CSHARP_QUERIES: &str = include_str!("../../../packs/csharp/queries.scm");
+const JAVASCRIPT_QUERIES: &str = include_str!("../packs/javascript/queries.scm");
+const PYTHON_QUERIES: &str = include_str!("../packs/python/queries.scm");
+const TYPESCRIPT_QUERIES: &str = include_str!("../packs/typescript/queries.scm");
+const RUST_QUERIES: &str = include_str!("../packs/rust/queries.scm");
+const GO_QUERIES: &str = include_str!("../packs/go/queries.scm");
+const JAVA_QUERIES: &str = include_str!("../packs/java/queries.scm");
+const C_QUERIES: &str = include_str!("../packs/c/queries.scm");
+const RUBY_QUERIES: &str = include_str!("../packs/ruby/queries.scm");
+const CPP_QUERIES: &str = include_str!("../packs/cpp/queries.scm");
+const CSHARP_QUERIES: &str = include_str!("../packs/csharp/queries.scm");
 
 // ── request schemas ───────────────────────────────────────────────────────────
 
@@ -9725,5 +9728,32 @@ mod tests {
             byte_ratio <= token_ratio,
             "byte_ratio {byte_ratio:.4} should be <= token_ratio {token_ratio:.4}"
         );
+    }
+
+    // ── embedded pack query sanity (verifies include_str! paths resolve) ──────
+
+    #[test]
+    fn embedded_pack_queries_are_non_empty() {
+        // These constants are populated via include_str! from crates/mycelium-mcp/packs/.
+        // A non-empty string proves the path resolved correctly at compile time.
+        // If any include_str! path is wrong this test will fail to compile.
+        for (lang, q) in [
+            ("javascript", JAVASCRIPT_QUERIES),
+            ("python", PYTHON_QUERIES),
+            ("typescript", TYPESCRIPT_QUERIES),
+            ("rust", RUST_QUERIES),
+            ("go", GO_QUERIES),
+            ("java", JAVA_QUERIES),
+            ("c", C_QUERIES),
+            ("ruby", RUBY_QUERIES),
+            ("cpp", CPP_QUERIES),
+            ("csharp", CSHARP_QUERIES),
+        ] {
+            assert!(!q.is_empty(), "{lang} pack query must be non-empty");
+            assert!(
+                q.contains('(') || q.contains('['),
+                "{lang} pack query must contain tree-sitter syntax"
+            );
+        }
     }
 }

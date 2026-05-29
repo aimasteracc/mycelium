@@ -1,0 +1,14 @@
+# Mycelium C# language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+#
+# Partial classes: tree-sitter-c-sharp parses each partial class_declaration
+# independently.  Mycelium creates one node per declaration; merging across
+# files is a future concern (RFC process required for that semantic change).
+
+[meta]
+name        = "csharp"
+description = "C# language pack for Mycelium. Extracts classes, interfaces, methods, namespaces, enums, structs, and using directives."
+extensions  = [".cs"]
+grammar     = "crates.io:tree-sitter-c-sharp@^0.23"
