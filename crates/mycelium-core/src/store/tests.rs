@@ -2182,3 +2182,74 @@ fn store_reachable_to_sorted() {
     sorted.sort_unstable();
     assert_eq!(reachable, sorted);
 }
+// ──────────────────────────────────────────────────────────────────────
+// RFC-0045: Store::siblings
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_siblings_methods_in_class() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>App>init"));
+    store.upsert_node(path("src/a.rs>App>render"));
+    store.upsert_node(path("src/a.rs>App>destroy"));
+    let render_id = store.lookup("src/a.rs>App>render").unwrap();
+    let siblings = store.siblings(render_id);
+    assert!(siblings.contains(&"src/a.rs>App>init".to_owned()));
+    assert!(siblings.contains(&"src/a.rs>App>destroy".to_owned()));
+    assert!(!siblings.contains(&"src/a.rs>App>render".to_owned()));
+}
+
+#[test]
+fn store_siblings_top_level_in_file() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>fn1"));
+    store.upsert_node(path("src/a.rs>fn2"));
+    store.upsert_node(path("src/a.rs>fn3"));
+    let fn1 = store.lookup("src/a.rs>fn1").unwrap();
+    let siblings = store.siblings(fn1);
+    assert_eq!(siblings.len(), 2);
+    assert!(siblings.contains(&"src/a.rs>fn2".to_owned()));
+    assert!(siblings.contains(&"src/a.rs>fn3".to_owned()));
+}
+
+#[test]
+fn store_siblings_excludes_self() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>App>method"));
+    let id = store.lookup("src/a.rs>App>method").unwrap();
+    let siblings = store.siblings(id);
+    assert!(!siblings.contains(&"src/a.rs>App>method".to_owned()));
+}
+
+#[test]
+fn store_siblings_no_parent_returns_empty() {
+    let mut store = Store::new();
+    let file_id = store.upsert_node(path("src/a.rs"));
+    // file-level node has no '>' parent
+    let siblings = store.siblings(file_id);
+    assert!(siblings.is_empty());
+}
+
+#[test]
+fn store_siblings_only_direct_not_grandchildren() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>App>method"));
+    store.upsert_node(path("src/a.rs>App>method>inner"));
+    let id = store.lookup("src/a.rs>App>method").unwrap();
+    let siblings = store.siblings(id);
+    // inner is a grandchild of App, not a sibling of method
+    assert!(!siblings.iter().any(|s| s.contains("inner")));
+}
+
+#[test]
+fn store_siblings_sorted() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>App>z_method"));
+    store.upsert_node(path("src/a.rs>App>a_method"));
+    store.upsert_node(path("src/a.rs>App>m_method"));
+    let id = store.lookup("src/a.rs>App>m_method").unwrap();
+    let siblings = store.siblings(id);
+    let mut sorted = siblings.clone();
+    sorted.sort_unstable();
+    assert_eq!(siblings, sorted);
+}
