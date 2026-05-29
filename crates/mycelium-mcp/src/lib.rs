@@ -340,6 +340,15 @@ pub struct GetOutgoingRefsRequest {
     pub path: String,
 }
 
+/// Input parameters for `mycelium_get_all_symbols`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetAllSymbolsRequest {
+    /// Optional path prefix to restrict results, e.g. `"src/"`.
+    pub path_prefix: Option<String>,
+    /// Optional kind filter: `"function"`, `"class"`, `"method"`, etc.
+    pub kind: Option<String>,
+}
+
 /// Input parameters for `mycelium_detect_cycles`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DetectCyclesRequest {
@@ -1242,6 +1251,34 @@ impl MyceliumServer {
             "implements": refs.implements,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "List all non-file symbol paths in the graph, sorted lexicographically. \
+                       Optionally filter by path_prefix (e.g. 'src/') and/or kind \
+                       ('function', 'class', 'method', etc.). \
+                       Returns { symbols: [...], count: N } or { error } for an unknown kind string."
+    )]
+    async fn mycelium_get_all_symbols(
+        &self,
+        Parameters(req): Parameters<GetAllSymbolsRequest>,
+    ) -> String {
+        if let Some(ref k) = req.kind {
+            if mycelium_core::types::NodeKind::try_from_wire(k).is_none() {
+                return serde_json::json!({ "error": format!("unknown kind: {k}") }).to_string();
+            }
+        }
+        let kind = req
+            .kind
+            .as_deref()
+            .and_then(mycelium_core::types::NodeKind::try_from_wire);
+        let symbols = self
+            .store
+            .read()
+            .await
+            .all_symbols(req.path_prefix.as_deref(), kind);
+        let count = symbols.len();
+        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
     }
 
     #[tool(
@@ -4300,6 +4337,106 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0042: mycelium_get_all_symbols ───────────────────────────────────
+
+    #[tokio::test]
+    async fn get_all_symbols_excludes_file_nodes() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs").unwrap());
+            store.upsert_node(TrunkPath::parse("src/a.rs>fn1").unwrap());
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert!(!symbols.iter().any(|s| s.as_str().unwrap() == "src/a.rs"));
+        assert!(
+            symbols
+                .iter()
+                .any(|s| s.as_str().unwrap() == "src/a.rs>fn1")
+        );
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_prefix_filter() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>fn1").unwrap());
+            store.upsert_node(TrunkPath::parse("lib/b.rs>fn2").unwrap());
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: Some("src/".to_owned()),
+                kind: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].as_str().unwrap(), "src/a.rs>fn1");
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_kind_filter() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let fn_id = store.upsert_node(TrunkPath::parse("src/a.rs>fn1").unwrap());
+            store.set_kind(fn_id, mycelium_core::types::NodeKind::Function);
+            let cls_id = store.upsert_node(TrunkPath::parse("src/a.rs>MyClass").unwrap());
+            store.set_kind(cls_id, mycelium_core::types::NodeKind::Class);
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: Some("function".to_owned()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].as_str().unwrap(), "src/a.rs>fn1");
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_unknown_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: Some("bogus_kind".to_owned()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+        assert!(val["error"].as_str().unwrap().contains("bogus_kind"));
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_no_params_returns_all() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("a.rs>x").unwrap());
+            store.upsert_node(TrunkPath::parse("b.rs>y").unwrap());
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
