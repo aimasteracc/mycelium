@@ -50,8 +50,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use anyhow::Context as _;
 use mycelium_core::{
     CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
-    ImportNode, ImporterNode, OutgoingRefs, SubclassNode, extractor::Extractor, store::Store,
-    types::EdgeKind,
+    ImportNode, ImporterNode, NodeDegree, OutgoingRefs, SubclassNode, extractor::Extractor,
+    store::Store, types::EdgeKind,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -375,6 +375,13 @@ pub struct GetReachableToRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetSiblingsRequest {
     /// Symbol path whose siblings to look up, e.g. `"src/app.rs>App>render"`.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_node_degree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetNodeDegreeRequest {
+    /// Symbol or file path to analyse, e.g. `"src/app.rs>App"`.
     pub path: String,
 }
 
@@ -1402,6 +1409,38 @@ impl MyceliumServer {
         };
         let count = siblings.len();
         serde_json::json!({ "siblings": siblings, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return in/out edge counts for all four EdgeKinds for a given path — \
+                       a fast connectivity summary without pulling full edge lists. \
+                       Returns { in_calls, out_calls, in_imports, out_imports, \
+                       in_extends, out_extends, in_implements, out_implements } \
+                       or { error } for unknown paths."
+    )]
+    async fn mycelium_get_node_degree(
+        &self,
+        Parameters(req): Parameters<GetNodeDegreeRequest>,
+    ) -> String {
+        let degree_opt: Option<NodeDegree> = {
+            let store = self.store.read().await;
+            store.lookup(&req.path).map(|id| store.node_degree(id))
+        };
+        let Some(deg) = degree_opt else {
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        serde_json::json!({
+            "in_calls": deg.in_calls,
+            "out_calls": deg.out_calls,
+            "in_imports": deg.in_imports,
+            "out_imports": deg.out_imports,
+            "in_extends": deg.in_extends,
+            "out_extends": deg.out_extends,
+            "in_implements": deg.in_implements,
+            "out_implements": deg.out_implements,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -4849,6 +4888,61 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(val["siblings"][0].as_str().unwrap(), "src/a.rs>App>other");
+    }
+
+    // ── RFC-0046: mycelium_get_node_degree ───────────────────────────────────
+
+    #[tokio::test]
+    async fn get_node_degree_isolated_all_zero() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>fn1").unwrap());
+        }
+        let raw = server
+            .mycelium_get_node_degree(Parameters(GetNodeDegreeRequest {
+                path: "src/a.rs>fn1".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["in_calls"].as_u64().unwrap(), 0);
+        assert_eq!(val["out_calls"].as_u64().unwrap(), 0);
+        assert_eq!(val["in_imports"].as_u64().unwrap(), 0);
+        assert_eq!(val["out_imports"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_node_degree_counts_edges() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, b, a);
+            store.upsert_edge(EdgeKind::Calls, c, a);
+            store.upsert_edge(EdgeKind::Calls, a, b);
+        }
+        let raw = server
+            .mycelium_get_node_degree(Parameters(GetNodeDegreeRequest {
+                path: "src/a.rs>a".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["in_calls"].as_u64().unwrap(), 2);
+        assert_eq!(val["out_calls"].as_u64().unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn get_node_degree_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_node_degree(Parameters(GetNodeDegreeRequest {
+                path: "no/such>path".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
