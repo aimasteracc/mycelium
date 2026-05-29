@@ -11,6 +11,11 @@ mod index;
     clippy::redundant_pub_crate,
     reason = "items used by main.rs require pub(crate); bin-crate root cannot consume private child-mod items"
 )]
+mod queries;
+#[allow(
+    clippy::redundant_pub_crate,
+    reason = "items used by main.rs require pub(crate); bin-crate root cannot consume private child-mod items"
+)]
 mod query;
 
 /// The `mycelium` CLI. See `mycelium --help` for details.
@@ -35,6 +40,15 @@ enum QueryFormat {
 }
 
 impl From<QueryFormat> for query::Format {
+    fn from(f: QueryFormat) -> Self {
+        match f {
+            QueryFormat::Text => Self::Text,
+            QueryFormat::Json => Self::Json,
+        }
+    }
+}
+
+impl From<QueryFormat> for queries::Format {
     fn from(f: QueryFormat) -> Self {
         match f {
             QueryFormat::Text => Self::Text,
@@ -76,6 +90,44 @@ enum Cmd {
         /// Output format. `text` writes one match per line. `json` writes a
         /// JSON array of strings — the stable contract used by the MCP twin
         /// tool `mycelium_query`.
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Find symbols by case-insensitive substring match on the final
+    /// path segment.
+    SearchSymbol {
+        /// Substring to search for in symbol names.
+        query: String,
+        /// Project root (defaults to current directory).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        /// Maximum results to return.
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        /// Output format.
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return all structural information about a symbol (ancestors,
+    /// descendants, callers, callees) in one call.
+    GetSymbolInfo {
+        /// Symbol path, e.g. `src/lib.rs>App>render`.
+        path: String,
+        /// Project root (defaults to current directory).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        /// Output format.
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the containment-chain ancestors of a symbol (child-to-root).
+    GetAncestors {
+        /// Symbol path, e.g. `src/lib.rs>App>render`.
+        path: String,
+        /// Project root (defaults to current directory).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        /// Output format.
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
@@ -134,6 +186,23 @@ fn main() -> Result<()> {
         Cmd::Query { expr, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
             query::run(&canonical, &expr, format.into())?;
+        }
+        Cmd::SearchSymbol {
+            query,
+            root,
+            limit,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_search_symbol(&canonical, &query, limit, format.into())?;
+        }
+        Cmd::GetSymbolInfo { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_symbol_info(&canonical, &path, format.into())?;
+        }
+        Cmd::GetAncestors { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_ancestors(&canonical, &path, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));
