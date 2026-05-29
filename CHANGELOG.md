@@ -186,6 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0066: `mycelium_batch_node_degree` MCP tool — batch degree query for up to 50 symbols in one call; accepts `{ paths }` and returns `{ degrees: [{ path, in_calls, out_calls, in_imports, out_imports, in_extends, out_extends, in_implements, out_implements }], count }` with unknown paths returning `{ path, error: "path not found" }`; results in input order.
 - RFC-0067: `Store::cycle_members(kind)` — paths of all symbol nodes participating in at least one directed cycle for a given EdgeKind; uses iterative Kosaraju's SCC algorithm (O(V+E)); file nodes excluded; results sorted ascending. Returns `[]` when no cycles exist.
 - RFC-0067: `mycelium_find_cycle_members` MCP tool — circular dependency detector; accepts `{ edge_kind }` and returns `{ members, count }` (cycle-member symbol paths, sorted) or `{ error }` for unknown edge kind. Detects circular imports, mutually-recursive functions, and inheritance cycles.
+- RFC-0068: `Store::weakly_connected_components(kind)` — groups symbol nodes into weakly-connected components (WCCs) treating edges as undirected; uses path-compressed Union-Find (O(α(V)·E)); components sorted by size descending (ties by first element); file nodes excluded. Surfaces isolated clusters and self-contained subsystems.
+- RFC-0068: `mycelium_get_wcc` MCP tool — cluster detector; accepts `{ edge_kind, min_size? }` and returns `{ components, component_count, total_symbols }` or `{ error }` for unknown edge kind; `min_size` (default 1) filters singletons to focus on real clusters.
 
 ### Fixed
 
