@@ -109,10 +109,10 @@ authored in Phase 2 PRs, one PR per category.
 | `get_wcc` | `mycelium get-wcc` | `mycelium_get_wcc` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
 | `get_degree_histogram` | `mycelium get-degree-histogram` | `mycelium_get_degree_histogram` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
 | `find_cycle_members` | `mycelium find-cycle-members` | `mycelium_find_cycle_members` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
-| `batch_symbol_info` | `mycelium batch-symbol-info` | `mycelium_batch_symbol_info` | [`batch-ops`](batch-ops/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `batch_node_degree` | `mycelium batch-node-degree` | `mycelium_batch_node_degree` | [`batch-ops`](batch-ops/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `batch_reachable_from` | `mycelium batch-reachable-from` | `mycelium_batch_reachable_from` | [`batch-ops`](batch-ops/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `batch_reachable_to` | `mycelium batch-reachable-to` | `mycelium_batch_reachable_to` | [`batch-ops`](batch-ops/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `batch_symbol_info` | `mycelium batch-symbol-info` | `mycelium_batch_symbol_info` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
+| `batch_node_degree` | `mycelium batch-node-degree` | `mycelium_batch_node_degree` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
+| `batch_reachable_from` | `mycelium batch-reachable-from` | `mycelium_batch_reachable_from` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
+| `batch_reachable_to` | `mycelium batch-reachable-to` | `mycelium_batch_reachable_to` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
 | `index_workspace` | `mycelium index` | `mycelium_index_workspace` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI `index` subcommand is the equivalent |
 | `load_index` | `mycelium load-index` | `mycelium_load_index` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
 | `watch_status` | `mycelium watch-status` | `mycelium_watch_status` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
