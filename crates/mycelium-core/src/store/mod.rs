@@ -3396,4 +3396,49 @@ impl Store {
         common.sort();
         common
     }
+
+    /// Returns all symbol paths reachable from `id` in **exactly** `k` BFS
+    /// hops via `kind` edges, sorted alphabetically.
+    ///
+    /// `k == 0` → empty.  Nodes first reached at depth < k are excluded.
+    /// `id` itself is excluded even if a cycle brings it back at hop k.
+    /// File nodes excluded.  O(V + E).
+    #[must_use]
+    pub fn k_hop_neighbors(&self, id: NodeId, kind: EdgeKind, k: usize) -> Vec<String> {
+        if k == 0 {
+            return Vec::new();
+        }
+        let is_file =
+            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| !p.contains('>')) };
+        // BFS tracking the current frontier depth.
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        visited.insert(id);
+        let mut frontier: Vec<NodeId> = vec![id];
+        for depth in 1..=k {
+            let mut next_frontier: Vec<NodeId> = Vec::new();
+            for node in &frontier {
+                for &neighbor in self.synapse.outgoing(*node, kind) {
+                    if !is_file(neighbor) && visited.insert(neighbor) {
+                        next_frontier.push(neighbor);
+                    }
+                }
+            }
+            if depth == k {
+                // Return paths at exactly this frontier, excluding source.
+                let mut paths: Vec<String> = next_frontier
+                    .into_iter()
+                    .filter(|&nid| nid != id)
+                    .filter_map(|nid| self.trunk.path_of(nid).map(str::to_owned))
+                    .collect();
+                paths.sort();
+                paths.dedup();
+                return paths;
+            }
+            frontier = next_frontier;
+            if frontier.is_empty() {
+                return Vec::new();
+            }
+        }
+        Vec::new()
+    }
 }

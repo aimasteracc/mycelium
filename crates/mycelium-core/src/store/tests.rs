@@ -4966,3 +4966,78 @@ fn store_common_reachable_results_are_sorted() {
     sorted.sort();
     assert_eq!(result, sorted);
 }
+
+// ── RFC-0084: k_hop_neighbors ─────────────────────────────────────────────
+
+#[test]
+fn store_k_hop_neighbors_k_zero_returns_empty() {
+    let mut store = Store::new();
+    let node = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_node").unwrap());
+    let dep = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_dep").unwrap());
+    store.upsert_edge(EdgeKind::Calls, node, dep);
+    let result = store.k_hop_neighbors(node, EdgeKind::Calls, 0);
+    assert!(result.is_empty(), "k=0 must return empty");
+}
+
+#[test]
+fn store_k_hop_neighbors_k_one_returns_direct_neighbors() {
+    let mut store = Store::new();
+    let root = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_root").unwrap());
+    let child_a = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_child_a").unwrap());
+    let child_b = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_child_b").unwrap());
+    let grandchild = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_grand").unwrap());
+    store.upsert_edge(EdgeKind::Calls, root, child_a);
+    store.upsert_edge(EdgeKind::Calls, root, child_b);
+    store.upsert_edge(EdgeKind::Calls, child_a, grandchild);
+    let result = store.k_hop_neighbors(root, EdgeKind::Calls, 1);
+    assert_eq!(result.len(), 2);
+    assert!(result.contains(&"src/kh.rs>kh_child_a".to_owned()));
+    assert!(result.contains(&"src/kh.rs>kh_child_b".to_owned()));
+    assert!(
+        !result.contains(&"src/kh.rs>kh_grand".to_owned()),
+        "grandchild must not appear at k=1"
+    );
+}
+
+#[test]
+fn store_k_hop_neighbors_k_two_skips_closer_nodes() {
+    let mut store = Store::new();
+    let root = store.upsert_node(TrunkPath::parse("src/kh.rs>kh2_root").unwrap());
+    let mid = store.upsert_node(TrunkPath::parse("src/kh.rs>kh2_mid").unwrap());
+    let far = store.upsert_node(TrunkPath::parse("src/kh.rs>kh2_far").unwrap());
+    store.upsert_edge(EdgeKind::Calls, root, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, far);
+    let result = store.k_hop_neighbors(root, EdgeKind::Calls, 2);
+    assert_eq!(result, vec!["src/kh.rs>kh2_far"]);
+}
+
+#[test]
+fn store_k_hop_neighbors_excludes_self_in_cycle() {
+    let mut store = Store::new();
+    let origin = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_origin").unwrap());
+    let partner = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_partner").unwrap());
+    store.upsert_edge(EdgeKind::Calls, origin, partner);
+    store.upsert_edge(EdgeKind::Calls, partner, origin);
+    // k=2: origin -> partner -> origin; but origin is excluded (it's the source)
+    let result = store.k_hop_neighbors(origin, EdgeKind::Calls, 2);
+    assert!(
+        !result.contains(&"src/kh.rs>kh_origin".to_owned()),
+        "self must be excluded"
+    );
+}
+
+#[test]
+fn store_k_hop_neighbors_results_are_sorted() {
+    let mut store = Store::new();
+    let root = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_s_root").unwrap());
+    let mid = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_s_mid").unwrap());
+    let zz = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_s_zz").unwrap());
+    let aa = store.upsert_node(TrunkPath::parse("src/kh.rs>kh_s_aa").unwrap());
+    store.upsert_edge(EdgeKind::Calls, root, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, zz);
+    store.upsert_edge(EdgeKind::Calls, mid, aa);
+    let result = store.k_hop_neighbors(root, EdgeKind::Calls, 2);
+    let mut sorted = result.clone();
+    sorted.sort();
+    assert_eq!(result, sorted, "results must be sorted");
+}

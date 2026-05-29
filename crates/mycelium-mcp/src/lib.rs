@@ -599,6 +599,17 @@ pub struct MutualReachabilityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_k_hop_neighbors`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct KHopNeighborsRequest {
+    /// Symbol path, e.g. `"src/a.rs>A"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Number of hops (k ≥ 1; k = 0 returns empty).
+    pub k: usize,
+}
+
 /// Input parameters for `mycelium_get_common_reachable`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CommonReachableRequest {
@@ -2710,6 +2721,43 @@ impl MyceliumServer {
         serde_json::json!({
             "common": common,
             "count": count,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Return all symbol paths reachable from a node in exactly k BFS hops for a \
+                       given EdgeKind. Only returns nodes at exactly depth k — nodes closer than k \
+                       are excluded. k=0 returns empty; k=1 returns direct neighbors. \
+                       File nodes excluded. Results sorted alphabetically. O(V+E). \
+                       Returns { neighbors, count, k } or { error }."
+    )]
+    async fn mycelium_get_k_hop_neighbors(
+        &self,
+        Parameters(req): Parameters<KHopNeighborsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id) = store.lookup(&req.path) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
+                .to_string();
+        };
+        let neighbors = store.k_hop_neighbors(id, kind, req.k);
+        drop(store);
+        let count = neighbors.len();
+        serde_json::json!({
+            "neighbors": neighbors,
+            "count": count,
+            "k": req.k,
         })
         .to_string()
     }
@@ -7671,6 +7719,63 @@ mod tests {
                 path1: "src/any.rs>any_cr1".into(),
                 path2: "src/any.rs>any_cr2".into(),
                 edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0084: mycelium_get_k_hop_neighbors ────────────────────────────
+
+    #[tokio::test]
+    async fn k_hop_neighbors_k2_returns_grandchildren() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let root = store.upsert_node(TrunkPath::parse("src/kh.rs>mcp_kh_root").unwrap());
+            let mid = store.upsert_node(TrunkPath::parse("src/kh.rs>mcp_kh_mid").unwrap());
+            let far = store.upsert_node(TrunkPath::parse("src/kh.rs>mcp_kh_far").unwrap());
+            store.upsert_edge(EdgeKind::Calls, root, mid);
+            store.upsert_edge(EdgeKind::Calls, mid, far);
+        }
+        let raw = server
+            .mycelium_get_k_hop_neighbors(Parameters(KHopNeighborsRequest {
+                path: "src/kh.rs>mcp_kh_root".into(),
+                edge_kind: "calls".into(),
+                k: 2,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["k"].as_u64().unwrap(), 2);
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(
+            val["neighbors"][0].as_str().unwrap(),
+            "src/kh.rs>mcp_kh_far"
+        );
+    }
+
+    #[tokio::test]
+    async fn k_hop_neighbors_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_k_hop_neighbors(Parameters(KHopNeighborsRequest {
+                path: "src/ghost.rs>none_kh".into(),
+                edge_kind: "calls".into(),
+                k: 1,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    }
+
+    #[tokio::test]
+    async fn k_hop_neighbors_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_k_hop_neighbors(Parameters(KHopNeighborsRequest {
+                path: "src/any.rs>any_kh".into(),
+                edge_kind: "unknown".into(),
+                k: 1,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
