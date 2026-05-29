@@ -570,6 +570,15 @@ pub struct ClusteringCoefficientRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_eccentricity`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EccentricityRequest {
+    /// Symbol path, e.g. `"src/a.rs>MyStruct"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2410,6 +2419,41 @@ impl MyceliumServer {
             "coefficient": coefficient,
             "neighbor_count": neighbor_count,
             "neighbor_edge_count": neighbor_edge_count,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Eccentricity of a symbol node: maximum BFS distance from the node to any \
+                       reachable symbol node for a given EdgeKind. Measures 'how deep is this \
+                       node's directed reach?'. Isolated node or no outgoing reachability → 0. \
+                       File nodes excluded from traversal and count. O(V+E). \
+                       Returns { eccentricity, reachable_count } or { error }."
+    )]
+    async fn mycelium_get_eccentricity(
+        &self,
+        Parameters(req): Parameters<EccentricityRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id) = store.lookup(&req.path) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
+                .to_string();
+        };
+        let (eccentricity, reachable_count) = store.eccentricity_stats(id, kind);
+        drop(store);
+        serde_json::json!({
+            "eccentricity": eccentricity,
+            "reachable_count": reachable_count,
         })
         .to_string()
     }
@@ -6960,6 +7004,56 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_get_clustering_coefficient(Parameters(ClusteringCoefficientRequest {
+                path: "src/any.rs>any".into(),
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0077: mycelium_get_eccentricity ──────────────────────────────────
+
+    #[tokio::test]
+    async fn eccentricity_chain_returns_correct_depth() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let root = store.upsert_node(TrunkPath::parse("src/ecc.rs>root").unwrap());
+            let mid = store.upsert_node(TrunkPath::parse("src/ecc.rs>mid").unwrap());
+            let far = store.upsert_node(TrunkPath::parse("src/ecc.rs>far").unwrap());
+            store.upsert_edge(EdgeKind::Calls, root, mid);
+            store.upsert_edge(EdgeKind::Calls, mid, far);
+        }
+        let raw = server
+            .mycelium_get_eccentricity(Parameters(EccentricityRequest {
+                path: "src/ecc.rs>root".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["eccentricity"].as_u64().unwrap(), 2);
+        assert_eq!(val["reachable_count"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn eccentricity_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_eccentricity(Parameters(EccentricityRequest {
+                path: "src/ghost.rs>none".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    }
+
+    #[tokio::test]
+    async fn eccentricity_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_eccentricity(Parameters(EccentricityRequest {
                 path: "src/any.rs>any".into(),
                 edge_kind: "unknown".into(),
             }))

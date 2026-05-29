@@ -3014,11 +3014,8 @@ impl Store {
     /// `|N(id)| < 2` → (0.0, |N|, 0).
     #[must_use]
     pub fn clustering_coefficient_stats(&self, id: NodeId, kind: EdgeKind) -> (f64, usize, usize) {
-        let is_file = |nid: NodeId| -> bool {
-            self.trunk
-                .path_of(nid)
-                .is_some_and(|p| !p.contains('>'))
-        };
+        let is_file =
+            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| !p.contains('>')) };
         let neighbors: HashSet<NodeId> = {
             let mut set: HashSet<NodeId> =
                 self.synapse.outgoing(id, kind).iter().copied().collect();
@@ -3053,5 +3050,48 @@ impl Store {
     #[must_use]
     pub fn clustering_coefficient(&self, id: NodeId, kind: EdgeKind) -> f64 {
         self.clustering_coefficient_stats(id, kind).0
+    }
+
+    /// Returns `(eccentricity, reachable_count)` for a symbol node.
+    ///
+    /// `eccentricity` = maximum BFS distance from `id` to any reachable
+    /// symbol node (file nodes excluded); 0 when no symbol is reachable.
+    /// `reachable_count` = number of distinct symbol nodes reached.
+    #[must_use]
+    pub fn eccentricity_stats(&self, id: NodeId, kind: EdgeKind) -> (usize, usize) {
+        let is_symbol =
+            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| p.contains('>')) };
+        let mut visited: HashMap<NodeId, usize> = HashMap::new();
+        let mut queue: VecDeque<(NodeId, usize)> = VecDeque::new();
+        queue.push_back((id, 0));
+        visited.insert(id, 0);
+        let mut max_dist: usize = 0;
+        let mut reachable_count: usize = 0;
+        while let Some((cur, dist)) = queue.pop_front() {
+            for &next in self.synapse.outgoing(cur, kind) {
+                if visited.contains_key(&next) {
+                    continue;
+                }
+                visited.insert(next, dist + 1);
+                if is_symbol(next) {
+                    let new_dist = dist + 1;
+                    if new_dist > max_dist {
+                        max_dist = new_dist;
+                    }
+                    reachable_count += 1;
+                    queue.push_back((next, new_dist));
+                }
+                // file nodes: mark visited but don't traverse further
+            }
+        }
+        (max_dist, reachable_count)
+    }
+
+    /// Maximum BFS distance from `id` to any reachable symbol node.
+    ///
+    /// File nodes excluded from traversal.  Returns 0 for isolated nodes.
+    #[must_use]
+    pub fn eccentricity(&self, id: NodeId, kind: EdgeKind) -> usize {
+        self.eccentricity_stats(id, kind).0
     }
 }
