@@ -4326,3 +4326,82 @@ fn store_graph_metrics_excludes_file_nodes() {
     let m = store.graph_metrics(EdgeKind::Calls);
     assert_eq!(m.symbol_count, 1, "file node leaked into metrics");
 }
+
+// ── RFC-0075: neighbor_similarity ────────────────────────────────────
+
+#[test]
+fn store_neighbor_similarity_identical() {
+    // a → c, b → c, a ← d, b ← d: N(a) = {c, d}, N(b) = {c, d} → sim = 1.0
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    let d = store.upsert_node(path("src/d.rs>d"));
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, d, a);
+    store.upsert_edge(EdgeKind::Calls, d, b);
+    let sim = store.neighbor_similarity(a, b, EdgeKind::Calls);
+    assert!((sim - 1.0).abs() < 1e-9, "expected 1.0, got {sim}");
+}
+
+#[test]
+fn store_neighbor_similarity_no_overlap() {
+    // a → c, b → d: disjoint neighbors → sim = 0.0
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    let d = store.upsert_node(path("src/d.rs>d"));
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    store.upsert_edge(EdgeKind::Calls, b, d);
+    let sim = store.neighbor_similarity(a, b, EdgeKind::Calls);
+    assert!(sim.abs() < 1e-9, "expected 0.0, got {sim}");
+}
+
+#[test]
+fn store_neighbor_similarity_isolated_returns_zero() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let sim = store.neighbor_similarity(a, b, EdgeKind::Calls);
+    assert!(
+        sim.abs() < 1e-9,
+        "isolated nodes should return 0.0, got {sim}"
+    );
+}
+
+#[test]
+fn store_neighbor_similarity_self() {
+    // sim(a, a) = 1.0 when a has neighbors
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let sim = store.neighbor_similarity(a, a, EdgeKind::Calls);
+    assert!(
+        (sim - 1.0).abs() < 1e-9,
+        "self-similarity should be 1.0, got {sim}"
+    );
+}
+
+#[test]
+fn store_neighbor_similarity_partial_overlap() {
+    // left → {shared, only_left}, right → {shared, only_right}: sim = 1/3
+    let mut store = Store::new();
+    let left = store.upsert_node(path("src/a.rs>left"));
+    let right = store.upsert_node(path("src/b.rs>right"));
+    let shared = store.upsert_node(path("src/c.rs>shared"));
+    let only_left = store.upsert_node(path("src/d.rs>only_left"));
+    let only_right = store.upsert_node(path("src/e.rs>only_right"));
+    store.upsert_edge(EdgeKind::Calls, left, shared);
+    store.upsert_edge(EdgeKind::Calls, left, only_left);
+    store.upsert_edge(EdgeKind::Calls, right, shared);
+    store.upsert_edge(EdgeKind::Calls, right, only_right);
+    let sim = store.neighbor_similarity(left, right, EdgeKind::Calls);
+    let expected = 1.0_f64 / 3.0;
+    assert!(
+        (sim - expected).abs() < 1e-9,
+        "expected {expected}, got {sim}"
+    );
+}
