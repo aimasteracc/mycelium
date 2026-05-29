@@ -318,6 +318,15 @@ pub struct DegreeCentralityEntry {
     pub out_centrality: f64,
 }
 
+/// One entry in the result of [`Store::closeness_centrality`].
+#[derive(Debug, Clone)]
+pub struct ClosenessCentralityEntry {
+    /// Materialized path of the symbol node.
+    pub path: String,
+    /// Wasserman-Faust normalized closeness centrality score ∈ [0.0, 1.0].
+    pub score: f64,
+}
+
 /// Result of [`Store::mutual_reachability`]: forward/backward BFS distances
 /// and derived reachability flags for two symbol nodes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3758,6 +3767,88 @@ impl Store {
                         .unwrap_or(std::cmp::Ordering::Equal)
                 })
                 .then_with(|| a.path.cmp(&b.path))
+        });
+        entries
+    }
+
+    /// Compute Wasserman-Faust normalized closeness centrality for all symbol nodes.
+    ///
+    /// `CC_WF(v) = (n_reach/(n-1))^2 * (n_reach / Σ d(v,u))`
+    /// where `n_reach` is the number of nodes reachable from `v` (excluding `v` itself).
+    /// Nodes that reach no others get score 0.0.  File nodes excluded.  O(V × (V + E)).
+    ///
+    /// # Panics
+    ///
+    /// Does not panic under normal operation.
+    #[must_use]
+    pub fn closeness_centrality(&self, kind: EdgeKind) -> Vec<ClosenessCentralityEntry> {
+        let symbols: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        let n = symbols.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        let idx: HashMap<NodeId, usize> =
+            symbols.iter().enumerate().map(|(i, &id)| (id, i)).collect();
+
+        #[allow(clippy::cast_precision_loss)]
+        let n_minus_1 = (n - 1) as f64;
+
+        let mut entries: Vec<ClosenessCentralityEntry> = symbols
+            .iter()
+            .enumerate()
+            .filter_map(|(src_i, &src)| {
+                // BFS from src over symbol nodes.
+                let mut dist = vec![-1_i64; n];
+                dist[src_i] = 0;
+                let mut queue = VecDeque::new();
+                queue.push_back(src_i);
+                let mut sum_dist = 0u64;
+                let mut n_reach = 0usize;
+                while let Some(vi) = queue.pop_front() {
+                    let v = symbols[vi];
+                    for &w in self.synapse.outgoing(v, kind) {
+                        if self.trunk.path_of(w).is_none_or(|p| !p.contains('>')) {
+                            continue;
+                        }
+                        let Some(&wi) = idx.get(&w) else { continue };
+                        if dist[wi] < 0 {
+                            dist[wi] = dist[vi] + 1;
+                            #[allow(clippy::cast_sign_loss)]
+                            {
+                                sum_dist += dist[wi] as u64;
+                            }
+                            n_reach += 1;
+                            queue.push_back(wi);
+                        }
+                    }
+                }
+                let score = if n_reach == 0 || sum_dist == 0 {
+                    0.0
+                } else {
+                    #[allow(clippy::cast_precision_loss)]
+                    let nr = n_reach as f64;
+                    #[allow(clippy::cast_precision_loss)]
+                    let sd = sum_dist as f64;
+                    let frac = nr / n_minus_1;
+                    // Wasserman-Faust: (n_reach/(n-1))^2 * (n_reach/sum_dist)
+                    frac.powi(2) * (nr / sd)
+                };
+                self.trunk.path_of(src).map(|p| ClosenessCentralityEntry {
+                    path: p.to_owned(),
+                    score,
+                })
+            })
+            .collect();
+
+        entries.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         entries
     }

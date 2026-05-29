@@ -608,6 +608,15 @@ pub struct BetweennessCentralityRequest {
     pub top_n: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_closeness_centrality`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClosenessCentralityRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// How many top entries to return; defaults to 10 if absent.
+    pub top_n: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_degree_centrality`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DegreeCentralityRequest {
@@ -3588,6 +3597,45 @@ impl MyceliumServer {
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json }).to_string()
+    }
+
+    #[tool(
+        description = "Compute Wasserman-Faust normalized closeness centrality for all symbol nodes. \
+                       Identifies well-connected hubs that can propagate influence quickly through \
+                       the dependency graph. Score = (n_reach/(n-1))^2 * (n_reach/sum_dist). \
+                       Returns { nodes: [{path, score}], symbol_count, top_n }. \
+                       Unknown edge_kind returns { error }."
+    )]
+    async fn mycelium_get_closeness_centrality(
+        &self,
+        Parameters(req): Parameters<ClosenessCentralityRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let top_n = req.top_n.unwrap_or(10);
+        let store = self.store.read().await;
+        let entries = store.closeness_centrality(kind);
+        let symbol_count = entries.len();
+        drop(store);
+        let nodes: Vec<serde_json::Value> = entries
+            .into_iter()
+            .take(top_n)
+            .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
+            .collect();
+        serde_json::json!({
+            "nodes": nodes,
+            "symbol_count": symbol_count,
+            "top_n": top_n,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -8100,6 +8148,47 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown sort_by"));
+    }
+
+    // ── RFC-0088: mycelium_get_closeness_centrality ───────────────────────
+
+    #[tokio::test]
+    async fn closeness_chain_head_ranks_first() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/clc.rs>mcp_clc_a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/clc.rs>mcp_clc_b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/clc.rs>mcp_clc_c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+        }
+        let raw = server
+            .mycelium_get_closeness_centrality(Parameters(ClosenessCentralityRequest {
+                edge_kind: "calls".into(),
+                top_n: Some(3),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
+        // A reaches B and C with shortest total distance → highest closeness.
+        assert_eq!(
+            val["nodes"][0]["path"].as_str().unwrap(),
+            "src/clc.rs>mcp_clc_a"
+        );
+    }
+
+    #[tokio::test]
+    async fn closeness_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_closeness_centrality(Parameters(ClosenessCentralityRequest {
+                edge_kind: "unknown".into(),
+                top_n: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────
