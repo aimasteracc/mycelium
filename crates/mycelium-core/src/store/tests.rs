@@ -4020,3 +4020,86 @@ fn store_articulation_points_diamond_has_none() {
     let points = store.articulation_points(EdgeKind::Calls);
     assert!(points.is_empty());
 }
+
+// ── RFC-0071: bridge_edges ────────────────────────────────────────────
+
+#[test]
+fn store_bridge_edges_single_bridge() {
+    // a — b — c: edge (b,c) and (a,b) are both bridges
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let bridges = store.bridge_edges(EdgeKind::Calls);
+    assert_eq!(bridges.len(), 2);
+    assert!(
+        bridges
+            .iter()
+            .any(|(f, t)| f == "src/a.rs>a" && t == "src/b.rs>b")
+    );
+    assert!(
+        bridges
+            .iter()
+            .any(|(f, t)| f == "src/b.rs>b" && t == "src/c.rs>c")
+    );
+}
+
+#[test]
+fn store_bridge_edges_cycle_has_none() {
+    // a — b — c — a: no bridges in a cycle
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let bridges = store.bridge_edges(EdgeKind::Calls);
+    assert!(bridges.is_empty());
+}
+
+#[test]
+fn store_bridge_edges_no_edges_returns_empty() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>a"));
+    store.upsert_node(path("src/b.rs>b"));
+    let bridges = store.bridge_edges(EdgeKind::Calls);
+    assert!(bridges.is_empty());
+}
+
+#[test]
+fn store_bridge_edges_excludes_file_nodes() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_node(path("src/a.rs")); // file node — must not appear
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let bridges = store.bridge_edges(EdgeKind::Calls);
+    for (f, t) in &bridges {
+        assert!(f.contains('>'), "file node in bridge from: {f}");
+        assert!(t.contains('>'), "file node in bridge to: {t}");
+    }
+}
+
+#[test]
+fn store_bridge_edges_sorted_canonical() {
+    // Result must be sorted; canonical order means from < to in each pair
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, c, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    let bridges = store.bridge_edges(EdgeKind::Calls);
+    for (f, t) in &bridges {
+        assert!(f <= t, "non-canonical pair: ({f}, {t})");
+    }
+    let sorted = {
+        let mut v = bridges.clone();
+        v.sort_unstable();
+        v
+    };
+    assert_eq!(bridges, sorted, "bridges not sorted");
+}

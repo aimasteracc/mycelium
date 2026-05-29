@@ -2057,6 +2057,130 @@ impl Store {
         result
     }
 
+    /// Bridge edges (cut edges) in the undirected symbol graph for `kind`.
+    ///
+    /// A bridge is an edge whose removal disconnects its weakly-connected
+    /// component.  Uses Tarjan's iterative bridge-finding DFS (O(V+E)).
+    /// Edges are treated as undirected; file nodes are excluded.
+    ///
+    /// Returns `(from_path, to_path)` pairs with `from_path ≤ to_path`
+    /// (canonical order), sorted ascending by `(from, to)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    /// use mycelium_core::types::EdgeKind;
+    ///
+    /// let mut store = Store::new();
+    /// let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+    /// let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+    /// store.upsert_edge(EdgeKind::Calls, a, b);
+    /// let bridges = store.bridge_edges(EdgeKind::Calls);
+    /// assert_eq!(bridges, vec![("src/a.rs>a".to_owned(), "src/b.rs>b".to_owned())]);
+    /// ```
+    #[must_use]
+    pub fn bridge_edges(&self, kind: EdgeKind) -> Vec<(String, String)> {
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        let n = sym_ids.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        let id_to_idx: HashMap<NodeId, usize> = sym_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, id)| (id, i))
+            .collect();
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+
+        // Build undirected adjacency with edge-multiplicity count.
+        // We need to know if (u, v) has multiplicity > 1 to detect non-bridges.
+        let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
+        let mut edge_count: HashMap<(usize, usize), usize> = HashMap::new();
+        for (idx, &id) in sym_ids.iter().enumerate() {
+            for &nb in self.synapse.outgoing(id, kind) {
+                if sym_set.contains(&nb) && nb != id {
+                    let nb_idx = id_to_idx[&nb];
+                    let key = if idx < nb_idx {
+                        (idx, nb_idx)
+                    } else {
+                        (nb_idx, idx)
+                    };
+                    *edge_count.entry(key).or_insert(0) += 1;
+                    adj[idx].push(nb_idx);
+                    adj[nb_idx].push(idx);
+                }
+            }
+        }
+        for list in &mut adj {
+            list.sort_unstable();
+            list.dedup();
+        }
+
+        let mut disc = vec![AP_UNVISITED; n];
+        let mut low = vec![0usize; n];
+        let mut parent = vec![AP_UNVISITED; n];
+        let mut is_bridge: HashSet<(usize, usize)> = HashSet::new();
+        let mut timer = 0usize;
+
+        for start in 0..n {
+            if disc[start] != AP_UNVISITED {
+                continue;
+            }
+            let mut stack: Vec<(usize, usize)> = vec![(start, 0)];
+            disc[start] = timer;
+            low[start] = timer;
+            timer += 1;
+
+            while let Some((u, ei)) = stack.last_mut() {
+                let u = *u;
+                if *ei < adj[u].len() {
+                    let v = adj[u][*ei];
+                    *ei += 1;
+                    if disc[v] == AP_UNVISITED {
+                        parent[v] = u;
+                        disc[v] = timer;
+                        low[v] = timer;
+                        timer += 1;
+                        stack.push((v, 0));
+                    } else if v != parent[u] {
+                        low[u] = low[u].min(disc[v]);
+                    }
+                } else {
+                    stack.pop();
+                    if let Some(&(pu, _)) = stack.last() {
+                        low[pu] = low[pu].min(low[u]);
+                        // Bridge condition: low[child] > disc[parent] (strict).
+                        // Also check multiplicity: parallel edges mean not a bridge.
+                        let key = if pu < u { (pu, u) } else { (u, pu) };
+                        if low[u] > disc[pu] && edge_count.get(&key).copied().unwrap_or(0) == 1 {
+                            is_bridge.insert(key);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut result: Vec<(String, String)> = is_bridge
+            .iter()
+            .filter_map(|&(a, b)| {
+                let pa = self.path_of(sym_ids[a])?.to_owned();
+                let pb = self.path_of(sym_ids[b])?.to_owned();
+                let pair = if pa <= pb { (pa, pb) } else { (pb, pa) };
+                Some(pair)
+            })
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Topological ordering of the symbol graph for `kind` via Kahn's algorithm.
     ///
     /// Returns a [`TopologicalOrder`] with:

@@ -522,6 +522,13 @@ pub struct FindArticulationPointsRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_find_bridge_edges`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FindBridgeEdgesRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2125,6 +2132,42 @@ impl MyceliumServer {
         };
         let count = points.len();
         serde_json::json!({ "points": points, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Find bridge edges (cut edges) in the undirected symbol graph for a given \
+                       EdgeKind. A bridge is an edge whose removal disconnects its weakly-connected \
+                       component — the fragile single-link connection between two subsystems. \
+                       Complements mycelium_find_articulation_points (vertex cut-points). \
+                       Uses Tarjan's iterative bridge-finding DFS O(V+E). \
+                       Returns { bridges: [{ from, to }], count } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_find_bridge_edges(
+        &self,
+        Parameters(req): Parameters<FindBridgeEdgesRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let bridges = {
+            let store = self.store.read().await;
+            let b = store.bridge_edges(kind);
+            drop(store);
+            b
+        };
+        let count = bridges.len();
+        let bridge_list: Vec<serde_json::Value> = bridges
+            .into_iter()
+            .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
+            .collect();
+        serde_json::json!({ "bridges": bridge_list, "count": count }).to_string()
     }
 
     #[tool(
@@ -6299,12 +6342,14 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
-        assert!(val["points"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_str().unwrap())
-            .any(|x| x == "src/b.rs>b"));
+        assert!(
+            val["points"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .any(|x| x == "src/b.rs>b")
+        );
     }
 
     #[tokio::test]
@@ -6333,6 +6378,72 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_find_articulation_points(Parameters(FindArticulationPointsRequest {
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0071: mycelium_find_bridge_edges ──────────────────────────────
+
+    #[tokio::test]
+    async fn bridge_edges_chain_returns_bridges() {
+        // a — b — c: both edges are bridges
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+        }
+        let raw = server
+            .mycelium_find_bridge_edges(Parameters(FindBridgeEdgesRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
+        let arr = val["bridges"].as_array().unwrap();
+        assert!(
+            arr.iter()
+                .any(|b| b["from"] == "src/a.rs>a" && b["to"] == "src/b.rs>b")
+        );
+        assert!(
+            arr.iter()
+                .any(|b| b["from"] == "src/b.rs>b" && b["to"] == "src/c.rs>c")
+        );
+    }
+
+    #[tokio::test]
+    async fn bridge_edges_cycle_returns_none() {
+        // a → b → c → a: no bridges in a cycle
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+            store.upsert_edge(EdgeKind::Calls, c, a);
+        }
+        let raw = server
+            .mycelium_find_bridge_edges(Parameters(FindBridgeEdgesRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn bridge_edges_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_find_bridge_edges(Parameters(FindBridgeEdgesRequest {
                 edge_kind: "unknown".into(),
             }))
             .await;
