@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 6** (v0.1.5): all 12 `reachability`
+  capabilities get CLI subcommands. `reachability` category is now
+  12/12 ✅ Three-Surface (incl. `get-shortest-path` — top-3 most useful
+  per glm5.1 eval):
+  - `mycelium get-reachable <path> --edge-kind K [--max-depth N]`
+  - `mycelium get-reachable-to <path> --edge-kind K [--max-depth N]`
+  - `mycelium get-k-hop-neighbors <path> --k N --edge-kind K`
+  - `mycelium get-two-hop-neighbors <path> --edge-kind K`
+  - `mycelium get-shortest-path --from A --to B --edge-kind K`
+  - `mycelium get-symbol-neighborhood <path> --edge-kind K`
+  - `mycelium get-cross-refs <path>` / `get-outgoing-refs <path>`
+  - `mycelium get-dependency-depth <path> --edge-kind K`
+  - `mycelium get-reachable-set <path> --edge-kind K`
+  - `mycelium get-reaches-into <path> --edge-kind K`
+  - `mycelium get-singly-referenced --edge-kind K [--limit N]`
+  Tests: 12 integration assertions in
+  `crates/mycelium-cli/tests/cli_reachability.rs` using the 5-function
+  diamond fixture.
+
 - **CLI parity backfill batch 5** (v0.1.5): all 8 `inheritance`
   capabilities get CLI subcommands. `inheritance` category is now
   8/8 ✅ Three-Surface:
