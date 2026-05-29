@@ -4698,3 +4698,70 @@ fn store_mutual_reachability_multi_hop() {
     assert_eq!(mr.forward_distance, Some(2));
     assert_eq!(mr.backward_distance, Some(1));
 }
+
+// ── RFC-0080: reachable_set ────────────────────────────────────────────────
+
+#[test]
+fn store_reachable_set_isolated_node_returns_empty() {
+    let mut store = Store::new();
+    let solo = store.upsert_node(TrunkPath::parse("src/rs.rs>solo").unwrap());
+    let result = store.reachable_set(solo, EdgeKind::Calls);
+    assert!(result.is_empty(), "isolated node should return empty set");
+}
+
+#[test]
+fn store_reachable_set_direct_neighbors_single_hop() {
+    let mut store = Store::new();
+    let alpha = store.upsert_node(TrunkPath::parse("src/rs.rs>alpha").unwrap());
+    let beta = store.upsert_node(TrunkPath::parse("src/rs.rs>beta").unwrap());
+    let gamma = store.upsert_node(TrunkPath::parse("src/rs.rs>gamma").unwrap());
+    store.upsert_edge(EdgeKind::Calls, alpha, beta);
+    store.upsert_edge(EdgeKind::Calls, alpha, gamma);
+    let result = store.reachable_set(alpha, EdgeKind::Calls);
+    assert_eq!(result.len(), 2);
+    assert!(result.contains(&"src/rs.rs>beta".to_owned()));
+    assert!(result.contains(&"src/rs.rs>gamma".to_owned()));
+}
+
+#[test]
+fn store_reachable_set_chain_returns_full_closure() {
+    let mut store = Store::new();
+    let head = store.upsert_node(TrunkPath::parse("src/rs.rs>head").unwrap());
+    let mid = store.upsert_node(TrunkPath::parse("src/rs.rs>mid").unwrap());
+    let tail = store.upsert_node(TrunkPath::parse("src/rs.rs>tail").unwrap());
+    store.upsert_edge(EdgeKind::Calls, head, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, tail);
+    let result = store.reachable_set(head, EdgeKind::Calls);
+    assert_eq!(result.len(), 2);
+    assert!(result.contains(&"src/rs.rs>mid".to_owned()));
+    assert!(result.contains(&"src/rs.rs>tail".to_owned()));
+}
+
+#[test]
+fn store_reachable_set_excludes_self_even_in_cycle() {
+    let mut store = Store::new();
+    let origin = store.upsert_node(TrunkPath::parse("src/rs.rs>origin").unwrap());
+    let dest = store.upsert_node(TrunkPath::parse("src/rs.rs>dest").unwrap());
+    store.upsert_edge(EdgeKind::Calls, origin, dest);
+    store.upsert_edge(EdgeKind::Calls, dest, origin);
+    let result = store.reachable_set(origin, EdgeKind::Calls);
+    assert!(
+        !result.contains(&"src/rs.rs>origin".to_owned()),
+        "self must not appear"
+    );
+    assert!(result.contains(&"src/rs.rs>dest".to_owned()));
+}
+
+#[test]
+fn store_reachable_set_results_are_sorted() {
+    let mut store = Store::new();
+    let root = store.upsert_node(TrunkPath::parse("src/rs.rs>root").unwrap());
+    let zeta = store.upsert_node(TrunkPath::parse("src/rs.rs>zeta").unwrap());
+    let aaaa = store.upsert_node(TrunkPath::parse("src/rs.rs>aaaa").unwrap());
+    store.upsert_edge(EdgeKind::Calls, root, zeta);
+    store.upsert_edge(EdgeKind::Calls, root, aaaa);
+    let result = store.reachable_set(root, EdgeKind::Calls);
+    let mut sorted = result.clone();
+    sorted.sort();
+    assert_eq!(result, sorted, "results must be sorted alphabetically");
+}
