@@ -360,6 +360,17 @@ pub struct GetReachableRequest {
     pub max_depth: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_reachable_to`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetReachableToRequest {
+    /// Target symbol path, e.g. `"src/utils.rs>helper"`.
+    pub path: String,
+    /// Edge kind to follow backwards: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Maximum BFS depth. Defaults to 10, capped at 20.
+    pub max_depth: Option<usize>,
+}
+
 /// Input parameters for `mycelium_detect_cycles`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DetectCyclesRequest {
@@ -1319,6 +1330,42 @@ impl MyceliumServer {
             store
                 .lookup(&req.path)
                 .map(|id| store.reachable_from(id, kind, max_depth))
+        };
+        let Some(reachable) = reachable_opt else {
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let count = reachable.len();
+        serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return all symbols that can reach a target path via incoming edges of a \
+                       given kind, up to max_depth BFS hops (default 10, cap 20). \
+                       edge_kind must be 'calls', 'imports', 'extends', or 'implements'. \
+                       Starting node excluded. Cycle-safe. Answers: 'who depends on this symbol?' \
+                       Returns { reachable: [...], count: N } or { error } for unknown path or edge_kind."
+    )]
+    async fn mycelium_get_reachable_to(
+        &self,
+        Parameters(req): Parameters<GetReachableToRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let max_depth = req.max_depth.unwrap_or(10);
+        let reachable_opt: Option<Vec<String>> = {
+            let store = self.store.read().await;
+            store
+                .lookup(&req.path)
+                .map(|id| store.reachable_to(id, kind, max_depth))
         };
         let Some(reachable) = reachable_opt else {
             return serde_json::json!({ "error": format!("path not found: {}", req.path) })
@@ -4583,6 +4630,112 @@ mod tests {
         }
         let raw = server
             .mycelium_get_reachable(Parameters(GetReachableRequest {
+                path: "src/a.rs>a".to_owned(),
+                edge_kind: "calls".to_owned(),
+                max_depth: Some(0),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    // ── RFC-0044: mycelium_get_reachable_to ──────────────────────────────────
+
+    #[tokio::test]
+    async fn get_reachable_to_direct_callers() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, b, a);
+            store.upsert_edge(EdgeKind::Calls, c, a);
+        }
+        let raw = server
+            .mycelium_get_reachable_to(Parameters(GetReachableToRequest {
+                path: "src/a.rs>a".to_owned(),
+                edge_kind: "calls".to_owned(),
+                max_depth: Some(1),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
+        let reachable: Vec<&str> = val["reachable"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s.as_str().unwrap())
+            .collect();
+        assert!(reachable.contains(&"src/b.rs>b"));
+        assert!(reachable.contains(&"src/c.rs>c"));
+    }
+
+    #[tokio::test]
+    async fn get_reachable_to_cycle_safe() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, b, a);
+            store.upsert_edge(EdgeKind::Calls, a, b);
+        }
+        let raw = server
+            .mycelium_get_reachable_to(Parameters(GetReachableToRequest {
+                path: "src/a.rs>a".to_owned(),
+                edge_kind: "calls".to_owned(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(val["reachable"][0].as_str().unwrap(), "src/b.rs>b");
+    }
+
+    #[tokio::test]
+    async fn get_reachable_to_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_reachable_to(Parameters(GetReachableToRequest {
+                path: "no/such>path".to_owned(),
+                edge_kind: "calls".to_owned(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn get_reachable_to_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+        }
+        let raw = server
+            .mycelium_get_reachable_to(Parameters(GetReachableToRequest {
+                path: "src/a.rs>a".to_owned(),
+                edge_kind: "bogus".to_owned(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn get_reachable_to_max_depth_zero_empty() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, b, a);
+        }
+        let raw = server
+            .mycelium_get_reachable_to(Parameters(GetReachableToRequest {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: Some(0),
