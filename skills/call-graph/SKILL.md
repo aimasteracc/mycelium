@@ -9,6 +9,10 @@ allowed-tools:
   - mcp__mycelium__get_entry_points
   - mcp__mycelium__get_dead_symbols
   - mcp__mycelium__get_isolated_symbols
+  - mcp__mycelium__get_leaf_symbols
+  - mcp__mycelium__find_call_path
+  - mcp__mycelium__get_common_callers
+  - mcp__mycelium__get_common_callees
 ---
 
 # `call-graph` — who calls who, and what stays in the dark
