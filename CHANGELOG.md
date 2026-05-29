@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0090 Phase 2.3 — Skill coverage complete (89/89)** (v0.1.4):
+  - New [`skills/index-management/`](skills/index-management/) Skill — 7 tools covering
+    the server lifecycle: `index_workspace`, `load_index`, `server_status` (shared with
+    `basic-queries`), `watch_status`, `sync_file`, `set_compact_mode`, `get_token_stats`.
+  - 10 capabilities triaged into existing Skills:
+    `get_files`, `get_node_degree`, `get_symbol_count_by_kind` → **basic-queries**;
+    `get_leaf_symbols`, `find_call_path`, `get_common_callers`, `get_common_callees` → **call-graph**;
+    `find_import_path` → **import-graph**;
+    `get_mutual_reachability`, `get_common_reachable` → **reachability**.
+  - Fixed `get_scc` name in INDEX.md to correct `get_strongly_connected_components`.
+  - `skills/INDEX.md` updated to 89/89 coverage (100% of all MCP tools have Skill umbrella).
+
 - **Third wave of category Skills** (RFC-0090 Phase 2 closing, v0.1.3):
   - [`skills/inheritance/`](skills/inheritance/) — 8 capabilities for
     `Extends` and `Implements` edge navigation

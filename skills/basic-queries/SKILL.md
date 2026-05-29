@@ -12,6 +12,9 @@ allowed-tools:
   - mcp__mycelium__get_siblings
   - mcp__mycelium__get_all_symbols
   - mcp__mycelium__server_status
+  - mcp__mycelium__get_files
+  - mcp__mycelium__get_node_degree
+  - mcp__mycelium__get_symbol_count_by_kind
 ---
 
 # `basic-queries` — the foundation layer
