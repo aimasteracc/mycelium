@@ -1540,6 +1540,37 @@ impl Store {
         counts.into_iter().collect()
     }
 
+    /// Return paths of nodes that are incoming neighbours for ALL of `target_ids`
+    /// via `kind` edges (set intersection of each target's in-neighbour set).
+    /// Empty `target_ids` returns empty `Vec`.  Results sorted alphabetically.
+    #[must_use]
+    pub fn common_callers(&self, target_ids: &[NodeId], kind: EdgeKind) -> Vec<String> {
+        let mut iter = target_ids.iter();
+        let Some(&first) = iter.next() else {
+            return Vec::new();
+        };
+        let mut common: HashSet<NodeId> =
+            self.synapse.incoming(first, kind).iter().copied().collect();
+        for &target in iter {
+            let incoming: HashSet<NodeId> = self
+                .synapse
+                .incoming(target, kind)
+                .iter()
+                .copied()
+                .collect();
+            common.retain(|id| incoming.contains(id));
+            if common.is_empty() {
+                return Vec::new();
+            }
+        }
+        let mut result: Vec<String> = common
+            .iter()
+            .filter_map(|&id| self.path_of(id).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
