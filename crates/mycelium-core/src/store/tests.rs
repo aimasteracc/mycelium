@@ -1968,3 +1968,64 @@ fn store_outgoing_refs_sorted() {
     expected.sort_unstable();
     assert_eq!(refs.callees, expected);
 }
+
+// ── RFC-0042: Store::all_symbols ──────────────────────────────────────
+
+#[test]
+fn store_all_symbols_excludes_file_nodes() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/lib.rs")); // file node — excluded
+    let sym = store.upsert_node(path("src/lib.rs>fn1"));
+    let _ = sym;
+    let syms = store.all_symbols(None, None);
+    assert!(!syms.iter().any(|s| s == "src/lib.rs"));
+    assert!(syms.contains(&"src/lib.rs>fn1".to_owned()));
+}
+
+#[test]
+fn store_all_symbols_prefix_filter() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>fn_a"));
+    store.upsert_node(path("lib/b.rs>fn_b"));
+    let syms = store.all_symbols(Some("src/"), None);
+    assert!(syms.iter().all(|s| s.starts_with("src/")));
+    assert!(!syms.iter().any(|s| s.starts_with("lib/")));
+}
+
+#[test]
+fn store_all_symbols_kind_filter() {
+    let mut store = Store::new();
+    let fn1 = store.upsert_node(path("src/a.rs>fn1"));
+    let cls = store.upsert_node(path("src/b.rs>MyClass"));
+    let fn2 = store.upsert_node(path("src/c.rs>fn2"));
+    store.set_kind(fn1, NodeKind::Function);
+    store.set_kind(cls, NodeKind::Class);
+    store.set_kind(fn2, NodeKind::Function);
+    let functions = store.all_symbols(None, Some(NodeKind::Function));
+    assert_eq!(functions.len(), 2);
+    assert!(functions.contains(&"src/a.rs>fn1".to_owned()));
+    assert!(functions.contains(&"src/c.rs>fn2".to_owned()));
+    assert!(!functions.contains(&"src/b.rs>MyClass".to_owned()));
+}
+
+#[test]
+fn store_all_symbols_sorted() {
+    let mut store = Store::new();
+    store.upsert_node(path("z/z.rs>z_fn"));
+    store.upsert_node(path("a/a.rs>a_fn"));
+    store.upsert_node(path("m/m.rs>m_fn"));
+    let syms = store.all_symbols(None, None);
+    let mut sorted = syms.clone();
+    sorted.sort_unstable();
+    assert_eq!(syms, sorted);
+}
+
+#[test]
+fn store_all_symbols_no_params_returns_all() {
+    let mut store = Store::new();
+    store.upsert_node(path("a.rs>fn_a"));
+    store.upsert_node(path("b.rs>fn_b"));
+    store.upsert_node(path("c.rs")); // file node excluded
+    let syms = store.all_symbols(None, None);
+    assert_eq!(syms.len(), 2);
+}

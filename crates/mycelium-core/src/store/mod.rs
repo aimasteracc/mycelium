@@ -1264,6 +1264,31 @@ impl Store {
         result
     }
 
+    /// Return all symbol paths (paths containing `>`) sorted lexicographically.
+    ///
+    /// File-level nodes (no `>`) are excluded.  Optionally filter by path
+    /// prefix and/or `NodeKind`.
+    #[must_use]
+    pub fn all_symbols(&self, prefix: Option<&str>, kind: Option<NodeKind>) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
+            .filter(|p| {
+                kind.is_none_or(|k| {
+                    self.trunk
+                        .lookup_path(p)
+                        .and_then(|id| self.kind_map.get(&id).copied())
+                        == Some(k)
+                })
+            })
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
