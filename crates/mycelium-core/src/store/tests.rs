@@ -3950,3 +3950,73 @@ fn store_topo_sort_diamond_dependency() {
     assert!(pos["src/b.rs>b"] < pos["src/d.rs>d"]);
     assert!(pos["src/c.rs>c"] < pos["src/d.rs>d"]);
 }
+
+// RFC-0070: articulation_points
+#[test]
+fn store_articulation_points_bridge_node() {
+    // a — b — c: b is the articulation point
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let points = store.articulation_points(EdgeKind::Calls);
+    assert_eq!(points, vec!["src/b.rs>b".to_owned()]);
+}
+
+#[test]
+fn store_articulation_points_cycle_has_none() {
+    // a — b — c — a: no articulation points (removing any node keeps the rest connected)
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let points = store.articulation_points(EdgeKind::Calls);
+    assert!(points.is_empty());
+}
+
+#[test]
+fn store_articulation_points_no_edges_returns_empty() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>a"));
+    store.upsert_node(path("src/b.rs>b"));
+    // No edges — isolated nodes are not articulation points
+    let points = store.articulation_points(EdgeKind::Calls);
+    assert!(points.is_empty());
+}
+
+#[test]
+fn store_articulation_points_excludes_file_nodes() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_node(path("src/a.rs")); // file node
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let points = store.articulation_points(EdgeKind::Calls);
+    for p in &points {
+        let p: &String = p;
+        assert!(p.contains('>'), "file node leaked: {p}");
+    }
+}
+
+#[test]
+fn store_articulation_points_diamond_has_none() {
+    // a — b — d, a — c — d: no articulation points in diamond
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    let d = store.upsert_node(path("src/d.rs>d"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    store.upsert_edge(EdgeKind::Calls, b, d);
+    store.upsert_edge(EdgeKind::Calls, c, d);
+    let points = store.articulation_points(EdgeKind::Calls);
+    assert!(points.is_empty());
+}
