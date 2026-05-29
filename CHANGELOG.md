@@ -112,6 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0034: `ImplementsNode { id, interfaces }` struct — DFS interface hierarchy node; cycle-safe via path-tracking visited set with backtrack removal.
 - RFC-0034: `Store::implements_tree(id, max_depth)` — depth-limited recursive DFS over outgoing `Implements` edges.
 - RFC-0034: `mycelium_get_implements_tree` MCP tool — returns `{ root: { path, interfaces: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`.
+- RFC-0035: `ImplementorNode { id, implementors }` struct — DFS implementor forest node; cycle-safe via path-tracking visited set with backtrack removal.
+- RFC-0035: `Store::implementors_tree(id, max_depth)` — depth-limited recursive DFS over **incoming** `Implements` edges.
+- RFC-0035: `mycelium_get_implementors_tree` MCP tool — returns `{ root: { path, implementors: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`. Completes the Implements family.
 
 ### Fixed
 
