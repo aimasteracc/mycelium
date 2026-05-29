@@ -98,6 +98,19 @@ pub struct ExtendsNode {
     pub parents: Vec<Self>,
 }
 
+/// A node in the implements tree returned by [`Store::implements_tree`].
+///
+/// Represents a class and the interfaces it directly implements (recursively
+/// up to the configured `max_depth`).  Cycles are represented as leaf nodes
+/// (`interfaces` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImplementsNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Interface subtrees, one per outgoing `Implements` edge, up to `max_depth`.
+    pub interfaces: Vec<Self>,
+}
+
 /// A node in the subclasses tree returned by [`Store::subclasses_tree`].
 ///
 /// Represents a class and its direct subclasses (recursively up to the
@@ -900,6 +913,37 @@ impl Store {
             .collect();
         visited.remove(&id);
         SubclassNode { id, subclasses }
+    }
+
+    /// Return the interface hierarchy implemented by `id`, up to `max_depth` hops.
+    ///
+    /// DFS over outgoing `Implements` edges.  Cycles produce leaf nodes.
+    #[must_use]
+    pub fn implements_tree(&self, id: NodeId, max_depth: usize) -> ImplementsNode {
+        let mut visited = HashSet::new();
+        self.implements_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn implements_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> ImplementsNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return ImplementsNode {
+                id,
+                interfaces: vec![],
+            };
+        }
+        let interfaces: Vec<ImplementsNode> = self
+            .synapse
+            .outgoing(id, EdgeKind::Implements)
+            .iter()
+            .map(|&iface_id| self.implements_tree_inner(iface_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        ImplementsNode { id, interfaces }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.
