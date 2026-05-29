@@ -236,6 +236,18 @@ impl Trunk {
         self.by_id.values().map(String::as_str)
     }
 
+    /// Iterate all **symbol** nodes — paths that contain at least one `>`
+    /// (i.e., non-file nodes). Yields `(NodeId, path_str)` pairs.
+    ///
+    /// O(V) — no trie navigation. Prefer this over `all_paths()` +
+    /// `lookup_path()` loops in graph-algorithm code.
+    pub fn symbol_nodes(&self) -> impl Iterator<Item = (NodeId, &str)> + '_ {
+        self.by_id
+            .iter()
+            .filter(|(_, p)| p.contains('>'))
+            .map(|(&id, p)| (id, p.as_str()))
+    }
+
     /// 移除 `id` 及其所有后代。返回移除的节点数。
     pub fn remove_subtree(&mut self, id: NodeId) -> usize {
         let Some(path) = self.by_id.get(&id).cloned() else {
