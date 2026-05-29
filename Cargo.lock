@@ -1068,7 +1068,10 @@ dependencies = [
  "insta",
  "logos",
  "mycelium-rcig-core",
+ "tempfile",
  "thiserror",
+ "tree-sitter",
+ "tree-sitter-rust",
 ]
 
 [[package]]

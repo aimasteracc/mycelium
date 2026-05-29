@@ -1496,6 +1496,129 @@ pub(crate) fn run_find_cycle_members(root: &Path, edge_kind: &str, format: Forma
     print_tree_value(&value, format)
 }
 
+// ── batch-ops: 4 token-efficient batch tools ─────────────────────────────────
+
+#[allow(
+    clippy::similar_names,
+    reason = "callers/callees are canonical field names matched by the MCP tool"
+)]
+fn symbol_info_value(store: &Store, path: &str) -> serde_json::Value {
+    let Some(id) = store.lookup(path) else {
+        return serde_json::json!({ "path": path, "error": "path not found" });
+    };
+    let ancestors: Vec<String> = store
+        .ancestors(id)
+        .filter_map(|aid| store.path_of(aid).map(str::to_owned))
+        .collect();
+    let mut descendants: Vec<String> = store
+        .descendants(id)
+        .filter_map(|did| store.path_of(did).map(str::to_owned))
+        .collect();
+    descendants.sort_unstable();
+    let mut callers: Vec<String> = store
+        .incoming(id, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&src| store.path_of(src).map(str::to_owned))
+        .collect();
+    callers.sort_unstable();
+    callers.dedup();
+    let mut callees: Vec<String> = store
+        .outgoing(id, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&dst| store.path_of(dst).map(str::to_owned))
+        .collect();
+    callees.sort_unstable();
+    callees.dedup();
+    serde_json::json!({
+        "path": path,
+        "ancestors": ancestors,
+        "descendants": descendants,
+        "callers": callers,
+        "callees": callees,
+    })
+}
+
+pub(crate) fn run_batch_symbol_info(root: &Path, paths: &[String], format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let symbols: Vec<serde_json::Value> = paths
+        .iter()
+        .take(50)
+        .map(|p| symbol_info_value(&store, p))
+        .collect();
+    let value = serde_json::json!({ "symbols": symbols });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_batch_node_degree(root: &Path, paths: &[String], format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let degrees: Vec<serde_json::Value> = paths
+        .iter()
+        .take(50)
+        .map(|p| {
+            store.lookup(p).map_or_else(
+                || serde_json::json!({ "path": p, "error": "path not found" }),
+                |id| {
+                    let d = store.node_degree(id);
+                    serde_json::json!({
+                        "path": p,
+                        "in_calls":       d.in_calls,
+                        "out_calls":      d.out_calls,
+                        "in_imports":     d.in_imports,
+                        "out_imports":    d.out_imports,
+                        "in_extends":     d.in_extends,
+                        "out_extends":    d.out_extends,
+                        "in_implements":  d.in_implements,
+                        "out_implements": d.out_implements,
+                    })
+                },
+            )
+        })
+        .collect();
+    let count = degrees.len();
+    let value = serde_json::json!({ "degrees": degrees, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_batch_reachable_from(
+    root: &Path,
+    paths: &[String],
+    edge_kind: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let ids: Vec<_> = paths
+        .iter()
+        .take(20)
+        .filter_map(|p| store.lookup(p))
+        .collect();
+    let reachable = store.batch_reachable_from(&ids, kind, max_depth);
+    let count = reachable.len();
+    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_batch_reachable_to(
+    root: &Path,
+    paths: &[String],
+    edge_kind: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let ids: Vec<_> = paths
+        .iter()
+        .take(20)
+        .filter_map(|p| store.lookup(p))
+        .collect();
+    let reachable = store.batch_reachable_to(&ids, kind, max_depth);
+    let count = reachable.len();
+    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    print_tree_value(&value, format)
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 9** (v0.1.5): all 4 `batch-ops`
+  capabilities. Three-Surface compliant: 69 → 73 / 89 (82%).
+
 - **CLI parity backfill batch 8** (v0.1.5): all 14 `graph-structure`
   capabilities. Three-Surface compliant: 55 → 69 / 89 (78%). Remaining
   20: batch-ops (4) + index-management (15) + 1 misc.

@@ -788,6 +788,51 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Batch get-symbol-info for up to 50 paths.
+    BatchSymbolInfo {
+        /// Comma-separated list of symbol paths.
+        #[arg(long)]
+        paths: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Batch node-degree breakdown for up to 50 paths.
+    BatchNodeDegree {
+        #[arg(long)]
+        paths: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Batch forward reachability from up to 20 seeds.
+    BatchReachableFrom {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Batch reverse reachability into up to 20 targets.
+    BatchReachableTo {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -1421,6 +1466,74 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_find_cycle_members(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::BatchSymbolInfo {
+            paths,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_symbol_info(&canonical, &paths, format.into())?;
+        }
+        Cmd::BatchNodeDegree {
+            paths,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_node_degree(&canonical, &paths, format.into())?;
+        }
+        Cmd::BatchReachableFrom {
+            paths,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_reachable_from(
+                &canonical,
+                &paths,
+                &edge_kind,
+                max_depth,
+                format.into(),
+            )?;
+        }
+        Cmd::BatchReachableTo {
+            paths,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_reachable_to(
+                &canonical,
+                &paths,
+                &edge_kind,
+                max_depth,
+                format.into(),
+            )?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));
