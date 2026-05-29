@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 3** (v0.1.5): all seven `call-graph`
+  capabilities get CLI subcommands. `call-graph` category is now
+  7/7 ✅ Three-Surface (Charter §5.13 / RFC-0090):
+  - `mycelium get-callees <path> [--format ...]`
+  - `mycelium get-callers <path> [--format ...]`
+  - `mycelium get-callee-tree <path> [--max-depth N] [--format ...]`
+  - `mycelium get-caller-tree <path> [--max-depth N] [--format ...]`
+  - `mycelium get-entry-points [--prefix P] [--format ...]`
+  - `mycelium get-dead-symbols [--prefix P] [--format ...]`
+  - `mycelium get-isolated-symbols [--prefix P] [--format ...]`
+  Tests: 7 integration assertions in
+  `crates/mycelium-cli/tests/cli_call_graph.rs` using a 3-function
+  linear-chain fixture. CLI tree shape matches MCP tool byte-for-byte
+  (`{ path, children }` for callee tree, `{ path, callers }` for
+  caller tree).
+
 - **CLI parity backfill batch 2** (v0.1.4): the remaining seven
   `basic-queries` capabilities get CLI subcommands. Combined with
   batch 1, the entire `basic-queries` category is now ✅ Three-Surface

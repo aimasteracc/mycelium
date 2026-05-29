@@ -280,6 +280,130 @@ pub(crate) fn run_server_status(root: &Path, format: Format) -> Result<()> {
     Ok(())
 }
 
+// ── call-graph: get-callees / get-callers ─────────────────────────────────────
+
+pub(crate) fn run_get_callees(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let mut paths: Vec<String> = store
+        .outgoing(id, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&t| store.path_of(t).map(str::to_owned))
+        .collect();
+    paths.sort_unstable();
+    paths.dedup();
+    print_string_list(&paths, format)
+}
+
+pub(crate) fn run_get_callers(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let mut paths: Vec<String> = store
+        .incoming(id, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&t| store.path_of(t).map(str::to_owned))
+        .collect();
+    paths.sort_unstable();
+    paths.dedup();
+    print_string_list(&paths, format)
+}
+
+// ── call-graph: get-callee-tree / get-caller-tree ─────────────────────────────
+
+fn callee_node_to_json(node: &mycelium_core::CalleeNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let children: Vec<serde_json::Value> = node
+        .children
+        .iter()
+        .map(|c| callee_node_to_json(c, store))
+        .collect();
+    serde_json::json!({ "path": path, "children": children })
+}
+
+fn caller_node_to_json(node: &mycelium_core::CallerNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let callers: Vec<serde_json::Value> = node
+        .callers
+        .iter()
+        .map(|c| caller_node_to_json(c, store))
+        .collect();
+    serde_json::json!({ "path": path, "callers": callers })
+}
+
+pub(crate) fn run_get_callee_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.callee_tree(id, max_depth);
+    let value = callee_node_to_json(&tree, &store);
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+pub(crate) fn run_get_caller_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.caller_tree(id, max_depth);
+    let value = caller_node_to_json(&tree, &store);
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── call-graph: entry-points / dead-symbols / isolated-symbols ────────────────
+
+pub(crate) fn run_get_entry_points(
+    root: &Path,
+    prefix: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let symbols = store.entry_points(prefix);
+    print_string_list(&symbols, format)
+}
+
+pub(crate) fn run_get_dead_symbols(
+    root: &Path,
+    prefix: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let symbols = store.dead_symbols(prefix);
+    print_string_list(&symbols, format)
+}
+
+pub(crate) fn run_get_isolated_symbols(
+    root: &Path,
+    prefix: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let symbols = store.isolated_symbols(prefix);
+    print_string_list(&symbols, format)
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {
