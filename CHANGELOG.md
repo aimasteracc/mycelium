@@ -168,6 +168,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0057: `mycelium_get_scc_groups` MCP tool — mutually-recursive symbol cluster detector; accepts `{ edge_kind }` and returns `{ groups, group_count, total_symbols }` or `{ error }` for unknown edge kind.
 - RFC-0058: `Store::dependency_layers(kind)` — Kahn's BFS topological dependency layering; layer 0 = utility/leaf symbols (zero outgoing edges for `kind`), layer k+1 = symbols all of whose direct dependencies are in layers 0..=k; symbols in cycles excluded; paths within each layer sorted ascending.
 - RFC-0058: `mycelium_get_dependency_layers` MCP tool — architectural layering inspector; accepts `{ edge_kind }` and returns `{ layers, layer_count, total_symbols, cycle_excluded_count }` or `{ error }` for unknown edge kind. Complements `scc_groups` (cycles) and `entry_points` (zero in-degree).
+- RFC-0059: `Store::two_hop_neighbors(id, kind)` — symbol paths reachable in exactly 2 outgoing steps for `kind`; excludes source and direct (1-hop) neighbours; focused bridge detector without full reachability traversal; results sorted ascending.
+- RFC-0059: `mycelium_get_two_hop_neighbors` MCP tool — indirect dependency bridge detector; accepts `{ path, edge_kind }` and returns `{ neighbors, count }`, `{ neighbors: [], count: 0 }` for unknown path, or `{ error }` for unknown edge kind.
 
 ### Fixed
 
