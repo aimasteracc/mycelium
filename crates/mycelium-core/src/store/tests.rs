@@ -1911,3 +1911,60 @@ fn store_nodes_in_cycles_prefix_filter() {
     assert!(cycles_src.iter().all(|p| p.starts_with("src/")));
     assert_eq!(cycles_src.len(), 2);
 }
+
+// ── RFC-0041: Store::outgoing_refs ────────────────────────────────────
+
+#[test]
+fn store_outgoing_refs_empty_node() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>Foo"));
+    let refs = store.outgoing_refs(id);
+    assert!(refs.callees.is_empty());
+    assert!(refs.imports.is_empty());
+    assert!(refs.extends.is_empty());
+    assert!(refs.implements.is_empty());
+}
+
+#[test]
+fn store_outgoing_refs_callees() {
+    let mut store = Store::new();
+    let caller = store.upsert_node(path("src/main.rs>main"));
+    let target = store.upsert_node(path("src/lib.rs>helper"));
+    store.upsert_edge(EdgeKind::Calls, caller, target);
+    let refs = store.outgoing_refs(caller);
+    assert_eq!(refs.callees, vec!["src/lib.rs>helper".to_owned()]);
+    assert!(refs.imports.is_empty());
+}
+
+#[test]
+fn store_outgoing_refs_all_kinds() {
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/app.rs>App"));
+    let callee = store.upsert_node(path("src/a.rs>callee"));
+    let imported = store.upsert_node(path("src/b.rs>imported"));
+    let parent = store.upsert_node(path("src/c.rs>Parent"));
+    let iface = store.upsert_node(path("src/d.rs>IFace"));
+    store.upsert_edge(EdgeKind::Calls, src, callee);
+    store.upsert_edge(EdgeKind::Imports, src, imported);
+    store.upsert_edge(EdgeKind::Extends, src, parent);
+    store.upsert_edge(EdgeKind::Implements, src, iface);
+    let refs = store.outgoing_refs(src);
+    assert_eq!(refs.callees, vec!["src/a.rs>callee".to_owned()]);
+    assert_eq!(refs.imports, vec!["src/b.rs>imported".to_owned()]);
+    assert_eq!(refs.extends, vec!["src/c.rs>Parent".to_owned()]);
+    assert_eq!(refs.implements, vec!["src/d.rs>IFace".to_owned()]);
+}
+
+#[test]
+fn store_outgoing_refs_sorted() {
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/main.rs>main"));
+    let z = store.upsert_node(path("z.rs>z_fn"));
+    let a = store.upsert_node(path("a.rs>a_fn"));
+    store.upsert_edge(EdgeKind::Calls, src, z);
+    store.upsert_edge(EdgeKind::Calls, src, a);
+    let refs = store.outgoing_refs(src);
+    let mut expected = refs.callees.clone();
+    expected.sort_unstable();
+    assert_eq!(refs.callees, expected);
+}

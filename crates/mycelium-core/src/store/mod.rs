@@ -168,6 +168,23 @@ pub struct CrossRefs {
     pub implemented_by: Vec<String>,
 }
 
+/// All outgoing edge references from a single symbol, grouped by edge kind.
+///
+/// Symmetric complement to [`CrossRefs`] (incoming edges).
+/// Returned by [`Store::outgoing_refs`].  All lists are sorted
+/// lexicographically.  Empty lists are always present (never omitted).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct OutgoingRefs {
+    /// Symbols this node calls (`EdgeKind::Calls` outgoing).
+    pub callees: Vec<String>,
+    /// Symbols this node imports (`EdgeKind::Imports` outgoing).
+    pub imports: Vec<String>,
+    /// Symbols this node extends (`EdgeKind::Extends` outgoing).
+    pub extends: Vec<String>,
+    /// Symbols this node implements (`EdgeKind::Implements` outgoing).
+    pub implements: Vec<String>,
+}
+
 /// Comprehensive statistics about the indexed symbol graph.
 ///
 /// Returned by [`Store::graph_stats`].
@@ -1196,6 +1213,29 @@ impl Store {
             importers: resolve(self.synapse.incoming(id, EdgeKind::Imports)),
             extended_by: resolve(self.synapse.incoming(id, EdgeKind::Extends)),
             implemented_by: resolve(self.synapse.incoming(id, EdgeKind::Implements)),
+        }
+    }
+
+    /// Return all outgoing edge references from `id`, grouped by edge kind.
+    ///
+    /// Symmetric complement to [`Self::cross_refs`].  Each list in the
+    /// returned [`OutgoingRefs`] is sorted lexicographically.
+    #[must_use]
+    pub fn outgoing_refs(&self, id: NodeId) -> OutgoingRefs {
+        let resolve = |ids: &[NodeId]| -> Vec<String> {
+            let mut paths: Vec<String> = ids
+                .iter()
+                .filter_map(|&nid| self.path_of(nid).map(str::to_owned))
+                .collect();
+            paths.sort_unstable();
+            paths
+        };
+
+        OutgoingRefs {
+            callees: resolve(self.synapse.outgoing(id, EdgeKind::Calls)),
+            imports: resolve(self.synapse.outgoing(id, EdgeKind::Imports)),
+            extends: resolve(self.synapse.outgoing(id, EdgeKind::Extends)),
+            implements: resolve(self.synapse.outgoing(id, EdgeKind::Implements)),
         }
     }
 

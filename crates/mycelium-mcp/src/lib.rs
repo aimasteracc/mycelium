@@ -50,7 +50,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use anyhow::Context as _;
 use mycelium_core::{
     CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
-    ImportNode, ImporterNode, SubclassNode, extractor::Extractor, store::Store, types::EdgeKind,
+    ImportNode, ImporterNode, OutgoingRefs, SubclassNode, extractor::Extractor, store::Store,
+    types::EdgeKind,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -329,6 +330,13 @@ pub struct GetStatsRequest {}
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetCrossRefsRequest {
     /// Symbol path to look up, e.g. `"src/lib.rs>MyClass"`.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_outgoing_refs`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetOutgoingRefsRequest {
+    /// Symbol path to look up, e.g. `"src/app.rs>App"`.
     pub path: String,
 }
 
@@ -1204,6 +1212,34 @@ impl MyceliumServer {
             "importers": refs.importers,
             "extended_by": refs.extended_by,
             "implemented_by": refs.implemented_by,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Return ALL outgoing edge references from a symbol, grouped by edge kind: \
+                       callees (Calls), imports (Imports), extends (Extends), \
+                       implements (Implements). Symmetric complement to mycelium_get_cross_refs. \
+                       All lists are sorted lexicographically. Empty lists are included. \
+                       Unknown path returns { error }."
+    )]
+    async fn mycelium_get_outgoing_refs(
+        &self,
+        Parameters(req): Parameters<GetOutgoingRefsRequest>,
+    ) -> String {
+        let refs_opt: Option<OutgoingRefs> = {
+            let store = self.store.read().await;
+            store.lookup(&req.path).map(|id| store.outgoing_refs(id))
+        };
+        let Some(refs) = refs_opt else {
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        serde_json::json!({
+            "callees": refs.callees,
+            "imports": refs.imports,
+            "extends": refs.extends,
+            "implements": refs.implements,
         })
         .to_string()
     }
@@ -4200,6 +4236,66 @@ mod tests {
             .mycelium_detect_cycles(Parameters(DetectCyclesRequest {
                 edge_kind: "unknown_kind".to_owned(),
                 path_prefix: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────
+
+    #[tokio::test]
+    async fn get_outgoing_refs_all_kinds() {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            let src = store.upsert_node(TrunkPath::parse("src/app.rs>App").unwrap());
+            let callee = store.upsert_node(TrunkPath::parse("src/a.rs>callee").unwrap());
+            let imported = store.upsert_node(TrunkPath::parse("src/b.rs>imported").unwrap());
+            let parent = store.upsert_node(TrunkPath::parse("src/c.rs>Parent").unwrap());
+            let iface = store.upsert_node(TrunkPath::parse("src/d.rs>IFace").unwrap());
+            store.upsert_edge(EdgeKind::Calls, src, callee);
+            store.upsert_edge(EdgeKind::Imports, src, imported);
+            store.upsert_edge(EdgeKind::Extends, src, parent);
+            store.upsert_edge(EdgeKind::Implements, src, iface);
+        }
+        let raw = server
+            .mycelium_get_outgoing_refs(Parameters(GetOutgoingRefsRequest {
+                path: "src/app.rs>App".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["callees"][0].as_str().unwrap(), "src/a.rs>callee");
+        assert_eq!(val["imports"][0].as_str().unwrap(), "src/b.rs>imported");
+        assert_eq!(val["extends"][0].as_str().unwrap(), "src/c.rs>Parent");
+        assert_eq!(val["implements"][0].as_str().unwrap(), "src/d.rs>IFace");
+    }
+
+    #[tokio::test]
+    async fn get_outgoing_refs_empty_lists_present() {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/lone.rs>lone").unwrap());
+        }
+        let raw = server
+            .mycelium_get_outgoing_refs(Parameters(GetOutgoingRefsRequest {
+                path: "src/lone.rs>lone".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["callees"].as_array().unwrap().len(), 0);
+        assert_eq!(val["imports"].as_array().unwrap().len(), 0);
+        assert_eq!(val["extends"].as_array().unwrap().len(), 0);
+        assert_eq!(val["implements"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_outgoing_refs_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_outgoing_refs(Parameters(GetOutgoingRefsRequest {
+                path: "no/such>path".to_owned(),
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
