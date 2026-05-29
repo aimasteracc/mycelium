@@ -166,6 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0056: `mycelium_get_isolated_symbols` MCP tool — completely-disconnected symbol detector; returns `{ isolated_symbols, count }`; optional `path_prefix` filter.
 - RFC-0057: `Store::scc_groups(kind)` — Tarjan's iterative Strongly Connected Components algorithm over symbol nodes for a given EdgeKind; returns groups of size ≥ 2 (singletons excluded), sorted by size descending then by first path ascending; reveals mutually-recursive dependency clusters.
 - RFC-0057: `mycelium_get_scc_groups` MCP tool — mutually-recursive symbol cluster detector; accepts `{ edge_kind }` and returns `{ groups, group_count, total_symbols }` or `{ error }` for unknown edge kind.
+- RFC-0058: `Store::dependency_layers(kind)` — Kahn's BFS topological dependency layering; layer 0 = utility/leaf symbols (zero outgoing edges for `kind`), layer k+1 = symbols all of whose direct dependencies are in layers 0..=k; symbols in cycles excluded; paths within each layer sorted ascending.
+- RFC-0058: `mycelium_get_dependency_layers` MCP tool — architectural layering inspector; accepts `{ edge_kind }` and returns `{ layers, layer_count, total_symbols, cycle_excluded_count }` or `{ error }` for unknown edge kind. Complements `scc_groups` (cycles) and `entry_points` (zero in-degree).
 
 ### Fixed
 
