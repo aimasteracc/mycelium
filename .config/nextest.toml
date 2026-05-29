@@ -1,0 +1,23 @@
+# Mycelium — cargo-nextest configuration
+# https://nexte.st/book/configuration.html
+
+[profile.default]
+# Fail fast: stop on first failure to keep output readable locally.
+fail-fast = false
+# Slow test warning threshold.
+slow-timeout = { period = "5s", terminate-after = 2 }
+
+# ── ci profile (used by GitHub Actions: NEXTEST_PROFILE=ci) ──────────────────
+[profile.ci]
+fail-fast = false
+# CI runners can be slow; give each test more time before declaring it slow.
+slow-timeout = { period = "10s", terminate-after = 3 }
+# Retry flaky tests up to 2 times before marking as failed.
+retries = 2
+
+# ── watch profile (for filesystem-watch integration tests) ───────────────────
+[profile.watch]
+fail-fast = false
+slow-timeout = { period = "15s", terminate-after = 2 }
+# Watch tests rely on FS events; allow 2 retries for timing flakiness.
+retries = 2

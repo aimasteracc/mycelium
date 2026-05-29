@@ -4730,7 +4730,10 @@ mod tests {
         );
     }
 
+    // Slow: relies on filesystem watcher debounce (≥300 ms per event).
+    // Run explicitly with: cargo test -- --ignored watch_mode
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "slow: filesystem watcher timing (run with --ignored)"]
     async fn watch_mode_detects_modified_file() {
         use std::fs;
         use tokio::time::Duration;
@@ -4761,6 +4764,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "slow: filesystem watcher timing (run with --ignored)"]
     async fn watch_mode_detects_deleted_file() {
         use std::fs;
         use tokio::time::Duration;
@@ -4789,6 +4793,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "slow: filesystem watcher timing (run with --ignored)"]
     async fn watch_mode_detects_new_file() {
         use std::fs;
         use tokio::time::Duration;
@@ -5588,6 +5593,7 @@ mod tests {
     // ── RFC-0015: watch-mode stub resolution ─────────────────────────────
 
     #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "slow: filesystem watcher timing (run with --ignored)"]
     async fn watch_mode_resolves_stub_after_callee_file_added() {
         use std::fs;
         use tokio::time::Duration;
@@ -5610,8 +5616,9 @@ mod tests {
         fs::write(tmp.path().join("b.py"), "def bar(): pass").unwrap();
 
         // Poll until the watcher picks up b.py and resolve_bare_call_stubs runs.
+        // 8 s budget: 300 ms FSE debounce + extraction + re-index on slow CI.
         let resolved = poll_for(
-            Duration::from_secs(3),
+            Duration::from_secs(8),
             Duration::from_millis(100),
             || async {
                 let store = server.store.read().await;

@@ -1,0 +1,20 @@
+# Mycelium — local Cargo configuration
+#
+# Tiered test aliases (mirrors Charter §5.6 fast / full / watch lanes):
+#
+#   cargo t        →  fast lane: lib + bins only  (< 5 min target, no I/O tests)
+#   cargo t-full   →  full lane: all tests incl. integration  (< 20 min target)
+#   cargo t-watch  →  watch-mode tests (slow, filesystem I/O, runs --ignored)
+#
+# Install nextest once for the biggest speedup:  cargo install cargo-nextest --locked
+# Then `cargo t` becomes `cargo nextest run --lib` automatically via the alias below.
+
+[alias]
+# Fast lane: unit tests only (excludes #[ignore] watch tests).
+t       = "test --workspace --lib --bins"
+
+# Full lane: add integration tests (tests/ directories).
+t-full  = "test --workspace"
+
+# Watch lane: run the #[ignore] filesystem-watch tests explicitly.
+t-watch = "test -p mycelium-mcp --lib -- --include-ignored watch_mode"

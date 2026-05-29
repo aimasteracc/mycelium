@@ -222,16 +222,22 @@ impl<'src> Parser<'src> {
         let argument = if matches!(self.peek(), Some(Token::LParen)) {
             self.advance(); // consume `(`
             self.skip_ws();
-            let inner = self.parse_selector_list()?;
-            self.skip_ws();
-            match self.advance() {
-                Some((Token::RParen, _)) => {}
-                Some((tok, pos)) => {
-                    return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos));
+            // Empty parens `()` means "match everything" — argument is None.
+            if matches!(self.peek(), Some(Token::RParen)) {
+                self.advance(); // consume `)`
+                None
+            } else {
+                let inner = self.parse_selector_list()?;
+                self.skip_ws();
+                match self.advance() {
+                    Some((Token::RParen, _)) => {}
+                    Some((tok, pos)) => {
+                        return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos));
+                    }
+                    None => return Err(ParseError::UnexpectedEof),
                 }
-                None => return Err(ParseError::UnexpectedEof),
+                Some(Box::new(inner))
             }
-            Some(Box::new(inner))
         } else {
             None
         };

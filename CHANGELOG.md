@@ -248,6 +248,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0090: `mycelium_search_symbol` — when compact mode is enabled, serialises the result with `rmp_serde::to_vec_named` and returns `{ "fmt": "msgpack_hex", "data": "<hex>", "bytes": N }` instead of plain JSON, achieving significant token-count reduction for large result sets.
 - RFC-0090: `encode_msgpack_hex` private helper — encodes any `serde_json::Value` as MessagePack then hex; falls back to plain JSON on serialization error (logged via `tracing::warn`).
 - SPRINT-002: CI coverage job now gates on `--fail-under-branches 80` in addition to `--fail-under-lines 90`, enforcing Charter §2 / §5.4 branch coverage SLA. A second `--json --no-run` step captures per-crate branch percentages for Codecov upload.
+- RFC-0004: `mycelium-hyphae` `Evaluator` — executes a parsed Hyphae `Ast` against a `Store`; supports `*`, `#name`, `.kind`, `:calls()`, `:callers()`, `:imports()`, `:extends()` pseudo-classes; `>` child, descendant space, and `~` sibling combinators; comma union; returns sorted deduplicated paths.
+- RFC-0004: Parser now accepts empty-argument pseudo-classes `()` (e.g. `*:calls()` matches any symbol with at least one outgoing call edge), mapping them to "match everything" semantics.
+- RFC-0004: `mycelium_query` MCP tool — accepts `{ query, limit? }`, runs a Hyphae query against the live index, returns `{ results, count, query }` on success or `{ error }` on parse failure. Primary token-efficiency interface for AI agents (Charter §2 ≤ 30% SLA).
+- RFC-0004: `mycelium-mcp` now depends on `mycelium-hyphae` and imports `Evaluator` for inline query evaluation.
 
 ### Fixed
 
