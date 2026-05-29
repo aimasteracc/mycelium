@@ -170,6 +170,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0058: `mycelium_get_dependency_layers` MCP tool — architectural layering inspector; accepts `{ edge_kind }` and returns `{ layers, layer_count, total_symbols, cycle_excluded_count }` or `{ error }` for unknown edge kind. Complements `scc_groups` (cycles) and `entry_points` (zero in-degree).
 - RFC-0059: `Store::two_hop_neighbors(id, kind)` — symbol paths reachable in exactly 2 outgoing steps for `kind`; excludes source and direct (1-hop) neighbours; focused bridge detector without full reachability traversal; results sorted ascending.
 - RFC-0059: `mycelium_get_two_hop_neighbors` MCP tool — indirect dependency bridge detector; accepts `{ path, edge_kind }` and returns `{ neighbors, count }`, `{ neighbors: [], count: 0 }` for unknown path, or `{ error }` for unknown edge kind.
+- RFC-0060: `Store::symbol_neighborhood(id, kind)` + `SymbolNeighborhood` struct — ego-graph of a symbol for a single EdgeKind; returns path + direct incoming + direct outgoing, both lists sorted ascending; returns empty neighborhood for unknown id.
+- RFC-0060: `mycelium_get_symbol_neighborhood` MCP tool — bidirectional single-kind ego-graph query; accepts `{ path, edge_kind }` and returns `{ path, incoming, outgoing, incoming_count, outgoing_count }`, empty neighborhood for unknown path, or `{ error }` for unknown edge kind.
 
 ### Fixed
 
