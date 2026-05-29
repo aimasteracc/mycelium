@@ -455,6 +455,19 @@ pub struct GetSymbolNeighborhoodRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_hub_symbols`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetHubSymbolsRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Minimum in-degree. Defaults to 1 if omitted.
+    pub min_in: Option<usize>,
+    /// Minimum out-degree. Defaults to 1 if omitted.
+    pub min_out: Option<usize>,
+    /// Maximum results returned. Defaults to 10, capped at 100.
+    pub limit: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_all_symbols`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetAllSymbolsRequest {
@@ -1760,6 +1773,48 @@ impl MyceliumServer {
             "outgoing_count": outgoing_count,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Return symbols that are architectural hubs: high in-degree AND high out-degree \
+                       for the given edge kind. A hub is called by many (hotspot) and also calls \
+                       many (orchestrator) — the intersection of fan_in_rank and fan_out_rank. \
+                       min_in: minimum in-degree (default 1). min_out: minimum out-degree (default 1). \
+                       limit: max results (default 10, capped 100). \
+                       Results sorted by in_degree + out_degree descending, ties by path ascending. \
+                       edge_kind: 'calls', 'imports', 'extends', or 'implements'. \
+                       Returns { hubs: [{ path, in_degree, out_degree }], count } or { error }."
+    )]
+    async fn mycelium_get_hub_symbols(
+        &self,
+        Parameters(req): Parameters<GetHubSymbolsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let min_in = req.min_in.unwrap_or(1);
+        let min_out = req.min_out.unwrap_or(1);
+        let limit = req.limit.unwrap_or(10);
+        let hubs = self
+            .store
+            .read()
+            .await
+            .hub_symbols(kind, min_in, min_out, limit);
+        let count = hubs.len();
+        let hubs_json: Vec<serde_json::Value> = hubs
+            .into_iter()
+            .map(|(path, in_degree, out_degree)| {
+                serde_json::json!({ "path": path, "in_degree": in_degree, "out_degree": out_degree })
+            })
+            .collect();
+        serde_json::json!({ "hubs": hubs_json, "count": count }).to_string()
     }
 
     #[tool(
@@ -5308,6 +5363,70 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    // ── RFC-0061: mycelium_get_hub_symbols ───────────────────────────────
+
+    #[tokio::test]
+    async fn get_hub_symbols_basic() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/hub.rs>hub").unwrap());
+            // 2 callers, 2 callees
+            for i in 0..2_u32 {
+                let c = store.upsert_node(TrunkPath::parse(&format!("src/c{i}.rs>c{i}")).unwrap());
+                store.upsert_edge(EdgeKind::Calls, c, hub);
+            }
+            for i in 0..2_u32 {
+                let d = store.upsert_node(TrunkPath::parse(&format!("src/d{i}.rs>d{i}")).unwrap());
+                store.upsert_edge(EdgeKind::Calls, hub, d);
+            }
+        }
+        let raw = server
+            .mycelium_get_hub_symbols(Parameters(GetHubSymbolsRequest {
+                edge_kind: "calls".to_owned(),
+                min_in: Some(2),
+                min_out: Some(2),
+                limit: Some(10),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(val["hubs"][0]["path"].as_str().unwrap(), "src/hub.rs>hub");
+        assert_eq!(val["hubs"][0]["in_degree"].as_u64().unwrap(), 2);
+        assert_eq!(val["hubs"][0]["out_degree"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_hub_symbols_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_hub_symbols(Parameters(GetHubSymbolsRequest {
+                edge_kind: "bad".to_owned(),
+                min_in: None,
+                min_out: None,
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    #[tokio::test]
+    async fn get_hub_symbols_empty_store_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_hub_symbols(Parameters(GetHubSymbolsRequest {
+                edge_kind: "calls".to_owned(),
+                min_in: None,
+                min_out: None,
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert!(val["hubs"].as_array().unwrap().is_empty());
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────

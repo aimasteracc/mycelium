@@ -3272,3 +3272,95 @@ fn store_symbol_neighborhood_different_edge_kind() {
         "Calls edge must not appear under Imports kind"
     );
 }
+
+// ── RFC-0061: Store::hub_symbols ─────────────────────────────────────────────
+
+#[test]
+fn store_hub_symbols_basic() {
+    // svc: in=2, out=2 → hub; a, b callers; x, y callees
+    let mut store = Store::new();
+    let svc = store.upsert_node(path("src/svc.rs>svc"));
+    let caller_a = store.upsert_node(path("src/a.rs>a"));
+    let caller_b = store.upsert_node(path("src/b.rs>b"));
+    let callee_x = store.upsert_node(path("src/x.rs>x"));
+    let callee_y = store.upsert_node(path("src/y.rs>y"));
+    store.upsert_edge(EdgeKind::Calls, caller_a, svc);
+    store.upsert_edge(EdgeKind::Calls, caller_b, svc);
+    store.upsert_edge(EdgeKind::Calls, svc, callee_x);
+    store.upsert_edge(EdgeKind::Calls, svc, callee_y);
+    let hubs = store.hub_symbols(EdgeKind::Calls, 2, 2, 10);
+    assert_eq!(hubs.len(), 1);
+    assert_eq!(hubs[0].0, "src/svc.rs>svc");
+    assert_eq!(hubs[0].1, 2); // in_degree
+    assert_eq!(hubs[0].2, 2); // out_degree
+}
+
+#[test]
+fn store_hub_symbols_excludes_below_threshold() {
+    // svc: in=1, out=2 → excluded by min_in=2
+    let mut store = Store::new();
+    let svc = store.upsert_node(path("src/svc.rs>svc"));
+    let caller = store.upsert_node(path("src/a.rs>a"));
+    let callee_x = store.upsert_node(path("src/x.rs>x"));
+    let callee_y = store.upsert_node(path("src/y.rs>y"));
+    store.upsert_edge(EdgeKind::Calls, caller, svc);
+    store.upsert_edge(EdgeKind::Calls, svc, callee_x);
+    store.upsert_edge(EdgeKind::Calls, svc, callee_y);
+    let hubs = store.hub_symbols(EdgeKind::Calls, 2, 1, 10);
+    assert!(hubs.is_empty()); // in_degree=1 < min_in=2
+}
+
+#[test]
+fn store_hub_symbols_sorted_by_total_degree_desc() {
+    // Two hubs: svc (in=3, out=2, total=5) and mid (in=2, out=2, total=4)
+    let mut store = Store::new();
+    let svc = store.upsert_node(path("src/svc.rs>svc"));
+    let mid = store.upsert_node(path("src/mid.rs>mid"));
+    // svc: in=3
+    for i in 0..3_u32 {
+        let c = store.upsert_node(path(&format!("src/c{i}.rs>c{i}")));
+        store.upsert_edge(EdgeKind::Calls, c, svc);
+    }
+    // svc: out=2
+    for i in 0..2_u32 {
+        let d = store.upsert_node(path(&format!("src/d{i}.rs>d{i}")));
+        store.upsert_edge(EdgeKind::Calls, svc, d);
+    }
+    // mid: in=2
+    for i in 0..2_u32 {
+        let e = store.upsert_node(path(&format!("src/e{i}.rs>e{i}")));
+        store.upsert_edge(EdgeKind::Calls, e, mid);
+    }
+    // mid: out=2
+    for i in 0..2_u32 {
+        let f = store.upsert_node(path(&format!("src/f{i}.rs>f{i}")));
+        store.upsert_edge(EdgeKind::Calls, mid, f);
+    }
+    let hubs = store.hub_symbols(EdgeKind::Calls, 2, 2, 10);
+    assert_eq!(hubs.len(), 2);
+    assert_eq!(hubs[0].0, "src/svc.rs>svc"); // total=5 > total=4
+    assert_eq!(hubs[1].0, "src/mid.rs>mid");
+}
+
+#[test]
+fn store_hub_symbols_limit_respected() {
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/hub.rs>hub"));
+    for i in 0..3_u32 {
+        let c = store.upsert_node(path(&format!("src/caller{i}.rs>c{i}")));
+        store.upsert_edge(EdgeKind::Calls, c, hub);
+    }
+    for i in 0..3_u32 {
+        let d = store.upsert_node(path(&format!("src/callee{i}.rs>d{i}")));
+        store.upsert_edge(EdgeKind::Calls, hub, d);
+    }
+    let hubs = store.hub_symbols(EdgeKind::Calls, 1, 1, 0); // limit=0, capped at 0
+    assert!(hubs.is_empty());
+}
+
+#[test]
+fn store_hub_symbols_empty_store() {
+    let store = Store::new();
+    let hubs = store.hub_symbols(EdgeKind::Calls, 1, 1, 10);
+    assert!(hubs.is_empty());
+}
