@@ -11,7 +11,7 @@
 //!
 //! ```text
 //! ┌─────────────────────────────────────────────────────────┐
-//! │ Cortex  (reactive layer — RFC-0002, future)             │
+//! │ Cortex  (reactive layer — RFC-0003)                     │
 //! ├─────────────────────────────────────────────────────────┤
 //! │ Store   (unified read/write surface)                    │
 //! ├──────────────────────────┬──────────────────────────────┤
@@ -31,11 +31,12 @@
 //! | [`synapse`] (edges) | scaffolded, implementation pending |
 //! | [`store`] (unified API) | **v0.1**: in-memory Trunk + Synapse wiring. Persistence deferred to P4. |
 //! | [`extractor`] (tree-sitter → Store bridge) | **RFC-0002**: parses source files with tree-sitter queries, populates Store. |
-//! | Cortex (reactivity) | RFC-0003 |
+//! | [`cortex`] (Salsa reactive layer) | **RFC-0003 Phase 1**: `InputFile` input + `index_file` tracked query wired via `Cortex` db. |
 
 #![doc(html_root_url = "https://docs.rs/mycelium-core")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub mod cortex;
 pub mod error;
 pub mod extractor;
 pub mod store;
