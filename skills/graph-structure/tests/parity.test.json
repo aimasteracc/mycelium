@@ -1,0 +1,126 @@
+{
+  "skill": "graph-structure",
+  "description": "Parity for 14 structural tools. Fixture: 5-function file with one 2-cycle (a calls b calls a) and two independent functions (c, d).",
+  "cases": [
+    {
+      "capability": "get_stats",
+      "name": "summary",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-stats", "--format", "json"],
+      "mcp_input": {},
+      "expected_field_keys": ["nodes", "edges"]
+    },
+    {
+      "capability": "detect_cycles",
+      "name": "finds_the_a_b_cycle",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["detect-cycles", "--edge-kind", "calls", "--limit", "10", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls", "limit": 10},
+      "expected_field_keys": ["cycles", "count"],
+      "parity_invariant": "CLI cycle list == MCP `cycles` array"
+    },
+    {
+      "capability": "get_scc_groups",
+      "name": "one_nontrivial_scc",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-scc-groups", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"},
+      "expected_field_keys": ["scc_groups"]
+    },
+    {
+      "capability": "topological_sort",
+      "name": "fails_with_cycle",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["topological-sort", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"},
+      "parity_invariant": "Both surfaces return an error envelope mentioning 'cycle'"
+    },
+    {
+      "capability": "find_articulation_points",
+      "name": "smoke",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["find-articulation-points", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"},
+      "performance_note": "see #153"
+    },
+    {
+      "capability": "find_bridge_edges",
+      "name": "smoke",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["find-bridge-edges", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"}
+    },
+    {
+      "capability": "get_biconnected_components",
+      "name": "smoke",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-biconnected-components", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"}
+    },
+    {
+      "capability": "get_k_core",
+      "name": "k_1",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-k-core", "--k", "1", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"k": 1, "edge_kind": "calls"}
+    },
+    {
+      "capability": "get_dependency_layers",
+      "name": "smoke",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-dependency-layers", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"},
+      "expected_field_keys": ["layers"]
+    },
+    {
+      "capability": "get_scc",
+      "name": "scc_of_a",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-scc", "src/lib.rs>a", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>a", "edge_kind": "calls"},
+      "expected_includes_paths": ["src/lib.rs>b"]
+    },
+    {
+      "capability": "get_wcc",
+      "name": "smoke",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-wcc", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"},
+      "performance_note": "see #153"
+    },
+    {
+      "capability": "get_degree_histogram",
+      "name": "smoke",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-degree-histogram", "--format", "json"],
+      "mcp_input": {},
+      "performance_note": "see #153"
+    },
+    {
+      "capability": "find_cycle_members",
+      "name": "a_and_b",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["find-cycle-members", "--edge-kind", "calls", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls"},
+      "expected_includes_paths": ["src/lib.rs>a", "src/lib.rs>b"]
+    },
+    {
+      "capability": "get_graph_metrics",
+      "name": "smoke",
+      "fixture": "cycle_plus_independent",
+      "cli_args": ["get-graph-metrics", "--format", "json"],
+      "mcp_input": {},
+      "performance_note": "see #153 — likely needs time_budget_ms in v0.1.4"
+    }
+  ],
+  "fixture_definitions": {
+    "cycle_plus_independent": {
+      "description": "a -> b -> a (cycle), plus c and d as independent acyclic helpers. Enough to exercise SCC, topo (which fails), articulation, etc.",
+      "files": {
+        "Cargo.toml": "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+        "src/lib.rs": "pub fn d() -> i32 { 4 }\npub fn c() -> i32 { d() }\npub fn b() -> i32 { a() + 1 }\npub fn a() -> i32 { b() * 2 }\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}
