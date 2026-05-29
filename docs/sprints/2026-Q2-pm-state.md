@@ -5,35 +5,38 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 |
-| Current sprint | none cut yet — v0.1.2 pending kickoff |
-| Active release branch | none |
-| Next release target | v0.1.2 (hotfix), ETA 2026-06-06 |
+| Last updated | 2026-05-30 (after v0.1.2 ship) |
+| Current sprint | v0.1.3 (Hyphae lands + Skill umbrella sprint 1) |
+| Active release branch | none (between releases) |
+| Next release target | v0.1.3, ETA 2026-06-13 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
+| Last shipped | **v0.1.2 — Sprint 1 hotfix** (https://github.com/aimasteracc/mycelium/releases/tag/v0.1.2) |
 
 ## Live priorities (ordered)
 
 P0:
-1. [#150](https://github.com/aimasteracc/mycelium/issues/150) — MCP stdout pollution. Blocks every well-behaved client.
-2. [#151](https://github.com/aimasteracc/mycelium/issues/151) — `mycelium query` placeholder. Breaks README lead example.
+1. [#151](https://github.com/aimasteracc/mycelium/issues/151) — `mycelium query` placeholder. Breaks README lead example. **v0.1.3 lead item.**
 
 P1:
-3. [#152](https://github.com/aimasteracc/mycelium/issues/152) — `edge_kind` case sensitivity.
-4. [#153](https://github.com/aimasteracc/mycelium/issues/153) — Graph-algorithm timeouts on 1 K-node graph.
+2. [#153](https://github.com/aimasteracc/mycelium/issues/153) — Graph-algorithm timeouts on 1 K-node graph. **v0.1.4.**
 
-P2:
-5. [#154](https://github.com/aimasteracc/mycelium/issues/154) — `mycelium init` placeholder.
+P2: (none — all v0.1.x P2 items shipped in v0.1.2)
 
 Governance / process:
-6. RFC-0090 Phase 1 — `parity.yml` CI workflow.
-7. RFC-0090 Phase 2 — 8 category Skills authored.
-8. RFC-0090 Phase 2.5 — INDEX.md generator script.
+3. RFC-0090 Phase 1 — `parity.yml` CI workflow. **v0.1.3.**
+4. RFC-0090 Phase 2 — first 3 category Skills (`basic-queries`, `call-graph`, `hyphae-query`). **v0.1.3.**
+5. RFC-0090 Phase 2.5 — INDEX.md generator script. **v0.1.3.**
 
-## Dispatch state (today)
+Closed in v0.1.2:
+- [#150](https://github.com/aimasteracc/mycelium/issues/150) ✅
+- [#152](https://github.com/aimasteracc/mycelium/issues/152) ✅
+- [#154](https://github.com/aimasteracc/mycelium/issues/154) ✅
+
+## Dispatch state (today, post-v0.1.2)
 
 | Agent | Status | Current item |
 |---|---|---|
-| rust-implementer | idle | next: pick up [#150](https://github.com/aimasteracc/mycelium/issues/150) |
+| rust-implementer | next-up | [#151](https://github.com/aimasteracc/mycelium/issues/151) Hyphae CLI wiring + MCP twin + parity test |
 | architect | idle | next: review Charter §2 SLA additions (heavy-graph rows) |
 | tech-writer | idle | next: draft `skills/basic-queries/SKILL.md` |
 | code-reviewer | idle | blocks on PR opens |
