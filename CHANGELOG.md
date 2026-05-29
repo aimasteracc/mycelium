@@ -211,6 +211,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0077: `Store::eccentricity_stats(id, kind)` — returns `(max_distance, reachable_count)` via single BFS (O(V+E)); file nodes excluded; isolated node → (0, 0).
 - RFC-0077: `Store::eccentricity(id, kind)` — maximum BFS distance from a symbol node to any reachable symbol node; thin wrapper over `eccentricity_stats`.
 - RFC-0077: `mycelium_get_eccentricity` MCP tool — directed reach depth probe; accepts `{ path, edge_kind }` and returns `{ eccentricity, reachable_count }` or `{ error }`. High eccentricity = deep dependency chains emanating from this node.
+- RFC-0078: `Store::harmonic_centrality_stats(id, kind)` — returns `(centrality, reachable_count, symbol_count)` via single BFS (O(V+E)); HC(u) = (1/(n-1))×Σ(1/d(v)); unreachable nodes contribute 0; file nodes excluded.
+- RFC-0078: `Store::harmonic_centrality(id, kind)` — harmonic centrality ∈ [0.0, 1.0]; thin wrapper over `harmonic_centrality_stats`. Near 1.0 = reaches all symbols in ~1 hop; 0.0 = isolated.
+- RFC-0078: `mycelium_get_harmonic_centrality` MCP tool — average closeness probe; accepts `{ path, edge_kind }` and returns `{ harmonic_centrality, reachable_count, symbol_count }` or `{ error }`. Complements eccentricity (RFC-0077): average vs. max distance.
 
 ### Fixed
 
