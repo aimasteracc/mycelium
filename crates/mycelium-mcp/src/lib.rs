@@ -543,6 +543,13 @@ pub struct DegreeHistogramRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_graph_metrics`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GraphMetricsRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2265,6 +2272,44 @@ impl MyceliumServer {
             "in_degrees": in_list,
             "out_degrees": out_list,
             "total_symbols": total_symbols
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Structural summary metrics for the symbol graph for a given EdgeKind: \
+                       symbol_count, directed_edge_count, density (E/V(V-1)), avg_degree, \
+                       max_in_degree, max_out_degree. Instant architectural health check: \
+                       density near 0 = sparse/modular; near 1 = tightly coupled. \
+                       O(V+E). Returns { error } for unknown edge_kind."
+    )]
+    async fn mycelium_get_graph_metrics(
+        &self,
+        Parameters(req): Parameters<GraphMetricsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let m = {
+            let store = self.store.read().await;
+            let metrics = store.graph_metrics(kind);
+            drop(store);
+            metrics
+        };
+        serde_json::json!({
+            "symbol_count": m.symbol_count,
+            "directed_edge_count": m.directed_edge_count,
+            "density": m.density,
+            "avg_degree": m.avg_degree,
+            "max_in_degree": m.max_in_degree,
+            "max_out_degree": m.max_out_degree,
         })
         .to_string()
     }
@@ -6646,6 +6691,54 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_get_degree_histogram(Parameters(DegreeHistogramRequest {
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0074: mycelium_get_graph_metrics ──────────────────────────────
+
+    #[tokio::test]
+    async fn graph_metrics_basic_counts() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+        }
+        let raw = server
+            .mycelium_get_graph_metrics(Parameters(GraphMetricsRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 2);
+        assert_eq!(val["directed_edge_count"].as_u64().unwrap(), 1);
+        assert_eq!(val["max_out_degree"].as_u64().unwrap(), 1);
+        assert_eq!(val["max_in_degree"].as_u64().unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn graph_metrics_empty_returns_zeros() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_graph_metrics(Parameters(GraphMetricsRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 0);
+        assert!(val["density"].as_f64().unwrap().abs() < 1e-15);
+    }
+
+    #[tokio::test]
+    async fn graph_metrics_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_graph_metrics(Parameters(GraphMetricsRequest {
                 edge_kind: "unknown".into(),
             }))
             .await;

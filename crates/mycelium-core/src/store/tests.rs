@@ -4256,3 +4256,73 @@ fn store_degree_histogram_empty_store() {
     assert!(hist.in_degrees.is_empty());
     assert!(hist.out_degrees.is_empty());
 }
+
+// ── RFC-0074: graph_metrics ───────────────────────────────────────────
+
+#[test]
+fn store_graph_metrics_complete_graph() {
+    // 3-node complete directed graph: 3*2=6 directed edges → density=1.0
+    let mut store = Store::new();
+    let node_a = store.upsert_node(path("src/a.rs>a"));
+    let node_b = store.upsert_node(path("src/b.rs>b"));
+    let node_c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, node_a, node_b);
+    store.upsert_edge(EdgeKind::Calls, node_a, node_c);
+    store.upsert_edge(EdgeKind::Calls, node_b, node_a);
+    store.upsert_edge(EdgeKind::Calls, node_b, node_c);
+    store.upsert_edge(EdgeKind::Calls, node_c, node_a);
+    store.upsert_edge(EdgeKind::Calls, node_c, node_b);
+    let m = store.graph_metrics(EdgeKind::Calls);
+    assert_eq!(m.symbol_count, 3);
+    assert_eq!(m.directed_edge_count, 6);
+    assert!(
+        (m.density - 1.0).abs() < 1e-9,
+        "density should be 1.0, got {}",
+        m.density
+    );
+}
+
+#[test]
+fn store_graph_metrics_empty_graph() {
+    let store = Store::new();
+    let m = store.graph_metrics(EdgeKind::Calls);
+    assert_eq!(m.symbol_count, 0);
+    assert_eq!(m.directed_edge_count, 0);
+    assert!(m.density.abs() < 1e-15);
+    assert!(m.avg_degree.abs() < 1e-15);
+}
+
+#[test]
+fn store_graph_metrics_single_node() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>a"));
+    let m = store.graph_metrics(EdgeKind::Calls);
+    assert_eq!(m.symbol_count, 1);
+    assert!(m.density.abs() < 1e-15, "V < 2 → density = 0");
+}
+
+#[test]
+fn store_graph_metrics_max_degrees() {
+    // star graph: hub → a, hub → b, hub → c; max_out=3, max_in=1
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/hub.rs>hub"));
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, hub, a);
+    store.upsert_edge(EdgeKind::Calls, hub, b);
+    store.upsert_edge(EdgeKind::Calls, hub, c);
+    let m = store.graph_metrics(EdgeKind::Calls);
+    assert_eq!(m.max_out_degree, 3);
+    assert_eq!(m.max_in_degree, 1);
+}
+
+#[test]
+fn store_graph_metrics_excludes_file_nodes() {
+    let mut store = Store::new();
+    let sym = store.upsert_node(path("src/a.rs>a"));
+    store.upsert_node(path("src/a.rs")); // file node
+    let _ = sym;
+    let m = store.graph_metrics(EdgeKind::Calls);
+    assert_eq!(m.symbol_count, 1, "file node leaked into metrics");
+}

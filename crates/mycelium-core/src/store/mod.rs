@@ -259,6 +259,23 @@ pub struct DegreeHistogram {
     pub out_degrees: Vec<(u64, u64)>,
 }
 
+/// Structural summary metrics for [`Store::graph_metrics`].
+#[derive(Debug, Clone, Default)]
+pub struct EdgeKindMetrics {
+    /// Number of symbol nodes (file nodes excluded).
+    pub symbol_count: usize,
+    /// Total directed edges for the queried `EdgeKind`.
+    pub directed_edge_count: usize,
+    /// `E / (V*(V-1))` — directed graph density; 0.0 for V < 2.
+    pub density: f64,
+    /// `directed_edge_count / symbol_count`; 0.0 for empty graph.
+    pub avg_degree: f64,
+    /// Highest in-degree seen across all symbol nodes.
+    pub max_in_degree: usize,
+    /// Highest out-degree seen across all symbol nodes.
+    pub max_out_degree: usize,
+}
+
 const AP_UNVISITED: usize = usize::MAX;
 
 fn uf_find(parent: &mut Vec<usize>, x: usize) -> usize {
@@ -2888,6 +2905,55 @@ impl Store {
         DegreeHistogram {
             in_degrees,
             out_degrees,
+        }
+    }
+
+    /// Structural summary metrics for the symbol graph for `kind`.
+    ///
+    /// Returns [`EdgeKindMetrics`] with density, average degree, and max
+    /// in/out degree.  File nodes excluded.  O(V + E).
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
+    pub fn graph_metrics(&self, kind: EdgeKind) -> EdgeKindMetrics {
+        let mut symbol_count = 0usize;
+        let mut directed_edge_count = 0usize;
+        let mut max_in = 0usize;
+        let mut max_out = 0usize;
+
+        for p in self.trunk.all_paths() {
+            if !p.contains('>') {
+                continue;
+            }
+            if let Some(id) = self.trunk.lookup_path(p) {
+                symbol_count += 1;
+                let out = self.synapse.outgoing(id, kind).len();
+                let inc = self.synapse.incoming(id, kind).len();
+                directed_edge_count += out;
+                if out > max_out {
+                    max_out = out;
+                }
+                if inc > max_in {
+                    max_in = inc;
+                }
+            }
+        }
+
+        let sc = symbol_count as u64;
+        let ec = directed_edge_count as u64;
+        let density = if sc < 2 {
+            0.0
+        } else {
+            ec as f64 / (sc as f64 * (sc as f64 - 1.0))
+        };
+        let avg_degree = if sc == 0 { 0.0 } else { ec as f64 / sc as f64 };
+
+        EdgeKindMetrics {
+            symbol_count,
+            directed_edge_count,
+            density,
+            avg_degree,
+            max_in_degree: max_in,
+            max_out_degree: max_out,
         }
     }
 }
