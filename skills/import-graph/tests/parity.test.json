@@ -1,0 +1,42 @@
+{
+  "skill": "import-graph",
+  "description": "Parity for the 3 Imports-edge tools. Fixture is a tiny 3-file dependency chain (entry imports middle, middle imports leaf).",
+  "cases": [
+    {
+      "capability": "get_imports",
+      "name": "direct_imports",
+      "fixture": "three_file_import_chain",
+      "cli_args": ["get-imports", "src/entry.py", "--format", "json"],
+      "mcp_input": {"path": "src/entry.py"},
+      "expected_includes_paths": ["src/middle.py"]
+    },
+    {
+      "capability": "get_import_tree",
+      "name": "depth_3_tree",
+      "fixture": "three_file_import_chain",
+      "cli_args": ["get-import-tree", "src/entry.py", "--max-depth", "3", "--format", "json"],
+      "mcp_input": {"path": "src/entry.py", "max_depth": 3},
+      "parity_invariant": "CLI tree == MCP `tree`",
+      "normalize": ["computed_at"]
+    },
+    {
+      "capability": "get_importers_tree",
+      "name": "depth_3_back",
+      "fixture": "three_file_import_chain",
+      "cli_args": ["get-importers-tree", "src/leaf.py", "--max-depth", "3", "--format", "json"],
+      "mcp_input": {"path": "src/leaf.py", "max_depth": 3},
+      "parity_invariant": "CLI tree == MCP `tree`"
+    }
+  ],
+  "fixture_definitions": {
+    "three_file_import_chain": {
+      "description": "entry.py imports middle, middle.py imports leaf. Python because imports are explicit and the chain is unambiguous.",
+      "files": {
+        "src/leaf.py": "def leaf_fn():\n    return 42\n",
+        "src/middle.py": "from .leaf import leaf_fn\n\ndef middle_fn():\n    return leaf_fn() + 1\n",
+        "src/entry.py": "from .middle import middle_fn\n\ndef entry_fn():\n    return middle_fn() * 2\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}

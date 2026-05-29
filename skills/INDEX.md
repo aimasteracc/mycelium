@@ -56,6 +56,35 @@ authored in Phase 2 PRs, one PR per category.
 | `get_entry_points` | `mycelium get-entry-points` | `mycelium_get_entry_points` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `get_dead_symbols` | `mycelium get-dead-symbols` | `mycelium_get_dead_symbols` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `get_isolated_symbols` | `mycelium get-isolated-symbols` | `mycelium_get_isolated_symbols` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_imports` | `mycelium get-imports` | `mycelium_get_imports` | [`import-graph`](import-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_import_tree` | `mycelium get-import-tree` | `mycelium_get_import_tree` | [`import-graph`](import-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_importers_tree` | `mycelium get-importers-tree` | `mycelium_get_importers_tree` | [`import-graph`](import-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_shortest_path` | `mycelium get-shortest-path` | `mycelium_get_shortest_path` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_reachable` | `mycelium get-reachable` | `mycelium_get_reachable` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_reachable_to` | `mycelium get-reachable-to` | `mycelium_get_reachable_to` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_k_hop_neighbors` | `mycelium get-k-hop-neighbors` | `mycelium_get_k_hop_neighbors` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_two_hop_neighbors` | `mycelium get-two-hop-neighbors` | `mycelium_get_two_hop_neighbors` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_symbol_neighborhood` | `mycelium get-symbol-neighborhood` | `mycelium_get_symbol_neighborhood` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_cross_refs` | `mycelium get-cross-refs` | `mycelium_get_cross_refs` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_outgoing_refs` | `mycelium get-outgoing-refs` | `mycelium_get_outgoing_refs` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_dependency_depth` | `mycelium get-dependency-depth` | `mycelium_get_dependency_depth` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_reachable_set` | `mycelium get-reachable-set` | `mycelium_get_reachable_set` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_reaches_into` | `mycelium get-reaches-into` | `mycelium_get_reaches_into` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_singly_referenced` | `mycelium get-singly-referenced` | `mycelium_get_singly_referenced` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `rank_symbols` | `mycelium rank-symbols` | `mycelium_rank_symbols` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_top_files` | `mycelium get-top-files` | `mycelium_get_top_files` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_most_connected` | `mycelium get-most-connected` | `mycelium_get_most_connected` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_hub_symbols` | `mycelium get-hub-symbols` | `mycelium_get_hub_symbols` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_fan_out_rank` | `mycelium get-fan-out-rank` | `mycelium_get_fan_out_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_fan_in_rank` | `mycelium get-fan-in-rank` | `mycelium_get_fan_in_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `betweenness_centrality` | `mycelium betweenness-centrality` | `mycelium_betweenness_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
+| `closeness_centrality` | `mycelium closeness-centrality` | `mycelium_closeness_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `degree_centrality` | `mycelium degree-centrality` | `mycelium_degree_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `clustering_coefficient` | `mycelium clustering-coefficient` | `mycelium_clustering_coefficient` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `eccentricity` | `mycelium eccentricity` | `mycelium_eccentricity` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `page_rank` | `mycelium page-rank` | `mycelium_page_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
+| `harmonic_centrality` | `mycelium harmonic-centrality` | `mycelium_harmonic_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `neighbor_similarity` | `mycelium neighbor-similarity` | `mycelium_neighbor_similarity` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 
 **Status legend:** 🟡 Skill bundle written + MCP tool exists, but the CLI half is still missing — `parity-backfill` epic tracks these. ✅ Three-Surface = all three surfaces shipped, parity-CI green. The CLI subcommands ship in v0.1.4–v0.1.5 alongside the parity-CI workflow.
 
