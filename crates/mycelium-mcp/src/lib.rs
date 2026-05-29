@@ -579,6 +579,15 @@ pub struct EccentricityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_harmonic_centrality`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct HarmonicCentralityRequest {
+    /// Symbol path, e.g. `"src/a.rs>MyStruct"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2454,6 +2463,44 @@ impl MyceliumServer {
         serde_json::json!({
             "eccentricity": eccentricity,
             "reachable_count": reachable_count,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Harmonic centrality of a symbol node: (1/(n-1)) × Σ_{v reachable} (1/d(v)) \
+                       for a given EdgeKind. Unreachable nodes contribute 0, making this \
+                       well-defined for directed graphs. Near 1.0 = reaches all others in ~1 hop; \
+                       0.0 = isolated. Complements eccentricity (max distance) with average \
+                       closeness. n = total symbol count (file nodes excluded). O(V+E). \
+                       Returns { harmonic_centrality, reachable_count, symbol_count } or { error }."
+    )]
+    async fn mycelium_get_harmonic_centrality(
+        &self,
+        Parameters(req): Parameters<HarmonicCentralityRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id) = store.lookup(&req.path) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
+                .to_string();
+        };
+        let (harmonic_centrality, reachable_count, symbol_count) =
+            store.harmonic_centrality_stats(id, kind);
+        drop(store);
+        serde_json::json!({
+            "harmonic_centrality": harmonic_centrality,
+            "reachable_count": reachable_count,
+            "symbol_count": symbol_count,
         })
         .to_string()
     }
@@ -7055,6 +7102,60 @@ mod tests {
         let raw = server
             .mycelium_get_eccentricity(Parameters(EccentricityRequest {
                 path: "src/any.rs>any".into(),
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0078: mycelium_get_harmonic_centrality ────────────────────────
+
+    #[tokio::test]
+    async fn harmonic_centrality_chain_returns_correct_value() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let root = store.upsert_node(TrunkPath::parse("src/hc.rs>root").unwrap());
+            let mid = store.upsert_node(TrunkPath::parse("src/hc.rs>mid").unwrap());
+            let far = store.upsert_node(TrunkPath::parse("src/hc.rs>far").unwrap());
+            store.upsert_edge(EdgeKind::Calls, root, mid);
+            store.upsert_edge(EdgeKind::Calls, mid, far);
+        }
+        let raw = server
+            .mycelium_get_harmonic_centrality(Parameters(HarmonicCentralityRequest {
+                path: "src/hc.rs>root".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // n=3, root reaches mid(d=1) and far(d=2)
+        // HC = (1/2) * (1/1 + 1/2) = 0.5 * 1.5 = 0.75
+        let hc = val["harmonic_centrality"].as_f64().unwrap();
+        assert!((hc - 0.75).abs() < 1e-9, "expected 0.75, got {hc}");
+        assert_eq!(val["reachable_count"].as_u64().unwrap(), 2);
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
+    }
+
+    #[tokio::test]
+    async fn harmonic_centrality_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_harmonic_centrality(Parameters(HarmonicCentralityRequest {
+                path: "src/ghost.rs>none_hc".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    }
+
+    #[tokio::test]
+    async fn harmonic_centrality_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_harmonic_centrality(Parameters(HarmonicCentralityRequest {
+                path: "src/any.rs>any_hc".into(),
                 edge_kind: "unknown".into(),
             }))
             .await;

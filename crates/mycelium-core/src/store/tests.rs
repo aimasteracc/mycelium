@@ -4544,3 +4544,82 @@ fn store_eccentricity_file_nodes_excluded() {
     // file_node is excluded → root can't reach sym → eccentricity = 0
     assert_eq!(store.eccentricity(root, EdgeKind::Calls), 0);
 }
+
+// ── RFC-0078: harmonic_centrality ─────────────────────────────────────────
+
+#[test]
+fn store_harmonic_centrality_isolated_returns_zero() {
+    let mut store = Store::new();
+    let solo = store.upsert_node(path("src/a.rs>solo_hc"));
+    let hc = store.harmonic_centrality(solo, EdgeKind::Calls);
+    assert!(hc.abs() < 1e-9, "expected 0.0, got {hc}");
+}
+
+#[test]
+fn store_harmonic_centrality_direct_to_all_returns_one() {
+    // hub reaches all 3 others in exactly 1 hop; n=4, reachable=3
+    // HC = (1/(4-1)) * (1/1 + 1/1 + 1/1) = (1/3) * 3 = 1.0
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/b.rs>hub_hc"));
+    let leaf1 = store.upsert_node(path("src/b.rs>leaf1_hc"));
+    let leaf2 = store.upsert_node(path("src/b.rs>leaf2_hc"));
+    let leaf3 = store.upsert_node(path("src/b.rs>leaf3_hc"));
+    store.upsert_edge(EdgeKind::Calls, hub, leaf1);
+    store.upsert_edge(EdgeKind::Calls, hub, leaf2);
+    store.upsert_edge(EdgeKind::Calls, hub, leaf3);
+    let hc = store.harmonic_centrality(hub, EdgeKind::Calls);
+    assert!((hc - 1.0).abs() < 1e-9, "expected 1.0, got {hc}");
+}
+
+#[test]
+fn store_harmonic_centrality_chain_fractional() {
+    // root → mid (d=1) → far (d=2); n=3, reachable=2
+    // HC = (1/(3-1)) * (1/1 + 1/2) = (1/2) * 1.5 = 0.75
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/c.rs>root_hc"));
+    let mid = store.upsert_node(path("src/c.rs>mid_hc"));
+    let far = store.upsert_node(path("src/c.rs>far_hc"));
+    store.upsert_edge(EdgeKind::Calls, root, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, far);
+    let hc = store.harmonic_centrality(root, EdgeKind::Calls);
+    let expected = 0.75_f64;
+    assert!(
+        (hc - expected).abs() < 1e-9,
+        "expected {expected}, got {hc}"
+    );
+}
+
+#[test]
+fn store_harmonic_centrality_unreachable_nodes_ignored() {
+    // root → leaf (d=1); isolated_node also present but not reachable from root
+    // n=3, reachable from root = 1
+    // HC = (1/(3-1)) * (1/1) = 0.5
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/d.rs>root_hc_ur"));
+    let leaf = store.upsert_node(path("src/d.rs>leaf_hc_ur"));
+    let _iso = store.upsert_node(path("src/d.rs>iso_hc_ur"));
+    store.upsert_edge(EdgeKind::Calls, root, leaf);
+    let hc = store.harmonic_centrality(root, EdgeKind::Calls);
+    let expected = 0.5_f64;
+    assert!(
+        (hc - expected).abs() < 1e-9,
+        "expected {expected}, got {hc}"
+    );
+}
+
+#[test]
+fn store_harmonic_centrality_file_nodes_excluded() {
+    // root → file_node → sym; file_node excluded, so root can't reach sym
+    // n = 1 (only root is a symbol that matters), no reachable → HC = 0.0
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/e.rs>root_hc_file"));
+    let file_node = store.upsert_node(path("src/e.rs")); // file node
+    let sym = store.upsert_node(path("src/f.rs>sym_hc_file"));
+    store.upsert_edge(EdgeKind::Calls, root, file_node);
+    store.upsert_edge(EdgeKind::Calls, file_node, sym);
+    let hc = store.harmonic_centrality(root, EdgeKind::Calls);
+    assert!(
+        hc.abs() < 1e-9,
+        "expected 0.0 with file nodes excluded, got {hc}"
+    );
+}
