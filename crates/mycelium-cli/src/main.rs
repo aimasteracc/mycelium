@@ -197,6 +197,69 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Return the direct callees of a symbol (outgoing `Calls` edges).
+    GetCallees {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the direct callers of a symbol (incoming `Calls` edges).
+    GetCallers {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive callee tree rooted at a symbol.
+    GetCalleeTree {
+        path: String,
+        #[arg(long, default_value_t = 3)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive caller tree rooted at a symbol.
+    GetCallerTree {
+        path: String,
+        #[arg(long, default_value_t = 3)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with no incoming `Calls` edges (call-graph roots).
+    GetEntryPoints {
+        #[arg(long)]
+        prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with no incoming or outgoing `Calls` edges.
+    GetDeadSymbols {
+        #[arg(long)]
+        prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with no edges of any kind.
+    GetIsolatedSymbols {
+        #[arg(long)]
+        prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -325,6 +388,56 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         Cmd::ServerStatus { root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_server_status(&canonical, format.into())?;
+        }
+        Cmd::GetCallees { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_callees(&canonical, &path, format.into())?;
+        }
+        Cmd::GetCallers { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_callers(&canonical, &path, format.into())?;
+        }
+        Cmd::GetCalleeTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_callee_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetCallerTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_caller_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetEntryPoints {
+            prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_entry_points(&canonical, prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetDeadSymbols {
+            prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_dead_symbols(&canonical, prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetIsolatedSymbols {
+            prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_isolated_symbols(&canonical, prefix.as_deref(), format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));
