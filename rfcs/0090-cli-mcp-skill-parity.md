@@ -28,7 +28,7 @@ must shelter every twin pair.**
 
 ## 背景与动机
 
-Mycelium today has 90+ MCP tools, 8 CLI subcommands, and 0 Skills.
+Mycelium today has 88 MCP tools, 8 CLI subcommands, and 0 Skills.
 Three concrete failure modes:
 
 1. **Discoverability collapse.** A human user with a terminal cannot
@@ -209,7 +209,7 @@ unbackfilled gaps that do not have a filed exception RFC.
 
 The original draft of this RFC. Rejected because:
 
-- 90+ MCP tools would produce 90+ Skills. Most would be near-duplicates
+- 88 MCP tools would produce 90+ Skills. Most would be near-duplicates
   differing only in tool name. Cognitive overhead for the agent (which
   Skill do I load?) defeats the purpose.
 - Real agent reasoning is category-shaped, not capability-shaped. The
@@ -258,7 +258,7 @@ omit edge cases and rare flags that CLI/MCP must support.
 
 - The Skill umbrella structure means one well-organized Skill set may
   cover the entire capability surface with 10–15 Skills rather than
-  90+. This is a design constraint on how we group capabilities, not
+  88. This is a design constraint on how we group capabilities, not
   a regression.
 
 ## 实施计划
@@ -267,7 +267,7 @@ omit edge cases and rare flags that CLI/MCP must support.
 |---|---|---|
 | Phase 0 (this RFC) | Charter amendment, ADR, CLAUDE.md, `skills/` scaffold, INDEX.md template | orchestrator |
 | Phase 1 (v0.1.2) | Parity-check CI, PR template update, coverage matrix generator, backfill issues filed | rust-implementer |
-| Phase 2 (v0.1.3) | Backfill Skills for the 8 existing CLI commands; consolidate the 90+ MCP tools into ~12 category Skills | rust-implementer + tech-writer |
+| Phase 2 (v0.1.3) | Backfill Skills for the 8 existing CLI commands; consolidate the 88 MCP tools into ~12 category Skills | rust-implementer + tech-writer |
 | Phase 3 (v0.2.0) | All capabilities have Skill coverage; CI parity gate is required on `main`. First Skill-bundle release on a Claude Code marketplace. | hive |
 | Phase 4 (v0.2.1+) | New capabilities ship Three-Surface from day one; rule enforced by CI | (default mode) |
 

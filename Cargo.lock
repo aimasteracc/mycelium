@@ -1016,6 +1016,7 @@ dependencies = [
  "mycelium-rcig-core",
  "mycelium-rcig-mcp",
  "mycelium-rcig-pack",
+ "serde_json",
  "tempfile",
  "tokio",
  "tracing",
