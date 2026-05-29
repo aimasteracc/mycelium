@@ -217,6 +217,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0079: `MutualReachability` struct — `forward`, `backward`, `mutual` flags plus `forward_distance`/`backward_distance` `Option<usize>` hop counts.
 - RFC-0079: `Store::mutual_reachability(id1, id2, kind)` — bidirectional BFS reachability; two traversals O(V+E) each; `id1 == id2` short-circuits with both distances `Some(0)`; file nodes excluded.
 - RFC-0079: `mycelium_get_mutual_reachability` MCP tool — bidirectional reachability probe; accepts `{ path1, path2, edge_kind }` and returns `{ forward, backward, mutual, forward_distance, backward_distance }` or `{ error }`. Answers "are these two symbols connected, and in which direction(s)?".
+- RFC-0080: `Store::reachable_set(id, kind)` — BFS transitive closure from a symbol node; returns sorted paths of all reachable symbols (source excluded, file nodes excluded); O(V+E). Answers "what does this symbol transitively call/import/extend?".
+- RFC-0080: `mycelium_get_reachable_set` MCP tool — transitive dependency explorer; accepts `{ path, edge_kind }` and returns `{ reachable, count }` or `{ error }`.
 
 ### Fixed
 
