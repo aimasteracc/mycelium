@@ -344,6 +344,10 @@ pub struct GetShortestPathRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_symbol_count_by_kind` (no parameters).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSymbolCountByKindRequest {}
+
 /// Input parameters for `mycelium_get_files`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetFilesRequest {
@@ -1650,6 +1654,24 @@ impl MyceliumServer {
                 serde_json::json!({ "path": p, "length": length }).to_string()
             },
         )
+    }
+
+    #[tool(description = "Return a per-kind breakdown of indexed symbol counts. \
+                       Answers 'what is this codebase made of?' — how many functions, \
+                       classes, methods, interfaces, etc. Only nodes with a recorded \
+                       NodeKind are counted. \
+                       Returns { kinds: [{ kind, count }], total }.")]
+    async fn mycelium_get_symbol_count_by_kind(
+        &self,
+        Parameters(_req): Parameters<GetSymbolCountByKindRequest>,
+    ) -> String {
+        let counts = self.store.read().await.symbol_count_by_kind();
+        let total: usize = counts.iter().map(|(_, n)| n).sum();
+        let kinds: Vec<serde_json::Value> = counts
+            .into_iter()
+            .map(|(kind, count)| serde_json::json!({ "kind": kind, "count": count }))
+            .collect();
+        serde_json::json!({ "kinds": kinds, "total": total }).to_string()
     }
 
     #[tool(
@@ -5336,6 +5358,42 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["error"].as_str().unwrap().contains("path not found"));
+    }
+
+    // ── RFC-0051: mycelium_get_symbol_count_by_kind ──────────────────────────
+
+    #[tokio::test]
+    async fn get_symbol_count_by_kind_basic() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node_with_kind(
+                TrunkPath::parse("src/a.rs>fn1").unwrap(),
+                mycelium_core::types::NodeKind::Function,
+            );
+            store.upsert_node_with_kind(
+                TrunkPath::parse("src/a.rs>MyClass").unwrap(),
+                mycelium_core::types::NodeKind::Class,
+            );
+        }
+        let raw = server
+            .mycelium_get_symbol_count_by_kind(Parameters(GetSymbolCountByKindRequest {}))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["total"].as_u64().unwrap(), 2);
+        let kinds = val["kinds"].as_array().unwrap();
+        assert_eq!(kinds.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_symbol_count_by_kind_empty_graph() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_symbol_count_by_kind(Parameters(GetSymbolCountByKindRequest {}))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["total"].as_u64().unwrap(), 0);
+        assert_eq!(val["kinds"].as_array().unwrap().len(), 0);
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`

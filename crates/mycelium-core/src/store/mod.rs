@@ -295,6 +295,14 @@ impl Store {
         self.trunk.upsert(path)
     }
 
+    /// Insert or retrieve the node for `path` and immediately record its `kind`.
+    /// Convenience wrapper over `upsert_node` + `set_kind`.
+    pub fn upsert_node_with_kind(&mut self, path: TrunkPath, kind: NodeKind) -> NodeId {
+        let id = self.upsert_node(path);
+        self.kind_map.insert(id, kind);
+        id
+    }
+
     /// Record the [`NodeKind`] for an already-upserted node.
     ///
     /// Overwrites any previous value for the same `id`.
@@ -1518,6 +1526,18 @@ impl Store {
             }
         }
         None
+    }
+
+    /// Count all indexed symbols grouped by `NodeKind` wire string.
+    /// Only nodes present in `kind_map` are counted.  Returns `(kind, count)`
+    /// pairs sorted alphabetically by kind name; kinds with count 0 are excluded.
+    #[must_use]
+    pub fn symbol_count_by_kind(&self) -> Vec<(String, usize)> {
+        let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+        for &kind in self.kind_map.values() {
+            *counts.entry(kind.as_str().to_owned()).or_insert(0) += 1;
+        }
+        counts.into_iter().collect()
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.
