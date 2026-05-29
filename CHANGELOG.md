@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-30
+
 ### Added
 
 - **Third wave of category Skills** (RFC-0090 Phase 2 closing, v0.1.3):
