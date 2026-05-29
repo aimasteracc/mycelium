@@ -276,6 +276,15 @@ pub struct EdgeKindMetrics {
     pub max_out_degree: usize,
 }
 
+/// One entry in the result of [`Store::page_rank`].
+#[derive(Debug, Clone)]
+pub struct PageRankEntry {
+    /// Materialized path of the symbol node.
+    pub path: String,
+    /// `PageRank` score (unnormalized; sum ≈ 1.0 over all symbol nodes).
+    pub score: f64,
+}
+
 /// Result of [`Store::mutual_reachability`]: forward/backward BFS distances
 /// and derived reachability flags for two symbol nodes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3281,5 +3290,91 @@ impl Store {
             .collect();
         paths.sort();
         paths
+    }
+
+    /// Compute `PageRank` scores for all symbol nodes using the iterative
+    /// power method.
+    ///
+    /// `damping` is clamped to `[0.0, 1.0]`.  `iterations == 0` returns
+    /// uniform scores.  File nodes are excluded.  Returns entries sorted
+    /// descending by score.
+    #[must_use]
+    pub fn page_rank(&self, kind: EdgeKind, damping: f64, iterations: usize) -> Vec<PageRankEntry> {
+        let damping = damping.clamp(0.0, 1.0);
+
+        // Collect all symbol NodeIds (paths containing '>') in a stable order.
+        let symbols: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        let n = symbols.len();
+        if n == 0 {
+            return Vec::new();
+        }
+
+        // Map NodeId → index for O(1) lookup.
+        let idx: HashMap<NodeId, usize> =
+            symbols.iter().enumerate().map(|(i, &id)| (id, i)).collect();
+
+        // Build out-edges restricted to symbol nodes.
+        let out_edges: Vec<Vec<usize>> = symbols
+            .iter()
+            .map(|&src| {
+                self.synapse
+                    .outgoing(src, kind)
+                    .iter()
+                    .filter_map(|&dst| idx.get(&dst).copied())
+                    .collect()
+            })
+            .collect();
+
+        #[allow(clippy::cast_precision_loss)]
+        let n_f = n as f64;
+        let teleport = (1.0 - damping) / n_f;
+
+        let mut scores = vec![1.0 / n_f; n];
+
+        for _ in 0..iterations {
+            // Dangling mass: sum of scores of nodes with out-degree 0.
+            let dangling_mass: f64 = scores
+                .iter()
+                .zip(out_edges.iter())
+                .filter(|(_, oe)| oe.is_empty())
+                .map(|(s, _)| s)
+                .sum::<f64>()
+                / n_f;
+
+            let mut new_scores = vec![teleport + damping * dangling_mass; n];
+            for (src_idx, out) in out_edges.iter().enumerate() {
+                if out.is_empty() {
+                    continue;
+                }
+                #[allow(clippy::cast_precision_loss)]
+                let share = damping * scores[src_idx] / out.len() as f64;
+                for &dst_idx in out {
+                    new_scores[dst_idx] += share;
+                }
+            }
+            scores = new_scores;
+        }
+
+        let mut entries: Vec<PageRankEntry> = symbols
+            .into_iter()
+            .zip(scores)
+            .filter_map(|(nid, score)| {
+                self.trunk.path_of(nid).map(|p| PageRankEntry {
+                    path: p.to_owned(),
+                    score,
+                })
+            })
+            .collect();
+        entries.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        entries
     }
 }

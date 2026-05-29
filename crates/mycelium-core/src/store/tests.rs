@@ -4832,3 +4832,71 @@ fn store_reaches_into_results_are_sorted() {
     sorted.sort();
     assert_eq!(result, sorted, "results must be sorted alphabetically");
 }
+
+// ── RFC-0082: page_rank ────────────────────────────────────────────────────
+
+#[test]
+fn store_page_rank_empty_graph_returns_empty() {
+    let store = Store::new();
+    let result = store.page_rank(EdgeKind::Calls, 0.85, 20);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_page_rank_single_node_returns_score_one() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/pr.rs>only").unwrap());
+    let result = store.page_rank(EdgeKind::Calls, 0.85, 20);
+    assert_eq!(result.len(), 1);
+    assert!(
+        (result[0].score - 1.0).abs() < 1e-9,
+        "single node score must be 1.0"
+    );
+}
+
+#[test]
+fn store_page_rank_no_edges_uniform_scores() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/pr.rs>node_a").unwrap());
+    store.upsert_node(TrunkPath::parse("src/pr.rs>node_b").unwrap());
+    store.upsert_node(TrunkPath::parse("src/pr.rs>node_c").unwrap());
+    let result = store.page_rank(EdgeKind::Calls, 0.85, 20);
+    assert_eq!(result.len(), 3);
+    for entry in &result {
+        assert!(
+            (entry.score - 1.0 / 3.0).abs() < 1e-6,
+            "no-edge graph must have uniform scores, got {}",
+            entry.score
+        );
+    }
+}
+
+#[test]
+fn store_page_rank_star_hub_has_highest_score() {
+    let mut store = Store::new();
+    let hub = store.upsert_node(TrunkPath::parse("src/pr.rs>hub").unwrap());
+    let spoke_a = store.upsert_node(TrunkPath::parse("src/pr.rs>spoke_a").unwrap());
+    let spoke_b = store.upsert_node(TrunkPath::parse("src/pr.rs>spoke_b").unwrap());
+    let spoke_c = store.upsert_node(TrunkPath::parse("src/pr.rs>spoke_c").unwrap());
+    store.upsert_edge(EdgeKind::Calls, spoke_a, hub);
+    store.upsert_edge(EdgeKind::Calls, spoke_b, hub);
+    store.upsert_edge(EdgeKind::Calls, spoke_c, hub);
+    let result = store.page_rank(EdgeKind::Calls, 0.85, 50);
+    assert_eq!(result[0].path, "src/pr.rs>hub", "hub must rank first");
+}
+
+#[test]
+fn store_page_rank_damping_zero_gives_uniform() {
+    let mut store = Store::new();
+    let node_x = store.upsert_node(TrunkPath::parse("src/pr.rs>node_x").unwrap());
+    let node_y = store.upsert_node(TrunkPath::parse("src/pr.rs>node_y").unwrap());
+    store.upsert_edge(EdgeKind::Calls, node_x, node_y);
+    let result = store.page_rank(EdgeKind::Calls, 0.0, 20);
+    assert_eq!(result.len(), 2);
+    for entry in &result {
+        assert!(
+            (entry.score - 0.5).abs() < 1e-6,
+            "damping=0 must yield uniform scores"
+        );
+    }
+}
