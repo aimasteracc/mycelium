@@ -3377,4 +3377,23 @@ impl Store {
         });
         entries
     }
+
+    /// Returns the sorted intersection of the transitive reachable sets of
+    /// `id1` and `id2` via `kind` edges.
+    ///
+    /// Answers "what symbols do both nodes transitively depend on?".
+    /// `id1` and `id2` are excluded from the result.
+    /// `id1 == id2` returns the same result as [`Self::reachable_set`].
+    /// File nodes excluded.  O(V + E).
+    #[must_use]
+    pub fn common_reachable(&self, id1: NodeId, id2: NodeId, kind: EdgeKind) -> Vec<String> {
+        let set1: HashSet<String> = self.reachable_set(id1, kind).into_iter().collect();
+        if set1.is_empty() {
+            return Vec::new();
+        }
+        let set2: HashSet<String> = self.reachable_set(id2, kind).into_iter().collect();
+        let mut common: Vec<String> = set1.intersection(&set2).cloned().collect();
+        common.sort();
+        common
+    }
 }

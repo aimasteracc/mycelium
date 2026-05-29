@@ -599,6 +599,17 @@ pub struct MutualReachabilityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_common_reachable`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CommonReachableRequest {
+    /// First symbol path, e.g. `"src/a.rs>A"`.
+    pub path1: String,
+    /// Second symbol path, e.g. `"src/b.rs>B"`.
+    pub path2: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_page_rank`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PageRankRequest {
@@ -2657,6 +2668,47 @@ impl MyceliumServer {
         let count = callers.len();
         serde_json::json!({
             "callers": callers,
+            "count": count,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Return the intersection of the transitive reachable sets of two symbol nodes \
+                       for a given EdgeKind. Answers 'what symbols do both of these nodes \
+                       transitively call/import/extend?'. Useful for finding shared dependencies, \
+                       impact analysis, and refactoring candidates. Results sorted alphabetically. \
+                       File nodes excluded. O(V+E). \
+                       Returns { common, count } or { error }."
+    )]
+    async fn mycelium_get_common_reachable(
+        &self,
+        Parameters(req): Parameters<CommonReachableRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id1) = store.lookup(&req.path1) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path1) })
+                .to_string();
+        };
+        let Some(id2) = store.lookup(&req.path2) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path2) })
+                .to_string();
+        };
+        let common = store.common_reachable(id1, id2, kind);
+        drop(store);
+        let count = common.len();
+        serde_json::json!({
+            "common": common,
             "count": count,
         })
         .to_string()
@@ -7563,6 +7615,62 @@ mod tests {
                 damping: None,
                 iterations: None,
                 top_n: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0083: mycelium_get_common_reachable ───────────────────────────
+
+    #[tokio::test]
+    async fn common_reachable_shared_dep_returned() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let left = store.upsert_node(TrunkPath::parse("src/cr.rs>mcp_cr_left").unwrap());
+            let right = store.upsert_node(TrunkPath::parse("src/cr.rs>mcp_cr_right").unwrap());
+            let shared = store.upsert_node(TrunkPath::parse("src/cr.rs>mcp_cr_shared").unwrap());
+            store.upsert_edge(EdgeKind::Calls, left, shared);
+            store.upsert_edge(EdgeKind::Calls, right, shared);
+        }
+        let raw = server
+            .mycelium_get_common_reachable(Parameters(CommonReachableRequest {
+                path1: "src/cr.rs>mcp_cr_left".into(),
+                path2: "src/cr.rs>mcp_cr_right".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(
+            val["common"][0].as_str().unwrap(),
+            "src/cr.rs>mcp_cr_shared"
+        );
+    }
+
+    #[tokio::test]
+    async fn common_reachable_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_common_reachable(Parameters(CommonReachableRequest {
+                path1: "src/ghost.rs>none_cr".into(),
+                path2: "src/ghost.rs>also_none".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    }
+
+    #[tokio::test]
+    async fn common_reachable_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_common_reachable(Parameters(CommonReachableRequest {
+                path1: "src/any.rs>any_cr1".into(),
+                path2: "src/any.rs>any_cr2".into(),
+                edge_kind: "unknown".into(),
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();

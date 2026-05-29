@@ -4900,3 +4900,69 @@ fn store_page_rank_damping_zero_gives_uniform() {
         );
     }
 }
+
+// ── RFC-0083: common_reachable ────────────────────────────────────────────
+
+#[test]
+fn store_common_reachable_both_isolated_returns_empty() {
+    let mut store = Store::new();
+    let left = store.upsert_node(TrunkPath::parse("src/cr.rs>left").unwrap());
+    let right = store.upsert_node(TrunkPath::parse("src/cr.rs>right").unwrap());
+    let result = store.common_reachable(left, right, EdgeKind::Calls);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_common_reachable_no_overlap_returns_empty() {
+    let mut store = Store::new();
+    let left = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_left").unwrap());
+    let right = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_right").unwrap());
+    let dep_l = store.upsert_node(TrunkPath::parse("src/cr.rs>dep_l").unwrap());
+    let dep_r = store.upsert_node(TrunkPath::parse("src/cr.rs>dep_r").unwrap());
+    store.upsert_edge(EdgeKind::Calls, left, dep_l);
+    store.upsert_edge(EdgeKind::Calls, right, dep_r);
+    let result = store.common_reachable(left, right, EdgeKind::Calls);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_common_reachable_shared_dep_returns_it() {
+    let mut store = Store::new();
+    let left = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_a").unwrap());
+    let right = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_b").unwrap());
+    let shared = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_shared").unwrap());
+    store.upsert_edge(EdgeKind::Calls, left, shared);
+    store.upsert_edge(EdgeKind::Calls, right, shared);
+    let result = store.common_reachable(left, right, EdgeKind::Calls);
+    assert_eq!(result, vec!["src/cr.rs>cr_shared"]);
+}
+
+#[test]
+fn store_common_reachable_same_node_equals_reachable_set() {
+    let mut store = Store::new();
+    let node = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_node").unwrap());
+    let dep_a = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_dep_a").unwrap());
+    let dep_b = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_dep_b").unwrap());
+    store.upsert_edge(EdgeKind::Calls, node, dep_a);
+    store.upsert_edge(EdgeKind::Calls, node, dep_b);
+    let common = store.common_reachable(node, node, EdgeKind::Calls);
+    let reachable = store.reachable_set(node, EdgeKind::Calls);
+    assert_eq!(common, reachable, "same-node must equal reachable_set");
+}
+
+#[test]
+fn store_common_reachable_results_are_sorted() {
+    let mut store = Store::new();
+    let left = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_x").unwrap());
+    let right = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_y").unwrap());
+    let zz = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_zz").unwrap());
+    let aa = store.upsert_node(TrunkPath::parse("src/cr.rs>cr_aa").unwrap());
+    store.upsert_edge(EdgeKind::Calls, left, zz);
+    store.upsert_edge(EdgeKind::Calls, left, aa);
+    store.upsert_edge(EdgeKind::Calls, right, zz);
+    store.upsert_edge(EdgeKind::Calls, right, aa);
+    let result = store.common_reachable(left, right, EdgeKind::Calls);
+    let mut sorted = result.clone();
+    sorted.sort();
+    assert_eq!(result, sorted);
+}
