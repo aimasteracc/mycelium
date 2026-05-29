@@ -127,6 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0039: `CrossRefs { callers, importers, extended_by, implemented_by }` struct — all incoming edges for a symbol grouped by `EdgeKind`.
 - RFC-0039: `Store::cross_refs(id)` — collects incoming `Calls`, `Imports`, `Extends`, and `Implements` edges and resolves them to sorted path strings; all four lists always present.
 - RFC-0039: `mycelium_get_cross_refs` MCP tool — unified "who references this?" primitive for impact analysis; returns `{ callers, importers, extended_by, implemented_by }` or `{ error }` for unknown paths.
+- RFC-0040: `Store::nodes_in_cycles(edge_kind, prefix)` — iterative DFS with `in_stack` tracking; returns all paths participating in at least one cycle for the given `EdgeKind`; optional prefix filter; results sorted lexicographically.
+- RFC-0040: `mycelium_detect_cycles` MCP tool — circular dependency detection; `edge_kind` must be `"calls"`, `"imports"`, `"extends"`, or `"implements"`; returns `{ cycle_nodes, count }` or `{ error }` for unknown edge kind.
 
 ### Fixed
 
@@ -157,3 +159,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 [Unreleased]: https://github.com/aimasteracc/mycelium/compare/...HEAD
+
