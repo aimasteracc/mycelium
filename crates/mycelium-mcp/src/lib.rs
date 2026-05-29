@@ -599,6 +599,19 @@ pub struct MutualReachabilityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_page_rank`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PageRankRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Damping factor ∈ [0.0, 1.0]; defaults to 0.85 if absent.
+    pub damping: Option<f64>,
+    /// Number of power iterations; defaults to 20 if absent.
+    pub iterations: Option<usize>,
+    /// How many top entries to return; defaults to 10 if absent.
+    pub top_n: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_reaches_into`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ReachesIntoRequest {
@@ -2645,6 +2658,45 @@ impl MyceliumServer {
         serde_json::json!({
             "callers": callers,
             "count": count,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Compute PageRank scores for all symbol nodes. Identifies globally important \
+                       symbols: entry points, heavily-called utilities, and hub nodes. Uses the \
+                       iterative power method with configurable damping (default 0.85) and \
+                       iterations (default 20). Returns top_n results (default 10) sorted \
+                       descending by score. File nodes excluded. \
+                       Returns { nodes: [{path, score}], symbol_count, top_n } or { error }."
+    )]
+    async fn mycelium_page_rank(&self, Parameters(req): Parameters<PageRankRequest>) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let damping = req.damping.unwrap_or(0.85);
+        let iterations = req.iterations.unwrap_or(20);
+        let top_n = req.top_n.unwrap_or(10);
+        let store = self.store.read().await;
+        let entries = store.page_rank(kind, damping, iterations);
+        let symbol_count = entries.len();
+        drop(store);
+        let nodes: Vec<serde_json::Value> = entries
+            .into_iter()
+            .take(top_n)
+            .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
+            .collect();
+        serde_json::json!({
+            "nodes": nodes,
+            "symbol_count": symbol_count,
+            "top_n": top_n,
         })
         .to_string()
     }
@@ -7469,6 +7521,48 @@ mod tests {
             .mycelium_get_reaches_into(Parameters(ReachesIntoRequest {
                 path: "src/any.rs>any_ri".into(),
                 edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0082: mycelium_page_rank ──────────────────────────────────────
+
+    #[tokio::test]
+    async fn page_rank_star_hub_ranks_first() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/pr.rs>pr_hub").unwrap());
+            let spoke_a = store.upsert_node(TrunkPath::parse("src/pr.rs>pr_spoke_a").unwrap());
+            let spoke_b = store.upsert_node(TrunkPath::parse("src/pr.rs>pr_spoke_b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, spoke_a, hub);
+            store.upsert_edge(EdgeKind::Calls, spoke_b, hub);
+        }
+        let raw = server
+            .mycelium_page_rank(Parameters(PageRankRequest {
+                edge_kind: "calls".into(),
+                damping: Some(0.85),
+                iterations: Some(30),
+                top_n: Some(3),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
+        let first_path = val["nodes"][0]["path"].as_str().unwrap();
+        assert_eq!(first_path, "src/pr.rs>pr_hub");
+    }
+
+    #[tokio::test]
+    async fn page_rank_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_page_rank(Parameters(PageRankRequest {
+                edge_kind: "unknown".into(),
+                damping: None,
+                iterations: None,
+                top_n: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
