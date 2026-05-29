@@ -1436,6 +1436,32 @@ impl Store {
         entries
     }
 
+    /// Symbols with exactly one incoming edge for `kind`.
+    ///
+    /// Returns `(symbol_path, sole_referencing_path)` pairs sorted by symbol path
+    /// ascending; limit capped at 100; file nodes excluded from results.
+    #[must_use]
+    pub fn singly_referenced(&self, kind: EdgeKind, limit: usize) -> Vec<(String, String)> {
+        let limit = limit.min(100);
+        let mut entries: Vec<(String, String)> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| {
+                let id = self.trunk.lookup_path(p)?;
+                let inc = self.synapse.incoming(id, kind);
+                if inc.len() != 1 {
+                    return None;
+                }
+                let ref_path = self.path_of(inc[0])?.to_owned();
+                Some((p.to_owned(), ref_path))
+            })
+            .collect();
+        entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        entries.truncate(limit);
+        entries
+    }
+
     /// Kahn's BFS topological dependency layering for symbol nodes.
     ///
     /// Layer 0 = utility/leaf symbols (zero outgoing edges for `kind` within
