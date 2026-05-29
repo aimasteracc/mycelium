@@ -131,15 +131,165 @@ pub(crate) fn run_get_ancestors(root: &Path, path: &str, format: Format) -> Resu
     let ancestors = store
         .ancestors_of_path(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    print_string_list(&ancestors, format)
+}
+
+// ── get-descendants ───────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_descendants(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let descendants = store
+        .descendants_of_path(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    print_string_list(&descendants, format)
+}
+
+// ── get-node-kind ─────────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_node_kind(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let kind = store.kind_of(id).map(|k| k.as_str().to_owned());
+    let value = serde_json::json!({ "path": path, "kind": kind });
+    match format {
+        Format::Text => match kind {
+            Some(k) => println!("{k}"),
+            None => println!("(no kind recorded)"),
+        },
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── get-symbols-by-kind ───────────────────────────────────────────────────────
+
+pub(crate) fn run_get_symbols_by_kind(
+    root: &Path,
+    kind_str: &str,
+    prefix: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = mycelium_core::types::NodeKind::try_from_wire(kind_str)
+        .ok_or_else(|| anyhow!("unknown kind: {kind_str}"))?;
+    let symbols = store.symbols_of_kind(kind, prefix);
+    print_string_list(&symbols, format)
+}
+
+// ── get-source-span ───────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_source_span(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let value = store.span_of(id).map_or_else(
+        || serde_json::json!({ "path": path, "span": serde_json::Value::Null }),
+        |span| {
+            serde_json::json!({
+                "path": path,
+                "start_line": span.start_line,
+                "start_col":  span.start_col,
+                "end_line":   span.end_line,
+                "end_col":    span.end_col,
+                "start_byte": span.start_byte,
+                "end_byte":   span.end_byte,
+            })
+        },
+    );
     match format {
         Format::Text => {
-            for a in &ancestors {
-                println!("{a}");
+            if value["span"].is_null() {
+                println!("(no source span recorded)");
+            } else {
+                println!(
+                    "{}:{}:{}-{}:{}",
+                    value["path"].as_str().unwrap_or(""),
+                    value["start_line"],
+                    value["start_col"],
+                    value["end_line"],
+                    value["end_col"],
+                );
             }
         }
-        Format::Json => {
-            println!("{}", serde_json::to_string(&ancestors)?);
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── get-siblings ──────────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_siblings(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let siblings = store.siblings(id);
+    print_string_list(&siblings, format)
+}
+
+// ── get-all-symbols ───────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_all_symbols(
+    root: &Path,
+    prefix: Option<&str>,
+    kind_str: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = match kind_str {
+        None => None,
+        Some(k) => Some(
+            mycelium_core::types::NodeKind::try_from_wire(k)
+                .ok_or_else(|| anyhow!("unknown kind: {k}"))?,
+        ),
+    };
+    let symbols = store.all_symbols(prefix, kind);
+    print_string_list(&symbols, format)
+}
+
+// ── server-status ─────────────────────────────────────────────────────────────
+
+pub(crate) fn run_server_status(root: &Path, format: Format) -> Result<()> {
+    let index_path = root.join(".mycelium").join("index.rmp");
+    let is_loaded = index_path.exists();
+    let (node_count, edge_count) = if is_loaded {
+        let store = Store::load(&index_path)
+            .with_context(|| format!("failed to load index from {}", index_path.display()))?;
+        (store.node_count(), store.edge_count())
+    } else {
+        (0, 0)
+    };
+    let value = serde_json::json!({
+        "node_count":   node_count,
+        "edge_count":   edge_count,
+        "indexed_root": root.to_string_lossy(),
+        "is_loaded":    is_loaded,
+    });
+    match format {
+        Format::Text => {
+            println!("indexed_root: {}", root.display());
+            println!("is_loaded:    {is_loaded}");
+            println!("node_count:   {node_count}");
+            println!("edge_count:   {edge_count}");
         }
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── shared output helper ──────────────────────────────────────────────────────
+
+fn print_string_list(items: &[String], format: Format) -> Result<()> {
+    match format {
+        Format::Text => {
+            for item in items {
+                println!("{item}");
+            }
+        }
+        Format::Json => println!("{}", serde_json::to_string(items)?),
     }
     Ok(())
 }

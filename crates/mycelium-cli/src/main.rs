@@ -131,6 +131,72 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Return every symbol path nested under a container, recursively.
+    GetDescendants {
+        /// Symbol path of the container, e.g. `src/lib.rs>App`.
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the `NodeKind` of a symbol (e.g. `function`, `class`).
+    GetNodeKind {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return every symbol whose `NodeKind` matches the wire string
+    /// (e.g. `function`, `class`, `module`).
+    GetSymbolsByKind {
+        /// Wire string for the kind (`function`, `class`, `method`, ...).
+        kind: String,
+        /// Optional path prefix restricting results.
+        #[arg(long)]
+        path_prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the source location of a symbol (start/end line+col+byte).
+    GetSourceSpan {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the direct children of the same parent (excluding the path itself).
+    GetSiblings {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return every indexed symbol path, optionally filtered by prefix and/or kind.
+    GetAllSymbols {
+        /// Optional path prefix to scope results (e.g. `src/auth/`).
+        #[arg(long)]
+        prefix: Option<String>,
+        /// Optional kind wire string to filter.
+        #[arg(long)]
+        kind: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Report whether an index is loaded and its node/edge counts.
+    ServerStatus {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -161,7 +227,15 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
-    match cli.command {
+    dispatch(cli.command)
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "subcommand dispatch table — each Cmd variant gets one arm, deliberately flat to keep readability"
+)]
+fn dispatch(cmd: Cmd) -> Result<()> {
+    match cmd {
         Cmd::Version => {
             println!("mycelium {}", env!("CARGO_PKG_VERSION"));
         }
@@ -203,6 +277,54 @@ fn main() -> Result<()> {
         Cmd::GetAncestors { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_ancestors(&canonical, &path, format.into())?;
+        }
+        Cmd::GetDescendants { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_descendants(&canonical, &path, format.into())?;
+        }
+        Cmd::GetNodeKind { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_node_kind(&canonical, &path, format.into())?;
+        }
+        Cmd::GetSymbolsByKind {
+            kind,
+            path_prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_symbols_by_kind(
+                &canonical,
+                &kind,
+                path_prefix.as_deref(),
+                format.into(),
+            )?;
+        }
+        Cmd::GetSourceSpan { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_source_span(&canonical, &path, format.into())?;
+        }
+        Cmd::GetSiblings { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_siblings(&canonical, &path, format.into())?;
+        }
+        Cmd::GetAllSymbols {
+            prefix,
+            kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_all_symbols(
+                &canonical,
+                prefix.as_deref(),
+                kind.as_deref(),
+                format.into(),
+            )?;
+        }
+        Cmd::ServerStatus { root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_server_status(&canonical, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

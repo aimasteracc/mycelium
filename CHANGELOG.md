@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 2** (v0.1.4): the remaining seven
+  `basic-queries` capabilities get CLI subcommands. Combined with
+  batch 1, the entire `basic-queries` category is now ✅ Three-Surface
+  (10 / 10 rows in `skills/INDEX.md`):
+  - `mycelium get-descendants <path> [--format ...]`
+  - `mycelium get-node-kind <path> [--format ...]`
+  - `mycelium get-symbols-by-kind <kind> [--path-prefix ...] [--format ...]`
+  - `mycelium get-source-span <path> [--format ...]`
+  - `mycelium get-siblings <path> [--format ...]`
+  - `mycelium get-all-symbols [--prefix ...] [--kind ...] [--format ...]`
+  - `mycelium server-status [--format ...]`
+  Tests: 10 integration assertions in
+  `crates/mycelium-cli/tests/cli_basic_queries_batch2.rs`.
+
 - **CLI parity backfill batch 1** (v0.1.4): three high-frequency
   basic-queries capabilities now have CLI subcommands flipping their
   `skills/INDEX.md` rows from 🟡 to ✅ Three-Surface:
