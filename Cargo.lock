@@ -1007,15 +1007,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "mycelium-cli"
-version = "0.1.0"
+name = "mycelium-rcig-cli"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
  "ignore",
- "mycelium-core",
- "mycelium-mcp",
- "mycelium-pack",
+ "mycelium-rcig-core",
+ "mycelium-rcig-mcp",
+ "mycelium-rcig-pack",
  "tempfile",
  "tokio",
  "tracing",
@@ -1035,8 +1035,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "mycelium-core"
-version = "0.1.0"
+name = "mycelium-rcig-core"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1060,23 +1060,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "mycelium-hyphae"
-version = "0.1.0"
+name = "mycelium-rcig-hyphae"
+version = "0.1.1"
 dependencies = [
  "insta",
  "logos",
- "mycelium-core",
+ "mycelium-rcig-core",
  "thiserror",
 ]
 
 [[package]]
-name = "mycelium-mcp"
-version = "0.1.0"
+name = "mycelium-rcig-mcp"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "ignore",
- "mycelium-core",
- "mycelium-hyphae",
+ "mycelium-rcig-core",
+ "mycelium-rcig-hyphae",
  "notify",
  "rmcp",
  "rmp-serde",
@@ -1102,10 +1102,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "mycelium-pack"
-version = "0.1.0"
+name = "mycelium-rcig-pack"
+version = "0.1.1"
 dependencies = [
- "mycelium-core",
+ "mycelium-rcig-core",
  "serde",
  "thiserror",
  "toml",

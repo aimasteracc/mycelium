@@ -14,16 +14,19 @@ use mycelium_core::{extractor::Extractor, store::Store};
 
 // ── embedded pack sources ─────────────────────────────────────────────────────
 
-const JAVASCRIPT_QUERIES: &str = include_str!("../../../packs/javascript/queries.scm");
-const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
-const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
-const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
-const GO_QUERIES: &str = include_str!("../../../packs/go/queries.scm");
-const JAVA_QUERIES: &str = include_str!("../../../packs/java/queries.scm");
-const C_QUERIES: &str = include_str!("../../../packs/c/queries.scm");
-const RUBY_QUERIES: &str = include_str!("../../../packs/ruby/queries.scm");
-const CPP_QUERIES: &str = include_str!("../../../packs/cpp/queries.scm");
-const CSHARP_QUERIES: &str = include_str!("../../../packs/csharp/queries.scm");
+// Pack queries are copied into ../packs/ at publish time so the crate is
+// self-contained on crates.io (matches the pattern PR #145 set up for mycelium-mcp
+// and the rename PR applied to mycelium-core).
+const JAVASCRIPT_QUERIES: &str = include_str!("../packs/javascript/queries.scm");
+const PYTHON_QUERIES: &str = include_str!("../packs/python/queries.scm");
+const TYPESCRIPT_QUERIES: &str = include_str!("../packs/typescript/queries.scm");
+const RUST_QUERIES: &str = include_str!("../packs/rust/queries.scm");
+const GO_QUERIES: &str = include_str!("../packs/go/queries.scm");
+const JAVA_QUERIES: &str = include_str!("../packs/java/queries.scm");
+const C_QUERIES: &str = include_str!("../packs/c/queries.scm");
+const RUBY_QUERIES: &str = include_str!("../packs/ruby/queries.scm");
+const CPP_QUERIES: &str = include_str!("../packs/cpp/queries.scm");
+const CSHARP_QUERIES: &str = include_str!("../packs/csharp/queries.scm");
 
 // ── public surface ────────────────────────────────────────────────────────────
 

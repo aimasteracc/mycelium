@@ -1,5 +1,5 @@
 [package]
-name          = "mycelium-cli"
+name          = "mycelium-rcig-cli"
 description   = "The `mycelium` command-line tool."
 version       = { workspace = true }
 edition       = { workspace = true }
@@ -23,7 +23,7 @@ workspace = true
 [dependencies]
 mycelium-core      = { workspace = true }
 mycelium-pack      = { workspace = true }
-mycelium-mcp       = { path = "../mycelium-mcp", version = "0.1.0" }
+mycelium-mcp       = { path = "../mycelium-mcp", version = "0.1.1", package = "mycelium-rcig-mcp" }
 tree-sitter             = { workspace = true }
 tree-sitter-javascript  = { workspace = true }
 tree-sitter-python      = { workspace = true }

@@ -59,11 +59,14 @@ use crate::types::{NodeKind, SourceSpan};
 // Duplicated from `mycelium-mcp` so that `mycelium-core` can be tested
 // independently of the MCP crate.
 
-const JAVASCRIPT_QUERIES: &str = include_str!("../../../packs/javascript/queries.scm");
-const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
-const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
-const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
-const GO_QUERIES: &str = include_str!("../../../packs/go/queries.scm");
+// Pack queries are copied into ../packs/ at publish time so the crate is
+// self-contained on crates.io (matches the pattern PR #145 set up for mycelium-mcp).
+// During workspace development, ../packs/ is a copy of the workspace-root packs/.
+const JAVASCRIPT_QUERIES: &str = include_str!("../packs/javascript/queries.scm");
+const PYTHON_QUERIES: &str = include_str!("../packs/python/queries.scm");
+const TYPESCRIPT_QUERIES: &str = include_str!("../packs/typescript/queries.scm");
+const RUST_QUERIES: &str = include_str!("../packs/rust/queries.scm");
+const GO_QUERIES: &str = include_str!("../packs/go/queries.scm");
 
 // ── extracted symbol record ───────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 [package]
-name          = "mycelium-mcp"
+name          = "mycelium-rcig-mcp"
 description   = "Model Context Protocol server for Mycelium. Powers the AI agent surface."
 version       = { workspace = true }
 edition       = { workspace = true }
@@ -12,6 +12,9 @@ documentation = { workspace = true }
 readme        = "../mycelium-core/README.md"
 keywords      = ["mcp", "code-intelligence", "ai", "graph", "tree-sitter"]
 categories    = ["development-tools", "api-bindings"]
+
+[lib]
+name = "mycelium_mcp"
 
 [lints]
 workspace = true

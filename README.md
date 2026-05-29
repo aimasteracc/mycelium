@@ -90,8 +90,12 @@ Install once. Use from terminal, from your AI agent, or as a skill bundle.
 ## Quick Start
 
 ```bash
-# Install from source (crates.io publishing coming in v0.2)
-cargo install --git https://github.com/aimasteracc/mycelium mycelium-cli
+# Install from crates.io (the `mycelium-rcig-*` prefix is because the short names
+# `mycelium-core` and `mycelium-cli` were taken by unrelated 2019/2025 projects):
+cargo install mycelium-rcig-cli
+
+# Or install latest from source:
+cargo install --git https://github.com/aimasteracc/mycelium mycelium-rcig-cli
 
 # Index a project (Python, TS, JS, Rust, Go, Java, C, C++, C#, Ruby)
 mycelium index ./my-project
