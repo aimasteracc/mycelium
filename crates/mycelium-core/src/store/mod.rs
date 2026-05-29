@@ -1404,6 +1404,38 @@ impl Store {
         }
     }
 
+    /// Symbols with both in-degree ≥ `min_in` AND out-degree ≥ `min_out` for `kind`.
+    ///
+    /// Returns `(path, in_degree, out_degree)` tuples, sorted by
+    /// `in_degree + out_degree` descending; ties broken by path ascending.
+    /// File nodes excluded. `limit` capped at 100.
+    #[must_use]
+    pub fn hub_symbols(
+        &self,
+        kind: EdgeKind,
+        min_in: usize,
+        min_out: usize,
+        limit: usize,
+    ) -> Vec<(String, usize, usize)> {
+        let limit = limit.min(100);
+        let mut entries: Vec<(String, usize, usize)> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| {
+                self.trunk.lookup_path(p).map(|id| {
+                    let in_deg = self.synapse.incoming(id, kind).len();
+                    let out_deg = self.synapse.outgoing(id, kind).len();
+                    (p.to_owned(), in_deg, out_deg)
+                })
+            })
+            .filter(|(_, in_deg, out_deg)| *in_deg >= min_in && *out_deg >= min_out)
+            .collect();
+        entries.sort_unstable_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)).then_with(|| a.0.cmp(&b.0)));
+        entries.truncate(limit);
+        entries
+    }
+
     /// Kahn's BFS topological dependency layering for symbol nodes.
     ///
     /// Layer 0 = utility/leaf symbols (zero outgoing edges for `kind` within
