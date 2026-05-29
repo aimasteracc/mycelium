@@ -4179,3 +4179,80 @@ fn store_bcc_bowtie_two_components() {
     assert_eq!(comps.len(), 2);
     assert!(comps.iter().all(|c| c.len() == 3));
 }
+
+// ── RFC-0073: degree_histogram ────────────────────────────────────────
+
+#[test]
+fn store_degree_histogram_basic() {
+    // a → b, a → c: a has out_degree 2; b and c have in_degree 1
+    let mut store = Store::new();
+    let node_a = store.upsert_node(path("src/a.rs>a"));
+    let node_b = store.upsert_node(path("src/b.rs>b"));
+    let node_c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, node_a, node_b);
+    store.upsert_edge(EdgeKind::Calls, node_a, node_c);
+    let hist = store.degree_histogram(EdgeKind::Calls);
+    // in_degrees: 2 nodes with in=1, 1 node with in=0
+    let in_map: std::collections::HashMap<u64, u64> = hist.in_degrees.iter().copied().collect();
+    assert_eq!(in_map.get(&0).copied().unwrap_or(0), 1); // node_a
+    assert_eq!(in_map.get(&1).copied().unwrap_or(0), 2); // node_b, node_c
+    // out_degrees: 1 node with out=2, 2 nodes with out=0
+    let out_map: std::collections::HashMap<u64, u64> = hist.out_degrees.iter().copied().collect();
+    assert_eq!(out_map.get(&0).copied().unwrap_or(0), 2); // node_b, node_c
+    assert_eq!(out_map.get(&2).copied().unwrap_or(0), 1); // node_a
+}
+
+#[test]
+fn store_degree_histogram_sorted() {
+    let mut store = Store::new();
+    let a1 = store.upsert_node(path("src/a.rs>a1"));
+    let a2 = store.upsert_node(path("src/a.rs>a2"));
+    let b1 = store.upsert_node(path("src/b.rs>b1"));
+    store.upsert_edge(EdgeKind::Calls, a1, b1);
+    store.upsert_edge(EdgeKind::Calls, a2, b1);
+    let hist = store.degree_histogram(EdgeKind::Calls);
+    let in_degs: Vec<u64> = hist.in_degrees.iter().map(|&(d, _)| d).collect();
+    let out_degs: Vec<u64> = hist.out_degrees.iter().map(|&(d, _)| d).collect();
+    assert!(
+        in_degs.windows(2).all(|w| w[0] <= w[1]),
+        "in_degrees not sorted"
+    );
+    assert!(
+        out_degs.windows(2).all(|w| w[0] <= w[1]),
+        "out_degrees not sorted"
+    );
+}
+
+#[test]
+fn store_degree_histogram_excludes_file_nodes() {
+    let mut store = Store::new();
+    let sym = store.upsert_node(path("src/a.rs>a"));
+    store.upsert_node(path("src/a.rs")); // file node
+    let _ = sym;
+    let hist = store.degree_histogram(EdgeKind::Calls);
+    let total: u64 = hist.in_degrees.iter().map(|&(_, c)| c).sum();
+    assert_eq!(total, 1, "file node leaked into histogram");
+}
+
+#[test]
+fn store_degree_histogram_counts_sum_to_total() {
+    let mut store = Store::new();
+    let a1 = store.upsert_node(path("src/a.rs>a1"));
+    let b1 = store.upsert_node(path("src/b.rs>b1"));
+    let c1 = store.upsert_node(path("src/c.rs>c1"));
+    store.upsert_edge(EdgeKind::Calls, a1, b1);
+    store.upsert_edge(EdgeKind::Calls, b1, c1);
+    let hist = store.degree_histogram(EdgeKind::Calls);
+    let in_total: u64 = hist.in_degrees.iter().map(|&(_, c)| c).sum();
+    let out_total: u64 = hist.out_degrees.iter().map(|&(_, c)| c).sum();
+    assert_eq!(in_total, 3);
+    assert_eq!(out_total, 3);
+}
+
+#[test]
+fn store_degree_histogram_empty_store() {
+    let store = Store::new();
+    let hist = store.degree_histogram(EdgeKind::Calls);
+    assert!(hist.in_degrees.is_empty());
+    assert!(hist.out_degrees.is_empty());
+}

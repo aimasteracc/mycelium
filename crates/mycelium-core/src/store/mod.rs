@@ -250,6 +250,15 @@ pub struct TopologicalOrder {
     pub cycle_members: Vec<String>,
 }
 
+/// In- and out-degree frequency distribution for [`Store::degree_histogram`].
+#[derive(Debug, Clone, Default)]
+pub struct DegreeHistogram {
+    /// `(in_degree, symbol_count)` pairs, sorted by degree ascending.
+    pub in_degrees: Vec<(u64, u64)>,
+    /// `(out_degree, symbol_count)` pairs, sorted by degree ascending.
+    pub out_degrees: Vec<(u64, u64)>,
+}
+
 const AP_UNVISITED: usize = usize::MAX;
 
 fn uf_find(parent: &mut Vec<usize>, x: usize) -> usize {
@@ -2835,5 +2844,50 @@ impl Store {
     #[must_use]
     pub fn incoming(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
         self.synapse.incoming(id, kind)
+    }
+
+    /// Degree histogram for the symbol graph for `kind`.
+    ///
+    /// Returns frequency distributions of in- and out-degree across all
+    /// symbol nodes (file nodes excluded).  Degree 0 is included.
+    /// Each distribution is sorted ascending by degree.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    /// use mycelium_core::types::EdgeKind;
+    ///
+    /// let mut store = Store::new();
+    /// let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+    /// let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+    /// store.upsert_edge(EdgeKind::Calls, a, b);
+    /// let h = store.degree_histogram(EdgeKind::Calls);
+    /// assert_eq!(h.in_degrees.len(), 2); // degree 0 and degree 1
+    /// ```
+    #[must_use]
+    pub fn degree_histogram(&self, kind: EdgeKind) -> DegreeHistogram {
+        let mut in_counts: HashMap<u64, u64> = HashMap::new();
+        let mut out_counts: HashMap<u64, u64> = HashMap::new();
+        for p in self.trunk.all_paths() {
+            if !p.contains('>') {
+                continue;
+            }
+            if let Some(id) = self.trunk.lookup_path(p) {
+                let in_deg = self.synapse.incoming(id, kind).len() as u64;
+                let out_deg = self.synapse.outgoing(id, kind).len() as u64;
+                *in_counts.entry(in_deg).or_insert(0) += 1;
+                *out_counts.entry(out_deg).or_insert(0) += 1;
+            }
+        }
+        let mut in_degrees: Vec<(u64, u64)> = in_counts.into_iter().collect();
+        let mut out_degrees: Vec<(u64, u64)> = out_counts.into_iter().collect();
+        in_degrees.sort_unstable_by_key(|&(d, _)| d);
+        out_degrees.sort_unstable_by_key(|&(d, _)| d);
+        DegreeHistogram {
+            in_degrees,
+            out_degrees,
+        }
     }
 }
