@@ -104,6 +104,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0031: `ExtendsNode { id, parents }` struct — DFS superclass tree node; cycle-safe via path-tracking visited set with backtrack removal.
 - RFC-0031: `Store::extends_tree(id, max_depth)` — depth-limited recursive DFS over outgoing `Extends` edges.
 - RFC-0031: `mycelium_get_extends_tree` MCP tool — returns `{ root: { path, parents: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`.
+- RFC-0032: `SubclassNode { id, subclasses }` struct — DFS subclass forest node; cycle-safe via path-tracking visited set with backtrack removal.
+- RFC-0032: `Store::subclasses_tree(id, max_depth)` — depth-limited recursive DFS over **incoming** `Extends` edges.
+- RFC-0032: `mycelium_get_subclasses_tree` MCP tool — returns `{ root: { path, subclasses: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`. Complements `extends_tree` (outgoing) for full class-hierarchy exploration.
 
 ### Fixed
 
