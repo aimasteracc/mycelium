@@ -47,7 +47,7 @@ tree-sitter-typescript  = "0.23"
 tree-sitter-rust        = "0.24"
 salsa              = "0.18"
 arrow              = "53"
-hashbrown          = { version = "0.14", features = ["serde"] }
+hashbrown          = { version = "0.17", features = ["serde"] }
 smol_str           = "0.3"
 
 # Async
