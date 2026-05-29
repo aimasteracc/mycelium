@@ -529,6 +529,13 @@ pub struct FindBridgeEdgesRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_biconnected_components`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BiconnectedComponentsRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2168,6 +2175,45 @@ impl MyceliumServer {
             .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
             .collect();
         serde_json::json!({ "bridges": bridge_list, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Partition the undirected symbol graph into biconnected components (BCCs) \
+                       for a given EdgeKind. A BCC is a maximal subgraph with no articulation \
+                       point — removing any single vertex keeps the BCC connected. BCCs reveal \
+                       tightly-coupled code clusters. Bridge edges (RFC-0071) produce 2-node BCCs; \
+                       larger BCCs represent cycle-rich cohesive subsystems. \
+                       Uses Tarjan's iterative BCC detection O(V+E). \
+                       Returns { components, component_count, total_symbols } or { error }."
+    )]
+    async fn mycelium_get_biconnected_components(
+        &self,
+        Parameters(req): Parameters<BiconnectedComponentsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let comps = {
+            let store = self.store.read().await;
+            let c = store.biconnected_components(kind);
+            drop(store);
+            c
+        };
+        let component_count = comps.len();
+        let total_symbols: usize = comps.iter().map(Vec::len).sum();
+        serde_json::json!({
+            "components": comps,
+            "component_count": component_count,
+            "total_symbols": total_symbols
+        })
+        .to_string()
     }
 
     #[tool(
@@ -6444,6 +6490,59 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_find_bridge_edges(Parameters(FindBridgeEdgesRequest {
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0072: mycelium_get_biconnected_components ─────────────────────
+
+    #[tokio::test]
+    async fn bcc_triangle_is_one_component() {
+        // a → b → c → a: one BCC of 3 nodes
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+            store.upsert_edge(EdgeKind::Calls, c, a);
+        }
+        let raw = server
+            .mycelium_get_biconnected_components(Parameters(BiconnectedComponentsRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["component_count"].as_u64().unwrap(), 1);
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 3);
+    }
+
+    #[tokio::test]
+    async fn bcc_singleton_returns_empty() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+        }
+        let raw = server
+            .mycelium_get_biconnected_components(Parameters(BiconnectedComponentsRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["component_count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn bcc_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_biconnected_components(Parameters(BiconnectedComponentsRequest {
                 edge_kind: "unknown".into(),
             }))
             .await;
