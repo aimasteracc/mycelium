@@ -1,0 +1,83 @@
+{
+  "skill": "inheritance",
+  "description": "Parity for the 8 Extends/Implements-edge tools. Python fixture (3-class extends chain) + Rust fixture (trait + 2 impls) cover both edge kinds.",
+  "cases": [
+    {
+      "capability": "get_extends",
+      "name": "child_extends_parent",
+      "fixture": "python_inheritance_chain",
+      "cli_args": ["get-extends", "src/lib.py>Child", "--format", "json"],
+      "mcp_input": {"path": "src/lib.py>Child"},
+      "expected_includes_paths": ["src/lib.py>Parent"]
+    },
+    {
+      "capability": "extends_tree",
+      "name": "child_to_grandparent",
+      "fixture": "python_inheritance_chain",
+      "cli_args": ["extends-tree", "src/lib.py>Child", "--max-depth", "5", "--format", "json"],
+      "mcp_input": {"path": "src/lib.py>Child", "max_depth": 5}
+    },
+    {
+      "capability": "subclasses_tree",
+      "name": "grandparent_down",
+      "fixture": "python_inheritance_chain",
+      "cli_args": ["subclasses-tree", "src/lib.py>Grandparent", "--max-depth", "5", "--format", "json"],
+      "mcp_input": {"path": "src/lib.py>Grandparent", "max_depth": 5}
+    },
+    {
+      "capability": "find_extends_path",
+      "name": "child_to_grandparent_path",
+      "fixture": "python_inheritance_chain",
+      "cli_args": ["find-extends-path", "--from", "src/lib.py>Child", "--to", "src/lib.py>Grandparent", "--format", "json"],
+      "mcp_input": {"from": "src/lib.py>Child", "to": "src/lib.py>Grandparent"},
+      "parity_invariant": "CLI path == MCP `path` array"
+    },
+    {
+      "capability": "get_implements",
+      "name": "postgres_impl",
+      "fixture": "rust_trait_impls",
+      "cli_args": ["get-implements", "src/lib.rs>PostgresRepo", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>PostgresRepo"},
+      "expected_includes_paths": ["src/lib.rs>Repository"]
+    },
+    {
+      "capability": "implements_tree",
+      "name": "postgres_full_tree",
+      "fixture": "rust_trait_impls",
+      "cli_args": ["implements-tree", "src/lib.rs>PostgresRepo", "--max-depth", "3", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>PostgresRepo", "max_depth": 3}
+    },
+    {
+      "capability": "implementors_tree",
+      "name": "repository_implementors",
+      "fixture": "rust_trait_impls",
+      "cli_args": ["implementors-tree", "src/lib.rs>Repository", "--max-depth", "3", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>Repository", "max_depth": 3},
+      "expected_includes_paths": ["src/lib.rs>PostgresRepo", "src/lib.rs>SqliteRepo"]
+    },
+    {
+      "capability": "find_implements_path",
+      "name": "postgres_to_repository",
+      "fixture": "rust_trait_impls",
+      "cli_args": ["find-implements-path", "--from", "src/lib.rs>PostgresRepo", "--to", "src/lib.rs>Repository", "--format", "json"],
+      "mcp_input": {"from": "src/lib.rs>PostgresRepo", "to": "src/lib.rs>Repository"}
+    }
+  ],
+  "fixture_definitions": {
+    "python_inheritance_chain": {
+      "description": "3-class chain: Grandparent <- Parent <- Child.",
+      "files": {
+        "src/lib.py": "class Grandparent:\n    def root_method(self):\n        return 'root'\n\nclass Parent(Grandparent):\n    def parent_method(self):\n        return 'mid'\n\nclass Child(Parent):\n    def child_method(self):\n        return 'leaf'\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    },
+    "rust_trait_impls": {
+      "description": "One trait, two impls. Tests Implements edge in both directions.",
+      "files": {
+        "Cargo.toml": "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+        "src/lib.rs": "pub trait Repository { fn name(&self) -> &'static str; }\npub struct PostgresRepo;\nimpl Repository for PostgresRepo { fn name(&self) -> &'static str { \"postgres\" } }\npub struct SqliteRepo;\nimpl Repository for SqliteRepo { fn name(&self) -> &'static str { \"sqlite\" } }\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}

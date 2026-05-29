@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Third wave of category Skills** (RFC-0090 Phase 2 closing, v0.1.3):
+  - [`skills/inheritance/`](skills/inheritance/) — 8 capabilities for
+    `Extends` and `Implements` edge navigation
+    (`get_extends`, `extends_tree`, `subclasses_tree`,
+    `find_extends_path`, `get_implements`, `implements_tree`,
+    `implementors_tree`, `find_implements_path`).
+  - [`skills/graph-structure/`](skills/graph-structure/) — 14 structural
+    analysis tools including `detect_cycles` and
+    `get_dependency_layers` (both top-10 per glm5.1).
+  - [`skills/batch-ops/`](skills/batch-ops/) — 4 batch variants for
+    token-efficient multi-symbol inspection
+    (`batch_symbol_info`, `batch_node_degree`,
+    `batch_reachable_from`, `batch_reachable_to`).
+  - Combined coverage now: 73/88 (83%). The remaining 15 capabilities
+    (not in any of the 8 glm5.1 categories) are triaged in Phase 2.3.
 - **Second wave of category Skills** (RFC-0090 Phase 2, v0.1.3):
   - [`skills/import-graph/`](skills/import-graph/) — 3 capabilities
     (`get_imports`, `get_import_tree`, `get_importers_tree`).
