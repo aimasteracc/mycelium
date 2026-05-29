@@ -21,12 +21,14 @@ env:
 jobs:
   # ─────────────────────────────────────────────────────────────
   # Fast lane (Charter §5.6: must finish in < 5 minutes)
+  # Jobs: fmt + clippy + unit (--lib --bins only)
+  # Timeouts enforce the SLA; they do not merely bound runaway jobs.
   # ─────────────────────────────────────────────────────────────
 
   fmt:
     name: rustfmt
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -37,7 +39,7 @@ jobs:
   clippy:
     name: clippy
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -49,7 +51,7 @@ jobs:
   unit:
     name: unit tests (linux stable)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -58,7 +60,19 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────
   # Full lane (Charter §5.6: must finish in < 20 minutes)
+  # Integration tests run after the fast lane passes.
   # ─────────────────────────────────────────────────────────────
+
+  integration:
+    name: integration tests (linux stable)
+    needs: [fmt, clippy, unit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --tests
 
   test-matrix:
     name: tests (${{ matrix.os }} / ${{ matrix.toolchain }})
@@ -107,8 +121,12 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # security and doc-build run after the fast lane to avoid blocking it.
+  # They are still required by quality-gate.
+
   security:
     name: security
+    needs: [unit]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -135,6 +153,7 @@ jobs:
 
   doc-build:
     name: docs (rustdoc + mdbook)
+    needs: [unit]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -198,6 +217,7 @@ jobs:
       - fmt
       - clippy
       - unit
+      - integration
       - test-matrix
       - coverage
       - security
@@ -214,6 +234,7 @@ jobs:
             [fmt]="${{ needs.fmt.result }}"
             [clippy]="${{ needs.clippy.result }}"
             [unit]="${{ needs.unit.result }}"
+            [integration]="${{ needs.integration.result }}"
             [test-matrix]="${{ needs.test-matrix.result }}"
             [coverage]="${{ needs.coverage.result }}"
             [security]="${{ needs.security.result }}"
