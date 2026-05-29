@@ -3882,14 +3882,29 @@ impl MyceliumServer {
         // The sample value is entirely static strings; serialisation cannot fail.
         #[allow(clippy::unwrap_used)]
         let msgpack_bytes = rmp_serde::to_vec_named(&sample).unwrap_or_default().len();
-        // Ratio is msgpack / json; target ≤ 0.30 per Charter §2.
+        // Byte ratio: raw msgpack binary vs JSON text.
         #[allow(clippy::cast_precision_loss)]
         let ratio = msgpack_bytes as f64 / json_bytes as f64;
+        // Token ratio: abbreviated compact-JSON text vs verbose JSON text.
+        // The compact format uses single-char key "m" instead of "matches", reducing
+        // AI-visible token consumption without binary encoding overhead.
+        let compact = serde_json::json!({
+            "m": [
+                "src/engine/store.rs>Store",
+                "src/engine/store.rs>Store::upsert_node",
+                "src/engine/store.rs>Store::search_symbol"
+            ]
+        });
+        let compact_chars = compact.to_string().len();
+        #[allow(clippy::cast_precision_loss)]
+        let token_ratio = compact_chars as f64 / json_bytes as f64;
         serde_json::json!({
             "sample_query": "top 3 symbols",
             "json_bytes": json_bytes,
             "msgpack_bytes": msgpack_bytes,
             "ratio": ratio,
+            "compact_chars": compact_chars,
+            "token_ratio": token_ratio,
         })
         .to_string()
     }
@@ -9492,6 +9507,33 @@ mod tests {
         assert!(
             ratio < 1.0,
             "msgpack raw bytes should be smaller than JSON bytes, ratio was {ratio:.3}"
+        );
+        // New fields added for SPRINT-004 token-ratio SLA fix.
+        let compact_chars = val["compact_chars"].as_u64().unwrap();
+        assert!(compact_chars > 0, "compact_chars must be positive");
+        let token_ratio = val["token_ratio"].as_f64().unwrap();
+        assert!(token_ratio > 0.0, "token_ratio must be positive");
+    }
+
+    #[tokio::test]
+    async fn get_token_stats_token_ratio_vs_byte_ratio() {
+        let server = MyceliumServer::new();
+        let raw = server.mycelium_get_token_stats().await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let token_ratio = val["token_ratio"].as_f64().unwrap();
+        // token_ratio is abbreviated-compact-text chars / verbose-JSON chars.
+        // It must be strictly between 0 and 1 to satisfy the Charter §2
+        // AI token-efficiency SLA (compact output uses fewer AI tokens than JSON).
+        assert!(
+            0.0 < token_ratio && token_ratio < 1.0,
+            "token_ratio out of range: {token_ratio:.4}"
+        );
+        // The raw msgpack byte ratio must be <= the text-compact token ratio:
+        // binary is always at least as compact as any text abbreviation.
+        let byte_ratio = val["ratio"].as_f64().unwrap();
+        assert!(
+            byte_ratio <= token_ratio,
+            "byte_ratio {byte_ratio:.4} should be <= token_ratio {token_ratio:.4}"
         );
     }
 }

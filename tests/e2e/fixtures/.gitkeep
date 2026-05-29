@@ -1,0 +1,3 @@
+# Fixtures directory for e2e real-project tests.
+# Populate with: bash scripts/fetch-e2e-fixtures.sh
+# Contents are .gitignored (too large for the repo).
