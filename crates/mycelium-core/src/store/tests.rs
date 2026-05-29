@@ -1615,3 +1615,57 @@ fn store_implementors_tree_cycle_safe() {
     assert_eq!(tree.implementors[0].implementors[0].id, a);
     assert!(tree.implementors[0].implementors[0].implementors.is_empty());
 }
+
+// ── RFC-0036: Store::importers_tree ──────────────────────────────────
+
+#[test]
+fn store_importers_tree_leaf_at_max_depth_zero() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/a.rs>A"));
+    let tree = store.importers_tree(id, 0);
+    assert_eq!(tree.id, id);
+    assert!(tree.importers.is_empty());
+}
+
+#[test]
+fn store_importers_tree_single_importer() {
+    let mut store = Store::new();
+    let lib = store.upsert_node(path("src/lib.rs>lib"));
+    let app = store.upsert_node(path("src/app.rs>app"));
+    store.upsert_edge(EdgeKind::Imports, app, lib); // app imports lib
+    let tree = store.importers_tree(lib, 4);
+    assert_eq!(tree.id, lib);
+    assert_eq!(tree.importers.len(), 1);
+    assert_eq!(tree.importers[0].id, app);
+    assert!(tree.importers[0].importers.is_empty());
+}
+
+#[test]
+fn store_importers_tree_transitive_chain() {
+    let mut store = Store::new();
+    let core = store.upsert_node(path("core.rs>core"));
+    let mid = store.upsert_node(path("mid.rs>mid"));
+    let top = store.upsert_node(path("top.rs>top"));
+    store.upsert_edge(EdgeKind::Imports, mid, core); // mid imports core
+    store.upsert_edge(EdgeKind::Imports, top, mid); // top imports mid
+    let tree = store.importers_tree(core, 4);
+    assert_eq!(tree.importers.len(), 1);
+    assert_eq!(tree.importers[0].id, mid);
+    assert_eq!(tree.importers[0].importers.len(), 1);
+    assert_eq!(tree.importers[0].importers[0].id, top);
+}
+
+#[test]
+fn store_importers_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    store.upsert_edge(EdgeKind::Imports, b, a); // b imports a
+    store.upsert_edge(EdgeKind::Imports, a, b); // a imports b (cycle)
+    let tree = store.importers_tree(a, 10);
+    assert_eq!(tree.importers.len(), 1);
+    assert_eq!(tree.importers[0].id, b);
+    assert_eq!(tree.importers[0].importers.len(), 1);
+    assert_eq!(tree.importers[0].importers[0].id, a);
+    assert!(tree.importers[0].importers[0].importers.is_empty());
+}

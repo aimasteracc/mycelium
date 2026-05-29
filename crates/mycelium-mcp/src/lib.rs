@@ -38,8 +38,9 @@
 //! | `mycelium_find_implements_path` | Find the shortest implements chain between two symbols via BFS |
 //! | `mycelium_get_implements_tree` | Return the depth-limited interface tree for a symbol (outgoing Implements edges) |
 //! | `mycelium_get_implementors_tree` | Return the depth-limited implementor forest for an interface (incoming Implements edges) |
+//! | `mycelium_get_importers_tree` | Return the depth-limited reverse-dependency forest for a module (incoming Imports edges) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, RFC-0032, RFC-0033, RFC-0034, and RFC-0035 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, RFC-0032, RFC-0033, RFC-0034, RFC-0035, and RFC-0036 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -48,8 +49,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{
-    CalleeNode, CallerNode, ExtendsNode, ImplementorNode, ImplementsNode, ImportNode, SubclassNode,
-    extractor::Extractor, store::Store,
+    CalleeNode, CallerNode, ExtendsNode, ImplementorNode, ImplementsNode, ImportNode, ImporterNode,
+    SubclassNode, extractor::Extractor, store::Store,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -230,6 +231,15 @@ pub struct GetImplementsTreeRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetImplementorsTreeRequest {
     /// Root symbol path (interface), e.g. `"src/iface.ts>IFace"`.
+    pub path: String,
+    /// Maximum DFS depth. Defaults to 4, capped at 10.
+    pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_importers_tree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetImportersTreeRequest {
+    /// Root symbol path (module), e.g. `"src/utils.ts>utils"`.
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
@@ -1415,6 +1425,30 @@ impl MyceliumServer {
         drop(store_guard);
         serde_json::json!({ "root": json }).to_string()
     }
+
+    #[tool(
+        description = "Return the depth-limited reverse-dependency forest for a module, following \
+                       incoming Imports edges. The result is { root: { path, importers: [...] } } \
+                       where each node has a path and its own importers list. Cycles are cut as \
+                       leaf nodes. max_depth defaults to 4, capped at 10. Unknown path returns \
+                       { error }."
+    )]
+    async fn mycelium_get_importers_tree(
+        &self,
+        Parameters(req): Parameters<GetImportersTreeRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let tree = store_guard.importers_tree(id, max_depth);
+        let json = importer_node_to_json(&tree, &store_guard);
+        drop(store_guard);
+        serde_json::json!({ "root": json }).to_string()
+    }
 }
 
 #[tool_handler]
@@ -1496,6 +1530,16 @@ fn implementor_node_to_json(node: &ImplementorNode, store: &Store) -> serde_json
         .map(|i| implementor_node_to_json(i, store))
         .collect();
     serde_json::json!({ "path": path, "implementors": implementors })
+}
+
+fn importer_node_to_json(node: &ImporterNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let importers: Vec<serde_json::Value> = node
+        .importers
+        .iter()
+        .map(|i| importer_node_to_json(i, store))
+        .collect();
+    serde_json::json!({ "path": path, "importers": importers })
 }
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
@@ -3734,6 +3778,71 @@ mod tests {
         let server = server_with_implements_fixture().await;
         let raw = server
             .mycelium_get_implementors_tree(Parameters(GetImplementorsTreeRequest {
+                path: "no/such>path".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0036: mycelium_get_importers_tree ─────────────────────────────
+
+    async fn server_with_imports_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            let core_mod = store
+                .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/core.ts>core").unwrap());
+            let mid_mod = store
+                .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/mid.ts>mid").unwrap());
+            let top_mod = store
+                .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/top.ts>top").unwrap());
+            store.upsert_edge(mycelium_core::EdgeKind::Imports, mid_mod, core_mod);
+            store.upsert_edge(mycelium_core::EdgeKind::Imports, top_mod, mid_mod);
+        }
+        server
+    }
+
+    #[tokio::test]
+    async fn get_importers_tree_returns_reverse_dependency_chain() {
+        let server = server_with_imports_fixture().await;
+        let raw = server
+            .mycelium_get_importers_tree(Parameters(GetImportersTreeRequest {
+                path: "src/core.ts>core".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").expect("root key present");
+        assert_eq!(root["path"], "src/core.ts>core");
+        let importers = root["importers"].as_array().unwrap();
+        assert_eq!(importers.len(), 1);
+        assert_eq!(importers[0]["path"], "src/mid.ts>mid");
+        let top_importers = importers[0]["importers"].as_array().unwrap();
+        assert_eq!(top_importers.len(), 1);
+        assert_eq!(top_importers[0]["path"], "src/top.ts>top");
+    }
+
+    #[tokio::test]
+    async fn get_importers_tree_leaf_at_max_depth_zero() {
+        let server = server_with_imports_fixture().await;
+        let raw = server
+            .mycelium_get_importers_tree(Parameters(GetImportersTreeRequest {
+                path: "src/core.ts>core".to_string(),
+                max_depth: Some(0),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").unwrap();
+        assert!(root["importers"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_importers_tree_unknown_path_returns_error() {
+        let server = server_with_imports_fixture().await;
+        let raw = server
+            .mycelium_get_importers_tree(Parameters(GetImportersTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
             }))
