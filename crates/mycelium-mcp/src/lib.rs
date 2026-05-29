@@ -35,8 +35,9 @@
 //! | `mycelium_find_extends_path` | Find the shortest extends (inheritance) chain between two symbols via BFS |
 //! | `mycelium_get_extends_tree` | Return the depth-limited superclass tree for a symbol (outgoing Extends edges) |
 //! | `mycelium_get_subclasses_tree` | Return the depth-limited subclass forest for a symbol (incoming Extends edges) |
+//! | `mycelium_find_implements_path` | Find the shortest implements chain between two symbols via BFS |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, and RFC-0032 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, RFC-0032, and RFC-0033 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -209,6 +210,17 @@ pub struct FindExtendsPathRequest {
     /// Start of the extends chain, e.g. `"src/io.ts>ReadStream"`.
     pub from_path: String,
     /// End of the extends chain, e.g. `"src/base.ts>EventEmitter"`.
+    pub to_path: String,
+    /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
+    pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_find_implements_path`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FindImplementsPathRequest {
+    /// Start symbol path, e.g. `"src/foo.ts>Foo"`.
+    pub from_path: String,
+    /// End symbol path (interface), e.g. `"src/iface.ts>IFace"`.
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
@@ -1293,6 +1305,47 @@ impl MyceliumServer {
         let json = subclass_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json }).to_string()
+    }
+
+    #[tool(
+        description = "Find the shortest implements chain between two symbols via BFS over \
+                       outgoing Implements edges. Returns { path: [path, ...], hops: N } if \
+                       reachable, or { path: [], hops: null, message } if not. Unknown \
+                       from_path or to_path returns { error }. max_depth defaults to 8, capped at 20."
+    )]
+    async fn mycelium_find_implements_path(
+        &self,
+        Parameters(req): Parameters<FindImplementsPathRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(8).min(20);
+        let store_guard = self.store.read().await;
+        let Some(from_id) = store_guard.lookup(&req.from_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
+                .to_string();
+        };
+        let Some(to_id) = store_guard.lookup(&req.to_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
+                .to_string();
+        };
+        if let Some(ids) = store_guard.find_implements_path(from_id, to_id, max_depth) {
+            let path: Vec<String> = ids
+                .iter()
+                .map(|&id| store_guard.path_of(id).unwrap_or("<unknown>").to_owned())
+                .collect();
+            let hops = path.len() - 1;
+            drop(store_guard);
+            serde_json::json!({ "path": path, "hops": hops }).to_string()
+        } else {
+            drop(store_guard);
+            serde_json::json!({
+                "path": [],
+                "hops": null,
+                "message": format!("no implements path found within max_depth={max_depth}")
+            })
+            .to_string()
+        }
     }
 }
 
@@ -3416,6 +3469,88 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0033: mycelium_find_implements_path ───────────────────────────
+
+    async fn server_with_implements_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            let cls = store
+                .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/cls.ts>Cls").unwrap());
+            let iface = store
+                .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/iface.ts>IFace").unwrap());
+            let base_iface = store.upsert_node(
+                mycelium_core::trunk::TrunkPath::parse("src/base.ts>BaseIFace").unwrap(),
+            );
+            store.upsert_edge(mycelium_core::EdgeKind::Implements, cls, iface);
+            store.upsert_edge(mycelium_core::EdgeKind::Implements, iface, base_iface);
+        }
+        server
+    }
+
+    #[tokio::test]
+    async fn find_implements_path_direct_hop() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_find_implements_path(Parameters(FindImplementsPathRequest {
+                from_path: "src/cls.ts>Cls".to_string(),
+                to_path: "src/iface.ts>IFace".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let path = val["path"].as_array().unwrap();
+        assert_eq!(path.len(), 2);
+        assert_eq!(path[0], "src/cls.ts>Cls");
+        assert_eq!(path[1], "src/iface.ts>IFace");
+        assert_eq!(val["hops"], 1);
+    }
+
+    #[tokio::test]
+    async fn find_implements_path_unreachable() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_find_implements_path(Parameters(FindImplementsPathRequest {
+                from_path: "src/iface.ts>IFace".to_string(),
+                to_path: "src/cls.ts>Cls".to_string(), // backwards — no path
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["path"].as_array().unwrap().len(), 0);
+        assert!(val["hops"].is_null());
+    }
+
+    #[tokio::test]
+    async fn find_implements_path_unknown_path_returns_error() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_find_implements_path(Parameters(FindImplementsPathRequest {
+                from_path: "no/such>path".to_string(),
+                to_path: "src/iface.ts>IFace".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn find_implements_path_transitive() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_find_implements_path(Parameters(FindImplementsPathRequest {
+                from_path: "src/cls.ts>Cls".to_string(),
+                to_path: "src/base.ts>BaseIFace".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let path = val["path"].as_array().unwrap();
+        assert_eq!(path.len(), 3);
+        assert_eq!(val["hops"], 2);
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
