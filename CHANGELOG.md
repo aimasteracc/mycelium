@@ -176,6 +176,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0061: `mycelium_get_hub_symbols` MCP tool — architectural hub detector identifying symbols that are both widely-used (high in-degree) and orchestrating (high out-degree); accepts `{ edge_kind, min_in?, min_out?, limit? }` and returns `{ hubs: [{ path, in_degree, out_degree }], count }` or `{ error }` for unknown edge kind; `min_in`/`min_out` default to 1.
 - RFC-0062: `Store::singly_referenced(kind, limit)` — symbols with exactly one incoming edge for a given EdgeKind; returns `(symbol_path, referencing_path)` pairs sorted by symbol path ascending; limit capped at 100; file nodes excluded. Fills the in-degree=1 gap between `entry_points` (0) and `fan_in_rank` (top-N).
 - RFC-0062: `mycelium_get_singly_referenced` MCP tool — inlining and privatisation candidate detector; accepts `{ edge_kind, limit? }` and returns `{ symbols: [{ path, referenced_by }], count }` or `{ error }` for unknown edge kind; limit defaults to 10.
+- RFC-0063: `Store::batch_reachable_to(ids, kind, max_depth)` — union of transitive incoming dependents for a set of symbols; deduplicated, input nodes excluded, sorted ascending, max_depth capped at 20. Answers "what is the total blast radius if any of these symbols change?"
+- RFC-0063: `mycelium_batch_reachable_to` MCP tool — total change-impact surface in one call; accepts `{ paths (up to 20), edge_kind, max_depth? }` and returns `{ reachable, count }` or `{ error }` for unknown edge kind; max_depth defaults to 10.
 
 ### Fixed
 
