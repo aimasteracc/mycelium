@@ -5,7 +5,7 @@
 
 use super::Store;
 use crate::trunk::TrunkPath;
-use crate::types::{EdgeKind, NodeId, NodeKind};
+use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
 
 #[cfg(test)]
 extern crate tempfile;
@@ -1222,4 +1222,69 @@ fn store_symbols_of_kind_sorted_lexicographically() {
     store.set_kind(a, NodeKind::Function);
     let result = store.symbols_of_kind(NodeKind::Function, None);
     assert_eq!(result, vec!["a.rs>fn1", "b.rs>fn2"]);
+}
+
+// ── RFC-0029: Store::set_span / span_of ──────────────────────────────
+
+fn span(sl: u32, sc: u32, el: u32, ec: u32, sb: u32, eb: u32) -> SourceSpan {
+    SourceSpan {
+        start_line: sl,
+        start_col: sc,
+        end_line: el,
+        end_col: ec,
+        start_byte: sb,
+        end_byte: eb,
+    }
+}
+
+#[test]
+fn store_set_span_stores_and_retrieves() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>login"));
+    let s = span(10, 0, 20, 1, 100, 250);
+    store.set_span(id, s);
+    assert_eq!(store.span_of(id), Some(s));
+}
+
+#[test]
+fn store_span_of_returns_none_when_unset() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>login"));
+    assert_eq!(store.span_of(id), None);
+}
+
+#[test]
+fn store_set_span_overwrites_previous() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>Foo"));
+    store.set_span(id, span(1, 0, 5, 1, 0, 50));
+    store.set_span(id, span(2, 0, 8, 1, 50, 120));
+    assert_eq!(store.span_of(id), Some(span(2, 0, 8, 1, 50, 120)));
+}
+
+#[test]
+fn store_remove_node_clears_span() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>Foo"));
+    store.set_span(id, span(1, 0, 5, 1, 0, 50));
+    store.remove_node(id);
+    assert_eq!(store.span_of(id), None);
+}
+
+#[test]
+fn store_remove_file_clears_spans() {
+    let mut store = Store::new();
+    let file_id = store.upsert_node(path("src/auth.rs"));
+    let sym_id = store.upsert_node(path("src/auth.rs>login"));
+    store.set_span(file_id, span(1, 0, 40, 0, 0, 800));
+    store.set_span(sym_id, span(5, 0, 10, 1, 80, 200));
+    store.remove_file("src/auth.rs");
+    assert_eq!(store.span_of(file_id), None);
+    assert_eq!(store.span_of(sym_id), None);
+}
+
+#[test]
+fn store_span_of_unknown_id_returns_none() {
+    let store = Store::new();
+    assert_eq!(store.span_of(NodeId(999_999)), None);
 }

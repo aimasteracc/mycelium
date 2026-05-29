@@ -10,7 +10,7 @@ use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator as _};
 use crate::{
     store::Store,
     trunk::TrunkPath,
-    types::{EdgeKind, NodeKind},
+    types::{EdgeKind, NodeKind, SourceSpan},
 };
 
 // ── error type ────────────────────────────────────────────────────────────────
@@ -108,6 +108,7 @@ impl Extractor {
                 .unwrap_or_else(|_| TrunkPath::parse("_unknown").expect("fallback path is valid")),
         );
         store.set_kind(file_id, NodeKind::File);
+        store.set_span(file_id, node_to_span(root));
 
         let names = self.query.capture_names();
 
@@ -151,6 +152,7 @@ impl Extractor {
                             if let Some(kind) = cap_suffix_to_kind(suffix) {
                                 store.set_kind(child_id, kind);
                             }
+                            store.set_span(child_id, node_to_span(anchor));
                         }
                     }
                     "definition.method" => {
@@ -161,6 +163,7 @@ impl Extractor {
                         if let Ok(path) = TrunkPath::parse(&path_str) {
                             let method_id = store.upsert_node(path);
                             store.set_kind(method_id, NodeKind::Method);
+                            store.set_span(method_id, node_to_span(anchor));
                             let class_path_str = format!("{file_path}>{chain_str}");
                             if let Ok(cls_path) = TrunkPath::parse(&class_path_str) {
                                 let cls_id = store.upsert_node(cls_path);
@@ -326,6 +329,23 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
         .unwrap_or("_Unknown");
     // Strip generic parameters (e.g. "Vec<T>" → "Vec").
     text.split('<').next().unwrap_or(text)
+}
+
+/// Convert a tree-sitter node's position to a [`SourceSpan`].
+///
+/// Tree-sitter rows are 0-indexed; `start_line`/`end_line` are stored 1-indexed
+/// to match LSP and editor conventions. Columns remain 0-indexed.
+fn node_to_span(node: tree_sitter::Node<'_>) -> SourceSpan {
+    let start = node.start_position();
+    let end = node.end_position();
+    SourceSpan {
+        start_line: u32::try_from(start.row).unwrap_or(u32::MAX).saturating_add(1),
+        start_col: u32::try_from(start.column).unwrap_or(u32::MAX),
+        end_line: u32::try_from(end.row).unwrap_or(u32::MAX).saturating_add(1),
+        end_col: u32::try_from(end.column).unwrap_or(u32::MAX),
+        start_byte: u32::try_from(node.start_byte()).unwrap_or(u32::MAX),
+        end_byte: u32::try_from(node.end_byte()).unwrap_or(u32::MAX),
+    }
 }
 
 /// Map the suffix of a `definition.*` capture name to a [`NodeKind`].
