@@ -3006,4 +3006,52 @@ impl Store {
     pub fn neighbor_similarity(&self, id1: NodeId, id2: NodeId, kind: EdgeKind) -> f64 {
         self.neighbor_similarity_stats(id1, id2, kind).0
     }
+
+    /// Returns `(coefficient, neighbor_count, neighbor_edge_count)`.
+    ///
+    /// `coefficient` = directed edges among N(id) / (|N(id)| * (|N(id)|-1)).
+    /// N(id) = outgoing ∪ incoming, self and file nodes excluded.
+    /// `|N(id)| < 2` → (0.0, |N|, 0).
+    #[must_use]
+    pub fn clustering_coefficient_stats(&self, id: NodeId, kind: EdgeKind) -> (f64, usize, usize) {
+        let is_file = |nid: NodeId| -> bool {
+            self.trunk
+                .path_of(nid)
+                .is_some_and(|p| !p.contains('>'))
+        };
+        let neighbors: HashSet<NodeId> = {
+            let mut set: HashSet<NodeId> =
+                self.synapse.outgoing(id, kind).iter().copied().collect();
+            set.extend(self.synapse.incoming(id, kind).iter().copied());
+            set.remove(&id);
+            set.retain(|&n| !is_file(n));
+            set
+        };
+        let k = neighbors.len();
+        if k < 2 {
+            return (0.0, k, 0);
+        }
+        let mut edge_count: usize = 0;
+        for &src in &neighbors {
+            for neighbor_of_src in self.synapse.outgoing(src, kind) {
+                if neighbors.contains(neighbor_of_src) {
+                    edge_count += 1;
+                }
+            }
+        }
+        // k*(k-1) is the number of ordered directed pairs; never exceeds 2^52 in practice.
+        #[allow(clippy::cast_precision_loss)]
+        let coeff = edge_count as f64 / (k * (k - 1)) as f64;
+        (coeff, k, edge_count)
+    }
+
+    /// Local clustering coefficient ∈ [0.0, 1.0] for a symbol node.
+    ///
+    /// Measures what fraction of pairs among the node's neighbors are
+    /// themselves connected (directed).  Returns 0.0 for fewer than 2
+    /// neighbors.
+    #[must_use]
+    pub fn clustering_coefficient(&self, id: NodeId, kind: EdgeKind) -> f64 {
+        self.clustering_coefficient_stats(id, kind).0
+    }
 }

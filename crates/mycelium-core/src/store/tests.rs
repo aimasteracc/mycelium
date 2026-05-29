@@ -4405,3 +4405,88 @@ fn store_neighbor_similarity_partial_overlap() {
         "expected {expected}, got {sim}"
     );
 }
+
+// ── RFC-0076: clustering_coefficient ──────────────────────────────────────
+
+#[test]
+fn store_clustering_coefficient_too_few_neighbors_returns_zero() {
+    // node with 1 neighbor → CC = 0.0 (need ≥ 2 to form a pair)
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/a.rs>hub"));
+    let solo = store.upsert_node(path("src/b.rs>solo"));
+    store.upsert_edge(EdgeKind::Calls, hub, solo);
+    let cc = store.clustering_coefficient(hub, EdgeKind::Calls);
+    assert!(cc.abs() < 1e-9, "expected 0.0, got {cc}");
+}
+
+#[test]
+fn store_clustering_coefficient_complete_triangle_returns_one() {
+    // hub → {alpha, beta}, alpha → beta: all 1*(1) = 1 possible directed pair is present
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/a.rs>hub"));
+    let alpha = store.upsert_node(path("src/b.rs>alpha"));
+    let beta = store.upsert_node(path("src/c.rs>beta"));
+    store.upsert_edge(EdgeKind::Calls, hub, alpha);
+    store.upsert_edge(EdgeKind::Calls, hub, beta);
+    store.upsert_edge(EdgeKind::Calls, alpha, beta); // edge between neighbors
+    let cc = store.clustering_coefficient(hub, EdgeKind::Calls);
+    // N(hub) = {alpha, beta}, |N| = 2, max_pairs = 2*1 = 2
+    // edges among N: alpha→beta = 1  → CC = 1/2 = 0.5
+    assert!((cc - 0.5).abs() < 1e-9, "expected 0.5, got {cc}");
+}
+
+#[test]
+fn store_clustering_coefficient_fully_connected_triangle_returns_one() {
+    // hub, alpha, beta — alpha↔beta both directions: 2 edges / 2 max = 1.0
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/d.rs>hub"));
+    let alpha = store.upsert_node(path("src/d.rs>alpha"));
+    let beta = store.upsert_node(path("src/d.rs>beta"));
+    store.upsert_edge(EdgeKind::Calls, hub, alpha);
+    store.upsert_edge(EdgeKind::Calls, hub, beta);
+    store.upsert_edge(EdgeKind::Calls, alpha, beta);
+    store.upsert_edge(EdgeKind::Calls, beta, alpha);
+    let cc = store.clustering_coefficient(hub, EdgeKind::Calls);
+    // N(hub) = {alpha, beta}, max directed pairs = 2, actual = 2 → CC = 1.0
+    assert!((cc - 1.0).abs() < 1e-9, "expected 1.0, got {cc}");
+}
+
+#[test]
+fn store_clustering_coefficient_partial_connectivity() {
+    // hub → {n1, n2, n3}, only n1→n2 exists: 1/6 pairs connected
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/e.rs>hub"));
+    let node1 = store.upsert_node(path("src/e.rs>node1"));
+    let node2 = store.upsert_node(path("src/e.rs>node2"));
+    let node3 = store.upsert_node(path("src/e.rs>node3"));
+    store.upsert_edge(EdgeKind::Calls, hub, node1);
+    store.upsert_edge(EdgeKind::Calls, hub, node2);
+    store.upsert_edge(EdgeKind::Calls, hub, node3);
+    store.upsert_edge(EdgeKind::Calls, node1, node2); // only 1 of 6 directed pairs
+    let cc = store.clustering_coefficient(hub, EdgeKind::Calls);
+    // N(hub) = {node1, node2, node3}, max = 3*2=6, actual = 1 → CC ≈ 0.1667
+    let expected = 1.0_f64 / 6.0;
+    assert!(
+        (cc - expected).abs() < 1e-9,
+        "expected {expected}, got {cc}"
+    );
+}
+
+#[test]
+fn store_clustering_coefficient_file_nodes_excluded() {
+    // hub → {file_node, symbol} where file_node is a file; file_node→symbol exists
+    // but file_node should be excluded from N(hub), so only 1 neighbor → CC = 0.0
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/f.rs>hub"));
+    let file_node = store.upsert_node(path("src/g.rs")); // file node
+    let sym = store.upsert_node(path("src/f.rs>sym"));
+    store.upsert_edge(EdgeKind::Calls, hub, file_node);
+    store.upsert_edge(EdgeKind::Calls, hub, sym);
+    store.upsert_edge(EdgeKind::Calls, file_node, sym);
+    let cc = store.clustering_coefficient(hub, EdgeKind::Calls);
+    // N(hub) with file nodes excluded = {sym} only → |N| = 1 → CC = 0.0
+    assert!(
+        cc.abs() < 1e-9,
+        "expected 0.0 with file nodes excluded, got {cc}"
+    );
+}
