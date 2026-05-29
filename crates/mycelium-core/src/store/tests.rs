@@ -4490,3 +4490,57 @@ fn store_clustering_coefficient_file_nodes_excluded() {
         "expected 0.0 with file nodes excluded, got {cc}"
     );
 }
+
+// ── RFC-0077: eccentricity ─────────────────────────────────────────────────
+
+#[test]
+fn store_eccentricity_isolated_returns_zero() {
+    let mut store = Store::new();
+    let solo = store.upsert_node(path("src/a.rs>solo"));
+    assert_eq!(store.eccentricity(solo, EdgeKind::Calls), 0);
+}
+
+#[test]
+fn store_eccentricity_direct_edge_returns_one() {
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/a.rs>root"));
+    let leaf = store.upsert_node(path("src/b.rs>leaf"));
+    store.upsert_edge(EdgeKind::Calls, root, leaf);
+    assert_eq!(store.eccentricity(root, EdgeKind::Calls), 1);
+}
+
+#[test]
+fn store_eccentricity_chain_returns_max_depth() {
+    // root → mid → far: eccentricity = 2
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/a.rs>root"));
+    let mid = store.upsert_node(path("src/b.rs>mid"));
+    let far = store.upsert_node(path("src/c.rs>far"));
+    store.upsert_edge(EdgeKind::Calls, root, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, far);
+    assert_eq!(store.eccentricity(root, EdgeKind::Calls), 2);
+}
+
+#[test]
+fn store_eccentricity_directed_not_undirected() {
+    // root → leaf, but leaf cannot reach root
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/a.rs>root_ecc"));
+    let leaf = store.upsert_node(path("src/b.rs>leaf_ecc"));
+    store.upsert_edge(EdgeKind::Calls, root, leaf);
+    // eccentricity of leaf (no outgoing) = 0
+    assert_eq!(store.eccentricity(leaf, EdgeKind::Calls), 0);
+}
+
+#[test]
+fn store_eccentricity_file_nodes_excluded() {
+    // root → file_node → sym: file node is skipped, so root has eccentricity 0
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/a.rs>root_file_ecc"));
+    let file_node = store.upsert_node(path("src/b.rs"));
+    let sym = store.upsert_node(path("src/c.rs>sym_ecc"));
+    store.upsert_edge(EdgeKind::Calls, root, file_node);
+    store.upsert_edge(EdgeKind::Calls, file_node, sym);
+    // file_node is excluded → root can't reach sym → eccentricity = 0
+    assert_eq!(store.eccentricity(root, EdgeKind::Calls), 0);
+}
