@@ -77,10 +77,11 @@ it does not ship. CI gates them.
 `packs/<lang>/`: `pack.toml`, `queries.scm`, optional `hooks.wasm`. Core code
 changes for language onboarding require a passing RFC.
 
-## 5. The Twelve Commitments
+## 5. The Commitments
 
-These map 1:1 to the founder's original requirements. Each is the contract
-governing one operating dimension of the project.
+§5.1–§5.12 map 1:1 to the founder's original twelve requirements. §5.13+
+are extensions ratified by RFC and approved by the BDFL. Each commitment
+is the contract governing one operating dimension of the project.
 
 ### §5.1 — Spec-driven, TDD-driven
 
@@ -182,6 +183,25 @@ These are added by the AI architect with the founder's blessing:
   - Full audit log: `.hive/audit/YYYY-MM-DD.jsonl`, public.
   - Kill switch: closing issue `#1 — Hive kill switch` halts all autonomous activity within 60 seconds.
 - The founder's role is **auditor + decision-maker**, not coder. Daily review of audit log, weekly review of anti-patterns, monthly direction calibration.
+
+### §5.13 — The 1:1:1 Rule (feature parity across CLI / MCP / Skill)
+
+Every Mycelium feature MUST ship on three equally-weighted surfaces:
+
+1. **CLI** — `mycelium <feat>` for the human at a terminal.
+2. **MCP** — a tool exposed by `mycelium serve --mcp` for the autonomous AI agent.
+3. **Skill** — `skills/<feat>/SKILL.md` (Claude Code skill format) teaching agents *when* to invoke the MCP tool and *how* to interpret the result.
+
+The three surfaces are 1:1:1 — one capability ↔ one CLI command ↔ one MCP tool ↔ one Skill. The PR that introduces a capability ships all three or it does not ship. Naming, description strings, argument schemas, and JSON outputs are **identical** across the three surfaces (canonical text comes from the SKILL.md frontmatter `description`).
+
+Exceptions are narrow and explicit:
+- **CLI-only**: low-level trace/debug commands operating on index file format or runtime internals. Must carry an `EXCEPTION: CLI-only` line in the governing RFC.
+- **MCP-only**: multi-agent state coordination with no single-shot human equivalent. Requires BDFL signoff in the governing RFC.
+- **No skill-only exception.** A skill without a CLI and MCP counterpart is a marketing artifact, not a feature.
+
+CI enforces surface-name, description, argument, and output parity on every PR touching `crates/mycelium-cli/`, `crates/mycelium-mcp/`, or `skills/`.
+
+See [RFC-0090](rfcs/0090-cli-mcp-skill-parity.md) and [ADR-0007](docs/adr/0007-cli-mcp-skill-parity.md) for full design, migration plan, and alternatives considered.
 
 ## 6. Governance Model
 

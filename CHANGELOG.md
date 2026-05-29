@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Charter §5.13 — The 1:1:1 Rule.** Every Mycelium feature now ships
+  on three equally-weighted surfaces: CLI command, MCP tool, and
+  Skill bundle. Names, descriptions, argument schemas, and JSON
+  outputs are byte-identical across the three. CI enforces parity on
+  every PR touching `crates/mycelium-cli/`, `crates/mycelium-mcp/`,
+  or `skills/`. See [RFC-0090](rfcs/0090-cli-mcp-skill-parity.md) and
+  [ADR-0007](docs/adr/0007-cli-mcp-skill-parity.md).
+- `skills/` directory at the repo root with `_template/` scaffold,
+  `README.md` documenting the parity invariant, and reference to
+  Claude Code skill spec.
+- PR template grew a "1:1:1 Self-Check" section listing the three
+  surfaces and the four parity invariants.
+
 ### Changed
 
 - **crates.io publish prefix**: Renamed all five workspace crates from

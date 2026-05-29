@@ -88,6 +88,17 @@ Please fill out the sections below. PRs without these fields may be auto-labeled
 - [ ] No forbidden dependencies introduced
 - [ ] Language-pack PRs: ≤ 3 files in `packs/<lang>/`, 0 changes in `crates/`
 
+## 1:1:1 Self-Check (Charter §5.13 / RFC-0090)
+
+<!-- Required for every `feat:` PR. Tick all three or file an EXCEPTION RFC. -->
+
+- [ ] CLI command added/updated in `crates/mycelium-cli/src/`
+- [ ] MCP tool added/updated in `crates/mycelium-mcp/src/tools/`
+- [ ] Skill bundle added/updated in `skills/<feature>/` (SKILL.md + examples + parity.test.json)
+- [ ] Description string is byte-identical across CLI `--help`, MCP tool schema, and SKILL.md frontmatter
+- [ ] `skills/<feature>/tests/parity.test.json` asserts at least one CLI ↔ MCP output equality
+- [ ] OR: governing RFC carries an `EXCEPTION: CLI-only` / `EXCEPTION: MCP-only` line
+
 ## Notes for the Reviewer
 
 <!-- Anything the reviewer should pay extra attention to? -->

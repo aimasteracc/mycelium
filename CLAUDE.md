@@ -38,6 +38,7 @@ If any of the above fails or is impossible, **stop and report**, do not improvis
 - ❌ **Never commit secrets.** Use `.env.example` and document in `SECURITY.md`.
 - ❌ **Never reduce test coverage** without a `// coverage:skip <reason>` annotation and reviewer sign-off.
 - ❌ **Never add a new language by modifying core code.** Hard constraint: 3 files max under `packs/<lang>/`.
+- ❌ **Never ship a feature on only one surface.** [Charter §5.13 / RFC-0090](rfcs/0090-cli-mcp-skill-parity.md): every feature ships **CLI + MCP + Skill** in the same PR. Names, descriptions, arg schemas, and JSON outputs must agree. Exceptions need an `EXCEPTION:` line in the governing RFC.
 - ✅ **Always sign commits** with `Signed-off-by:` (DCO).
 - ✅ **Always use Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`, `perf:`, `ci:`, `build:`, `meta:`).
 - ✅ **Always update `CHANGELOG.md` "Unreleased" section** when shipping a user-visible change.
@@ -80,6 +81,7 @@ Step 6:  Commit with DCO sign-off.
 - ❌ Writing implementation and tests in the same step without confirming RED first
 - ❌ Skipping RFC acceptance criteria updates after implementing
 - ❌ Continuing the autonomous loop without checking PM's latest priority
+- ❌ Shipping a feature on only one surface (MCP-only, CLI-only). Charter §5.13 / RFC-0090: every feature ships CLI + MCP + Skill together, or files an exception RFC.
 
 ## ADR Requirement (Charter §3)
 
