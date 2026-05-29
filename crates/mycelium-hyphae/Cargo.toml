@@ -26,3 +26,6 @@ logos         = "0.14"
 
 [dev-dependencies]
 insta = { workspace = true }
+tempfile = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-rust = { workspace = true }

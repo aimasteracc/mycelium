@@ -83,16 +83,62 @@ The agent should retry with a corrected selector. The `error` field always conta
 
 ## Hyphae DSL cheat-sheet
 
+### Base selectors
+
 | Syntax | Meaning |
 |---|---|
 | `#name` | Symbol named `name` (any kind, any depth). |
-| `.kind` | All symbols of a given kind: `.function`, `.class`, `.method`, `.module`, ... |
+| `.kind` | All symbols of a given kind: `.function`, `.class`, `.method`, `.module`, `.struct`, `.enum`, `.interface`/`.trait`, `.constant`/`.const`, `.type`, `.variable`. |
+| `*` | Universal — every indexed symbol. |
+
+### Combinators
+
+| Syntax | Meaning |
+|---|---|
 | ` ` (space) | Descendant combinator — any descendant. |
 | `>` | Direct child combinator. |
-| `~` | Sibling combinator (RFC-0003 §3.4). |
-| `:pseudo(arg)` | Relationship pseudo-class (`:calls(...)`, `:imports(...)`). Executor support varies; check the [hyphae evaluator coverage](../../crates/mycelium-hyphae/src/evaluator.rs). |
+| `~` | Sibling combinator (same parent). |
+| `,` | Selector list — union. |
 
-Full grammar: [RFC-0003](../../rfcs/0003-hyphae-query-language.md).
+### Relationship pseudo-classes (RFC-0003)
+
+| Syntax | Meaning |
+|---|---|
+| `:calls(X)` | Outgoing `Calls` edge to a node matching `X`. |
+| `:callers(X)` | Incoming `Calls` edge from a node matching `X`. |
+| `:imports(X)` | Outgoing `Imports` edge. |
+| `:extends(X)` | Outgoing `Extends` edge. |
+| `:implements(X)` | Outgoing `Implements` edge (RFC-0091). |
+
+### jQuery-style pseudo-classes (RFC-0091)
+
+| Syntax | Meaning |
+|---|---|
+| `:not(X)` | Set-difference — candidates NOT matching `X`. |
+| `:has(X)` | Candidates that contain at least one descendant matching `X`. |
+| `:in(path-prefix)` | Candidates whose path starts with the given prefix. |
+| `:first-child` / `:last-child` / `:only-child` | Positional filters within siblings. |
+| `:nth-child(N)` | 1-indexed sibling position. |
+
+### Attribute selectors (RFC-0091)
+
+| Syntax | Meaning |
+|---|---|
+| `[language=rust]` | Filter by source language (`rust`, `python`, `typescript`, `javascript`, `go`, `java`, `c`, `cpp`, `csharp`, `ruby`). |
+| `[kind=function]` | Filter by `NodeKind` wire string. |
+| `[file=src/lib.rs]` | Filter by file path. |
+
+### Composition examples
+
+```
+.function:not(#main):in(src/auth/)
+.class:has(.method:calls(#log))[language=python]
+.struct[file=src/lib.rs]:implements(#Repository)
+.method:first-child:in(src/handlers/)
+*:nth-child(3)
+```
+
+Full grammar: [RFC-0003](../../rfcs/0003-hyphae-query-language.md) + [RFC-0091](../../rfcs/0091-hyphae-jquery-selectors.md).
 
 ## Parity contract
 
