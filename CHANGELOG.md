@@ -149,6 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0048: `mycelium_get_most_connected` MCP tool — hub-node detector for any edge kind; returns `{ symbols: [{ path, degree }], count }` or `{ error }` for unknown edge kind.
 - RFC-0049: `Store::leaf_symbols(kind, limit)` — symbol nodes with out-degree 0 for any EdgeKind; symmetric complement to `entry_points` (RFC-0022, in-degree 0 for Calls); sorted alphabetically; limit capped at 100.
 - RFC-0049: `mycelium_get_leaf_symbols` MCP tool — leaf-implementation detector for any edge kind; returns `{ symbols, count }` or `{ error }` for unknown edge kind.
+- RFC-0050: `Store::shortest_path(from, to, kind)` — BFS minimum-hop path between two symbol nodes via outgoing EdgeKind edges; returns `Some(path_strings)` with both endpoints, or `None` if unreachable; cycle-safe.
+- RFC-0050: `mycelium_get_shortest_path` MCP tool — "how does A reach B?" in a single call; returns `{ path, length }` if found, `{ path: null, length: null }` if no path, or `{ error }` for unknown edge kind or unrecognised node paths.
 
 ### Fixed
 
