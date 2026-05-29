@@ -1,56 +1,68 @@
 ---
-name: FEATURE_NAME
-description: ONE-LINE SUMMARY — MUST match `mycelium FEATURE_NAME --help` one-liner and MCP tool description exactly.
+name: CATEGORY_NAME
+description: ONE-LINE SUMMARY OF THE CATEGORY — e.g. "Navigate the symbol graph — callers, callees, definers, impact."
 allowed-tools:
-  - mcp__mycelium__FEATURE_NAME
+  - mcp__mycelium__CAPABILITY_A
+  - mcp__mycelium__CAPABILITY_B
+  # ... add one entry per (CLI, MCP) pair this Skill covers
 ---
 
-# `FEATURE_NAME` — short title
+# `CATEGORY_NAME` — short title
 
-## When to invoke
+## When to invoke this Skill
 
-A 2-4 sentence description of the situation where the agent should
-reach for this tool. Examples:
+A 2–4 sentence description of the situations that bring the agent to
+this category. Be concrete:
 
-- "Use when the user asks 'what calls function X' and you have an
-  indexed Mycelium project at the cwd."
-- "Do NOT use when X is a method on a polymorphic type without
-  receiver narrowing — prefer `callers --polymorphic` for that."
+- "Use when the user asks structural-navigation questions
+  ('what calls X', 'what does Y impact')."
+- "Do NOT use for graph-statistics questions — see the
+  `graph-analysis` Skill for that."
 
-## How to invoke
+## Capabilities under this umbrella
+
+### `CAPABILITY_A` — short imperative description
+
+**When**: 1–2 sentences on the exact trigger.
+
+**MCP invocation:**
 
 ```
-mcp__mycelium__FEATURE_NAME({
+mcp__mycelium__CAPABILITY_A({
   arg1: "...",
-  arg2: ...   // optional, default = ...
+  arg2: ...    // optional; default = ...
 })
 ```
 
-Equivalent CLI invocation (for the human reading this skill):
+**Equivalent CLI (human reading):**
 
 ```
-mycelium FEATURE_NAME --arg1 ... --arg2 ...
+mycelium CAPABILITY_A --arg1 ... --arg2 ...
 ```
 
-## How to interpret the result
-
-The MCP tool returns a structured response:
+**Result shape:**
 
 ```json
-{
-  "field1": "...",
-  "field2": [...]
-}
+{ "field1": "...", "field2": [...] }
 ```
 
-Guidance on what each field means and how to chain into other tools.
+**Typical follow-ups:** which tools the agent reaches for next.
 
-## Examples
+### `CAPABILITY_B` — short imperative description
 
-See `examples/basic.md` and `examples/advanced.md`.
+(Same structure as above.)
 
 ## Parity contract
 
-This skill, the CLI `mycelium FEATURE_NAME`, and the MCP tool
-`FEATURE_NAME` are 1:1:1 per [RFC-0090](../../rfcs/0090-cli-mcp-skill-parity.md).
-`tests/parity.test.json` asserts byte-for-byte output equality.
+This Skill covers the listed capabilities per
+[RFC-0090](../../rfcs/0090-cli-mcp-skill-parity.md) §Invariants:
+
+- CLI ↔ MCP for each listed capability is byte-identical (name,
+  description, args, JSON output).
+- `tests/parity.test.json` asserts at least one input pair per
+  capability.
+
+## Cross-references
+
+- Related Skills: `<other-category>` (for…)
+- Source RFC: e.g. RFC-00XX defining these capabilities

@@ -9,18 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Charter §5.13 — The 1:1:1 Rule.** Every Mycelium feature now ships
-  on three equally-weighted surfaces: CLI command, MCP tool, and
-  Skill bundle. Names, descriptions, argument schemas, and JSON
-  outputs are byte-identical across the three. CI enforces parity on
-  every PR touching `crates/mycelium-cli/`, `crates/mycelium-mcp/`,
-  or `skills/`. See [RFC-0090](rfcs/0090-cli-mcp-skill-parity.md) and
+- **Charter §5.13 — the Three-Surface Rule** (colloquially "1:1:1 rule"):
+  CLI ↔ MCP is **1:1 strict** (byte-identical name, description, args,
+  JSON output); (CLI, MCP) ↔ Skill is **N:1 covered** (every pair must
+  appear in ≥ 1 category Skill's `allowed-tools`; orphans fail CI). See
+  [RFC-0090](rfcs/0090-cli-mcp-skill-parity.md) and
   [ADR-0007](docs/adr/0007-cli-mcp-skill-parity.md).
-- `skills/` directory at the repo root with `_template/` scaffold,
-  `README.md` documenting the parity invariant, and reference to
-  Claude Code skill spec.
-- PR template grew a "1:1:1 Self-Check" section listing the three
-  surfaces and the four parity invariants.
+- `skills/` directory at the repo root with `README.md`, an `INDEX.md`
+  coverage matrix (seeded with 8 planned categories covering 72 of the
+  88 MCP capabilities), and a category-style `_template/` scaffold.
+- PR template grew a "Three-Surface Self-Check" section split into
+  CLI ↔ MCP parity (6 items), Skill coverage (4 items), and exception
+  path (3 items).
 
 ### Changed
 
