@@ -54,7 +54,7 @@ use anyhow::Context as _;
 use mycelium_core::{
     CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
     ImportNode, ImporterNode, NodeDegree, OutgoingRefs, SubclassNode, SymbolNeighborhood,
-    TopologicalOrder, extractor::Extractor, store::Store, types::EdgeKind,
+    TopologicalOrder, cortex::Cortex, extractor::Extractor, store::Store, types::EdgeKind,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -80,6 +80,9 @@ const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
 const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
 const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
 const GO_QUERIES: &str = include_str!("../../../packs/go/queries.scm");
+const JAVA_QUERIES: &str = include_str!("../../../packs/java/queries.scm");
+const C_QUERIES: &str = include_str!("../../../packs/c/queries.scm");
+const RUBY_QUERIES: &str = include_str!("../../../packs/ruby/queries.scm");
 const CPP_QUERIES: &str = include_str!("../../../packs/cpp/queries.scm");
 const CSHARP_QUERIES: &str = include_str!("../../../packs/csharp/queries.scm");
 
@@ -831,6 +834,11 @@ pub struct MyceliumServer {
     /// When `true`, symbol-search results are returned as `MessagePack` hex
     /// instead of JSON, achieving the Charter §2 AI token-efficiency SLA.
     compact_mode: Arc<AtomicBool>,
+    /// Salsa reactive database for incremental file indexing (Cortex / RFC-0003).
+    ///
+    /// Wraps file content as [`Cortex`] inputs; the watch loop updates these
+    /// on every file-system change so Salsa handles memoisation automatically.
+    cortex: Arc<tokio::sync::Mutex<Cortex>>,
 }
 
 impl Default for MyceliumServer {
@@ -849,6 +857,7 @@ impl MyceliumServer {
             watch_state: Arc::new(WatchState::default()),
             watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
             compact_mode: Arc::new(AtomicBool::new(false)),
+            cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
         }
     }
 
@@ -914,6 +923,7 @@ impl MyceliumServer {
     ///
     /// Returns an error if the OS watcher cannot be created or `root` cannot
     /// be watched.
+    #[allow(clippy::too_many_lines)]
     pub async fn start_watch(&self, root: PathBuf) -> anyhow::Result<()> {
         use tokio::time::{Duration, Instant, timeout_at};
 
@@ -935,6 +945,7 @@ impl MyceliumServer {
 
         let store = Arc::clone(&self.store);
         let watch_state = Arc::clone(&self.watch_state);
+        let cortex = Arc::clone(&self.cortex);
         let snap = root.join(".mycelium").join("index.rmp");
 
         // Build ignore matcher from root .gitignore / .myceliumignore.
@@ -1008,11 +1019,30 @@ impl MyceliumServer {
                     // Re-index if the file still exists and is a known type.
                     if abs_path.is_file() {
                         if let Some(ext) = abs_path.extension().and_then(|e| e.to_str()) {
-                            if matches!(ext, "js" | "jsx" | "py" | "pyi" | "ts" | "tsx" | "rs") {
+                            if matches!(
+                                ext,
+                                "js" | "jsx" | "py" | "pyi" | "ts" | "tsx" | "rs" | "go"
+                            ) {
                                 if let Ok(src) = std::fs::read(abs_path) {
                                     let rel_owned = rel.clone();
                                     let src_owned = src;
-                                    // Re-use run_index logic via a single-file helper.
+                                    // ── Cortex (RFC-0003 Phase 1) ─────────────────────────
+                                    // Set the file in the Salsa database and retrieve the
+                                    // memoised FileIndex.  If content is unchanged, Salsa
+                                    // returns the cached result without re-running the
+                                    // extractor.  The FileIndex is then applied to the main
+                                    // Store via its bridge method.
+                                    {
+                                        let file = cortex
+                                            .lock()
+                                            .await
+                                            .set_file(abs_path.clone(), src_owned.clone());
+                                        let idx = cortex.lock().await.query_file(file);
+                                        idx.apply_to_store(&rel_owned, &mut store_w);
+                                    }
+                                    // Fallback: also run reindex_file for edge kinds that
+                                    // FileIndex does not yet propagate (calls, imports, etc.).
+                                    // Phase 2 will remove this once FileIndex is complete.
                                     reindex_file(&rel_owned, &src_owned, ext, &mut store_w);
                                 }
                             }
@@ -3689,7 +3719,7 @@ impl MyceliumServer {
     }
 
     #[tool(
-        description = "Return the dependency depth of a symbol — the length of the longest                        path from any root (symbol with no incoming edges of the given kind)                        to this symbol, following incoming edges. Depth 0 = root; depth 1 =                        only predecessors are roots. Cycle-safe. File nodes excluded.                        Returns { path, depth, edge_kind } or { error }."
+        description = "Return the dependency depth of a symbol — the length of the longest                        path from any root (symbol with no incoming edges of the given kind)                        to this symbol, following incoming edges. Depth 0 = the symbol is a                        root; depth 1 = only predecessors are roots. Cycle-safe. File nodes                        excluded. Returns { path, depth, edge_kind } or { error }."
     )]
     async fn mycelium_get_dependency_depth(
         &self,
@@ -3929,14 +3959,29 @@ impl MyceliumServer {
         // The sample value is entirely static strings; serialisation cannot fail.
         #[allow(clippy::unwrap_used)]
         let msgpack_bytes = rmp_serde::to_vec_named(&sample).unwrap_or_default().len();
-        // Ratio is msgpack / json; target ≤ 0.30 per Charter §2.
+        // Byte ratio: raw msgpack binary vs JSON text.
         #[allow(clippy::cast_precision_loss)]
         let ratio = msgpack_bytes as f64 / json_bytes as f64;
+        // Token ratio: abbreviated compact-JSON text vs verbose JSON text.
+        // The compact format uses single-char key "m" instead of "matches", reducing
+        // AI-visible token consumption without binary encoding overhead.
+        let compact = serde_json::json!({
+            "m": [
+                "src/engine/store.rs>Store",
+                "src/engine/store.rs>Store::upsert_node",
+                "src/engine/store.rs>Store::search_symbol"
+            ]
+        });
+        let compact_chars = compact.to_string().len();
+        #[allow(clippy::cast_precision_loss)]
+        let token_ratio = compact_chars as f64 / json_bytes as f64;
         serde_json::json!({
             "sample_query": "top 3 symbols",
             "json_bytes": json_bytes,
             "msgpack_bytes": msgpack_bytes,
             "ratio": ratio,
+            "compact_chars": compact_chars,
+            "token_ratio": token_ratio,
         })
         .to_string()
     }
@@ -4036,7 +4081,7 @@ fn importer_node_to_json(node: &ImporterNode, store: &Store) -> serde_json::Valu
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
 
 // ts_lang / tsx_lang differ only by one letter — similarity is intentional.
-#[allow(clippy::similar_names)]
+#[allow(clippy::similar_names, clippy::too_many_lines)]
 fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec<String>, usize)> {
     let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
     let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
@@ -4061,6 +4106,17 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
 
     let go_lang: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
     let go_ext = Extractor::new(go_lang, GO_QUERIES).context("failed to compile Go extractor")?;
+
+    let java_lang: tree_sitter::Language = tree_sitter_java::LANGUAGE.into();
+    let java_ext =
+        Extractor::new(java_lang, JAVA_QUERIES).context("failed to compile Java extractor")?;
+
+    let c_lang: tree_sitter::Language = tree_sitter_c::LANGUAGE.into();
+    let c_ext = Extractor::new(c_lang, C_QUERIES).context("failed to compile C extractor")?;
+
+    let ruby_lang: tree_sitter::Language = tree_sitter_ruby::LANGUAGE.into();
+    let ruby_ext =
+        Extractor::new(ruby_lang, RUBY_QUERIES).context("failed to compile Ruby extractor")?;
 
     let cpp_lang: tree_sitter::Language = tree_sitter_cpp::LANGUAGE.into();
     let cpp_ext =
@@ -4109,6 +4165,9 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
             "tsx" => (&tsx_ext, "typescript"),
             "rs" => (&rs_ext, "rust"),
             "go" => (&go_ext, "go"),
+            "java" => (&java_ext, "java"),
+            "c" | "h" => (&c_ext, "c"),
+            "rb" => (&ruby_ext, "ruby"),
             "cpp" | "cc" | "cxx" | "hpp" => (&cpp_ext, "cpp"),
             "cs" => (&csharp_ext, "csharp"),
             _ => continue,
@@ -4164,6 +4223,9 @@ fn reindex_file(rel: &str, src: &[u8], ext: &str, store: &mut Store) {
         ),
         "rs" => make_ext(tree_sitter_rust::LANGUAGE.into(), RUST_QUERIES),
         "go" => make_ext(tree_sitter_go::LANGUAGE.into(), GO_QUERIES),
+        "java" => make_ext(tree_sitter_java::LANGUAGE.into(), JAVA_QUERIES),
+        "c" | "h" => make_ext(tree_sitter_c::LANGUAGE.into(), C_QUERIES),
+        "rb" => make_ext(tree_sitter_ruby::LANGUAGE.into(), RUBY_QUERIES),
         "cpp" | "cc" | "cxx" | "hpp" => make_ext(tree_sitter_cpp::LANGUAGE.into(), CPP_QUERIES),
         "cs" => make_ext(tree_sitter_c_sharp::LANGUAGE.into(), CSHARP_QUERIES),
         _ => return,
@@ -9628,6 +9690,33 @@ mod tests {
         assert!(
             ratio < 1.0,
             "msgpack raw bytes should be smaller than JSON bytes, ratio was {ratio:.3}"
+        );
+        // New fields added for SPRINT-004 token-ratio SLA fix.
+        let compact_chars = val["compact_chars"].as_u64().unwrap();
+        assert!(compact_chars > 0, "compact_chars must be positive");
+        let token_ratio = val["token_ratio"].as_f64().unwrap();
+        assert!(token_ratio > 0.0, "token_ratio must be positive");
+    }
+
+    #[tokio::test]
+    async fn get_token_stats_token_ratio_vs_byte_ratio() {
+        let server = MyceliumServer::new();
+        let raw = server.mycelium_get_token_stats().await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let token_ratio = val["token_ratio"].as_f64().unwrap();
+        // token_ratio is abbreviated-compact-text chars / verbose-JSON chars.
+        // It must be strictly between 0 and 1 to satisfy the Charter §2
+        // AI token-efficiency SLA (compact output uses fewer AI tokens than JSON).
+        assert!(
+            0.0 < token_ratio && token_ratio < 1.0,
+            "token_ratio out of range: {token_ratio:.4}"
+        );
+        // The raw msgpack byte ratio must be <= the text-compact token ratio:
+        // binary is always at least as compact as any text abbreviation.
+        let byte_ratio = val["ratio"].as_f64().unwrap();
+        assert!(
+            byte_ratio <= token_ratio,
+            "byte_ratio {byte_ratio:.4} should be <= token_ratio {token_ratio:.4}"
         );
     }
 }

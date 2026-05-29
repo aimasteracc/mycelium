@@ -64,13 +64,14 @@ pub struct PackManifest {
 pub struct Meta {
     /// Human-readable language name, e.g. `"python"`.
     pub name: String,
-    /// All file extensions this pack can handle.
-    /// For packs with ambiguous extensions (C++ shares `.h` with C) prefer
-    /// setting `primary_extensions` and `secondary_extensions` instead.
+    /// All file extensions this pack can handle (union of primary and secondary).
+    /// For packs with ambiguous extensions (e.g. C++ shares `.h` with C) prefer
+    /// setting [`Meta::primary_extensions`] and [`Meta::secondary_extensions`] instead.
     #[serde(default)]
     pub extensions: Vec<String>,
     /// Extensions that unambiguously belong to this language (e.g. `.cpp`, `.cc`).
-    /// When present the indexer uses this list for automatic dispatch.
+    /// When present the indexer uses this list for automatic dispatch instead of
+    /// [`Meta::extensions`].
     #[serde(default)]
     pub primary_extensions: Vec<String>,
     /// Extensions shared with other languages (e.g. `.h` for both C and C++).
@@ -88,7 +89,8 @@ impl Meta {
     /// Return the extensions used for automatic file-extension dispatch.
     ///
     /// If `primary_extensions` is non-empty it is used; otherwise falls back to
-    /// `extensions`.
+    /// `extensions`.  This lets packs with ambiguous extensions (C++/C sharing
+    /// `.h`) declare only their unambiguous extensions for indexer dispatch.
     #[must_use]
     pub fn dispatch_extensions(&self) -> &[String] {
         if self.primary_extensions.is_empty() {
@@ -220,37 +222,46 @@ mod tests {
         let pack = LanguagePack::load(&pack_dir).expect("cpp pack should load");
 
         assert_eq!(pack.name(), "cpp");
+        // C++ uses primary_extensions for dispatch (.cpp, .cc, .cxx, .hpp)
         let dispatch = pack.manifest.meta.dispatch_extensions();
         assert!(
             dispatch.contains(&".cpp".to_string()),
-            "cpp dispatch must include .cpp"
+            "cpp pack must list .cpp as a dispatch extension"
         );
         assert!(
             dispatch.contains(&".cc".to_string()),
-            "cpp dispatch must include .cc"
+            "cpp pack must list .cc as a dispatch extension"
         );
         assert!(
             dispatch.contains(&".cxx".to_string()),
-            "cpp dispatch must include .cxx"
+            "cpp pack must list .cxx as a dispatch extension"
         );
         assert!(
             dispatch.contains(&".hpp".to_string()),
-            "cpp dispatch must include .hpp"
+            "cpp pack must list .hpp as a dispatch extension"
         );
+        // .h is a secondary extension (shared with C)
         assert!(
             pack.manifest
                 .meta
                 .secondary_extensions
                 .contains(&".h".to_string()),
-            "cpp secondary must include .h"
+            "cpp pack must list .h as a secondary extension"
         );
+        // .h must NOT be in the dispatch extensions to avoid ambiguity with C
         assert!(
             !dispatch.contains(&".h".to_string()),
-            ".h must not be in dispatch_extensions"
+            ".h must not be in dispatch_extensions to avoid C/C++ ambiguity"
         );
-        assert!(!pack.queries.is_empty());
-        assert!(pack.queries.contains("@definition"));
-        assert!(pack.queries.contains("@reference"));
+        assert!(!pack.queries.is_empty(), "queries.scm must be non-empty");
+        assert!(
+            pack.queries.contains("@definition"),
+            "queries.scm must contain @definition captures"
+        );
+        assert!(
+            pack.queries.contains("@reference"),
+            "queries.scm must contain @reference captures"
+        );
     }
 
     #[test]
@@ -261,30 +272,40 @@ mod tests {
         assert_eq!(pack.name(), "csharp");
         assert!(
             pack.extensions().contains(&".cs".to_string()),
-            "csharp must list .cs"
+            "csharp pack must list .cs extension"
         );
-        assert!(!pack.queries.is_empty());
-        assert!(pack.queries.contains("@definition"));
-        assert!(pack.queries.contains("@reference"));
+        assert!(!pack.queries.is_empty(), "queries.scm must be non-empty");
+        assert!(
+            pack.queries.contains("@definition"),
+            "queries.scm must contain @definition captures"
+        );
+        assert!(
+            pack.queries.contains("@reference"),
+            "queries.scm must contain @reference captures"
+        );
     }
 
     #[test]
-    fn dispatch_extensions_falls_back_when_no_primary() {
+    fn dispatch_extensions_falls_back_to_extensions_when_no_primary() {
+        // Python pack uses `extensions` only (no primary_extensions)
         let pack_dir = workspace_root().join("packs/python");
-        let pack = LanguagePack::load(&pack_dir).expect("python pack");
+        let pack = LanguagePack::load(&pack_dir).expect("python pack should load");
         assert_eq!(
             pack.manifest.meta.dispatch_extensions(),
-            pack.manifest.meta.extensions.as_slice()
+            pack.manifest.meta.extensions.as_slice(),
+            "dispatch_extensions should return extensions when primary_extensions is empty"
         );
     }
 
     #[test]
-    fn dispatch_extensions_returns_primary_when_set() {
+    fn dispatch_extensions_returns_primary_when_present() {
+        // C++ pack uses primary_extensions to avoid .h ambiguity
         let pack_dir = workspace_root().join("packs/cpp");
-        let pack = LanguagePack::load(&pack_dir).expect("cpp pack");
+        let pack = LanguagePack::load(&pack_dir).expect("cpp pack should load");
         assert_eq!(
             pack.manifest.meta.dispatch_extensions(),
-            pack.manifest.meta.primary_extensions.as_slice()
+            pack.manifest.meta.primary_extensions.as_slice(),
+            "dispatch_extensions should return primary_extensions when non-empty"
         );
     }
 
@@ -292,5 +313,68 @@ mod tests {
     fn pack_loader_errors_on_missing_dir() {
         let result = LanguagePack::load(Path::new("/nonexistent/does/not/exist"));
         assert!(result.is_err());
+    }
+    #[test]
+    fn pack_loader_reads_java_pack() {
+        let pack_dir = workspace_root().join("packs/java");
+        let pack = LanguagePack::load(&pack_dir).expect("java pack should load");
+        assert_eq!(pack.name(), "java");
+        assert!(
+            pack.extensions().contains(&".java".to_string()),
+            "java pack must list .java extension"
+        );
+        assert!(!pack.queries.is_empty(), "queries.scm must be non-empty");
+        assert!(
+            pack.queries.contains("@definition"),
+            "queries.scm must contain @definition"
+        );
+        assert!(
+            pack.queries.contains("@reference"),
+            "queries.scm must contain @reference"
+        );
+    }
+
+    #[test]
+    fn pack_loader_reads_c_pack() {
+        let pack_dir = workspace_root().join("packs/c");
+        let pack = LanguagePack::load(&pack_dir).expect("c pack should load");
+        assert_eq!(pack.name(), "c");
+        assert!(
+            pack.extensions().contains(&".c".to_string()),
+            "c pack must list .c extension"
+        );
+        assert!(
+            pack.extensions().contains(&".h".to_string()),
+            "c pack must list .h extension"
+        );
+        assert!(!pack.queries.is_empty(), "queries.scm must be non-empty");
+        assert!(
+            pack.queries.contains("@definition"),
+            "queries.scm must contain @definition"
+        );
+        assert!(
+            pack.queries.contains("@reference"),
+            "queries.scm must contain @reference"
+        );
+    }
+
+    #[test]
+    fn pack_loader_reads_ruby_pack() {
+        let pack_dir = workspace_root().join("packs/ruby");
+        let pack = LanguagePack::load(&pack_dir).expect("ruby pack should load");
+        assert_eq!(pack.name(), "ruby");
+        assert!(
+            pack.extensions().contains(&".rb".to_string()),
+            "ruby pack must list .rb extension"
+        );
+        assert!(!pack.queries.is_empty(), "queries.scm must be non-empty");
+        assert!(
+            pack.queries.contains("@definition"),
+            "queries.scm must contain @definition"
+        );
+        assert!(
+            pack.queries.contains("@reference"),
+            "queries.scm must contain @reference"
+        );
     }
 }

@@ -1,0 +1,59 @@
+name: E2E — Dogfood + Real Projects
+
+# Charter §5.10:
+#   "Dogfooding: Mycelium indexes itself; CI runs Hyphae queries against
+#    the Mycelium codebase as part of e2e."
+#   "Every feature is validated against real open-source projects."
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  schedule:
+    # Nightly at 03:00 UTC — ensures real-project fixtures are always tested
+    - cron: "0 3 * * *"
+
+jobs:
+  dogfood:
+    name: dogfood (Mycelium indexes itself)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run dogfood e2e tests
+        run: cargo test --package mycelium-core --test e2e_dogfood -- --test-threads=1
+      - name: Print indexed symbol count (diagnostic)
+        run: |
+          cargo test --package mycelium-core --test e2e_dogfood -- --nocapture 2>&1 \
+            | grep -E "indexed|nodes|edges|Store|Trunk" || true
+
+  real-projects:
+    name: real projects (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: requests
+            repo: https://github.com/psf/requests.git
+            lang: python
+          - project: ripgrep
+            repo: https://github.com/BurntSushi/ripgrep.git
+            lang: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Clone ${{ matrix.project }} fixture (shallow)
+        run: |
+          git clone --depth=1 --single-branch \
+            ${{ matrix.repo }} \
+            tests/e2e/fixtures/${{ matrix.project }}
+      - name: Run real-project e2e tests
+        run: |
+          cargo test --package mycelium-core --test e2e_real_projects \
+            -- --nocapture --test-threads=1

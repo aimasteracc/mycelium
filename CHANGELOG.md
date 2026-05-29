@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- SPRINT-007: C++ language pack (`packs/cpp/`) — `function_definition`, `class_specifier`, `struct_specifier`, `namespace_definition`, `enum_specifier`, `template_declaration`, `preproc_include`, and `call_expression`. Primary extensions: `.cpp`, `.cc`, `.cxx`, `.hpp`; `.h` is secondary (defaults to C extractor).
-- SPRINT-007: C# language pack (`packs/csharp/`) — `class_declaration`, `interface_declaration`, `method_declaration`, `constructor_declaration`, `namespace_declaration`, `enum_declaration`, `struct_declaration`, `using_directive`, and `invocation_expression`. Extension: `.cs`.
-- SPRINT-007: `pack.toml` schema extended with `primary_extensions` and `secondary_extensions` fields; `Meta::dispatch_extensions()` returns unambiguous extensions for indexer dispatch.
-- SPRINT-007: `mycelium index` and MCP `mycelium_index_workspace` now index C++ and C# source files.
 - Day-0 project skeleton: charter, governance, GitFlow, code of conduct, security policy.
 - `.hive/` definition of the autonomous AI development team.
 - `.hive/memory/` persistent shared memory (append-only JSONL).
@@ -241,8 +237,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0087: `DegreeCentralityEntry` struct `{ path, in_degree, out_degree, in_centrality, out_centrality }` — one result entry from `degree_centrality`.
 - RFC-0087: `Store::degree_centrality(kind)` — O(V+E) in-degree and out-degree centrality; both scores normalized by `(n-1)`; sorted descending by `in_centrality`. Identifies fan-in hubs (widely-used dependencies) and fan-out hubs (wide surface area).
 - RFC-0087: `mycelium_get_degree_centrality` MCP tool — degree hub detector; accepts `{ edge_kind, top_n?, sort_by? }` (`sort_by: "in"` or `"out"`, defaults to `"in"`) and returns `{ nodes: [{path, in_degree, out_degree, in_centrality, out_centrality}], symbol_count, top_n, sort_by }` or `{ error }`.
-- RFC-0089: `Store::dependency_depth(id, kind) -> Option<usize>` — longest-path distance from any root to `id` following incoming edges; cycle-safe via relaxation; file nodes excluded; `None` for file/unknown nodes; leaf returns `Some(0)`.
-- RFC-0089: `mycelium_get_dependency_depth` MCP tool — accepts `{ path, edge_kind }` returns `{ path, depth, edge_kind }` or `{ error }`. Depth 0 = root; depth N = N dependency layers above the node.
+- RFC-0089: `Store::dependency_depth(id, kind) -> Option<usize>` — longest-path distance from any root (no incoming symbol edges of `kind`) to `id`, following incoming edges; cycle-safe via relaxation updates; file nodes excluded; returns `None` for unknown or file-level nodes; leaf nodes return `Some(0)`.
+- RFC-0089: `mycelium_get_dependency_depth` MCP tool — accepts `{ path, edge_kind }` and returns `{ path, depth, edge_kind }` on success, or `{ error }` for unknown path, file node, or unrecognised edge kind. Depth 0 = root; depth N = N layers of dependents above the node.
 - RFC-0088: `ClosenessCentralityEntry` struct `{ path, score }` — one result entry from `closeness_centrality`.
 - RFC-0088: `Store::closeness_centrality(kind)` — Wasserman-Faust normalized BFS closeness; `CC_WF(v) = (n_reach/(n-1))^2 * (n_reach/sum_dist)`; handles disconnected graphs; file nodes excluded; sorted descending. Identifies well-connected hubs that propagate influence quickly.
 - RFC-0088: `mycelium_get_closeness_centrality` MCP tool — connection hub detector; accepts `{ edge_kind, top_n? }` and returns `{ nodes: [{path, score}], symbol_count, top_n }` or `{ error }`. Score ∈ [0, 1].

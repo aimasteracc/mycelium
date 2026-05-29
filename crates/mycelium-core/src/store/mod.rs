@@ -3773,11 +3773,14 @@ impl Store {
 
     /// Compute the **dependency depth** of symbol node `id` for `kind` edges.
     ///
-    /// Depth = length of the longest path from any root (symbol with no
-    /// incoming `kind` edges in the symbol-only subgraph) to `id`,
-    /// following incoming edges. Leaf nodes return 0. File nodes return
-    /// `None`. Cycle-safe via relaxation: a node is only re-queued when
-    /// a strictly longer path is found, so the algorithm terminates.
+    /// Dependency depth is the length of the *longest* path from any root
+    /// (symbol with no incoming `kind` edges within the symbol-only subgraph)
+    /// to `id`, following *incoming* edges.
+    ///
+    /// A leaf node (no incoming symbol edges) returns 0.
+    /// File nodes are excluded and return `None`.
+    /// Cycles are handled safely: each node is updated at most once per
+    /// improvement step, so the algorithm terminates even with cycles.
     ///
     /// # Example
     ///
@@ -3803,6 +3806,9 @@ impl Store {
         if !path.contains('>') {
             return None;
         }
+        // Bellman-Ford style longest-path over the reversed graph (incoming edges).
+        // dist[node] = longest known distance from `id` following callers.
+        // We update a node whenever we find a longer path, stopping when stable.
         let mut dist: HashMap<NodeId, usize> = HashMap::new();
         dist.insert(id, 0);
         let mut queue: VecDeque<(NodeId, usize)> = VecDeque::new();
