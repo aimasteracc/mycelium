@@ -536,6 +536,13 @@ pub struct BiconnectedComponentsRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_degree_histogram`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DegreeHistogramRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2211,6 +2218,52 @@ impl MyceliumServer {
         serde_json::json!({
             "components": comps,
             "component_count": component_count,
+            "total_symbols": total_symbols
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "In- and out-degree frequency distribution for symbol nodes for a given \
+                       EdgeKind. Returns { in_degrees: [{degree, count}], out_degrees: [{degree, count}], \
+                       total_symbols }. Reveals graph shape: power-law = hub-spoke; uniform = modular. \
+                       Degree 0 is always included when symbols have no edges of the given kind. \
+                       O(V). Returns { error } for unknown edge_kind."
+    )]
+    async fn mycelium_get_degree_histogram(
+        &self,
+        Parameters(req): Parameters<DegreeHistogramRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let hist = {
+            let store = self.store.read().await;
+            let h = store.degree_histogram(kind);
+            drop(store);
+            h
+        };
+        let total_symbols: u64 = hist.in_degrees.iter().map(|&(_, c)| c).sum();
+        let in_list: Vec<serde_json::Value> = hist
+            .in_degrees
+            .iter()
+            .map(|&(d, c)| serde_json::json!({ "degree": d, "count": c }))
+            .collect();
+        let out_list: Vec<serde_json::Value> = hist
+            .out_degrees
+            .iter()
+            .map(|&(d, c)| serde_json::json!({ "degree": d, "count": c }))
+            .collect();
+        serde_json::json!({
+            "in_degrees": in_list,
+            "out_degrees": out_list,
             "total_symbols": total_symbols
         })
         .to_string()
@@ -6543,6 +6596,56 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_get_biconnected_components(Parameters(BiconnectedComponentsRequest {
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0073: mycelium_get_degree_histogram ───────────────────────────
+
+    #[tokio::test]
+    async fn degree_histogram_counts_correct() {
+        // a → b, a → c: a has out=2; b and c have in=1; a has in=0
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, a, c);
+        }
+        let raw = server
+            .mycelium_get_degree_histogram(Parameters(DegreeHistogramRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 3);
+        let in_arr = val["in_degrees"].as_array().unwrap();
+        let in_sum: u64 = in_arr.iter().map(|e| e["count"].as_u64().unwrap()).sum();
+        assert_eq!(in_sum, 3);
+    }
+
+    #[tokio::test]
+    async fn degree_histogram_empty_returns_zero() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_degree_histogram(Parameters(DegreeHistogramRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn degree_histogram_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_degree_histogram(Parameters(DegreeHistogramRequest {
                 edge_kind: "unknown".into(),
             }))
             .await;
