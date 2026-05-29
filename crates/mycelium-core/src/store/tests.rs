@@ -4765,3 +4765,70 @@ fn store_reachable_set_results_are_sorted() {
     sorted.sort();
     assert_eq!(result, sorted, "results must be sorted alphabetically");
 }
+
+// ── RFC-0081: reaches_into ────────────────────────────────────────────────
+
+#[test]
+fn store_reaches_into_isolated_node_returns_empty() {
+    let mut store = Store::new();
+    let solo = store.upsert_node(TrunkPath::parse("src/ri.rs>solo").unwrap());
+    let result = store.reaches_into(solo, EdgeKind::Calls);
+    assert!(result.is_empty(), "isolated node should return empty set");
+}
+
+#[test]
+fn store_reaches_into_direct_callers_single_hop() {
+    let mut store = Store::new();
+    let target = store.upsert_node(TrunkPath::parse("src/ri.rs>target").unwrap());
+    let caller_a = store.upsert_node(TrunkPath::parse("src/ri.rs>caller_a").unwrap());
+    let caller_b = store.upsert_node(TrunkPath::parse("src/ri.rs>caller_b").unwrap());
+    store.upsert_edge(EdgeKind::Calls, caller_a, target);
+    store.upsert_edge(EdgeKind::Calls, caller_b, target);
+    let result = store.reaches_into(target, EdgeKind::Calls);
+    assert_eq!(result.len(), 2);
+    assert!(result.contains(&"src/ri.rs>caller_a".to_owned()));
+    assert!(result.contains(&"src/ri.rs>caller_b".to_owned()));
+}
+
+#[test]
+fn store_reaches_into_chain_returns_full_reverse_closure() {
+    let mut store = Store::new();
+    let head = store.upsert_node(TrunkPath::parse("src/ri.rs>head").unwrap());
+    let mid = store.upsert_node(TrunkPath::parse("src/ri.rs>mid").unwrap());
+    let tail = store.upsert_node(TrunkPath::parse("src/ri.rs>tail").unwrap());
+    store.upsert_edge(EdgeKind::Calls, head, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, tail);
+    let result = store.reaches_into(tail, EdgeKind::Calls);
+    assert_eq!(result.len(), 2, "head and mid both reach tail");
+    assert!(result.contains(&"src/ri.rs>head".to_owned()));
+    assert!(result.contains(&"src/ri.rs>mid".to_owned()));
+}
+
+#[test]
+fn store_reaches_into_excludes_self_in_cycle() {
+    let mut store = Store::new();
+    let origin = store.upsert_node(TrunkPath::parse("src/ri.rs>origin_ri").unwrap());
+    let partner = store.upsert_node(TrunkPath::parse("src/ri.rs>partner_ri").unwrap());
+    store.upsert_edge(EdgeKind::Calls, origin, partner);
+    store.upsert_edge(EdgeKind::Calls, partner, origin);
+    let result = store.reaches_into(origin, EdgeKind::Calls);
+    assert!(
+        !result.contains(&"src/ri.rs>origin_ri".to_owned()),
+        "self must not appear"
+    );
+    assert!(result.contains(&"src/ri.rs>partner_ri".to_owned()));
+}
+
+#[test]
+fn store_reaches_into_results_are_sorted() {
+    let mut store = Store::new();
+    let leaf = store.upsert_node(TrunkPath::parse("src/ri.rs>leaf").unwrap());
+    let zeta_ri = store.upsert_node(TrunkPath::parse("src/ri.rs>zeta_ri").unwrap());
+    let aaaa_ri = store.upsert_node(TrunkPath::parse("src/ri.rs>aaaa_ri").unwrap());
+    store.upsert_edge(EdgeKind::Calls, zeta_ri, leaf);
+    store.upsert_edge(EdgeKind::Calls, aaaa_ri, leaf);
+    let result = store.reaches_into(leaf, EdgeKind::Calls);
+    let mut sorted = result.clone();
+    sorted.sort();
+    assert_eq!(result, sorted, "results must be sorted alphabetically");
+}
