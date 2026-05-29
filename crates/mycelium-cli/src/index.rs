@@ -19,6 +19,11 @@ const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
 const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
 const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
 const GO_QUERIES: &str = include_str!("../../../packs/go/queries.scm");
+const JAVA_QUERIES: &str = include_str!("../../../packs/java/queries.scm");
+const C_QUERIES: &str = include_str!("../../../packs/c/queries.scm");
+const RUBY_QUERIES: &str = include_str!("../../../packs/ruby/queries.scm");
+const CPP_QUERIES: &str = include_str!("../../../packs/cpp/queries.scm");
+const CSHARP_QUERIES: &str = include_str!("../../../packs/csharp/queries.scm");
 
 // ── public surface ────────────────────────────────────────────────────────────
 
@@ -34,7 +39,9 @@ pub struct IndexStats {
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
 /// Supported languages: JavaScript (`.js`, `.jsx`), Python (`.py`, `.pyi`),
-/// TypeScript (`.ts`, `.tsx`), Rust (`.rs`), Go (`.go`).
+/// TypeScript (`.ts`, `.tsx`), Rust (`.rs`), Go (`.go`),
+/// Java (`.java`), C (`.c`, `.h`), Ruby (`.rb`),
+/// C++ (`.cpp`, `.cc`, `.cxx`, `.hpp`), C# (`.cs`).
 ///
 /// # Errors
 ///
@@ -66,6 +73,25 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
 
     let go_lang: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
     let go_ext = Extractor::new(go_lang, GO_QUERIES).context("failed to compile Go extractor")?;
+
+    let java_lang: tree_sitter::Language = tree_sitter_java::LANGUAGE.into();
+    let java_ext =
+        Extractor::new(java_lang, JAVA_QUERIES).context("failed to compile Java extractor")?;
+
+    let c_lang: tree_sitter::Language = tree_sitter_c::LANGUAGE.into();
+    let c_ext = Extractor::new(c_lang, C_QUERIES).context("failed to compile C extractor")?;
+
+    let ruby_lang: tree_sitter::Language = tree_sitter_ruby::LANGUAGE.into();
+    let ruby_ext =
+        Extractor::new(ruby_lang, RUBY_QUERIES).context("failed to compile Ruby extractor")?;
+
+    let cpp_lang: tree_sitter::Language = tree_sitter_cpp::LANGUAGE.into();
+    let cpp_ext =
+        Extractor::new(cpp_lang, CPP_QUERIES).context("failed to compile C++ extractor")?;
+
+    let csharp_lang: tree_sitter::Language = tree_sitter_c_sharp::LANGUAGE.into();
+    let csharp_ext =
+        Extractor::new(csharp_lang, CSHARP_QUERIES).context("failed to compile C# extractor")?;
 
     let mut store = Store::new();
     let mut stats = IndexStats::default();
@@ -107,6 +133,12 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
             "tsx" => &tsx_ext,
             "rs" => &rs_ext,
             "go" => &go_ext,
+            "java" => &java_ext,
+            "c" | "h" => &c_ext,
+            "rb" => &ruby_ext,
+            // C++ primary extensions only; `.h` is handled above by the C extractor.
+            "cpp" | "cc" | "cxx" | "hpp" => &cpp_ext,
+            "cs" => &csharp_ext,
             _ => continue,
         };
 
@@ -503,5 +535,362 @@ mod tests {
             store.lookup("iface.go>Stringer").is_some(),
             "Go interface type must be extracted"
         );
+    }
+    // ── Java tests ───────────────────────────────────────────────────
+
+    fn write_temp_java(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    #[test]
+    fn index_path_extracts_java_class() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_java(
+            tmp.path(),
+            "Hello.java",
+            "public class Hello { public void greet() {} }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "should process one .java file");
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("Hello.java>Hello").is_some(),
+            "Java class must be extracted"
+        );
+        assert!(
+            store.lookup("Hello.java>Hello>greet").is_some(),
+            "Java method must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_java_interface() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_java(
+            tmp.path(),
+            "Greeter.java",
+            "public interface Greeter { void greet(); }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("Greeter.java>Greeter").is_some(),
+            "Java interface must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_java_alongside_other_languages() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
+        write_temp_java(
+            tmp.path(),
+            "App.java",
+            "public class App { public static void main(String[] args) {} }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 2, "both languages should be indexed");
+        assert!(store.lookup("mod.py>foo").is_some());
+        assert!(store.lookup("App.java>App").is_some());
+    }
+
+    // ── C tests ──────────────────────────────────────────────────────
+
+    fn write_temp_c(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    #[test]
+    fn index_path_extracts_c_function() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_c(tmp.path(), "main.c", "int greet(void) { return 0; }");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "should process one .c file");
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("main.c>greet").is_some(),
+            "C function must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_c_struct() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_c(tmp.path(), "types.c", "struct Point { int x; int y; };");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("types.c>Point").is_some(),
+            "C struct must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_c_header() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_c(tmp.path(), "api.h", "int compute(int a, int b);");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "should process one .h file");
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("api.h").is_some(),
+            "header module node must exist"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_c_alongside_other_languages() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_rs(tmp.path(), "lib.rs", "fn bar() {}");
+        write_temp_c(tmp.path(), "util.c", "void util(void) {}");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 2, "both languages should be indexed");
+        assert!(store.lookup("lib.rs>bar").is_some());
+        assert!(store.lookup("util.c>util").is_some());
+    }
+
+    // ── Ruby tests ───────────────────────────────────────────────────
+
+    fn write_temp_rb(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    #[test]
+    fn index_path_extracts_ruby_class_and_method() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_rb(
+            tmp.path(),
+            "greeter.rb",
+            "class Greeter\n  def greet\n  end\nend\n",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "should process one .rb file");
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("greeter.rb>Greeter").is_some(),
+            "Ruby class must be extracted"
+        );
+        assert!(
+            store.lookup("greeter.rb>Greeter>greet").is_some(),
+            "Ruby method must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_ruby_module() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_rb(
+            tmp.path(),
+            "helpers.rb",
+            "module Helpers\n  def help\n  end\nend\n",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("helpers.rb>Helpers").is_some(),
+            "Ruby module must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_ruby_alongside_other_languages() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
+        write_temp_rb(tmp.path(), "app.rb", "class App\ndef run\nend\nend\n");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 2, "both languages should be indexed");
+        assert!(store.lookup("mod.py>foo").is_some());
+        assert!(store.lookup("app.rb>App").is_some());
+    }
+
+    // ── C++ tests ────────────────────────────────────────────────────
+
+    fn write_temp_cpp(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    #[test]
+    fn index_path_extracts_cpp_function() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cpp(tmp.path(), "main.cpp", "int greet() { return 0; }");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "should process one .cpp file");
+        assert_eq!(stats.errors, 0);
+        assert!(store.lookup("main.cpp").is_some(), "module node must exist");
+        assert!(
+            store.lookup("main.cpp>greet").is_some(),
+            "C++ function must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_cpp_class() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cpp(
+            tmp.path(),
+            "shape.cpp",
+            "class Shape { public: int area() { return 0; } };",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("shape.cpp>Shape").is_some(),
+            "C++ class must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_cpp_namespace() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cpp(
+            tmp.path(),
+            "ns.cpp",
+            "namespace MyNS { int helper() { return 0; } }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("ns.cpp>MyNS").is_some(),
+            "C++ namespace must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_cpp_hpp_header() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cpp(tmp.path(), "point.hpp", "struct Point { int x; int y; };");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, ".hpp file should be indexed as C++");
+        assert!(
+            store.lookup("point.hpp>Point").is_some(),
+            "C++ struct from .hpp must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_cpp_cc_extension() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cpp(
+            tmp.path(),
+            "util.cc",
+            "int add(int a, int b) { return a + b; }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, ".cc file should be indexed as C++");
+        assert!(
+            store.lookup("util.cc>add").is_some(),
+            "C++ function from .cc must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_indexes_cpp_alongside_other_languages() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
+        write_temp_rs(tmp.path(), "lib.rs", "fn bar() {}");
+        write_temp_cpp(tmp.path(), "main.cpp", "int baz() { return 0; }");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 3, "all three languages should be indexed");
+        assert!(store.lookup("mod.py>foo").is_some());
+        assert!(store.lookup("lib.rs>bar").is_some());
+        assert!(store.lookup("main.cpp>baz").is_some());
+    }
+
+    // ── C# tests ─────────────────────────────────────────────────────
+
+    fn write_temp_cs(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    #[test]
+    fn index_path_extracts_csharp_class() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cs(
+            tmp.path(),
+            "Hello.cs",
+            "namespace App { public class Hello { public void Greet() {} } }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "should process one .cs file");
+        assert_eq!(stats.errors, 0);
+        assert!(store.lookup("Hello.cs").is_some(), "module node must exist");
+        assert!(
+            store.lookup("Hello.cs>Hello").is_some(),
+            "C# class must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_csharp_interface() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cs(
+            tmp.path(),
+            "IGreeter.cs",
+            "public interface IGreeter { void Greet(); }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(
+            store.lookup("IGreeter.cs>IGreeter").is_some(),
+            "C# interface must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_csharp_namespace() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cs(
+            tmp.path(),
+            "App.cs",
+            "namespace MyApp { public class Service {} }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(
+            store.lookup("App.cs>MyApp").is_some(),
+            "C# namespace must be extracted"
+        );
+        assert!(
+            store.lookup("App.cs>Service").is_some(),
+            "C# class within namespace must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_csharp_method() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_cs(
+            tmp.path(),
+            "Calc.cs",
+            "public class Calc { public int Add(int a, int b) { return a + b; } }",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(
+            store.lookup("Calc.cs>Calc").is_some(),
+            "C# class must be extracted"
+        );
+        assert!(
+            store.lookup("Calc.cs>Calc>Add").is_some(),
+            "C# method must be extracted under its class"
+        );
+    }
+
+    #[test]
+    fn index_path_indexes_csharp_alongside_other_languages() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
+        write_temp_cpp(tmp.path(), "main.cpp", "int bar() { return 0; }");
+        write_temp_cs(tmp.path(), "App.cs", "public class Baz {}");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 3, "all three languages should be indexed");
+        assert!(store.lookup("mod.py>foo").is_some());
+        assert!(store.lookup("main.cpp>bar").is_some());
+        assert!(store.lookup("App.cs>Baz").is_some());
     }
 }

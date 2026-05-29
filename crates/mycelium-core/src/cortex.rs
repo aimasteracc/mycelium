@@ -141,6 +141,12 @@ pub struct Cortex {
     storage: Storage<Self>,
 }
 
+impl std::fmt::Debug for Cortex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Cortex").finish_non_exhaustive()
+    }
+}
+
 #[allow(clippy::derivable_impls)]
 impl Default for Cortex {
     fn default() -> Self {

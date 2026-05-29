@@ -1,0 +1,10 @@
+# Mycelium Ruby language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "ruby"
+description = "Ruby language pack for Mycelium. Extracts classes, modules, methods, and require directives."
+extensions  = [".rb"]
+grammar     = "crates.io:tree-sitter-ruby@^0.23"
