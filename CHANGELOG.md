@@ -172,6 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0059: `mycelium_get_two_hop_neighbors` MCP tool — indirect dependency bridge detector; accepts `{ path, edge_kind }` and returns `{ neighbors, count }`, `{ neighbors: [], count: 0 }` for unknown path, or `{ error }` for unknown edge kind.
 - RFC-0060: `Store::symbol_neighborhood(id, kind)` + `SymbolNeighborhood` struct — ego-graph of a symbol for a single EdgeKind; returns path + direct incoming + direct outgoing, both lists sorted ascending; returns empty neighborhood for unknown id.
 - RFC-0060: `mycelium_get_symbol_neighborhood` MCP tool — bidirectional single-kind ego-graph query; accepts `{ path, edge_kind }` and returns `{ path, incoming, outgoing, incoming_count, outgoing_count }`, empty neighborhood for unknown path, or `{ error }` for unknown edge kind.
+- RFC-0061: `Store::hub_symbols(kind, min_in, min_out, limit)` — symbols with both in-degree ≥ `min_in` AND out-degree ≥ `min_out` for a given EdgeKind; returns `(path, in_degree, out_degree)` sorted by `in_degree + out_degree` descending (ties by path ascending); limit capped at 100; file nodes excluded.
+- RFC-0061: `mycelium_get_hub_symbols` MCP tool — architectural hub detector identifying symbols that are both widely-used (high in-degree) and orchestrating (high out-degree); accepts `{ edge_kind, min_in?, min_out?, limit? }` and returns `{ hubs: [{ path, in_degree, out_degree }], count }` or `{ error }` for unknown edge kind; `min_in`/`min_out` default to 1.
 
 ### Fixed
 
