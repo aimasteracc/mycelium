@@ -314,6 +314,13 @@ pub struct GetFilesRequest {
     pub path_prefix: Option<String>,
 }
 
+/// Input parameters for `mycelium_get_dead_symbols`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetDeadSymbolsRequest {
+    /// Optional path prefix to filter results (e.g. `"src/"`).
+    pub path_prefix: Option<String>,
+}
+
 /// Input parameters for `mycelium_find_call_path`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct FindCallPathRequest {
@@ -1114,6 +1121,25 @@ impl MyceliumServer {
             .await
             .entry_points(req.path_prefix.as_deref());
         serde_json::json!({ "entry_points": eps }).to_string()
+    }
+
+    #[tool(
+        description = "Return all indexed symbols (non-file nodes) with zero incoming Calls edges \
+                       AND zero incoming Imports edges. These are dead-code candidates — no other \
+                       symbol calls or imports them. Optional path_prefix filters to a subtree. \
+                       Returns { dead_symbols: [...], count: N } sorted lexicographically."
+    )]
+    async fn mycelium_get_dead_symbols(
+        &self,
+        Parameters(req): Parameters<GetDeadSymbolsRequest>,
+    ) -> String {
+        let dead = self
+            .store
+            .read()
+            .await
+            .dead_symbols(req.path_prefix.as_deref());
+        let count = dead.len();
+        serde_json::json!({ "dead_symbols": dead, "count": count }).to_string()
     }
 
     #[tool(
@@ -3849,6 +3875,77 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0037: mycelium_get_dead_symbols ──────────────────────────────
+
+    async fn server_with_mixed_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+        // live: caller calls target
+        let caller = store.upsert_node(TrunkPath::parse("src/main.rs>main").unwrap());
+        let target = store.upsert_node(TrunkPath::parse("src/lib.rs>helper").unwrap());
+        store.upsert_edge(EdgeKind::Calls, caller, target);
+        // dead: no callers, no importers
+        store.upsert_node(TrunkPath::parse("src/lib.rs>dead_fn").unwrap());
+        // file node (should be excluded from dead_symbols)
+        store.upsert_node(TrunkPath::parse("src/lib.rs").unwrap());
+        drop(store);
+        server
+    }
+
+    #[tokio::test]
+    async fn get_dead_symbols_returns_unreferenced_symbols() {
+        let server = server_with_mixed_fixture().await;
+        let raw = server
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest { path_prefix: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let dead: Vec<String> = val["dead_symbols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect();
+        // main has no callers → dead; helper is called → live; dead_fn → dead
+        assert!(dead.contains(&"src/lib.rs>dead_fn".to_owned()));
+        assert!(dead.contains(&"src/main.rs>main".to_owned()));
+        assert!(!dead.contains(&"src/lib.rs>helper".to_owned()));
+        // file node must not appear
+        assert!(!dead.iter().any(|s| s == "src/lib.rs"));
+        assert_eq!(val["count"].as_u64().unwrap(), dead.len() as u64);
+    }
+
+    #[tokio::test]
+    async fn get_dead_symbols_empty_store() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest { path_prefix: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["dead_symbols"].as_array().unwrap().len(), 0);
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_dead_symbols_prefix_filter() {
+        let server = server_with_mixed_fixture().await;
+        let raw = server
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
+                path_prefix: Some("src/lib.rs".to_owned()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let dead: Vec<String> = val["dead_symbols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect();
+        // Only dead symbols under src/lib.rs prefix
+        assert!(dead.iter().all(|s| s.starts_with("src/lib.rs")));
+        assert!(dead.contains(&"src/lib.rs>dead_fn".to_owned()));
+        assert!(!dead.contains(&"src/main.rs>main".to_owned()));
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
