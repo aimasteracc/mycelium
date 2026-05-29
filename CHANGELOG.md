@@ -145,6 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0046: `mycelium_get_node_degree` MCP tool — connectivity fingerprint for any path; returns `{ in_calls, out_calls, in_imports, out_imports, in_extends, out_extends, in_implements, out_implements }` or `{ error }`.
 - RFC-0047: `Store::top_files(limit)` — returns top-N source files ranked by direct child symbol count (descending), ties broken alphabetically; files with no direct symbols excluded; limit capped at 100.
 - RFC-0047: `mycelium_get_top_files` MCP tool — god-file detector identifying the most symbol-dense source files; returns `{ files: [{ path, symbol_count }], count }`.
+- RFC-0048: `Store::most_connected(limit, kind)` — top-N symbol nodes ranked by total degree (in + out) for any EdgeKind; zero-degree nodes excluded; sorted descending by degree, ties broken alphabetically; limit capped at 100.
+- RFC-0048: `mycelium_get_most_connected` MCP tool — hub-node detector for any edge kind; returns `{ symbols: [{ path, degree }], count }` or `{ error }` for unknown edge kind.
 
 ### Fixed
 
