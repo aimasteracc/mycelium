@@ -36,8 +36,9 @@
 //! | `mycelium_get_extends_tree` | Return the depth-limited superclass tree for a symbol (outgoing Extends edges) |
 //! | `mycelium_get_subclasses_tree` | Return the depth-limited subclass forest for a symbol (incoming Extends edges) |
 //! | `mycelium_find_implements_path` | Find the shortest implements chain between two symbols via BFS |
+//! | `mycelium_get_implements_tree` | Return the depth-limited interface tree for a symbol (outgoing Implements edges) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, RFC-0032, and RFC-0033 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, RFC-0032, RFC-0033, and RFC-0034 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -46,8 +47,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{
-    CalleeNode, CallerNode, ExtendsNode, ImportNode, SubclassNode, extractor::Extractor,
-    store::Store,
+    CalleeNode, CallerNode, ExtendsNode, ImplementsNode, ImportNode, SubclassNode,
+    extractor::Extractor, store::Store,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -212,6 +213,15 @@ pub struct FindExtendsPathRequest {
     /// End of the extends chain, e.g. `"src/base.ts>EventEmitter"`.
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
+    pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_implements_tree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetImplementsTreeRequest {
+    /// Root symbol path, e.g. `"src/cls.ts>Cls"`.
+    pub path: String,
+    /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
 }
 
@@ -1347,6 +1357,30 @@ impl MyceliumServer {
             .to_string()
         }
     }
+
+    #[tool(
+        description = "Return the depth-limited interface tree for a symbol, following outgoing \
+                       Implements edges. The result is { root: { path, interfaces: [...] } } \
+                       where each node has a path and its own interfaces list. Cycles are cut \
+                       as leaf nodes. max_depth defaults to 4, capped at 10. Unknown path \
+                       returns { error }."
+    )]
+    async fn mycelium_get_implements_tree(
+        &self,
+        Parameters(req): Parameters<GetImplementsTreeRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let tree = store_guard.implements_tree(id, max_depth);
+        let json = implements_node_to_json(&tree, &store_guard);
+        drop(store_guard);
+        serde_json::json!({ "root": json }).to_string()
+    }
 }
 
 #[tool_handler]
@@ -1408,6 +1442,16 @@ fn subclass_node_to_json(node: &SubclassNode, store: &Store) -> serde_json::Valu
         .map(|s| subclass_node_to_json(s, store))
         .collect();
     serde_json::json!({ "path": path, "subclasses": subclasses })
+}
+
+fn implements_node_to_json(node: &ImplementsNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let interfaces: Vec<serde_json::Value> = node
+        .interfaces
+        .iter()
+        .map(|i| implements_node_to_json(i, store))
+        .collect();
+    serde_json::json!({ "path": path, "interfaces": interfaces })
 }
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
@@ -3551,6 +3595,56 @@ mod tests {
         let path = val["path"].as_array().unwrap();
         assert_eq!(path.len(), 3);
         assert_eq!(val["hops"], 2);
+    }
+
+    // ── RFC-0034: mycelium_get_implements_tree ────────────────────────────
+
+    #[tokio::test]
+    async fn get_implements_tree_returns_interface_chain() {
+        // Re-use server_with_implements_fixture: Cls→IFace→BaseIFace
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_get_implements_tree(Parameters(GetImplementsTreeRequest {
+                path: "src/cls.ts>Cls".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").expect("root key present");
+        assert_eq!(root["path"], "src/cls.ts>Cls");
+        let ifaces = root["interfaces"].as_array().unwrap();
+        assert_eq!(ifaces.len(), 1);
+        assert_eq!(ifaces[0]["path"], "src/iface.ts>IFace");
+        let base_ifaces = ifaces[0]["interfaces"].as_array().unwrap();
+        assert_eq!(base_ifaces.len(), 1);
+        assert_eq!(base_ifaces[0]["path"], "src/base.ts>BaseIFace");
+    }
+
+    #[tokio::test]
+    async fn get_implements_tree_leaf_at_max_depth_zero() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_get_implements_tree(Parameters(GetImplementsTreeRequest {
+                path: "src/cls.ts>Cls".to_string(),
+                max_depth: Some(0),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").unwrap();
+        assert!(root["interfaces"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_implements_tree_unknown_path_returns_error() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_get_implements_tree(Parameters(GetImplementsTreeRequest {
+                path: "no/such>path".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`

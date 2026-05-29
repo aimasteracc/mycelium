@@ -1507,3 +1507,57 @@ fn store_find_implements_path_max_depth_limits_hops() {
     assert!(store.find_implements_path(a, b, 1).is_some());
     assert!(store.find_implements_path(a, c, 1).is_none());
 }
+
+// ── RFC-0034: Store::implements_tree ─────────────────────────────────
+
+#[test]
+fn store_implements_tree_leaf_at_max_depth_zero() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/a.rs>A"));
+    let tree = store.implements_tree(id, 0);
+    assert_eq!(tree.id, id);
+    assert!(tree.interfaces.is_empty());
+}
+
+#[test]
+fn store_implements_tree_single_interface() {
+    let mut store = Store::new();
+    let cls = store.upsert_node(path("src/cls.rs>Cls"));
+    let iface = store.upsert_node(path("src/iface.rs>IFace"));
+    store.upsert_edge(EdgeKind::Implements, cls, iface);
+    let tree = store.implements_tree(cls, 4);
+    assert_eq!(tree.id, cls);
+    assert_eq!(tree.interfaces.len(), 1);
+    assert_eq!(tree.interfaces[0].id, iface);
+    assert!(tree.interfaces[0].interfaces.is_empty());
+}
+
+#[test]
+fn store_implements_tree_transitive_chain() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    store.upsert_edge(EdgeKind::Implements, a, b);
+    store.upsert_edge(EdgeKind::Implements, b, c);
+    let tree = store.implements_tree(a, 4);
+    assert_eq!(tree.interfaces.len(), 1);
+    assert_eq!(tree.interfaces[0].id, b);
+    assert_eq!(tree.interfaces[0].interfaces.len(), 1);
+    assert_eq!(tree.interfaces[0].interfaces[0].id, c);
+}
+
+#[test]
+fn store_implements_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    store.upsert_edge(EdgeKind::Implements, a, b);
+    store.upsert_edge(EdgeKind::Implements, b, a); // cycle
+    let tree = store.implements_tree(a, 10);
+    assert_eq!(tree.interfaces.len(), 1);
+    assert_eq!(tree.interfaces[0].id, b);
+    assert_eq!(tree.interfaces[0].interfaces.len(), 1);
+    assert_eq!(tree.interfaces[0].interfaces[0].id, a);
+    assert!(tree.interfaces[0].interfaces[0].interfaces.is_empty());
+}
