@@ -437,6 +437,15 @@ pub struct GetDependencyLayersRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_two_hop_neighbors`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTwoHopNeighborsRequest {
+    /// Symbol path, e.g. `"src/service.rs>Service"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_get_all_symbols`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetAllSymbolsRequest {
@@ -1664,6 +1673,40 @@ impl MyceliumServer {
             "cycle_excluded_count": cycle_excluded_count,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Return symbol paths reachable from `path` in exactly 2 outgoing steps for \
+                       `edge_kind`. Excludes the source symbol itself and its direct (1-hop) \
+                       neighbours. Useful for discovering indirect dependencies or bridges without \
+                       traversing the full reachability set. \
+                       Unknown path returns { neighbors: [], count: 0 }. \
+                       edge_kind: 'calls', 'imports', 'extends', or 'implements'. \
+                       Returns { neighbors, count } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_get_two_hop_neighbors(
+        &self,
+        Parameters(req): Parameters<GetTwoHopNeighborsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id) = store.lookup(&req.path) else {
+            drop(store);
+            return serde_json::json!({ "neighbors": [], "count": 0 }).to_string();
+        };
+        let neighbors = store.two_hop_neighbors(id, kind);
+        drop(store);
+        let count = neighbors.len();
+        serde_json::json!({ "neighbors": neighbors, "count": count }).to_string()
     }
 
     #[tool(
@@ -5097,6 +5140,61 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_get_dependency_layers(Parameters(GetDependencyLayersRequest {
+                edge_kind: "bad".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    // ── RFC-0059: mycelium_get_two_hop_neighbors ─────────────────────────
+
+    #[tokio::test]
+    async fn get_two_hop_neighbors_basic() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let sym_a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let sym_b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let sym_c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            // a → b → c
+            store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+            store.upsert_edge(EdgeKind::Calls, sym_b, sym_c);
+        }
+        let raw = server
+            .mycelium_get_two_hop_neighbors(Parameters(GetTwoHopNeighborsRequest {
+                path: "src/a.rs>a".to_owned(),
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(
+            val["neighbors"].as_array().unwrap()[0].as_str().unwrap(),
+            "src/c.rs>c"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_two_hop_neighbors_unknown_path_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_two_hop_neighbors(Parameters(GetTwoHopNeighborsRequest {
+                path: "nonexistent.rs>x".to_owned(),
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert!(val["neighbors"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_two_hop_neighbors_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_two_hop_neighbors(Parameters(GetTwoHopNeighborsRequest {
+                path: "src/a.rs>a".to_owned(),
                 edge_kind: "bad".to_owned(),
             }))
             .await;
