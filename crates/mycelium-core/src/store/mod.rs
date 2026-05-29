@@ -1707,6 +1707,48 @@ impl Store {
         result
     }
 
+    /// Union of `reachable_to` for each id in `ids`.
+    ///
+    /// Returns all symbols that can transitively reach *any* input node via
+    /// incoming `kind` edges, deduplicated, input nodes excluded, sorted ascending.
+    /// `max_depth` capped at 20.
+    #[must_use]
+    pub fn batch_reachable_to(
+        &self,
+        ids: &[NodeId],
+        kind: EdgeKind,
+        max_depth: usize,
+    ) -> Vec<String> {
+        let max_depth = max_depth.min(20);
+        let input_set: HashSet<NodeId> = ids.iter().copied().collect();
+        let mut visited: HashSet<NodeId> = input_set.clone();
+        let mut result_set: HashSet<NodeId> = HashSet::new();
+        let mut frontier: Vec<NodeId> = ids.to_vec();
+        for _ in 0..max_depth {
+            if frontier.is_empty() {
+                break;
+            }
+            let mut next_frontier: Vec<NodeId> = Vec::new();
+            for node in frontier {
+                for &neighbor in self.synapse.incoming(node, kind) {
+                    if visited.insert(neighbor) {
+                        if !input_set.contains(&neighbor) {
+                            result_set.insert(neighbor);
+                        }
+                        next_frontier.push(neighbor);
+                    }
+                }
+            }
+            frontier = next_frontier;
+        }
+        let mut result: Vec<String> = result_set
+            .iter()
+            .filter_map(|&nid| self.path_of(nid).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return all sibling paths — direct children of the same parent container,
     /// excluding `id` itself.  Root nodes (no `>` in path) return empty `Vec`.
     /// Results sorted lexicographically.
