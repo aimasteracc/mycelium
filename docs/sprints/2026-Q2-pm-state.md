@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-29 (PM run — v0.1.4 sprint COMPLETE; v0.1.4 release queued) |
-| Current sprint | v0.1.5 (CLI parity batches 2–N + marketplace prep) |
-| Active release branch | **release/v0.1.4 needed** — all exit criteria met, awaiting cut |
-| Next release target | v0.1.4, ETA 2026-06-20 (ready now) |
+| Last updated | 2026-05-29 (PM run — batch 5 inheritance landed, PR #180 opened) |
+| Current sprint | v0.1.5 (CLI parity batches 3–N + marketplace prep) |
+| Active release branch | **release/v0.1.4** open as PR #176 — awaiting founder admin merge to main |
+| Next release target | v0.1.4 → founder merge needed; v0.1.5 ETA 2026-06-27 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.3 — Hyphae lands + Skill umbrella sprint 1** (tag v0.1.3) |
 
@@ -31,30 +31,34 @@ All items confirmed complete as of develop `be317da`:
 P0:
 1. Cut **v0.1.4 release** — all exit criteria met; develop is clean. Assign to release agent.
 
-P1 (v0.1.5 sprint):
-2. CLI parity backfill batch 2 — next 5 subcommands (suggested: `get-descendants`,
-   `get-callees`, `get-callers`, `get-callee-tree`, `get-caller-tree`).
-3. CLI parity backfill batch 3 — next 5 (suggested: `get-imports`, `get-import-tree`,
-   `get-stats`, `detect-cycles`, `rank-symbols`).
+P0:
+1. Founder merge PR #176 (release/v0.1.4 → main). Awaiting founder action only.
+
+P1 (v0.1.5 sprint — next batch):
+2. CLI parity batch 6 — `graph-structure` category (14 commands, suggested first 5:
+   `get-stats`, `detect-cycles`, `topological-sort`, `get-dependency-layers`, `get-scc-groups`).
+3. CLI parity batch 7 — `reachability` category (12 commands, suggested first 6:
+   `get-reachable`, `get-reachable-to`, `get-shortest-path`, `get-cross-refs`,
+   `get-k-hop-neighbors`, `get-dependency-depth`).
 4. Charter §2 SLA — 100K-node benchmark row. (PR #168 covered 1K+10K; 100K row still TODO)
 5. Parity checker `--strict` promotion — flip `parity.yml` from informational to required
-   when CLI parity reaches ≥ 50 % (currently 4/89 = ~5 %).
+   when CLI parity reaches ≥ 50 % (currently ~29/89 = ~33 % after batch 5).
 
 P2 (v0.1.5 / governance):
-6. `skills/INDEX.md` status flip — mark landed CLI rows from 🟡 to ✅ as each batch lands.
-7. Security scan — routine post-sprint-4 check (post-v0.1.3 window).
+6. Security scan — routine post-sprint scan.
+7. Founder merge PR #180 (batch 5 inheritance → develop) → then auto-merge into v0.1.5 bundle.
 
-## Dispatch state (2026-05-29, post-PM-run)
+## Dispatch state (2026-05-29, post-batch-5)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **P0 — next-up** | Cut release/v0.1.4; bump to 0.1.4; CHANGELOG date; PR to develop+main; tag; publish crates.io |
-| rust-implementer | **next-up** | CLI parity batch 2 (5 subcommands). Branch from develop post-v0.1.4. |
-| architect | idle | Charter §2 SLA 100K-node row — open PR to add the row after batch 2 lands |
-| tech-writer | idle | Update skills/INDEX.md as CLI rows flip from 🟡 to ✅ after each batch |
+| release | **blocked — founder** | PR #176 release/v0.1.4 → main awaits founder admin merge |
+| rust-implementer | **next-up** | CLI parity batch 6 (`graph-structure` first 5). Branch from develop post-#180 merge. |
+| architect | idle | Charter §2 SLA 100K-node row — open PR |
+| tech-writer | idle | Review INDEX.md after each batch (auto-updated in PR) |
 | code-reviewer | idle | blocks on PR opens |
 | security-reviewer | idle | next: routine post-sprint scan |
-| e2e-runner | idle | next: extend cli_basic_queries.rs tests once batch 2 lands |
+| e2e-runner | idle | next: extend graph-structure tests once batch 6 lands |
 
 ## Cadence
 
@@ -63,12 +67,15 @@ P2 (v0.1.5 / governance):
 - **Weekly Sprint review** (orchestrator + founder if available): mark sprint exit criteria; cut next sprint.
 - **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/v0.1.x branch, publish.
 
-## Sprint v0.1.5 exit criteria (draft)
+## Sprint v0.1.5 exit criteria (updated)
 
-- [ ] CLI parity batch 2 (5 subcommands): `get-descendants`, `get-callees`, `get-callers`, `get-callee-tree`, `get-caller-tree`.
-- [ ] CLI parity batch 3 (5 subcommands): `get-imports`, `get-import-tree`, `get-stats`, `detect-cycles`, `rank-symbols`.
+- [x] CLI parity batch 2 (basic-queries ×7): landed in v0.1.4, PR #175.
+- [x] CLI parity batch 3 (call-graph ×7): landed in v0.1.5, PR #177.
+- [x] CLI parity batch 4 (import-graph ×3): landed in v0.1.5, PR #178.
+- [x] CLI parity batch 5 (inheritance ×8): landed in v0.1.5, PR #180.
+- [ ] CLI parity batch 6 (graph-structure, 5+ subcommands).
+- [ ] CLI parity batch 7 (reachability, 5+ subcommands).
 - [ ] Charter §2 SLA 100K-node benchmark row added.
-- [ ] `skills/INDEX.md` rows flipped to ✅ for all landed CLI batches.
 - [ ] Security scan complete (no high-severity findings).
 
 ## Decision gates (require founder)
