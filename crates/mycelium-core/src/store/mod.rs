@@ -98,6 +98,19 @@ pub struct ExtendsNode {
     pub parents: Vec<Self>,
 }
 
+/// A node in the subclasses tree returned by [`Store::subclasses_tree`].
+///
+/// Represents a class and its direct subclasses (recursively up to the
+/// configured `max_depth`).  Cycles are represented as leaf nodes
+/// (`subclasses` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubclassNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Subclass subtrees, one per incoming `Extends` edge, up to `max_depth`.
+    pub subclasses: Vec<Self>,
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -816,6 +829,38 @@ impl Store {
             .collect();
         visited.remove(&id);
         ExtendsNode { id, parents }
+    }
+
+    /// Return the subclass forest rooted at `id` via incoming `Extends` edges.
+    ///
+    /// DFS over incoming `Extends` edges up to `max_depth` hops.  Cycles produce
+    /// leaf nodes (no infinite recursion).
+    #[must_use]
+    pub fn subclasses_tree(&self, id: NodeId, max_depth: usize) -> SubclassNode {
+        let mut visited = HashSet::new();
+        self.subclasses_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn subclasses_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> SubclassNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return SubclassNode {
+                id,
+                subclasses: vec![],
+            };
+        }
+        let subclasses: Vec<SubclassNode> = self
+            .synapse
+            .incoming(id, EdgeKind::Extends)
+            .iter()
+            .map(|&child_id| self.subclasses_tree_inner(child_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        SubclassNode { id, subclasses }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.
