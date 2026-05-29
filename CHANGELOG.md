@@ -221,6 +221,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0080: `mycelium_get_reachable_set` MCP tool — transitive dependency explorer; accepts `{ path, edge_kind }` and returns `{ reachable, count }` or `{ error }`.
 - RFC-0081: `Store::reaches_into(id, kind)` — reverse BFS transitive closure; returns sorted paths of all symbols that can transitively reach `id` via `kind` edges (source excluded, file nodes excluded); O(V+E). Answers "what transitively depends on this symbol?".
 - RFC-0081: `mycelium_get_reaches_into` MCP tool — reverse transitive dependency explorer; accepts `{ path, edge_kind }` and returns `{ callers, count }` or `{ error }`. Symmetric companion to `mycelium_get_reachable_set`.
+- RFC-0082: `PageRankEntry` struct `{ path, score }` — one result entry from `page_rank`.
+- RFC-0082: `Store::page_rank(kind, damping, iterations)` — iterative power-method PageRank; dangling nodes redistribute mass uniformly; damping clamped `[0.0, 1.0]`; file nodes excluded; returns entries sorted descending by score. Identifies globally important hub symbols.
+- RFC-0082: `mycelium_page_rank` MCP tool — global importance ranker; accepts `{ edge_kind, damping?, iterations?, top_n? }` and returns `{ nodes: [{path, score}], symbol_count, top_n }` or `{ error }`. Complements local metrics (harmonic centrality, eccentricity) with a global ranking.
 
 ### Fixed
 
