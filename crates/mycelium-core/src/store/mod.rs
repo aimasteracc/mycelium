@@ -203,6 +203,27 @@ pub struct GraphStats {
     pub edges_by_kind: BTreeMap<String, usize>,
 }
 
+/// Per-node edge-count summary returned by [`Store::node_degree`].
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NodeDegree {
+    /// Incoming `Calls` edge count.
+    pub in_calls: usize,
+    /// Outgoing `Calls` edge count.
+    pub out_calls: usize,
+    /// Incoming `Imports` edge count.
+    pub in_imports: usize,
+    /// Outgoing `Imports` edge count.
+    pub out_imports: usize,
+    /// Incoming `Extends` edge count.
+    pub in_extends: usize,
+    /// Outgoing `Extends` edge count.
+    pub out_extends: usize,
+    /// Incoming `Implements` edge count.
+    pub in_implements: usize,
+    /// Outgoing `Implements` edge count.
+    pub out_implements: usize,
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -1376,6 +1397,21 @@ impl Store {
             .collect();
         result.sort_unstable();
         result
+    }
+
+    /// Return in/out edge counts for all four `EdgeKind`s.  O(1) per kind.
+    #[must_use]
+    pub fn node_degree(&self, id: NodeId) -> NodeDegree {
+        NodeDegree {
+            in_calls: self.synapse.incoming(id, EdgeKind::Calls).len(),
+            out_calls: self.synapse.outgoing(id, EdgeKind::Calls).len(),
+            in_imports: self.synapse.incoming(id, EdgeKind::Imports).len(),
+            out_imports: self.synapse.outgoing(id, EdgeKind::Imports).len(),
+            in_extends: self.synapse.incoming(id, EdgeKind::Extends).len(),
+            out_extends: self.synapse.outgoing(id, EdgeKind::Extends).len(),
+            in_implements: self.synapse.incoming(id, EdgeKind::Implements).len(),
+            out_implements: self.synapse.outgoing(id, EdgeKind::Implements).len(),
+        }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.

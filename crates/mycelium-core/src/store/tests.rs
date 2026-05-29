@@ -2253,3 +2253,57 @@ fn store_siblings_sorted() {
     sorted.sort_unstable();
     assert_eq!(siblings, sorted);
 }
+// ──────────────────────────────────────────────────────────────────────
+// RFC-0046: Store::node_degree
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_node_degree_isolated_node_all_zero() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/a.rs>fn1"));
+    let deg = store.node_degree(id);
+    assert_eq!(deg.in_calls, 0);
+    assert_eq!(deg.out_calls, 0);
+    assert_eq!(deg.in_imports, 0);
+    assert_eq!(deg.out_imports, 0);
+    assert_eq!(deg.in_extends, 0);
+    assert_eq!(deg.out_extends, 0);
+    assert_eq!(deg.in_implements, 0);
+    assert_eq!(deg.out_implements, 0);
+}
+
+#[test]
+fn store_node_degree_call_edges() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let deg = store.node_degree(a);
+    assert_eq!(deg.in_calls, 2);
+    assert_eq!(deg.out_calls, 1);
+}
+
+#[test]
+fn store_node_degree_all_kinds() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>A"));
+    let b = store.upsert_node(path("src/b.rs>B"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Extends, a, b);
+    store.upsert_edge(EdgeKind::Implements, a, b);
+    let deg = store.node_degree(a);
+    assert_eq!(deg.out_calls, 1);
+    assert_eq!(deg.out_imports, 1);
+    assert_eq!(deg.out_extends, 1);
+    assert_eq!(deg.out_implements, 1);
+    assert_eq!(deg.in_calls, 0);
+    let deg_b = store.node_degree(b);
+    assert_eq!(deg_b.in_calls, 1);
+    assert_eq!(deg_b.in_imports, 1);
+    assert_eq!(deg_b.in_extends, 1);
+    assert_eq!(deg_b.in_implements, 1);
+}
