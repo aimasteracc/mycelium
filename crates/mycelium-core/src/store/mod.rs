@@ -3094,4 +3094,61 @@ impl Store {
     pub fn eccentricity(&self, id: NodeId, kind: EdgeKind) -> usize {
         self.eccentricity_stats(id, kind).0
     }
+
+    /// Returns `(harmonic_centrality, reachable_count, symbol_count)`.
+    ///
+    /// `harmonic_centrality` = (1/(n-1)) × Σ_{v reachable} (1/d(id,v)),
+    /// where n = total symbol count.  Returns (0.0, 0, n) for isolated nodes.
+    /// File nodes excluded from BFS and from n.
+    #[must_use]
+    pub fn harmonic_centrality_stats(&self, id: NodeId, kind: EdgeKind) -> (f64, usize, usize) {
+        let is_symbol =
+            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| p.contains('>')) };
+        // Count total symbols (file nodes excluded).
+        let symbol_count = self.trunk.all_paths().filter(|p| p.contains('>')).count();
+        if symbol_count < 2 {
+            return (0.0, 0, symbol_count);
+        }
+        // BFS to collect distances to all reachable symbol nodes.
+        let mut visited: HashMap<NodeId, usize> = HashMap::new();
+        let mut queue: VecDeque<(NodeId, usize)> = VecDeque::new();
+        queue.push_back((id, 0));
+        visited.insert(id, 0);
+        let mut harmonic_sum = 0.0_f64;
+        let mut reachable_count: usize = 0;
+        while let Some((cur, dist)) = queue.pop_front() {
+            for &next in self.synapse.outgoing(cur, kind) {
+                if visited.contains_key(&next) {
+                    continue;
+                }
+                visited.insert(next, dist + 1);
+                if is_symbol(next) {
+                    let new_dist = dist + 1;
+                    // Code graphs never exceed 2^52 nodes.
+                    #[allow(clippy::cast_precision_loss)]
+                    {
+                        harmonic_sum += 1.0 / new_dist as f64;
+                    }
+                    reachable_count += 1;
+                    queue.push_back((next, new_dist));
+                }
+            }
+        }
+        if reachable_count == 0 {
+            return (0.0, 0, symbol_count);
+        }
+        // Code graphs never exceed 2^52 nodes.
+        #[allow(clippy::cast_precision_loss)]
+        let centrality = harmonic_sum / (symbol_count - 1) as f64;
+        (centrality, reachable_count, symbol_count)
+    }
+
+    /// Harmonic centrality ∈ [0.0, 1.0] for a symbol node.
+    ///
+    /// = (1/(n-1)) × Σ_{v reachable} (1/d(id,v)).  Unreachable nodes
+    /// contribute 0.  Returns 0.0 for isolated nodes.  File nodes excluded.
+    #[must_use]
+    pub fn harmonic_centrality(&self, id: NodeId, kind: EdgeKind) -> f64 {
+        self.harmonic_centrality_stats(id, kind).0
+    }
 }
