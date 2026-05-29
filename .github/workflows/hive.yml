@@ -47,7 +47,7 @@ jobs:
     if: github.event_name == 'schedule' && needs.kill-switch-check.outputs.hive_active == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Write sentinel
         run: |
           DATE=$(date -u +%Y-%m-%d)
