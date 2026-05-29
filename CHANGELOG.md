@@ -107,6 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0032: `SubclassNode { id, subclasses }` struct — DFS subclass forest node; cycle-safe via path-tracking visited set with backtrack removal.
 - RFC-0032: `Store::subclasses_tree(id, max_depth)` — depth-limited recursive DFS over **incoming** `Extends` edges.
 - RFC-0032: `mycelium_get_subclasses_tree` MCP tool — returns `{ root: { path, subclasses: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`. Complements `extends_tree` (outgoing) for full class-hierarchy exploration.
+- RFC-0033: `Store::find_implements_path(from, to, max_depth)` — BFS shortest implements-chain search over `EdgeKind::Implements`; completes the `find_*_path` family (calls / imports / extends / implements).
+- RFC-0033: `mycelium_find_implements_path` MCP tool — returns `{ path, hops }` on success, `{ path: [], hops: null, message }` when unreachable, or `{ error }` for unknown paths; `max_depth` defaults to 8, capped at 20.
 
 ### Fixed
 
