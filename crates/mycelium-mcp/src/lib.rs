@@ -315,6 +315,15 @@ pub struct GetTopFilesRequest {
     pub limit: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_most_connected`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetMostConnectedRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Maximum results to return (default 10, capped at 100).
+    pub limit: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_files`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetFilesRequest {
@@ -1519,6 +1528,37 @@ impl MyceliumServer {
             })
             .collect();
         serde_json::json!({ "files": files, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return top-N symbol nodes ranked by total degree (in + out) for a given \
+                       edge kind — hub-node detector for any EdgeKind. \
+                       edge_kind must be 'calls', 'imports', 'extends', or 'implements'. \
+                       limit defaults to 10, capped at 100. Nodes with degree 0 are excluded. \
+                       Returns { symbols: [{ path, degree }, ...], count } or { error }."
+    )]
+    async fn mycelium_get_most_connected(
+        &self,
+        Parameters(req): Parameters<GetMostConnectedRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let limit = req.limit.unwrap_or(10);
+        let entries = self.store.read().await.most_connected(limit, kind);
+        let count = entries.len();
+        let symbols: Vec<serde_json::Value> = entries
+            .into_iter()
+            .map(|(path, degree)| serde_json::json!({ "path": path, "degree": degree }))
+            .collect();
+        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
     }
 
     #[tool(
@@ -5025,6 +5065,61 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         // default limit is 10, so at most 10 files returned even though 15 exist
         assert!(val["files"].as_array().unwrap().len() <= 10);
+    }
+
+    // ── RFC-0048: mycelium_get_most_connected ────────────────────────────────
+
+    #[tokio::test]
+    async fn get_most_connected_ranks_hub_node() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/hub.rs>hub").unwrap());
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, hub);
+            store.upsert_edge(EdgeKind::Calls, b, hub);
+        }
+        let raw = server
+            .mycelium_get_most_connected(Parameters(GetMostConnectedRequest {
+                edge_kind: "calls".to_owned(),
+                limit: Some(10),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms[0]["path"].as_str().unwrap(), "src/hub.rs>hub");
+        assert_eq!(syms[0]["degree"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_most_connected_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_most_connected(Parameters(GetMostConnectedRequest {
+                edge_kind: "bogus".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn get_most_connected_empty_excludes_zero_degree() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>isolated").unwrap());
+        }
+        let raw = server
+            .mycelium_get_most_connected(Parameters(GetMostConnectedRequest {
+                edge_kind: "calls".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`

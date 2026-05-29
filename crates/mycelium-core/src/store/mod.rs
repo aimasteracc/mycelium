@@ -1440,6 +1440,30 @@ impl Store {
         counts
     }
 
+    /// Return top-`limit` symbol nodes (paths containing `>`) ranked by total
+    /// degree (in + out) for `kind`, descending.  Ties broken by path ascending.
+    /// Nodes with degree 0 and file-level nodes are excluded.  Capped at 100.
+    #[must_use]
+    pub fn most_connected(&self, limit: usize, kind: EdgeKind) -> Vec<(String, usize)> {
+        let limit = limit.min(100);
+        let mut entries: Vec<(String, usize)> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| {
+                self.trunk.lookup_path(p).map(|id| {
+                    let degree = self.synapse.incoming(id, kind).len()
+                        + self.synapse.outgoing(id, kind).len();
+                    (p.to_owned(), degree)
+                })
+            })
+            .filter(|(_, degree)| *degree > 0)
+            .collect();
+        entries.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        entries.truncate(limit);
+        entries
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
