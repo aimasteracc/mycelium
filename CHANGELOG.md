@@ -99,6 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0029: `Store::set_span(id, span)`, `Store::span_of(id) -> Option<SourceSpan>` — source location storage and retrieval.
 - RFC-0029: `Extractor` now calls `set_span` for every extracted node using tree-sitter node positions (rows converted to 1-indexed lines).
 - RFC-0029: `mycelium_get_source_span` MCP tool — returns `{ path, start_line, start_col, end_line, end_col, start_byte, end_byte }` on hit, `{ path, span: null }` when unrecorded, or `{ error }` when path is not found.
+- RFC-0030: `Store::find_extends_path(from, to, max_depth)` — BFS shortest extends-chain search over `EdgeKind::Extends`; completes the `find_*_path` triad.
+- RFC-0030: `mycelium_find_extends_path` MCP tool — returns `{ path, hops }` on success, `{ path: [], hops: null, message }` when unreachable, or `{ error }` for unknown paths; `max_depth` defaults to 8, capped at 20.
 
 ### Fixed
 
