@@ -219,6 +219,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0079: `mycelium_get_mutual_reachability` MCP tool — bidirectional reachability probe; accepts `{ path1, path2, edge_kind }` and returns `{ forward, backward, mutual, forward_distance, backward_distance }` or `{ error }`. Answers "are these two symbols connected, and in which direction(s)?".
 - RFC-0080: `Store::reachable_set(id, kind)` — BFS transitive closure from a symbol node; returns sorted paths of all reachable symbols (source excluded, file nodes excluded); O(V+E). Answers "what does this symbol transitively call/import/extend?".
 - RFC-0080: `mycelium_get_reachable_set` MCP tool — transitive dependency explorer; accepts `{ path, edge_kind }` and returns `{ reachable, count }` or `{ error }`.
+- RFC-0081: `Store::reaches_into(id, kind)` — reverse BFS transitive closure; returns sorted paths of all symbols that can transitively reach `id` via `kind` edges (source excluded, file nodes excluded); O(V+E). Answers "what transitively depends on this symbol?".
+- RFC-0081: `mycelium_get_reaches_into` MCP tool — reverse transitive dependency explorer; accepts `{ path, edge_kind }` and returns `{ callers, count }` or `{ error }`. Symmetric companion to `mycelium_get_reachable_set`.
 
 ### Fixed
 
