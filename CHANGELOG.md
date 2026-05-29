@@ -140,6 +140,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0044: `mycelium_get_reachable_to` MCP tool — impact analysis primitive answering "who transitively depends on this symbol?"; paired with `mycelium_get_reachable` provides complete forward+backward reachability.
 - RFC-0045: `Store::siblings(id)` — returns all direct siblings (other children of the same parent container in the containment tree), excluding the node itself; root nodes return empty `Vec`; results sorted lexicographically.
 - RFC-0045: `mycelium_get_siblings` MCP tool — "what else is in this class/file?" query in a single call; returns `{ siblings, count }` or `{ error }` for unknown paths.
+- RFC-0046: `NodeDegree` struct — per-node edge count summary: in/out degree for each of the four `EdgeKind`s (calls, imports, extends, implements).
+- RFC-0046: `Store::node_degree(id)` — O(1) per-kind edge count summary without pulling full edge lists; useful for fast coupling analysis and hub-node detection.
+- RFC-0046: `mycelium_get_node_degree` MCP tool — connectivity fingerprint for any path; returns `{ in_calls, out_calls, in_imports, out_imports, in_extends, out_extends, in_implements, out_implements }` or `{ error }`.
 
 ### Fixed
 
