@@ -51,7 +51,7 @@ use anyhow::Context as _;
 use mycelium_core::{
     CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
     ImportNode, ImporterNode, NodeDegree, OutgoingRefs, SubclassNode, SymbolNeighborhood,
-    extractor::Extractor, store::Store, types::EdgeKind,
+    TopologicalOrder, extractor::Extractor, store::Store, types::EdgeKind,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -513,6 +513,13 @@ pub struct GetWccRequest {
     pub edge_kind: String,
     /// Only return components with at least this many symbols. Defaults to 1.
     pub min_size: Option<usize>,
+}
+
+/// Input parameters for `mycelium_topological_sort`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TopologicalSortRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
 }
 
 /// Input parameters for `mycelium_find_cycle_members`.
@@ -2037,6 +2044,48 @@ impl MyceliumServer {
         let count = degrees.len();
         drop(store);
         serde_json::json!({ "degrees": degrees, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return a topological ordering of the symbol graph for a given EdgeKind \
+                       using Kahn's BFS algorithm. Each symbol appears after all its dependencies. \
+                       Symbols in directed cycles cannot be ordered and are returned separately in \
+                       cycle_members. Useful for build order analysis, initialization sequences, \
+                       and layered architecture validation. Returns { order, cycle_members, \
+                       ordered_count, cycle_count } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_topological_sort(
+        &self,
+        Parameters(req): Parameters<TopologicalSortRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let TopologicalOrder {
+            order,
+            cycle_members,
+        } = {
+            let store = self.store.read().await;
+            let r = store.topological_sort(kind);
+            drop(store);
+            r
+        };
+        let ordered_count = order.len();
+        let cycle_count = cycle_members.len();
+        serde_json::json!({
+            "order": order,
+            "cycle_members": cycle_members,
+            "ordered_count": ordered_count,
+            "cycle_count": cycle_count,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -6120,6 +6169,71 @@ mod tests {
             .mycelium_get_wcc(Parameters(GetWccRequest {
                 edge_kind: "bad_kind".into(),
                 min_size: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0069: mycelium_topological_sort ───────────────────────────────
+
+    #[tokio::test]
+    async fn topo_sort_linear_chain_ordered() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+        }
+        let raw = server
+            .mycelium_topological_sort(Parameters(TopologicalSortRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["ordered_count"].as_u64().unwrap(), 3);
+        assert_eq!(val["cycle_count"].as_u64().unwrap(), 0);
+        let order: Vec<&str> = val["order"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        let pos_a = order.iter().position(|&s| s == "src/a.rs>a").unwrap();
+        let pos_b = order.iter().position(|&s| s == "src/b.rs>b").unwrap();
+        let pos_c = order.iter().position(|&s| s == "src/c.rs>c").unwrap();
+        assert!(pos_a < pos_b && pos_b < pos_c);
+    }
+
+    #[tokio::test]
+    async fn topo_sort_cycle_surfaced() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, a);
+        }
+        let raw = server
+            .mycelium_topological_sort(Parameters(TopologicalSortRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["ordered_count"].as_u64().unwrap(), 0);
+        assert_eq!(val["cycle_count"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn topo_sort_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_topological_sort(Parameters(TopologicalSortRequest {
+                edge_kind: "bad".into(),
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();

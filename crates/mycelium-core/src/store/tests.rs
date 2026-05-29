@@ -3861,3 +3861,92 @@ fn store_wcc_sorted_by_size_desc() {
     assert_eq!(comps[0].len(), 3); // largest first
     assert_eq!(comps[1].len(), 1);
 }
+
+// RFC-0069: topological_sort
+#[test]
+fn store_topo_sort_linear_chain() {
+    // a → b → c: topo order must be [a, b, c]
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let result = store.topological_sort(EdgeKind::Calls);
+    assert!(result.cycle_members.is_empty());
+    // a before b before c
+    let pos: std::collections::HashMap<&str, usize> = result
+        .order
+        .iter()
+        .enumerate()
+        .map(|(i, s): (usize, &String)| (s.as_str(), i))
+        .collect();
+    assert!(pos["src/a.rs>a"] < pos["src/b.rs>b"]);
+    assert!(pos["src/b.rs>b"] < pos["src/c.rs>c"]);
+}
+
+#[test]
+fn store_topo_sort_cycle_members_reported() {
+    // a → b → a: both in cycle, c is a DAG node
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    store.upsert_edge(EdgeKind::Calls, c, a); // c → cycle
+    let result = store.topological_sort(EdgeKind::Calls);
+    // c has no incoming edges from non-cycle nodes, so it's in order
+    assert!(result.order.contains(&"src/c.rs>c".to_owned()));
+    // a and b are cycle members
+    assert!(result.cycle_members.contains(&"src/a.rs>a".to_owned()));
+    assert!(result.cycle_members.contains(&"src/b.rs>b".to_owned()));
+}
+
+#[test]
+fn store_topo_sort_empty_graph_returns_empty() {
+    let store = Store::new();
+    let result = store.topological_sort(EdgeKind::Calls);
+    assert!(result.order.is_empty());
+    assert!(result.cycle_members.is_empty());
+}
+
+#[test]
+fn store_topo_sort_excludes_file_nodes() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_node(path("src/a.rs")); // file node
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let result = store.topological_sort(EdgeKind::Calls);
+    for sym in result.order.iter().chain(result.cycle_members.iter()) {
+        let sym: &String = sym;
+        assert!(sym.contains('>'), "file node leaked: {sym}");
+    }
+}
+
+#[test]
+fn store_topo_sort_diamond_dependency() {
+    // a → b, a → c, b → d, c → d: d must come last, a must come first
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    let d = store.upsert_node(path("src/d.rs>d"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    store.upsert_edge(EdgeKind::Calls, b, d);
+    store.upsert_edge(EdgeKind::Calls, c, d);
+    let result = store.topological_sort(EdgeKind::Calls);
+    assert!(result.cycle_members.is_empty());
+    let pos: std::collections::HashMap<&str, usize> = result
+        .order
+        .iter()
+        .enumerate()
+        .map(|(i, s): (usize, &String)| (s.as_str(), i))
+        .collect();
+    assert!(pos["src/a.rs>a"] < pos["src/b.rs>b"]);
+    assert!(pos["src/a.rs>a"] < pos["src/c.rs>c"]);
+    assert!(pos["src/b.rs>b"] < pos["src/d.rs>d"]);
+    assert!(pos["src/c.rs>c"] < pos["src/d.rs>d"]);
+}
