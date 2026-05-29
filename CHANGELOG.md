@@ -228,6 +228,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0083: `mycelium_get_common_reachable` MCP tool — shared dependency finder; accepts `{ path1, path2, edge_kind }` and returns `{ common, count }` or `{ error }`. Useful for refactoring analysis and finding shared utilities.
 - RFC-0084: `Store::k_hop_neighbors(id, kind, k)` — BFS frontier at exactly depth k; nodes reached at depth < k excluded; source excluded; file nodes excluded; sorted alphabetically; O(V+E). Answers "what is reachable at exactly depth k?".
 - RFC-0084: `mycelium_get_k_hop_neighbors` MCP tool — depth-scoped neighbor probe; accepts `{ path, edge_kind, k }` and returns `{ neighbors, count, k }` or `{ error }`. k=1 = direct neighbors; k=2 = two-hop callees only.
+- RFC-0085: `BetweennessEntry` struct `{ path, score }` — one result entry from `betweenness_centrality`.
+- RFC-0085: `Store::betweenness_centrality(kind)` — Brandes' O(V×(V+E)) algorithm; BFS per source with backward delta accumulation; normalized by (n-1)×(n-2); file nodes excluded; sorted descending. Identifies bridge nodes that lie on many shortest dependency paths.
+- RFC-0085: `mycelium_get_betweenness_centrality` MCP tool — bridge node detector; accepts `{ edge_kind, top_n? }` and returns `{ nodes: [{path, score}], symbol_count, top_n }` or `{ error }`. Score ∈ [0, 1]; high score = critical bottleneck.
 
 ### Fixed
 
