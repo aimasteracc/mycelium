@@ -101,6 +101,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0029: `mycelium_get_source_span` MCP tool — returns `{ path, start_line, start_col, end_line, end_col, start_byte, end_byte }` on hit, `{ path, span: null }` when unrecorded, or `{ error }` when path is not found.
 - RFC-0030: `Store::find_extends_path(from, to, max_depth)` — BFS shortest extends-chain search over `EdgeKind::Extends`; completes the `find_*_path` triad.
 - RFC-0030: `mycelium_find_extends_path` MCP tool — returns `{ path, hops }` on success, `{ path: [], hops: null, message }` when unreachable, or `{ error }` for unknown paths; `max_depth` defaults to 8, capped at 20.
+- RFC-0031: `ExtendsNode { id, parents }` struct — DFS superclass tree node; cycle-safe via path-tracking visited set with backtrack removal.
+- RFC-0031: `Store::extends_tree(id, max_depth)` — depth-limited recursive DFS over outgoing `Extends` edges.
+- RFC-0031: `mycelium_get_extends_tree` MCP tool — returns `{ root: { path, parents: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`.
 
 ### Fixed
 
