@@ -85,6 +85,19 @@ pub struct ImportNode {
     pub imports: Vec<Self>,
 }
 
+/// A node in the extends tree returned by [`Store::extends_tree`].
+///
+/// Represents a class and its direct superclasses (recursively up to the
+/// configured `max_depth`).  Cycles are represented as leaf nodes
+/// (`parents` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExtendsNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Parent (superclass) subtrees, one per outgoing `Extends` edge, up to `max_depth`.
+    pub parents: Vec<Self>,
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -769,6 +782,40 @@ impl Store {
             .collect();
         visited.remove(&id);
         ImportNode { id, imports }
+    }
+
+    /// Return the transitive superclass tree rooted at `id`, up to `max_depth` hops.
+    ///
+    /// Cycles are broken via a visited set: a node already in the current
+    /// traversal path is returned as a leaf with no parents.
+    ///
+    /// `max_depth = 0` returns a leaf (no parents) regardless of edges.
+    #[must_use]
+    pub fn extends_tree(&self, id: NodeId, max_depth: usize) -> ExtendsNode {
+        let mut visited = HashSet::new();
+        self.extends_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn extends_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> ExtendsNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return ExtendsNode {
+                id,
+                parents: vec![],
+            };
+        }
+        let parents: Vec<ExtendsNode> = self
+            .synapse
+            .outgoing(id, EdgeKind::Extends)
+            .iter()
+            .map(|&parent_id| self.extends_tree_inner(parent_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        ExtendsNode { id, parents }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.

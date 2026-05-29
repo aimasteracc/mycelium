@@ -33,8 +33,9 @@
 //! | `mycelium_find_import_path` | Find the shortest import-dependency chain between two symbols via BFS |
 //! | `mycelium_get_source_span` | Return the source location (line/col/byte) for a given path |
 //! | `mycelium_find_extends_path` | Find the shortest extends (inheritance) chain between two symbols via BFS |
+//! | `mycelium_get_extends_tree` | Return the depth-limited superclass tree for a symbol (outgoing Extends edges) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, and RFC-0030 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, and RFC-0031 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -42,7 +43,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
-use mycelium_core::{CalleeNode, CallerNode, ImportNode, extractor::Extractor, store::Store};
+use mycelium_core::{
+    CalleeNode, CallerNode, ExtendsNode, ImportNode, extractor::Extractor, store::Store,
+};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
     ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::Implementation,
@@ -177,6 +180,15 @@ pub struct FindImportPathRequest {
     /// End of the import chain, e.g. `"src/db.rs"`.
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
+    pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_extends_tree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetExtendsTreeRequest {
+    /// Root symbol path, e.g. `"src/child.ts>Child"`.
+    pub path: String,
+    /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
 }
 
@@ -1225,6 +1237,29 @@ impl MyceliumServer {
             },
         )
     }
+
+    #[tool(
+        description = "Return the depth-limited superclass tree for a symbol, following outgoing \
+                       Extends edges. The result is { root: { path, parents: [...] } } where \
+                       each node has a path and its own parents list. Cycles are cut as leaf \
+                       nodes. max_depth defaults to 4, capped at 10. Unknown path returns { error }."
+    )]
+    async fn mycelium_get_extends_tree(
+        &self,
+        Parameters(req): Parameters<GetExtendsTreeRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let tree = store_guard.extends_tree(id, max_depth);
+        let json = extends_node_to_json(&tree, &store_guard);
+        drop(store_guard);
+        serde_json::json!({ "root": json }).to_string()
+    }
 }
 
 #[tool_handler]
@@ -1266,6 +1301,16 @@ fn import_node_to_json(node: &ImportNode, store: &Store) -> serde_json::Value {
         .map(|dep| import_node_to_json(dep, store))
         .collect();
     serde_json::json!({ "path": path, "imports": imports })
+}
+
+fn extends_node_to_json(node: &ExtendsNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let parents: Vec<serde_json::Value> = node
+        .parents
+        .iter()
+        .map(|p| extends_node_to_json(p, store))
+        .collect();
+    serde_json::json!({ "path": path, "parents": parents })
 }
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
@@ -3225,6 +3270,51 @@ mod tests {
             .mycelium_find_extends_path(Parameters(FindExtendsPathRequest {
                 from_path: "no/such>path".to_string(),
                 to_path: "src/base.ts>Base".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0031: mycelium_get_extends_tree ──────────────────────────────
+
+    #[tokio::test]
+    async fn get_extends_tree_returns_superclass_chain() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_get_extends_tree(Parameters(GetExtendsTreeRequest {
+                path: "src/child.ts>Child".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        let root = &val["root"];
+        assert_eq!(root["path"].as_str(), Some("src/child.ts>Child"));
+        assert_eq!(root["parents"].as_array().unwrap().len(), 1);
+        assert_eq!(root["parents"][0]["path"].as_str(), Some("src/mid.ts>Mid"));
+    }
+
+    #[tokio::test]
+    async fn get_extends_tree_leaf_at_max_depth_zero() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_get_extends_tree(Parameters(GetExtendsTreeRequest {
+                path: "src/child.ts>Child".to_string(),
+                max_depth: Some(0),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["root"]["parents"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_extends_tree_unknown_path_returns_error() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_get_extends_tree(Parameters(GetExtendsTreeRequest {
+                path: "no/such>path".to_string(),
                 max_depth: None,
             }))
             .await;
