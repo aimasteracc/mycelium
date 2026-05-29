@@ -1,0 +1,8 @@
+---
+source: crates/mycelium-hyphae/src/parser.rs
+assertion_line: 575
+expression: result
+---
+Err(
+    UnexpectedEof,
+)
