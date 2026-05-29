@@ -50,7 +50,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use anyhow::Context as _;
 use mycelium_core::{
     CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
-    ImportNode, ImporterNode, SubclassNode, extractor::Extractor, store::Store,
+    ImportNode, ImporterNode, SubclassNode, extractor::Extractor, store::Store, types::EdgeKind,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -330,6 +330,15 @@ pub struct GetStatsRequest {}
 pub struct GetCrossRefsRequest {
     /// Symbol path to look up, e.g. `"src/lib.rs>MyClass"`.
     pub path: String,
+}
+
+/// Input parameters for `mycelium_detect_cycles`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DetectCyclesRequest {
+    /// Edge kind to analyze: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Optional path prefix to filter returned cycle nodes (e.g. `"src/"`).
+    pub path_prefix: Option<String>,
 }
 
 /// Input parameters for `mycelium_find_call_path`.
@@ -1197,6 +1206,35 @@ impl MyceliumServer {
             "implemented_by": refs.implemented_by,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Detect nodes that participate in at least one cycle for a given edge kind. \
+                       edge_kind must be 'calls', 'imports', 'extends', or 'implements'. \
+                       Optional path_prefix filters the returned node list. \
+                       Returns { cycle_nodes: [...], count: N } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_detect_cycles(
+        &self,
+        Parameters(req): Parameters<DetectCyclesRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let nodes = self
+            .store
+            .read()
+            .await
+            .nodes_in_cycles(kind, req.path_prefix.as_deref());
+        let count = nodes.len();
+        serde_json::json!({ "cycle_nodes": nodes, "count": count }).to_string()
     }
 
     #[tool(
@@ -4098,6 +4136,70 @@ mod tests {
         let raw = server
             .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
                 path: "no/such>path".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0040: mycelium_detect_cycles ─────────────────────────────────
+
+    #[tokio::test]
+    async fn detect_cycles_finds_circular_imports() {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, b);
+            store.upsert_edge(EdgeKind::Imports, b, a); // cycle
+        }
+        let raw = server
+            .mycelium_detect_cycles(Parameters(DetectCyclesRequest {
+                edge_kind: "imports".to_owned(),
+                path_prefix: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let nodes: Vec<String> = val["cycle_nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(nodes.len(), 2);
+        assert!(nodes.contains(&"src/a.rs>a".to_owned()));
+        assert!(nodes.contains(&"src/b.rs>b".to_owned()));
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn detect_cycles_no_cycles_returns_empty() {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, b); // no cycle
+        }
+        let raw = server
+            .mycelium_detect_cycles(Parameters(DetectCyclesRequest {
+                edge_kind: "imports".to_owned(),
+                path_prefix: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["cycle_nodes"].as_array().unwrap().len(), 0);
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn detect_cycles_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_detect_cycles(Parameters(DetectCyclesRequest {
+                edge_kind: "unknown_kind".to_owned(),
+                path_prefix: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();

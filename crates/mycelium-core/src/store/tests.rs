@@ -1845,3 +1845,69 @@ fn store_cross_refs_sorted() {
     expected.sort_unstable();
     assert_eq!(refs.callers, expected);
 }
+
+// ── RFC-0040: Store::nodes_in_cycles ──────────────────────────────────
+
+#[test]
+fn store_nodes_in_cycles_no_cycle() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    let cycles = store.nodes_in_cycles(EdgeKind::Imports, None);
+    assert!(cycles.is_empty());
+}
+
+#[test]
+fn store_nodes_in_cycles_simple_cycle() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, a); // cycle
+    let mut cycles = store.nodes_in_cycles(EdgeKind::Imports, None);
+    cycles.sort_unstable();
+    assert_eq!(cycles, vec!["a.rs>a".to_owned(), "b.rs>b".to_owned()]);
+}
+
+#[test]
+fn store_nodes_in_cycles_three_node_cycle() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let c = store.upsert_node(path("c.rs>c"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, c);
+    store.upsert_edge(EdgeKind::Imports, c, a); // cycle: a→b→c→a
+    let cycles = store.nodes_in_cycles(EdgeKind::Imports, None);
+    assert_eq!(cycles.len(), 3);
+}
+
+#[test]
+fn store_nodes_in_cycles_non_cycle_node_excluded() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let outside = store.upsert_node(path("z.rs>outside"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, a); // cycle
+    store.upsert_edge(EdgeKind::Imports, outside, a); // outside points in but is not cyclic
+    let cycles = store.nodes_in_cycles(EdgeKind::Imports, None);
+    assert!(!cycles.contains(&"z.rs>outside".to_owned()));
+}
+
+#[test]
+fn store_nodes_in_cycles_prefix_filter() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let x = store.upsert_node(path("lib/x.rs>x"));
+    let y = store.upsert_node(path("lib/y.rs>y"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    store.upsert_edge(EdgeKind::Imports, b, a); // cycle in src/
+    store.upsert_edge(EdgeKind::Imports, x, y);
+    store.upsert_edge(EdgeKind::Imports, y, x); // cycle in lib/
+    let cycles_src = store.nodes_in_cycles(EdgeKind::Imports, Some("src/"));
+    assert!(cycles_src.iter().all(|p| p.starts_with("src/")));
+    assert_eq!(cycles_src.len(), 2);
+}
