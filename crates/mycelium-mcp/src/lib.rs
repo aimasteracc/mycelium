@@ -506,6 +506,15 @@ pub struct BatchNodeDegreeRequest {
     pub paths: Vec<String>,
 }
 
+/// Input parameters for `mycelium_get_wcc`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetWccRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Only return components with at least this many symbols. Defaults to 1.
+    pub min_size: Option<usize>,
+}
+
 /// Input parameters for `mycelium_find_cycle_members`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct FindCycleMembersRequest {
@@ -2028,6 +2037,42 @@ impl MyceliumServer {
         let count = degrees.len();
         drop(store);
         serde_json::json!({ "degrees": degrees, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Group symbol nodes into weakly-connected components (WCCs) for a given \
+                       EdgeKind, treating edges as undirected. WCCs surface isolated clusters: \
+                       self-contained subsystems, orphaned utilities, or modules with no \
+                       dependency links to the rest of the codebase. Complements SCC (directed \
+                       mutual reachability). Use min_size=2 to hide singleton isolated nodes. \
+                       Returns { components, component_count, total_symbols } or { error }."
+    )]
+    async fn mycelium_get_wcc(&self, Parameters(req): Parameters<GetWccRequest>) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let min_size = req.min_size.unwrap_or(1).max(1);
+        let components: Vec<Vec<String>> = {
+            let store = self.store.read().await;
+            let all = store.weakly_connected_components(kind);
+            drop(store);
+            all.into_iter().filter(|c| c.len() >= min_size).collect()
+        };
+        let component_count = components.len();
+        let total_symbols: usize = components.iter().map(Vec::len).sum();
+        serde_json::json!({
+            "components": components,
+            "component_count": component_count,
+            "total_symbols": total_symbols,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -6015,6 +6060,66 @@ mod tests {
         let raw = server
             .mycelium_find_cycle_members(Parameters(FindCycleMembersRequest {
                 edge_kind: "unknown_kind".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0068: mycelium_get_wcc ─────────────────────────────────────────
+
+    #[tokio::test]
+    async fn wcc_two_disjoint_components() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            let d = store.upsert_node(TrunkPath::parse("src/d.rs>d").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, c, d);
+        }
+        let raw = server
+            .mycelium_get_wcc(Parameters(GetWccRequest {
+                edge_kind: "calls".into(),
+                min_size: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["component_count"].as_u64().unwrap(), 2);
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 4);
+    }
+
+    #[tokio::test]
+    async fn wcc_min_size_filter() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_node(TrunkPath::parse("src/lone.rs>lone").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+        }
+        let raw = server
+            .mycelium_get_wcc(Parameters(GetWccRequest {
+                edge_kind: "calls".into(),
+                min_size: Some(2),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // singleton lone filtered out
+        assert_eq!(val["component_count"].as_u64().unwrap(), 1);
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn wcc_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_wcc(Parameters(GetWccRequest {
+                edge_kind: "bad_kind".into(),
+                min_size: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
