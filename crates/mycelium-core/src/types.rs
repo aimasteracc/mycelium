@@ -319,7 +319,7 @@ impl fmt::Display for Language {
 /// Lines are 1-indexed (matching editor convention); columns are 0-indexed
 /// (matching tree-sitter and LSP). The byte offset is included for
 /// O(1) slice extraction.
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SourceSpan {
     /// 1-indexed starting line.
     pub start_line: u32,

@@ -30,8 +30,10 @@
 //! | `mycelium_get_implements` | Return direct interface-implementation neighbors (`implements` / `implemented_by`) for a path |
 //! | `mycelium_get_node_kind` | Return the `NodeKind` for a given path |
 //! | `mycelium_get_symbols_by_kind` | Return all symbols of a given `NodeKind`, optionally filtered by path prefix |
+//! | `mycelium_find_import_path` | Find the shortest import-dependency chain between two symbols via BFS |
+//! | `mycelium_get_source_span` | Return the source location (line/col/byte) for a given path |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, and RFC-0028 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, and RFC-0029 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -191,6 +193,13 @@ pub struct GetSymbolsByKindRequest {
     pub kind: String,
     /// Optional path prefix to restrict results, e.g. `"src/"`.
     pub path_prefix: Option<String>,
+}
+
+/// Input parameters for `mycelium_get_source_span`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSourceSpanRequest {
+    /// Trunk path to query, e.g. `"src/auth.rs>login"`.
+    pub path: String,
 }
 
 /// Input parameters for `mycelium_get_extends`.
@@ -911,6 +920,42 @@ impl MyceliumServer {
             .await
             .symbols_of_kind(kind, req.path_prefix.as_deref());
         serde_json::json!({ "symbols": symbols }).to_string()
+    }
+
+    #[tool(
+        description = "Return the source location of a symbol: start_line (1-indexed), start_col \
+                       (0-indexed), end_line (1-indexed), end_col (0-indexed), start_byte, \
+                       end_byte. Returns { path, start_line, start_col, end_line, end_col, \
+                       start_byte, end_byte } when the span is recorded, { path, span: null } \
+                       when the node exists but has no recorded span, or { error } when the \
+                       path is not found."
+    )]
+    async fn mycelium_get_source_span(
+        &self,
+        Parameters(req): Parameters<GetSourceSpanRequest>,
+    ) -> String {
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        if let Some(span) = store_guard.span_of(id) {
+            drop(store_guard);
+            serde_json::json!({
+                "path": req.path,
+                "start_line": span.start_line,
+                "start_col": span.start_col,
+                "end_line": span.end_line,
+                "end_col": span.end_col,
+                "start_byte": span.start_byte,
+                "end_byte": span.end_byte,
+            })
+            .to_string()
+        } else {
+            drop(store_guard);
+            serde_json::json!({ "path": req.path, "span": serde_json::Value::Null }).to_string()
+        }
     }
 
     #[tool(
@@ -2978,6 +3023,78 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0029: mycelium_get_source_span ───────────────────────────────
+
+    async fn server_with_span_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        let id =
+            store.upsert_node(mycelium_core::trunk::TrunkPath::parse("src/auth.rs>login").unwrap());
+        store.set_span(
+            id,
+            mycelium_core::types::SourceSpan {
+                start_line: 10,
+                start_col: 0,
+                end_line: 20,
+                end_col: 1,
+                start_byte: 100,
+                end_byte: 300,
+            },
+        );
+        drop(store);
+        server
+    }
+
+    #[tokio::test]
+    async fn get_source_span_returns_all_fields() {
+        let server = server_with_span_fixture().await;
+        let raw = server
+            .mycelium_get_source_span(Parameters(GetSourceSpanRequest {
+                path: "src/auth.rs>login".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "should not error");
+        assert_eq!(val["start_line"].as_u64(), Some(10));
+        assert_eq!(val["start_col"].as_u64(), Some(0));
+        assert_eq!(val["end_line"].as_u64(), Some(20));
+        assert_eq!(val["end_col"].as_u64(), Some(1));
+        assert_eq!(val["start_byte"].as_u64(), Some(100));
+        assert_eq!(val["end_byte"].as_u64(), Some(300));
+    }
+
+    #[tokio::test]
+    async fn get_source_span_returns_null_when_span_not_recorded() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(mycelium_core::trunk::TrunkPath::parse("x.rs>foo").unwrap());
+        }
+        let raw = server
+            .mycelium_get_source_span(Parameters(GetSourceSpanRequest {
+                path: "x.rs>foo".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "should not error");
+        assert!(val["span"].is_null(), "span must be null when unrecorded");
+    }
+
+    #[tokio::test]
+    async fn get_source_span_unknown_path_returns_error() {
+        let server = server_with_span_fixture().await;
+        let raw = server
+            .mycelium_get_source_span(Parameters(GetSourceSpanRequest {
+                path: "no/such>path".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            val.get("error").is_some(),
+            "must return error for unknown path"
+        );
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`

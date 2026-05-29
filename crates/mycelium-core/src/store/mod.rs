@@ -44,7 +44,7 @@ use hashbrown::HashMap;
 
 use crate::synapse::Synapse;
 use crate::trunk::{Trunk, TrunkPath};
-use crate::types::{EdgeKind, NodeId, NodeKind};
+use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
 
 /// A node in the callee tree returned by [`Store::callee_tree`].
 ///
@@ -99,6 +99,8 @@ pub struct Store {
     synapse: Synapse,
     /// Per-node kind metadata, populated by the extractor.
     kind_map: HashMap<NodeId, NodeKind>,
+    /// Per-node source span (file + line/col/byte), populated by the extractor.
+    span_map: HashMap<NodeId, SourceSpan>,
 }
 
 impl Store {
@@ -167,6 +169,19 @@ impl Store {
         self.kind_map.get(&id).copied()
     }
 
+    /// Record the [`SourceSpan`] for an already-upserted node.
+    ///
+    /// Overwrites any previous value for the same `id`.
+    pub fn set_span(&mut self, id: NodeId, span: SourceSpan) {
+        self.span_map.insert(id, span);
+    }
+
+    /// Return the [`SourceSpan`] for `id`, or `None` if not recorded.
+    #[must_use]
+    pub fn span_of(&self, id: NodeId) -> Option<SourceSpan> {
+        self.span_map.get(&id).copied()
+    }
+
     /// Return all materialized symbol paths whose recorded kind equals `kind`.
     ///
     /// If `prefix` is given, only paths starting with that string are returned.
@@ -201,6 +216,7 @@ impl Store {
         self.trunk.remove(id);
         self.synapse.remove_node(id);
         self.kind_map.remove(&id);
+        self.span_map.remove(&id);
     }
 
     /// Remove all nodes whose path is equal to or descended from
@@ -221,6 +237,7 @@ impl Store {
             self.trunk.remove(id);
             self.synapse.remove_node(id);
             self.kind_map.remove(&id);
+            self.span_map.remove(&id);
         }
     }
 
