@@ -588,6 +588,17 @@ pub struct HarmonicCentralityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_mutual_reachability`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct MutualReachabilityRequest {
+    /// First symbol path, e.g. `"src/a.rs>A"`.
+    pub path1: String,
+    /// Second symbol path, e.g. `"src/b.rs>B"`.
+    pub path2: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2501,6 +2512,49 @@ impl MyceliumServer {
             "harmonic_centrality": harmonic_centrality,
             "reachable_count": reachable_count,
             "symbol_count": symbol_count,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Check bidirectional reachability between two symbol nodes for a given \
+                       EdgeKind. Returns forward BFS distance (id1→id2), backward BFS distance \
+                       (id2→id1), and derived flags: forward, backward, mutual. \
+                       Same node → both distances 0, both directions true. \
+                       Returns { forward, backward, mutual, forward_distance, backward_distance } \
+                       or { error }."
+    )]
+    async fn mycelium_get_mutual_reachability(
+        &self,
+        Parameters(req): Parameters<MutualReachabilityRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id1) = store.lookup(&req.path1) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path1) })
+                .to_string();
+        };
+        let Some(id2) = store.lookup(&req.path2) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path2) })
+                .to_string();
+        };
+        let result = store.mutual_reachability(id1, id2, kind);
+        drop(store);
+        serde_json::json!({
+            "forward": result.forward,
+            "backward": result.backward,
+            "mutual": result.mutual,
+            "forward_distance": result.forward_distance,
+            "backward_distance": result.backward_distance,
         })
         .to_string()
     }
@@ -7156,6 +7210,60 @@ mod tests {
         let raw = server
             .mycelium_get_harmonic_centrality(Parameters(HarmonicCentralityRequest {
                 path: "src/any.rs>any_hc".into(),
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0079: mycelium_get_mutual_reachability ────────────────────────
+
+    #[tokio::test]
+    async fn mutual_reachability_forward_only_returns_correct_flags() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let src = store.upsert_node(TrunkPath::parse("src/mr.rs>src").unwrap());
+            let dst = store.upsert_node(TrunkPath::parse("src/mr.rs>dst").unwrap());
+            store.upsert_edge(EdgeKind::Calls, src, dst);
+        }
+        let raw = server
+            .mycelium_get_mutual_reachability(Parameters(MutualReachabilityRequest {
+                path1: "src/mr.rs>src".into(),
+                path2: "src/mr.rs>dst".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["forward"].as_bool().unwrap());
+        assert!(!val["backward"].as_bool().unwrap());
+        assert!(!val["mutual"].as_bool().unwrap());
+        assert_eq!(val["forward_distance"].as_u64().unwrap(), 1);
+        assert!(val["backward_distance"].is_null());
+    }
+
+    #[tokio::test]
+    async fn mutual_reachability_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_mutual_reachability(Parameters(MutualReachabilityRequest {
+                path1: "src/ghost.rs>none_mr".into(),
+                path2: "src/ghost.rs>other_mr".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    }
+
+    #[tokio::test]
+    async fn mutual_reachability_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_mutual_reachability(Parameters(MutualReachabilityRequest {
+                path1: "src/any.rs>any_mr1".into(),
+                path2: "src/any.rs>any_mr2".into(),
                 edge_kind: "unknown".into(),
             }))
             .await;
