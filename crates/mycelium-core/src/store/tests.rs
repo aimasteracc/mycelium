@@ -1561,3 +1561,57 @@ fn store_implements_tree_cycle_safe() {
     assert_eq!(tree.interfaces[0].interfaces[0].id, a);
     assert!(tree.interfaces[0].interfaces[0].interfaces.is_empty());
 }
+
+// ── RFC-0035: Store::implementors_tree ───────────────────────────────
+
+#[test]
+fn store_implementors_tree_leaf_at_max_depth_zero() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/a.rs>A"));
+    let tree = store.implementors_tree(id, 0);
+    assert_eq!(tree.id, id);
+    assert!(tree.implementors.is_empty());
+}
+
+#[test]
+fn store_implementors_tree_single_implementor() {
+    let mut store = Store::new();
+    let cls = store.upsert_node(path("src/cls.rs>Cls"));
+    let iface = store.upsert_node(path("src/iface.rs>IFace"));
+    store.upsert_edge(EdgeKind::Implements, cls, iface); // cls implements iface
+    let tree = store.implementors_tree(iface, 4);
+    assert_eq!(tree.id, iface);
+    assert_eq!(tree.implementors.len(), 1);
+    assert_eq!(tree.implementors[0].id, cls);
+    assert!(tree.implementors[0].implementors.is_empty());
+}
+
+#[test]
+fn store_implementors_tree_transitive_chain() {
+    let mut store = Store::new();
+    let base_iface = store.upsert_node(path("base.rs>BaseIFace"));
+    let mid_iface = store.upsert_node(path("mid.rs>MidIFace"));
+    let cls = store.upsert_node(path("cls.rs>Cls"));
+    store.upsert_edge(EdgeKind::Implements, mid_iface, base_iface);
+    store.upsert_edge(EdgeKind::Implements, cls, mid_iface);
+    let tree = store.implementors_tree(base_iface, 4);
+    assert_eq!(tree.implementors.len(), 1);
+    assert_eq!(tree.implementors[0].id, mid_iface);
+    assert_eq!(tree.implementors[0].implementors.len(), 1);
+    assert_eq!(tree.implementors[0].implementors[0].id, cls);
+}
+
+#[test]
+fn store_implementors_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    store.upsert_edge(EdgeKind::Implements, b, a); // b implements a
+    store.upsert_edge(EdgeKind::Implements, a, b); // a implements b (cycle)
+    let tree = store.implementors_tree(a, 10);
+    assert_eq!(tree.implementors.len(), 1);
+    assert_eq!(tree.implementors[0].id, b);
+    assert_eq!(tree.implementors[0].implementors.len(), 1);
+    assert_eq!(tree.implementors[0].implementors[0].id, a);
+    assert!(tree.implementors[0].implementors[0].implementors.is_empty());
+}
