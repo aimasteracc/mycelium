@@ -5559,3 +5559,26 @@ fn dep_depth_imports_edge_kind() {
     assert_eq!(store.dependency_depth(a, EdgeKind::Imports), Some(0));
     assert_eq!(store.dependency_depth(b, EdgeKind::Imports), Some(1));
 }
+
+#[test]
+fn dep_depth_large_cycle_terminates_without_oom() {
+    // Regression test: the previous Bellman-Ford implementation would build an
+    // O(V²) queue on cyclic graphs, causing OOM for large N.
+    // The Kahn's-DP replacement must complete in O(V+E) with bounded memory.
+    // 1 000-node ring: n0→n1→…→n999→n0
+    const N: usize = 1_000;
+    let mut store = Store::new();
+    let nodes: Vec<_> = (0..N)
+        .map(|i| store.upsert_node(path(&format!("src/cycle.rs>cycle_node_{i}"))))
+        .collect();
+    for i in 0..N {
+        store.upsert_edge(EdgeKind::Calls, nodes[i], nodes[(i + 1) % N]);
+    }
+    // All cycle members must return Some(...) without hanging or panicking.
+    for &node in &nodes {
+        assert!(
+            store.dependency_depth(node, EdgeKind::Calls).is_some(),
+            "cycle member must return Some"
+        );
+    }
+}

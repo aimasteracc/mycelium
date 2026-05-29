@@ -3806,47 +3806,67 @@ impl Store {
         if !path.contains('>') {
             return None;
         }
-        // Bellman-Ford style longest-path over the reversed graph (incoming edges).
-        // dist[node] = longest known distance from `id` following callers.
+        // Algorithm: Kahn's topological sort + longest-path DP.
+        // O(V + E) time, O(V) space.  Cycle-safe: Kahn's never processes nodes
+        // whose in-degree never reaches zero (cycle members), so the queue is
+        // bounded by V and the total work by E.  No OOM risk.
         //
-        // Cycle safety: in a DAG with V symbol nodes each node is relaxed at most
-        // V-1 times before the algorithm stabilises.  We cap per-node relaxations
-        // at `n_symbols` to guarantee termination in cyclic graphs — the cost is
-        // O(V²) which is acceptable for our graph sizes.
-        let n_symbols = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .count()
-            .max(1);
-        let mut dist: HashMap<NodeId, usize> = HashMap::new();
-        dist.insert(id, 0);
-        let mut relax_count: HashMap<NodeId, usize> = HashMap::new();
-        let mut queue: VecDeque<(NodeId, usize)> = VecDeque::new();
-        queue.push_back((id, 0));
-        let mut max_depth: usize = 0;
-        while let Some((node, d)) = queue.pop_front() {
+        // Step 1 — Collect the ancestor subgraph: all symbol nodes that can
+        // reach `id` by following INCOMING (caller) edges.  A simple BFS with
+        // a visited-set terminates even for cyclic graphs.
+        let mut ancestors: HashSet<NodeId> = HashSet::new();
+        ancestors.insert(id);
+        let mut bfs: VecDeque<NodeId> = VecDeque::new();
+        bfs.push_back(id);
+        while let Some(node) = bfs.pop_front() {
             for &caller in self.synapse.incoming(node, kind) {
                 if self.trunk.path_of(caller).is_none_or(|p| !p.contains('>')) {
                     continue;
                 }
-                // Cycle guard: stop relaxing this caller if already visited V times.
-                let rc = relax_count.entry(caller).or_insert(0);
-                if *rc >= n_symbols {
-                    continue;
-                }
-                let new_d = d + 1;
-                if dist.get(&caller).is_none_or(|&prev| new_d > prev) {
-                    dist.insert(caller, new_d);
-                    *rc += 1;
-                    if new_d > max_depth {
-                        max_depth = new_d;
-                    }
-                    queue.push_back((caller, new_d));
+                if ancestors.insert(caller) {
+                    bfs.push_back(caller);
                 }
             }
         }
-        Some(max_depth)
+
+        // Step 2 — Count in-degrees within the subgraph (caller edges only).
+        let mut in_deg: HashMap<NodeId, usize> = ancestors.iter().map(|&n| (n, 0usize)).collect();
+        for &node in &ancestors {
+            for &callee in self.synapse.outgoing(node, kind) {
+                if let Some(d) = in_deg.get_mut(&callee) {
+                    *d += 1;
+                }
+            }
+        }
+
+        // Step 3 — Kahn's BFS: start from roots (in-deg == 0), propagate dp.
+        // dp[node] = longest incoming-path depth within the subgraph.
+        let mut dp: HashMap<NodeId, usize> = HashMap::new();
+        let mut queue: VecDeque<NodeId> = in_deg
+            .iter()
+            .filter(|(_, d)| **d == 0)
+            .map(|(&n, _)| n)
+            .collect();
+        while let Some(node) = queue.pop_front() {
+            let d = *dp.get(&node).unwrap_or(&0);
+            for &callee in self.synapse.outgoing(node, kind) {
+                let Some(deg) = in_deg.get_mut(&callee) else {
+                    continue; // callee outside subgraph
+                };
+                let e = dp.entry(callee).or_insert(0);
+                if d + 1 > *e {
+                    *e = d + 1;
+                }
+                *deg -= 1;
+                if *deg == 0 {
+                    queue.push_back(callee);
+                }
+            }
+        }
+
+        // Cycle members are never enqueued (in-deg never reaches 0),
+        // so dp[cycle_node] stays 0 — a safe, bounded answer.
+        Some(*dp.get(&id).unwrap_or(&0))
     }
 
     /// Compute Wasserman-Faust normalized closeness centrality for all symbol nodes.
