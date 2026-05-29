@@ -115,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0035: `ImplementorNode { id, implementors }` struct — DFS implementor forest node; cycle-safe via path-tracking visited set with backtrack removal.
 - RFC-0035: `Store::implementors_tree(id, max_depth)` — depth-limited recursive DFS over **incoming** `Implements` edges.
 - RFC-0035: `mycelium_get_implementors_tree` MCP tool — returns `{ root: { path, implementors: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`. Completes the Implements family.
+- RFC-0036: `ImporterNode { id, importers }` struct — DFS reverse-dependency tree node; cycle-safe via path-tracking visited set with backtrack removal.
+- RFC-0036: `Store::importers_tree(id, max_depth)` — depth-limited recursive DFS over **incoming** `Imports` edges.
+- RFC-0036: `mycelium_get_importers_tree` MCP tool — returns `{ root: { path, importers: [...] } }`; `max_depth` defaults to 4, capped at 10; unknown path returns `{ error }`. Completes the Imports family and the full symmetric DFS coverage for all four `EdgeKind` variants.
 
 ### Fixed
 
