@@ -152,6 +152,22 @@ pub struct ImplementorNode {
     pub implementors: Vec<Self>,
 }
 
+/// All incoming edge references for a single symbol, grouped by edge kind.
+///
+/// Returned by [`Store::cross_refs`].  All lists are sorted lexicographically.
+/// Empty lists are always present (never omitted).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct CrossRefs {
+    /// Symbols that call this node (`EdgeKind::Calls` incoming).
+    pub callers: Vec<String>,
+    /// Symbols that import this node (`EdgeKind::Imports` incoming).
+    pub importers: Vec<String>,
+    /// Symbols that extend this node (`EdgeKind::Extends` incoming).
+    pub extended_by: Vec<String>,
+    /// Symbols that implement this node (`EdgeKind::Implements` incoming).
+    pub implemented_by: Vec<String>,
+}
+
 /// Comprehensive statistics about the indexed symbol graph.
 ///
 /// Returned by [`Store::graph_stats`].
@@ -1081,6 +1097,30 @@ impl Store {
             total_edges,
             nodes_by_kind,
             edges_by_kind,
+        }
+    }
+
+    /// Return all incoming edge references to `id`, grouped by edge kind.
+    ///
+    /// Each list in the returned [`CrossRefs`] is sorted lexicographically.
+    /// Unknown `id` values (nodes removed from the graph) return an empty
+    /// `CrossRefs`.
+    #[must_use]
+    pub fn cross_refs(&self, id: NodeId) -> CrossRefs {
+        let resolve = |ids: &[NodeId]| -> Vec<String> {
+            let mut paths: Vec<String> = ids
+                .iter()
+                .filter_map(|&nid| self.path_of(nid).map(str::to_owned))
+                .collect();
+            paths.sort_unstable();
+            paths
+        };
+
+        CrossRefs {
+            callers: resolve(self.synapse.incoming(id, EdgeKind::Calls)),
+            importers: resolve(self.synapse.incoming(id, EdgeKind::Imports)),
+            extended_by: resolve(self.synapse.incoming(id, EdgeKind::Extends)),
+            implemented_by: resolve(self.synapse.incoming(id, EdgeKind::Implements)),
         }
     }
 
