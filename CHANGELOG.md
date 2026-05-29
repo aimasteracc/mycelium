@@ -196,6 +196,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0071: `mycelium_find_bridge_edges` MCP tool — fragile single-link connection detector; accepts `{ edge_kind }` and returns `{ bridges: [{ from, to }], count }` or `{ error }` for unknown edge kind. Identifies dependency edges whose removal would disconnect two subsystems.
 - RFC-0072: `Store::biconnected_components(kind)` — partitions the undirected symbol graph into biconnected components (BCCs) via iterative Tarjan BCC detection with edge stack (O(V+E)); bridge edges produce 2-node BCCs; larger BCCs represent cycle-rich cohesive clusters; singletons excluded; groups sorted by size descending. Completes the cut-point analysis trilogy: WCC (RFC-0068), articulation points (RFC-0070), bridge edges (RFC-0071).
 - RFC-0072: `mycelium_get_biconnected_components` MCP tool — tightly-coupled cluster detector; accepts `{ edge_kind }` and returns `{ components, component_count, total_symbols }` or `{ error }` for unknown edge kind. Reveals which symbol groups are so interdependent that no single node is a cut point.
+- RFC-0073: `DegreeHistogram { in_degrees, out_degrees }` struct — frequency distribution of in- and out-degrees as `(degree, count)` pairs sorted ascending.
+- RFC-0073: `Store::degree_histogram(kind)` — O(V) in- and out-degree frequency histograms over all symbol nodes for a given EdgeKind; degree 0 included; file nodes excluded.
+- RFC-0073: `mycelium_get_degree_histogram` MCP tool — graph shape analysis; accepts `{ edge_kind }` and returns `{ in_degrees: [{degree, count}], out_degrees: [{degree, count}], total_symbols }` or `{ error }`. Power-law shape = hub-spoke architecture; uniform = balanced modular design.
 
 ### Fixed
 
