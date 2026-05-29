@@ -2956,4 +2956,54 @@ impl Store {
             max_out_degree: max_out,
         }
     }
+
+    /// Jaccard similarity between the combined neighbor sets of `id1` and `id2`
+    /// for `kind`.
+    ///
+    /// `N(x)` = union of outgoing and incoming neighbors of `x`.
+    /// Returns `|N(id1) ∩ N(id2)| / |N(id1) ∪ N(id2)|` ∈ [0.0, 1.0].
+    ///
+    /// Two nodes with no neighbors both return 0.0 (undefined similarity).
+    #[must_use]
+    /// Returns `(similarity, shared_count, total_union_count)`.
+    ///
+    /// Shared = |N(id1) ∩ N(id2)|, total = |N(id1) ∪ N(id2)|,
+    /// similarity = shared / total (Jaccard).  Both isolated → (0.0, 0, 0).
+    pub fn neighbor_similarity_stats(
+        &self,
+        id1: NodeId,
+        id2: NodeId,
+        kind: EdgeKind,
+    ) -> (f64, usize, usize) {
+        let neighbors = |id: NodeId| -> HashSet<NodeId> {
+            let mut set: HashSet<NodeId> =
+                self.synapse.outgoing(id, kind).iter().copied().collect();
+            set.extend(self.synapse.incoming(id, kind).iter().copied());
+            set.remove(&id);
+            set
+        };
+        let n1 = neighbors(id1);
+        let n2 = neighbors(id2);
+        if n1.is_empty() && n2.is_empty() {
+            return (0.0, 0, 0);
+        }
+        let shared = n1.intersection(&n2).count();
+        let total = n1.union(&n2).count();
+        // Code graphs never approach 2^52 nodes; precision loss is acceptable.
+        #[allow(clippy::cast_precision_loss)]
+        let similarity = if total == 0 {
+            0.0
+        } else {
+            shared as f64 / total as f64
+        };
+        (similarity, shared, total)
+    }
+
+    /// Jaccard similarity ∈ [0.0, 1.0] between the neighbor sets of two nodes.
+    ///
+    /// Both isolated nodes → 0.0 (undefined, not 1.0).
+    #[must_use]
+    pub fn neighbor_similarity(&self, id1: NodeId, id2: NodeId, kind: EdgeKind) -> f64 {
+        self.neighbor_similarity_stats(id1, id2, kind).0
+    }
 }

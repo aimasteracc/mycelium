@@ -550,6 +550,17 @@ pub struct GraphMetricsRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_neighbor_similarity`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct NeighborSimilarityRequest {
+    /// First symbol path.
+    pub path1: String,
+    /// Second symbol path.
+    pub path2: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2310,6 +2321,47 @@ impl MyceliumServer {
             "avg_degree": m.avg_degree,
             "max_in_degree": m.max_in_degree,
             "max_out_degree": m.max_out_degree,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Jaccard similarity between the combined neighbor sets of two symbol nodes \
+                       for a given EdgeKind. N(x) = all outgoing + incoming neighbors of x for \
+                       kind; similarity = |N(u)∩N(v)| / |N(u)∪N(v)|. 1.0 = identical structural \
+                       roles (same callers+callees); 0.0 = no overlap. Both isolated nodes → 0.0. \
+                       Useful for refactoring candidates and duplicate detection. O(max_degree). \
+                       Returns { similarity, shared, total } or { error }."
+    )]
+    async fn mycelium_get_neighbor_similarity(
+        &self,
+        Parameters(req): Parameters<NeighborSimilarityRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id1) = store.lookup(&req.path1) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path1) })
+                .to_string();
+        };
+        let Some(id2) = store.lookup(&req.path2) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path2) })
+                .to_string();
+        };
+        let (similarity, shared, total) = store.neighbor_similarity_stats(id1, id2, kind);
+        drop(store);
+        serde_json::json!({
+            "similarity": similarity,
+            "shared": shared,
+            "total": total,
         })
         .to_string()
     }
@@ -6739,6 +6791,74 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_get_graph_metrics(Parameters(GraphMetricsRequest {
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0075: mycelium_get_neighbor_similarity ────────────────────────
+
+    #[tokio::test]
+    async fn neighbor_similarity_identical_neighbors_returns_one() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            // a and b both call hub; hub is shared neighbor
+            let a = store.upsert_node(TrunkPath::parse("src/x.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/x.rs>b").unwrap());
+            let hub = store.upsert_node(TrunkPath::parse("src/x.rs>hub").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, hub);
+            store.upsert_edge(EdgeKind::Calls, b, hub);
+        }
+        let raw = server
+            .mycelium_get_neighbor_similarity(Parameters(NeighborSimilarityRequest {
+                path1: "src/x.rs>a".into(),
+                path2: "src/x.rs>b".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let sim = val["similarity"].as_f64().unwrap();
+        assert!((sim - 1.0).abs() < 1e-9, "expected 1.0, got {sim}");
+        assert_eq!(val["shared"].as_u64().unwrap(), 1);
+        assert_eq!(val["total"].as_u64().unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn neighbor_similarity_no_overlap_returns_zero() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/y.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/y.rs>b").unwrap());
+            let na = store.upsert_node(TrunkPath::parse("src/y.rs>na").unwrap());
+            let nb = store.upsert_node(TrunkPath::parse("src/y.rs>nb").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, na);
+            store.upsert_edge(EdgeKind::Calls, b, nb);
+        }
+        let raw = server
+            .mycelium_get_neighbor_similarity(Parameters(NeighborSimilarityRequest {
+                path1: "src/y.rs>a".into(),
+                path2: "src/y.rs>b".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let sim = val["similarity"].as_f64().unwrap();
+        assert!(sim.abs() < 1e-9, "expected 0.0, got {sim}");
+        assert_eq!(val["shared"].as_u64().unwrap(), 0);
+        assert_eq!(val["total"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn neighbor_similarity_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_neighbor_similarity(Parameters(NeighborSimilarityRequest {
+                path1: "src/z.rs>a".into(),
+                path2: "src/z.rs>b".into(),
                 edge_kind: "unknown".into(),
             }))
             .await;
