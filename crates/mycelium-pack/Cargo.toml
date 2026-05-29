@@ -1,5 +1,5 @@
 [package]
-name          = "mycelium-pack"
+name          = "mycelium-rcig-pack"
 description   = "Language pack loader and runtime for Mycelium. Reads pack.toml + queries.scm."
 version       = { workspace = true }
 edition       = { workspace = true }
@@ -12,6 +12,9 @@ documentation = { workspace = true }
 readme        = "../mycelium-core/README.md"
 keywords      = ["code-intelligence", "language-pack", "tree-sitter", "parser", "ai"]
 categories    = ["development-tools", "parser-implementations"]
+
+[lib]
+name = "mycelium_pack"
 
 [lints]
 workspace = true

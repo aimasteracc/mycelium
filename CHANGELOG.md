@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **crates.io publish prefix**: Renamed all five workspace crates from
+  `mycelium-*` to `mycelium-rcig-*` (`rcig` = reactive code intelligence
+  graph). The short names `mycelium-core` and `mycelium-cli` were already
+  taken on crates.io by unrelated projects (Matthew Bradford's
+  `mycelium_core` from 2019 and LepistaBioinformatics' active
+  `mycelium-cli`). Source code is unchanged — dep-names and `[lib].name`
+  preserve `use mycelium_core::*` etc. New install command:
+  `cargo install mycelium-rcig-cli` (the installed binary is still
+  `mycelium`).
+- **mycelium-core self-containment**: Copied the 5 language packs
+  referenced by `cortex.rs` (javascript, python, typescript, rust, go)
+  into `crates/mycelium-core/packs/` and updated `include_str!` paths.
+  Matches the pattern PR #145 introduced for `mycelium-mcp`.
+
 ## [0.1.0] — 2026-05-30
 
 ### Highlights
