@@ -260,6 +260,34 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Return `imports` + `imported_by` for a file/module.
+    GetImports {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive import tree rooted at a file/module.
+    GetImportTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive "who imports me" tree rooted at a file/module.
+    GetImportersTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -438,6 +466,28 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_isolated_symbols(&canonical, prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetImports { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_imports(&canonical, &path, format.into())?;
+        }
+        Cmd::GetImportTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_import_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetImportersTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_importers_tree(&canonical, &path, max_depth, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

@@ -404,6 +404,90 @@ pub(crate) fn run_get_isolated_symbols(
     print_string_list(&symbols, format)
 }
 
+// ── import-graph: get-imports / get-import-tree / get-importers-tree ──────────
+
+pub(crate) fn run_get_imports(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let imports = store.imports_of(id);
+    let imported_by = store.imported_by(id);
+    let value = serde_json::json!({ "imports": imports, "imported_by": imported_by });
+    match format {
+        Format::Text => {
+            println!("# imports");
+            for p in &imports {
+                println!("  {p}");
+            }
+            println!("# imported_by");
+            for p in &imported_by {
+                println!("  {p}");
+            }
+        }
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+fn import_node_to_json(node: &mycelium_core::ImportNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let imports: Vec<serde_json::Value> = node
+        .imports
+        .iter()
+        .map(|c| import_node_to_json(c, store))
+        .collect();
+    serde_json::json!({ "path": path, "imports": imports })
+}
+
+fn importer_node_to_json(node: &mycelium_core::ImporterNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let importers: Vec<serde_json::Value> = node
+        .importers
+        .iter()
+        .map(|c| importer_node_to_json(c, store))
+        .collect();
+    serde_json::json!({ "path": path, "importers": importers })
+}
+
+pub(crate) fn run_get_import_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.import_tree(id, max_depth);
+    let value = serde_json::json!({ "root": import_node_to_json(&tree, &store) });
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+pub(crate) fn run_get_importers_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.importers_tree(id, max_depth);
+    let value = serde_json::json!({ "root": importer_node_to_json(&tree, &store) });
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {
