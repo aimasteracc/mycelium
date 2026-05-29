@@ -303,6 +303,21 @@ pub struct SccEntry {
     pub size: usize,
 }
 
+/// One entry in the result of [`Store::degree_centrality`].
+#[derive(Debug, Clone)]
+pub struct DegreeCentralityEntry {
+    /// Materialized path of the symbol node.
+    pub path: String,
+    /// Raw in-degree (number of incoming edges of the given kind).
+    pub in_degree: usize,
+    /// Raw out-degree (number of outgoing edges of the given kind).
+    pub out_degree: usize,
+    /// Normalized in-degree: `in_degree / (n-1)` ∈ [0.0, 1.0].
+    pub in_centrality: f64,
+    /// Normalized out-degree: `out_degree / (n-1)` ∈ [0.0, 1.0].
+    pub out_centrality: f64,
+}
+
 /// Result of [`Store::mutual_reachability`]: forward/backward BFS distances
 /// and derived reachability flags for two symbol nodes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3677,6 +3692,72 @@ impl Store {
             b.size
                 .cmp(&a.size)
                 .then_with(|| a.members.first().cmp(&b.members.first()))
+        });
+        entries
+    }
+
+    /// Compute normalized in-degree and out-degree centrality for all symbol nodes.
+    ///
+    /// Both centrality scores are normalized by `(n-1)` where `n` is the symbol count.
+    /// Results are sorted descending by `in_centrality`, then `out_centrality`, then
+    /// alphabetically by path.  File nodes excluded.  O(V + E).
+    #[must_use]
+    pub fn degree_centrality(&self, kind: EdgeKind) -> Vec<DegreeCentralityEntry> {
+        let symbols: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        let n = symbols.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        let idx: HashMap<NodeId, usize> =
+            symbols.iter().enumerate().map(|(i, &id)| (id, i)).collect();
+
+        let mut in_deg = vec![0usize; n];
+        let mut out_deg = vec![0usize; n];
+
+        for (i, &nid) in symbols.iter().enumerate() {
+            for &w in self.synapse.outgoing(nid, kind) {
+                if self.trunk.path_of(w).is_some_and(|p| p.contains('>')) {
+                    if let Some(&j) = idx.get(&w) {
+                        out_deg[i] += 1;
+                        in_deg[j] += 1;
+                    }
+                }
+            }
+        }
+
+        #[allow(clippy::cast_precision_loss)]
+        let norm = if n > 1 { (n - 1) as f64 } else { 1.0 };
+
+        #[allow(clippy::cast_precision_loss)]
+        let mut entries: Vec<DegreeCentralityEntry> = symbols
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &nid)| {
+                self.trunk.path_of(nid).map(|p| DegreeCentralityEntry {
+                    path: p.to_owned(),
+                    in_degree: in_deg[i],
+                    out_degree: out_deg[i],
+                    in_centrality: in_deg[i] as f64 / norm,
+                    out_centrality: out_deg[i] as f64 / norm,
+                })
+            })
+            .collect();
+
+        entries.sort_by(|a, b| {
+            b.in_centrality
+                .partial_cmp(&a.in_centrality)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    b.out_centrality
+                        .partial_cmp(&a.out_centrality)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .then_with(|| a.path.cmp(&b.path))
         });
         entries
     }

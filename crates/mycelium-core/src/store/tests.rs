@@ -5270,3 +5270,99 @@ fn store_scc_file_nodes_excluded() {
         vec!["src/scc_file.rs>scc_file_sym".to_owned()]
     );
 }
+
+// ── RFC-0087: degree_centrality ───────────────────────────────────────────
+
+#[test]
+fn store_degree_centrality_empty_graph() {
+    let store = Store::new();
+    let result = store.degree_centrality(EdgeKind::Calls);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_degree_centrality_single_node() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/dc.rs>dc_solo").unwrap());
+    let result = store.degree_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    let entry = &result[0];
+    assert_eq!(entry.in_degree, 0);
+    assert_eq!(entry.out_degree, 0);
+    // n=1 so norm=1, centrality=0/1=0.0
+    assert!((entry.in_centrality).abs() < 1e-9);
+    assert!((entry.out_centrality).abs() < 1e-9);
+}
+
+#[test]
+fn store_degree_centrality_two_nodes_one_edge() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_two_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_two_b").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let result = store.degree_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 2);
+    // n=2, norm=1.0; B has in_degree=1 → in_centrality=1.0; A has out_degree=1 → out_centrality=1.0
+    let entry_b = result
+        .iter()
+        .find(|e| e.path == "src/dc.rs>dc_two_b")
+        .unwrap();
+    let entry_a = result
+        .iter()
+        .find(|e| e.path == "src/dc.rs>dc_two_a")
+        .unwrap();
+    assert_eq!(entry_b.in_degree, 1);
+    assert!((entry_b.in_centrality - 1.0).abs() < 1e-9);
+    assert_eq!(entry_a.out_degree, 1);
+    assert!((entry_a.out_centrality - 1.0).abs() < 1e-9);
+}
+
+#[test]
+fn store_degree_centrality_scores_normalized() {
+    let mut store = Store::new();
+    let hub = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_hub").unwrap());
+    let s1 = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_s1").unwrap());
+    let s2 = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_s2").unwrap());
+    let s3 = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_s3").unwrap());
+    store.upsert_edge(EdgeKind::Calls, s1, hub);
+    store.upsert_edge(EdgeKind::Calls, s2, hub);
+    store.upsert_edge(EdgeKind::Calls, s3, hub);
+    let result = store.degree_centrality(EdgeKind::Calls);
+    for entry in &result {
+        assert!(entry.in_centrality >= 0.0 && entry.in_centrality <= 1.0);
+        assert!(entry.out_centrality >= 0.0 && entry.out_centrality <= 1.0);
+    }
+    let hub_entry = result
+        .iter()
+        .find(|e| e.path == "src/dc.rs>dc_hub")
+        .unwrap();
+    assert_eq!(hub_entry.in_degree, 3);
+    // n=4, norm=3.0; in_centrality = 3/3 = 1.0
+    assert!((hub_entry.in_centrality - 1.0).abs() < 1e-9);
+}
+
+#[test]
+fn store_degree_centrality_sorted_by_in_centrality_desc() {
+    let mut store = Store::new();
+    let hub = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_ord_hub").unwrap());
+    let x = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_ord_x").unwrap());
+    let y = store.upsert_node(TrunkPath::parse("src/dc.rs>dc_ord_y").unwrap());
+    store.upsert_edge(EdgeKind::Calls, x, hub);
+    store.upsert_edge(EdgeKind::Calls, y, hub);
+    let result = store.degree_centrality(EdgeKind::Calls);
+    // hub has highest in_centrality → should be first
+    assert_eq!(result[0].path, "src/dc.rs>dc_ord_hub");
+}
+
+#[test]
+fn store_degree_centrality_file_nodes_excluded() {
+    let mut store = Store::new();
+    let file = store.upsert_node(TrunkPath::parse("src/dc_file.rs").unwrap());
+    let sym = store.upsert_node(TrunkPath::parse("src/dc_file.rs>dc_fsym").unwrap());
+    store.upsert_edge(EdgeKind::Calls, file, sym);
+    let result = store.degree_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].path, "src/dc_file.rs>dc_fsym");
+    // File edge not counted since file node excluded from traversal.
+    assert_eq!(result[0].in_degree, 0);
+}
