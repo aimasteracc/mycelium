@@ -151,6 +151,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0049: `mycelium_get_leaf_symbols` MCP tool — leaf-implementation detector for any edge kind; returns `{ symbols, count }` or `{ error }` for unknown edge kind.
 - RFC-0050: `Store::shortest_path(from, to, kind)` — BFS minimum-hop path between two symbol nodes via outgoing EdgeKind edges; returns `Some(path_strings)` with both endpoints, or `None` if unreachable; cycle-safe.
 - RFC-0050: `mycelium_get_shortest_path` MCP tool — "how does A reach B?" in a single call; returns `{ path, length }` if found, `{ path: null, length: null }` if no path, or `{ error }` for unknown edge kind or unrecognised node paths.
+- RFC-0051: `Store::symbol_count_by_kind()` — per-`NodeKind` symbol histogram from `kind_map`; wire-string keys sorted alphabetically; zero-count kinds excluded.
+- RFC-0051: `Store::upsert_node_with_kind(path, kind)` — convenience method: insert or retrieve a node and record its `NodeKind` in a single call.
+- RFC-0051: `mycelium_get_symbol_count_by_kind` MCP tool — codebase composition histogram; returns `{ kinds: [{ kind, count }], total }`.
 
 ### Fixed
 
