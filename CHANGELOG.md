@@ -164,6 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0055: `mycelium_get_common_callees` MCP tool — shared-dependency detector (outgoing direction); accepts `{ paths, edge_kind }` and returns `{ callees, count }` or `{ error }`.
 - RFC-0056: `Store::isolated_symbols(prefix)` — symbol nodes with zero connectivity across all four EdgeKinds (Calls, Imports, Extends, Implements); stronger than `dead_symbols` (RFC-0037) which only checks incoming edges; optional path prefix filter; results sorted alphabetically.
 - RFC-0056: `mycelium_get_isolated_symbols` MCP tool — completely-disconnected symbol detector; returns `{ isolated_symbols, count }`; optional `path_prefix` filter.
+- RFC-0057: `Store::scc_groups(kind)` — Tarjan's iterative Strongly Connected Components algorithm over symbol nodes for a given EdgeKind; returns groups of size ≥ 2 (singletons excluded), sorted by size descending then by first path ascending; reveals mutually-recursive dependency clusters.
+- RFC-0057: `mycelium_get_scc_groups` MCP tool — mutually-recursive symbol cluster detector; accepts `{ edge_kind }` and returns `{ groups, group_count, total_symbols }` or `{ error }` for unknown edge kind.
 
 ### Fixed
 
