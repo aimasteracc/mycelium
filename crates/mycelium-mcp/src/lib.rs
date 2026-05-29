@@ -324,6 +324,15 @@ pub struct GetMostConnectedRequest {
     pub limit: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_leaf_symbols`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetLeafSymbolsRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Maximum results to return (default 10, capped at 100).
+    pub limit: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_files`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetFilesRequest {
@@ -1558,6 +1567,34 @@ impl MyceliumServer {
             .into_iter()
             .map(|(path, degree)| serde_json::json!({ "path": path, "degree": degree }))
             .collect();
+        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return symbol nodes with out-degree 0 for a given edge kind — leaf \
+                       implementations that call/import nothing for that kind. \
+                       Symmetric complement to mycelium_get_entry_points (in-degree 0). \
+                       edge_kind must be 'calls', 'imports', 'extends', or 'implements'. \
+                       limit defaults to 10, capped at 100. \
+                       Returns { symbols: [...], count } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_get_leaf_symbols(
+        &self,
+        Parameters(req): Parameters<GetLeafSymbolsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let limit = req.limit.unwrap_or(10);
+        let symbols = self.store.read().await.leaf_symbols(kind, limit);
+        let count = symbols.len();
         serde_json::json!({ "symbols": symbols, "count": count }).to_string()
     }
 
@@ -5049,6 +5086,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::significant_drop_tightening)]
     async fn get_top_files_default_limit() {
         let server = MyceliumServer::new();
         {
@@ -5114,6 +5152,56 @@ mod tests {
         }
         let raw = server
             .mycelium_get_most_connected(Parameters(GetMostConnectedRequest {
+                edge_kind: "calls".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    // ── RFC-0049: mycelium_get_leaf_symbols ──────────────────────────────────
+
+    #[tokio::test]
+    async fn get_leaf_symbols_returns_out_degree_zero() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let root = store.upsert_node(TrunkPath::parse("src/a.rs>root").unwrap());
+            let leaf = store.upsert_node(TrunkPath::parse("src/b.rs>leaf").unwrap());
+            store.upsert_edge(EdgeKind::Calls, root, leaf);
+        }
+        let raw = server
+            .mycelium_get_leaf_symbols(Parameters(GetLeafSymbolsRequest {
+                edge_kind: "calls".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].as_str().unwrap(), "src/b.rs>leaf");
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn get_leaf_symbols_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_leaf_symbols(Parameters(GetLeafSymbolsRequest {
+                edge_kind: "unknown".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    #[tokio::test]
+    async fn get_leaf_symbols_empty_graph_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_leaf_symbols(Parameters(GetLeafSymbolsRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
             }))

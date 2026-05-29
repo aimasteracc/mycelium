@@ -2458,3 +2458,72 @@ fn store_most_connected_sorted_desc_then_alpha() {
     assert_eq!(top[0].0, "src/a.rs>a");
     assert_eq!(top[0].1, 3);
 }
+
+// ── RFC-0049: Store::leaf_symbols ────────────────────────────────────────────
+
+#[test]
+fn store_leaf_symbols_returns_symbols_with_no_outgoing() {
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/a.rs>root"));
+    let leaf = store.upsert_node(path("src/b.rs>leaf"));
+    store.upsert_edge(EdgeKind::Calls, root, leaf);
+    // leaf has out-degree 0; root has out-degree 1
+    let leaves = store.leaf_symbols(EdgeKind::Calls, 10);
+    assert_eq!(leaves, vec!["src/b.rs>leaf".to_owned()]);
+}
+
+#[test]
+fn store_leaf_symbols_excludes_file_nodes() {
+    let mut store = Store::new();
+    let _file = store.upsert_node(path("src/a.rs")); // file node — no '>'
+    let _sym = store.upsert_node(path("src/a.rs>sym"));
+    // _sym has out-degree 0 for Calls; file node must be excluded
+    let leaves = store.leaf_symbols(EdgeKind::Calls, 10);
+    assert_eq!(leaves, vec!["src/a.rs>sym".to_owned()]);
+}
+
+#[test]
+fn store_leaf_symbols_all_calling_returns_empty() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    // both have out-degree 1 — no leaves
+    let leaves = store.leaf_symbols(EdgeKind::Calls, 10);
+    assert!(leaves.is_empty());
+}
+
+#[test]
+fn store_leaf_symbols_sorted_alphabetically() {
+    let mut store = Store::new();
+    let _z = store.upsert_node(path("src/z.rs>z"));
+    let _a = store.upsert_node(path("src/a.rs>a"));
+    let _m = store.upsert_node(path("src/m.rs>m"));
+    // all have out-degree 0 for Imports
+    let leaves = store.leaf_symbols(EdgeKind::Imports, 10);
+    assert_eq!(
+        leaves,
+        vec![
+            "src/a.rs>a".to_owned(),
+            "src/m.rs>m".to_owned(),
+            "src/z.rs>z".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn store_leaf_symbols_limit_respected() {
+    let mut store = Store::new();
+    for i in 0..5u8 {
+        store.upsert_node(path(&format!("src/{i}.rs>fn{i}")));
+    }
+    let leaves = store.leaf_symbols(EdgeKind::Calls, 3);
+    assert_eq!(leaves.len(), 3);
+}
+
+#[test]
+fn store_leaf_symbols_empty_graph() {
+    let store = Store::new();
+    assert!(store.leaf_symbols(EdgeKind::Calls, 10).is_empty());
+}
