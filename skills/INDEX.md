@@ -87,14 +87,14 @@ authored in Phase 2 PRs, one PR per category.
 | `page_rank` | `mycelium page-rank` | `mycelium_page_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
 | `harmonic_centrality` | `mycelium harmonic-centrality` | `mycelium_harmonic_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `neighbor_similarity` | `mycelium neighbor-similarity` | `mycelium_neighbor_similarity` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_extends` | `mycelium get-extends` | `mycelium_get_extends` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `extends_tree` | `mycelium extends-tree` | `mycelium_extends_tree` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `subclasses_tree` | `mycelium subclasses-tree` | `mycelium_subclasses_tree` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `find_extends_path` | `mycelium find-extends-path` | `mycelium_find_extends_path` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_implements` | `mycelium get-implements` | `mycelium_get_implements` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `implements_tree` | `mycelium implements-tree` | `mycelium_implements_tree` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `implementors_tree` | `mycelium implementors-tree` | `mycelium_implementors_tree` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `find_implements_path` | `mycelium find-implements-path` | `mycelium_find_implements_path` | [`inheritance`](inheritance/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_extends` | `mycelium get-extends` | `mycelium_get_extends` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
+| `extends_tree` | `mycelium extends-tree` | `mycelium_extends_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
+| `subclasses_tree` | `mycelium subclasses-tree` | `mycelium_subclasses_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
+| `find_extends_path` | `mycelium find-extends-path` | `mycelium_find_extends_path` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
+| `get_implements` | `mycelium get-implements` | `mycelium_get_implements` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
+| `implements_tree` | `mycelium implements-tree` | `mycelium_implements_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
+| `implementors_tree` | `mycelium implementors-tree` | `mycelium_implementors_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
+| `find_implements_path` | `mycelium find-implements-path` | `mycelium_find_implements_path` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
 | `get_stats` | `mycelium get-stats` | `mycelium_get_stats` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `get_graph_metrics` | `mycelium get-graph-metrics` | `mycelium_get_graph_metrics` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
 | `detect_cycles` | `mycelium detect-cycles` | `mycelium_detect_cycles` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
