@@ -3059,3 +3059,78 @@ fn store_scc_groups_paths_sorted_within_group() {
     assert_eq!(groups[0][0], "src/a.rs>a"); // alphabetically first
     assert_eq!(groups[0][1], "src/z.rs>z");
 }
+
+// ── RFC-0058: Store::dependency_layers ───────────────────────────────────────
+
+#[test]
+fn store_dependency_layers_simple_chain() {
+    // c → b → a  (c depends on b, b depends on a, a has no deps)
+    // layer 0 = [a], layer 1 = [b], layer 2 = [c]
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    let sym_c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+    store.upsert_edge(EdgeKind::Calls, sym_c, sym_b);
+    let layers = store.dependency_layers(EdgeKind::Calls);
+    assert_eq!(layers.len(), 3);
+    assert_eq!(layers[0], vec!["src/a.rs>a"]);
+    assert_eq!(layers[1], vec!["src/b.rs>b"]);
+    assert_eq!(layers[2], vec!["src/c.rs>c"]);
+}
+
+#[test]
+fn store_dependency_layers_excludes_cycle_members() {
+    // a → b → a (cycle); c is acyclic leaf
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    let _sym_c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+    // c has no edges → layer 0, and is NOT in cycle
+    let layers = store.dependency_layers(EdgeKind::Calls);
+    // Only c should appear; a and b are in a cycle
+    assert_eq!(layers.len(), 1);
+    assert_eq!(layers[0], vec!["src/c.rs>c"]);
+}
+
+#[test]
+fn store_dependency_layers_excludes_file_nodes() {
+    let mut store = Store::new();
+    let _file = store.upsert_node(path("src/a.rs")); // file node — no `>`
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+    let layers = store.dependency_layers(EdgeKind::Calls);
+    // Both layers should contain only symbol nodes (paths with `>`)
+    for layer in &layers {
+        for p in layer {
+            assert!(p.contains('>'), "file node found in layer: {p}");
+        }
+    }
+    assert!(layers.len() >= 2);
+    assert!(layers[0].contains(&"src/a.rs>a".to_owned()));
+    assert!(layers[1].contains(&"src/b.rs>b".to_owned()));
+}
+
+#[test]
+fn store_dependency_layers_paths_sorted_within_layer() {
+    // Two utilities at layer 0: z>z and a>a (alphabetical order expected)
+    let mut store = Store::new();
+    let sym_z = store.upsert_node(path("src/z.rs>z"));
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_top = store.upsert_node(path("src/top.rs>top"));
+    store.upsert_edge(EdgeKind::Calls, sym_top, sym_z);
+    store.upsert_edge(EdgeKind::Calls, sym_top, sym_a);
+    let layers = store.dependency_layers(EdgeKind::Calls);
+    assert_eq!(layers[0][0], "src/a.rs>a"); // 'a' before 'z'
+    assert_eq!(layers[0][1], "src/z.rs>z");
+}
+
+#[test]
+fn store_dependency_layers_empty_store() {
+    let store = Store::new();
+    let layers = store.dependency_layers(EdgeKind::Calls);
+    assert!(layers.is_empty());
+}
