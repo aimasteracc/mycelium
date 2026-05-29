@@ -561,6 +561,15 @@ pub struct NeighborSimilarityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_clustering_coefficient`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClusteringCoefficientRequest {
+    /// Symbol path, e.g. `"src/a.rs>MyStruct"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2362,6 +2371,45 @@ impl MyceliumServer {
             "similarity": similarity,
             "shared": shared,
             "total": total,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Local clustering coefficient for a symbol node and a given EdgeKind. \
+                       CC(u) = #{directed edges among N(u)} / (|N(u)| * (|N(u)|-1)), where \
+                       N(u) = outgoing ∪ incoming neighbors (self and file nodes excluded). \
+                       Returns 0.0 when |N(u)| < 2. Score 1.0 = every neighbor calls every other \
+                       neighbor (maximum local density); 0.0 = no two neighbors are connected. \
+                       High CC identifies nodes embedded in tightly-coupled clusters. O(degree²). \
+                       Returns { coefficient, neighbor_count, neighbor_edge_count } or { error }."
+    )]
+    async fn mycelium_get_clustering_coefficient(
+        &self,
+        Parameters(req): Parameters<ClusteringCoefficientRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id) = store.lookup(&req.path) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
+                .to_string();
+        };
+        let (coefficient, neighbor_count, neighbor_edge_count) =
+            store.clustering_coefficient_stats(id, kind);
+        drop(store);
+        serde_json::json!({
+            "coefficient": coefficient,
+            "neighbor_count": neighbor_count,
+            "neighbor_edge_count": neighbor_edge_count,
         })
         .to_string()
     }
@@ -6859,6 +6907,60 @@ mod tests {
             .mycelium_get_neighbor_similarity(Parameters(NeighborSimilarityRequest {
                 path1: "src/z.rs>a".into(),
                 path2: "src/z.rs>b".into(),
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0076: mycelium_get_clustering_coefficient ─────────────────────
+
+    #[tokio::test]
+    async fn clustering_coefficient_complete_triangle() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/cc.rs>hub").unwrap());
+            let alpha = store.upsert_node(TrunkPath::parse("src/cc.rs>alpha").unwrap());
+            let beta = store.upsert_node(TrunkPath::parse("src/cc.rs>beta").unwrap());
+            store.upsert_edge(EdgeKind::Calls, hub, alpha);
+            store.upsert_edge(EdgeKind::Calls, hub, beta);
+            store.upsert_edge(EdgeKind::Calls, alpha, beta);
+            store.upsert_edge(EdgeKind::Calls, beta, alpha);
+        }
+        let raw = server
+            .mycelium_get_clustering_coefficient(Parameters(ClusteringCoefficientRequest {
+                path: "src/cc.rs>hub".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let coeff = val["coefficient"].as_f64().unwrap();
+        assert!((coeff - 1.0).abs() < 1e-9, "expected 1.0, got {coeff}");
+        assert_eq!(val["neighbor_count"].as_u64().unwrap(), 2);
+        assert_eq!(val["neighbor_edge_count"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn clustering_coefficient_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_clustering_coefficient(Parameters(ClusteringCoefficientRequest {
+                path: "src/no_such.rs>ghost".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    }
+
+    #[tokio::test]
+    async fn clustering_coefficient_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_clustering_coefficient(Parameters(ClusteringCoefficientRequest {
+                path: "src/any.rs>any".into(),
                 edge_kind: "unknown".into(),
             }))
             .await;
