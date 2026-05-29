@@ -1,0 +1,25 @@
+# Mycelium C++ language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+#
+# Extension dispatch note: '.h' is shared with C.  The indexer uses
+# `primary_extensions` for unambiguous routing and `secondary_extensions`
+# for extensions that require a language hint (e.g. from the file context
+# or a user override).  When no hint is available, '.h' files default to
+# the C pack to avoid false positives.
+
+[meta]
+name        = "cpp"
+description = "C++ language pack for Mycelium. Extracts functions, classes, structs, namespaces, enums, templates, and includes."
+grammar     = "crates.io:tree-sitter-cpp@^0.23"
+
+# Primary extensions: unambiguously C++.
+primary_extensions = [".cpp", ".cc", ".cxx", ".hpp"]
+
+# Secondary extensions: shared with C; only indexed when a language hint is present.
+secondary_extensions = [".h"]
+
+# The `extensions` field is the union used by the pack loader for basic
+# extension queries (e.g. documentation and tooling discovery).
+extensions = [".cpp", ".cc", ".cxx", ".hpp", ".h"]

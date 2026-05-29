@@ -1,0 +1,10 @@
+# Mycelium C language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "c"
+description = "C language pack for Mycelium. Extracts function definitions, structs, and include directives."
+extensions  = [".c", ".h"]
+grammar     = "crates.io:tree-sitter-c@^0.24"
