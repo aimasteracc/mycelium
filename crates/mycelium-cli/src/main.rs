@@ -288,6 +288,86 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Return direct inheritance relationships (`extends` + `extended_by`)
+    /// for a symbol (outgoing / incoming `Extends` edges).
+    GetExtends {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the depth-limited superclass tree for a symbol (outgoing `Extends`).
+    ExtendsTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the depth-limited subclass forest for a symbol (incoming `Extends`).
+    SubclassesTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Find the shortest `extends` chain between two symbols via BFS.
+    FindExtendsPath {
+        from_path: String,
+        to_path: String,
+        #[arg(long, default_value_t = 8)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return direct interface-implementation relationships for a symbol
+    /// (`implements` + `implemented_by`, outgoing / incoming `Implements` edges).
+    GetImplements {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the depth-limited interface tree for a symbol (outgoing `Implements`).
+    ImplementsTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the depth-limited implementor forest for an interface (incoming `Implements`).
+    ImplementorsTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Find the shortest `implements` chain between two symbols via BFS.
+    FindImplementsPath {
+        from_path: String,
+        to_path: String,
+        #[arg(long, default_value_t = 8)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -488,6 +568,82 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_importers_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetExtends { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_extends(&canonical, &path, format.into())?;
+        }
+        Cmd::ExtendsTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_extends_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::SubclassesTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_subclasses_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::FindExtendsPath {
+            from_path,
+            to_path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_extends_path(
+                &canonical,
+                &from_path,
+                &to_path,
+                max_depth,
+                format.into(),
+            )?;
+        }
+        Cmd::GetImplements { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_implements(&canonical, &path, format.into())?;
+        }
+        Cmd::ImplementsTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_implements_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::ImplementorsTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_implementors_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::FindImplementsPath {
+            from_path,
+            to_path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_implements_path(
+                &canonical,
+                &from_path,
+                &to_path,
+                max_depth,
+                format.into(),
+            )?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

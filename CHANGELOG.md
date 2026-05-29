@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 5** (v0.1.5): all eight `inheritance`
+  capabilities get CLI subcommands. `inheritance` category is now
+  8/8 ✅ Three-Surface (Charter §5.13 / RFC-0090):
+  - `mycelium get-extends <path> [--format ...]`
+  - `mycelium extends-tree <path> [--max-depth N] [--format ...]`
+  - `mycelium subclasses-tree <path> [--max-depth N] [--format ...]`
+  - `mycelium find-extends-path <from> <to> [--max-depth N] [--format ...]`
+  - `mycelium get-implements <path> [--format ...]`
+  - `mycelium implements-tree <path> [--max-depth N] [--format ...]`
+  - `mycelium implementors-tree <path> [--max-depth N] [--format ...]`
+  - `mycelium find-implements-path <from> <to> [--max-depth N] [--format ...]`
+  Output shapes match MCP twin tools byte-for-byte. 13 integration
+  tests in `crates/mycelium-cli/tests/cli_inheritance.rs`.
+
 - **CLI parity backfill batch 4** (v0.1.5): all three `import-graph`
   capabilities get CLI subcommands. `import-graph` category is now
   3/3 ✅ Three-Surface:

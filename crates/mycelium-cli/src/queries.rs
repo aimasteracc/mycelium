@@ -488,6 +488,280 @@ pub(crate) fn run_get_importers_tree(
     Ok(())
 }
 
+// ── inheritance: get-extends / extends-tree / subclasses-tree / find-extends-path ─
+
+pub(crate) fn run_get_extends(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let mut extends: Vec<String> = store
+        .outgoing(id, EdgeKind::Extends)
+        .iter()
+        .filter_map(|&dst| store.path_of(dst).map(str::to_owned))
+        .collect();
+    extends.sort_unstable();
+    let mut extended_by: Vec<String> = store
+        .incoming(id, EdgeKind::Extends)
+        .iter()
+        .filter_map(|&src| store.path_of(src).map(str::to_owned))
+        .collect();
+    extended_by.sort_unstable();
+    let value = serde_json::json!({ "extends": extends, "extended_by": extended_by });
+    match format {
+        Format::Text => {
+            println!("# extends");
+            for p in &extends {
+                println!("  {p}");
+            }
+            println!("# extended_by");
+            for p in &extended_by {
+                println!("  {p}");
+            }
+        }
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+fn extends_node_to_json(node: &mycelium_core::ExtendsNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let parents: Vec<serde_json::Value> = node
+        .parents
+        .iter()
+        .map(|p| extends_node_to_json(p, store))
+        .collect();
+    serde_json::json!({ "path": path, "parents": parents })
+}
+
+fn subclass_node_to_json(node: &mycelium_core::SubclassNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let subclasses: Vec<serde_json::Value> = node
+        .subclasses
+        .iter()
+        .map(|s| subclass_node_to_json(s, store))
+        .collect();
+    serde_json::json!({ "path": path, "subclasses": subclasses })
+}
+
+pub(crate) fn run_extends_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.extends_tree(id, max_depth);
+    let value = serde_json::json!({ "root": extends_node_to_json(&tree, &store) });
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+pub(crate) fn run_subclasses_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.subclasses_tree(id, max_depth);
+    let value = serde_json::json!({ "root": subclass_node_to_json(&tree, &store) });
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+pub(crate) fn run_find_extends_path(
+    root: &Path,
+    from_path: &str,
+    to_path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let from_id = store
+        .lookup(from_path)
+        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+    let to_id = store
+        .lookup(to_path)
+        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+    let value = store
+        .find_extends_path(from_id, to_id, max_depth)
+        .map_or_else(
+            || {
+                serde_json::json!({
+                    "path": [],
+                    "hops": serde_json::Value::Null,
+                    "message": format!("no extends path found within max_depth={max_depth}"),
+                })
+            },
+            |ids| {
+                let path: Vec<String> = ids
+                    .iter()
+                    .filter_map(|&id| store.path_of(id).map(str::to_owned))
+                    .collect();
+                let hops = path.len().saturating_sub(1);
+                serde_json::json!({ "path": path, "hops": hops })
+            },
+        );
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── inheritance: get-implements / implements-tree / implementors-tree / find-implements-path ──
+
+pub(crate) fn run_get_implements(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let mut implements: Vec<String> = store
+        .outgoing(id, EdgeKind::Implements)
+        .iter()
+        .filter_map(|&dst| store.path_of(dst).map(str::to_owned))
+        .collect();
+    implements.sort_unstable();
+    let mut implemented_by: Vec<String> = store
+        .incoming(id, EdgeKind::Implements)
+        .iter()
+        .filter_map(|&src| store.path_of(src).map(str::to_owned))
+        .collect();
+    implemented_by.sort_unstable();
+    let value = serde_json::json!({ "implements": implements, "implemented_by": implemented_by });
+    match format {
+        Format::Text => {
+            println!("# implements");
+            for p in &implements {
+                println!("  {p}");
+            }
+            println!("# implemented_by");
+            for p in &implemented_by {
+                println!("  {p}");
+            }
+        }
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+fn implements_node_to_json(
+    node: &mycelium_core::ImplementsNode,
+    store: &Store,
+) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let interfaces: Vec<serde_json::Value> = node
+        .interfaces
+        .iter()
+        .map(|i| implements_node_to_json(i, store))
+        .collect();
+    serde_json::json!({ "path": path, "interfaces": interfaces })
+}
+
+fn implementor_node_to_json(
+    node: &mycelium_core::ImplementorNode,
+    store: &Store,
+) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let implementors: Vec<serde_json::Value> = node
+        .implementors
+        .iter()
+        .map(|i| implementor_node_to_json(i, store))
+        .collect();
+    serde_json::json!({ "path": path, "implementors": implementors })
+}
+
+pub(crate) fn run_implements_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.implements_tree(id, max_depth);
+    let value = serde_json::json!({ "root": implements_node_to_json(&tree, &store) });
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+pub(crate) fn run_implementors_tree(
+    root: &Path,
+    path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let tree = store.implementors_tree(id, max_depth);
+    let value = serde_json::json!({ "root": implementor_node_to_json(&tree, &store) });
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+pub(crate) fn run_find_implements_path(
+    root: &Path,
+    from_path: &str,
+    to_path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let from_id = store
+        .lookup(from_path)
+        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+    let to_id = store
+        .lookup(to_path)
+        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+    let value = store
+        .find_implements_path(from_id, to_id, max_depth)
+        .map_or_else(
+            || {
+                serde_json::json!({
+                    "path": [],
+                    "hops": serde_json::Value::Null,
+                    "message": format!("no implements path found within max_depth={max_depth}"),
+                })
+            },
+            |ids| {
+                let path: Vec<String> = ids
+                    .iter()
+                    .filter_map(|&id| store.path_of(id).map(str::to_owned))
+                    .collect();
+                let hops = path.len().saturating_sub(1);
+                serde_json::json!({ "path": path, "hops": hops })
+            },
+        );
+    match format {
+        Format::Text => println!("{value}"),
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {
