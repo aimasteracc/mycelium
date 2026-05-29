@@ -8,14 +8,14 @@ allowed-tools:
   - mcp__mycelium__get_hub_symbols
   - mcp__mycelium__get_fan_out_rank
   - mcp__mycelium__get_fan_in_rank
-  - mcp__mycelium__betweenness_centrality
-  - mcp__mycelium__closeness_centrality
-  - mcp__mycelium__degree_centrality
-  - mcp__mycelium__clustering_coefficient
-  - mcp__mycelium__eccentricity
+  - mcp__mycelium__get_betweenness_centrality
+  - mcp__mycelium__get_closeness_centrality
+  - mcp__mycelium__get_degree_centrality
+  - mcp__mycelium__get_clustering_coefficient
+  - mcp__mycelium__get_eccentricity
   - mcp__mycelium__page_rank
-  - mcp__mycelium__harmonic_centrality
-  - mcp__mycelium__neighbor_similarity
+  - mcp__mycelium__get_harmonic_centrality
+  - mcp__mycelium__get_neighbor_similarity
 ---
 
 # `centrality` — who matters in this codebase
