@@ -231,6 +231,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0085: `BetweennessEntry` struct `{ path, score }` — one result entry from `betweenness_centrality`.
 - RFC-0085: `Store::betweenness_centrality(kind)` — Brandes' O(V×(V+E)) algorithm; BFS per source with backward delta accumulation; normalized by (n-1)×(n-2); file nodes excluded; sorted descending. Identifies bridge nodes that lie on many shortest dependency paths.
 - RFC-0085: `mycelium_get_betweenness_centrality` MCP tool — bridge node detector; accepts `{ edge_kind, top_n? }` and returns `{ nodes: [{path, score}], symbol_count, top_n }` or `{ error }`. Score ∈ [0, 1]; high score = critical bottleneck.
+- RFC-0086: `SccEntry` struct `{ members, size }` — one strongly connected component from `strongly_connected_components`.
+- RFC-0086: `Store::strongly_connected_components(kind)` — iterative Tarjan's O(V+E) algorithm; identifies groups of symbols that mutually depend on each other (circular dependencies); members sorted alphabetically; results sorted descending by size.
+- RFC-0086: `mycelium_get_strongly_connected_components` MCP tool — circular dependency detector; accepts `{ edge_kind, min_size? }` (default `min_size=1`; use `2` for non-trivial cycles only) and returns `{ components: [{members, size}], total_components, symbol_count, min_size }` or `{ error }`.
 
 ### Fixed
 
