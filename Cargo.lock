@@ -1076,6 +1076,7 @@ dependencies = [
  "anyhow",
  "ignore",
  "mycelium-core",
+ "mycelium-hyphae",
  "notify",
  "rmcp",
  "rmp-serde",

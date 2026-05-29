@@ -18,6 +18,7 @@ workspace = true
 
 [dependencies]
 mycelium-core           = { workspace = true }
+mycelium-hyphae         = { workspace = true }
 rmcp                    = { workspace = true }
 schemars                = { workspace = true }
 serde                   = { workspace = true }
