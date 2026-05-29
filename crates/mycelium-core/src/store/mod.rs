@@ -1422,6 +1422,34 @@ impl Store {
         }
     }
 
+    /// Symbol nodes with zero connectivity across all four `EdgeKind`s.
+    /// File nodes excluded. Optional prefix filter. Results sorted alphabetically.
+    #[must_use]
+    pub fn isolated_symbols(&self, prefix: Option<&str>) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
+            .filter(|p| {
+                self.trunk.lookup_path(p).is_some_and(|id| {
+                    let d = self.node_degree(id);
+                    d.in_calls == 0
+                        && d.out_calls == 0
+                        && d.in_imports == 0
+                        && d.out_imports == 0
+                        && d.in_extends == 0
+                        && d.out_extends == 0
+                        && d.in_implements == 0
+                        && d.out_implements == 0
+                })
+            })
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return top-`limit` files (nodes without `>`) ranked by direct child
     /// symbol count, descending.  Ties broken by path ascending.  Files with
     /// zero direct children are excluded.  `limit` is capped at 100.

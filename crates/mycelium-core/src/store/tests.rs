@@ -2930,3 +2930,53 @@ fn store_common_callees_sorted_alphabetically() {
     assert_eq!(common[0], "src/a.rs>a_tgt");
     assert_eq!(common[1], "src/z.rs>z_tgt");
 }
+
+// ── RFC-0056: Store::isolated_symbols ────────────────────────────────────────
+
+#[test]
+fn store_isolated_symbols_returns_disconnected_nodes() {
+    let mut store = Store::new();
+    let _orphan = store.upsert_node(path("src/orphan.rs>orphan"));
+    let connected_a = store.upsert_node(path("src/a.rs>a"));
+    let connected_b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, connected_a, connected_b);
+    let isolated = store.isolated_symbols(None);
+    assert_eq!(isolated, vec!["src/orphan.rs>orphan"]);
+}
+
+#[test]
+fn store_isolated_symbols_excludes_nodes_with_any_edge() {
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    // sym_a has an outgoing Imports edge, sym_b has an incoming one
+    store.upsert_edge(EdgeKind::Imports, sym_a, sym_b);
+    let isolated = store.isolated_symbols(None);
+    assert!(isolated.is_empty());
+}
+
+#[test]
+fn store_isolated_symbols_excludes_file_nodes() {
+    let mut store = Store::new();
+    let _file = store.upsert_node(path("src/a.rs")); // file node — no edges
+    let sym = store.upsert_node(path("src/a.rs>sym"));
+    let tgt = store.upsert_node(path("src/b.rs>tgt"));
+    store.upsert_edge(EdgeKind::Calls, sym, tgt);
+    let isolated = store.isolated_symbols(None);
+    assert!(isolated.is_empty());
+}
+
+#[test]
+fn store_isolated_symbols_prefix_filter() {
+    let mut store = Store::new();
+    let _orphan_src = store.upsert_node(path("src/orphan.rs>orphan"));
+    let _orphan_lib = store.upsert_node(path("lib/orphan.rs>orphan"));
+    let isolated = store.isolated_symbols(Some("src/"));
+    assert_eq!(isolated, vec!["src/orphan.rs>orphan"]);
+}
+
+#[test]
+fn store_isolated_symbols_empty_graph() {
+    let store = Store::new();
+    assert!(store.isolated_symbols(None).is_empty());
+}
