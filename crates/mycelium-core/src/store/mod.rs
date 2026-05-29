@@ -3253,4 +3253,33 @@ impl Store {
         paths.sort();
         paths
     }
+
+    /// Returns all symbol paths that can transitively reach `id` via `kind`
+    /// edges (reverse BFS transitive closure), sorted alphabetically.
+    /// `id` itself is not included.  File nodes excluded.  O(V + E).
+    ///
+    /// Answers "what symbols transitively call/import/extend this one?".
+    #[must_use]
+    pub fn reaches_into(&self, id: NodeId, kind: EdgeKind) -> Vec<String> {
+        let is_file =
+            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| !p.contains('>')) };
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        visited.insert(id);
+        let mut queue: VecDeque<NodeId> = VecDeque::new();
+        queue.push_back(id);
+        while let Some(node) = queue.pop_front() {
+            for &predecessor in self.synapse.incoming(node, kind) {
+                if !is_file(predecessor) && visited.insert(predecessor) {
+                    queue.push_back(predecessor);
+                }
+            }
+        }
+        visited.remove(&id);
+        let mut paths: Vec<String> = visited
+            .into_iter()
+            .filter_map(|nid| self.trunk.path_of(nid).map(str::to_owned))
+            .collect();
+        paths.sort();
+        paths
+    }
 }

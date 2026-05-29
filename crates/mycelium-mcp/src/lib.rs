@@ -599,6 +599,15 @@ pub struct MutualReachabilityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_reaches_into`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ReachesIntoRequest {
+    /// Symbol path, e.g. `"src/a.rs>A"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_get_reachable_set`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ReachableSetRequest {
@@ -2599,6 +2608,42 @@ impl MyceliumServer {
         let count = reachable.len();
         serde_json::json!({
             "reachable": reachable,
+            "count": count,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Return all symbol paths that can transitively reach a given node via a \
+                       given EdgeKind (reverse BFS transitive closure). Answers 'what symbols \
+                       transitively call/import/extend this one?'. The target node itself is \
+                       excluded. Results sorted alphabetically. File nodes excluded. O(V+E). \
+                       Returns { callers, count } or { error }."
+    )]
+    async fn mycelium_get_reaches_into(
+        &self,
+        Parameters(req): Parameters<ReachesIntoRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id) = store.lookup(&req.path) else {
+            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
+                .to_string();
+        };
+        let callers = store.reaches_into(id, kind);
+        drop(store);
+        let count = callers.len();
+        serde_json::json!({
+            "callers": callers,
             "count": count,
         })
         .to_string()
@@ -7366,6 +7411,63 @@ mod tests {
         let raw = server
             .mycelium_get_reachable_set(Parameters(ReachableSetRequest {
                 path: "src/any.rs>any_rset".into(),
+                edge_kind: "unknown".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0081: mycelium_get_reaches_into ───────────────────────────────
+
+    #[tokio::test]
+    async fn reaches_into_chain_returns_reverse_closure() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let head = store.upsert_node(TrunkPath::parse("src/ri.rs>head_ri").unwrap());
+            let mid = store.upsert_node(TrunkPath::parse("src/ri.rs>mid_ri").unwrap());
+            let tail = store.upsert_node(TrunkPath::parse("src/ri.rs>tail_ri").unwrap());
+            store.upsert_edge(EdgeKind::Calls, head, mid);
+            store.upsert_edge(EdgeKind::Calls, mid, tail);
+        }
+        let raw = server
+            .mycelium_get_reaches_into(Parameters(ReachesIntoRequest {
+                path: "src/ri.rs>tail_ri".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
+        let callers: Vec<&str> = val["callers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(callers.contains(&"src/ri.rs>head_ri"));
+        assert!(callers.contains(&"src/ri.rs>mid_ri"));
+    }
+
+    #[tokio::test]
+    async fn reaches_into_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_reaches_into(Parameters(ReachesIntoRequest {
+                path: "src/ghost.rs>none_ri".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    }
+
+    #[tokio::test]
+    async fn reaches_into_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_reaches_into(Parameters(ReachesIntoRequest {
+                path: "src/any.rs>any_ri".into(),
                 edge_kind: "unknown".into(),
             }))
             .await;
