@@ -2383,3 +2383,78 @@ fn store_top_files_empty_graph() {
     let top = store.top_files(10);
     assert!(top.is_empty());
 }
+// ──────────────────────────────────────────────────────────────────────
+// RFC-0048: Store::most_connected
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_most_connected_ranks_by_total_degree() {
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/hub.rs>hub"));
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    // hub has 3 incoming calls
+    store.upsert_edge(EdgeKind::Calls, a, hub);
+    store.upsert_edge(EdgeKind::Calls, b, hub);
+    store.upsert_edge(EdgeKind::Calls, c, hub);
+    // a has 1 outgoing call (to hub)
+    let top = store.most_connected(10, EdgeKind::Calls);
+    assert_eq!(top[0].0, "src/hub.rs>hub");
+    assert_eq!(top[0].1, 3); // in=3, out=0
+}
+
+#[test]
+fn store_most_connected_excludes_file_nodes() {
+    let mut store = Store::new();
+    let file = store.upsert_node(path("src/a.rs"));
+    let sym = store.upsert_node(path("src/a.rs>fn1"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, file, sym); // file→sym edge
+    store.upsert_edge(EdgeKind::Calls, sym, b);
+    let top = store.most_connected(10, EdgeKind::Calls);
+    // file node 'src/a.rs' should not appear in results
+    assert!(!top.iter().any(|(p, _)| p == "src/a.rs"));
+}
+
+#[test]
+fn store_most_connected_excludes_zero_degree() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>isolated"));
+    let top = store.most_connected(10, EdgeKind::Calls);
+    assert!(top.is_empty());
+}
+
+#[test]
+fn store_most_connected_limit_respected() {
+    let mut store = Store::new();
+    for i in 0..20u32 {
+        let sym = format!("src/{i}.rs>fn");
+        let id = store.upsert_node(TrunkPath::parse(&sym).unwrap());
+        let caller_path = format!("src/caller_{i}.rs>caller");
+        let caller = store.upsert_node(TrunkPath::parse(&caller_path).unwrap());
+        store.upsert_edge(EdgeKind::Calls, caller, id);
+    }
+    let top = store.most_connected(5, EdgeKind::Calls);
+    assert_eq!(top.len(), 5);
+}
+
+#[test]
+fn store_most_connected_sorted_desc_then_alpha() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let caller1 = store.upsert_node(path("src/c1.rs>c1"));
+    let caller2 = store.upsert_node(path("src/c2.rs>c2"));
+    let caller3 = store.upsert_node(path("src/c3.rs>c3"));
+    // a has degree 3, b has degree 2
+    store.upsert_edge(EdgeKind::Calls, caller1, a);
+    store.upsert_edge(EdgeKind::Calls, caller2, a);
+    store.upsert_edge(EdgeKind::Calls, caller3, a);
+    store.upsert_edge(EdgeKind::Calls, caller1, b);
+    store.upsert_edge(EdgeKind::Calls, caller2, b);
+    let top = store.most_connected(10, EdgeKind::Calls);
+    // First result should be 'a' (degree 3)
+    assert_eq!(top[0].0, "src/a.rs>a");
+    assert_eq!(top[0].1, 3);
+}
