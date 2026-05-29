@@ -515,6 +515,13 @@ pub struct GetWccRequest {
     pub min_size: Option<usize>,
 }
 
+/// Input parameters for `mycelium_find_articulation_points`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FindArticulationPointsRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_topological_sort`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TopologicalSortRequest {
@@ -2086,6 +2093,38 @@ impl MyceliumServer {
             "cycle_count": cycle_count,
         })
         .to_string()
+    }
+
+    #[tool(
+        description = "Find articulation points (cut vertices) in the undirected symbol graph \
+                       for a given EdgeKind. An articulation point is a symbol whose removal \
+                       would disconnect a connected component. These are single points of \
+                       structural failure: if an articulation-point module breaks, parts of the \
+                       codebase become unreachable. Uses Tarjan's DFS with low-link values \
+                       O(V+E). Returns { points, count } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_find_articulation_points(
+        &self,
+        Parameters(req): Parameters<FindArticulationPointsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let points = {
+            let store = self.store.read().await;
+            let p = store.articulation_points(kind);
+            drop(store);
+            p
+        };
+        let count = points.len();
+        serde_json::json!({ "points": points, "count": count }).to_string()
     }
 
     #[tool(
@@ -6234,6 +6273,67 @@ mod tests {
         let raw = server
             .mycelium_topological_sort(Parameters(TopologicalSortRequest {
                 edge_kind: "bad".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0070: mycelium_find_articulation_points ───────────────────────
+
+    #[tokio::test]
+    async fn articulation_points_bridge_node_found() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+        }
+        let raw = server
+            .mycelium_find_articulation_points(Parameters(FindArticulationPointsRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert!(val["points"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .any(|x| x == "src/b.rs>b"));
+    }
+
+    #[tokio::test]
+    async fn articulation_points_cycle_returns_none() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+            store.upsert_edge(EdgeKind::Calls, c, a);
+        }
+        let raw = server
+            .mycelium_find_articulation_points(Parameters(FindArticulationPointsRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn articulation_points_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_find_articulation_points(Parameters(FindArticulationPointsRequest {
+                edge_kind: "unknown".into(),
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();

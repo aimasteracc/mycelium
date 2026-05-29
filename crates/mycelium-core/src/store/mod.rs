@@ -250,6 +250,8 @@ pub struct TopologicalOrder {
     pub cycle_members: Vec<String>,
 }
 
+const AP_UNVISITED: usize = usize::MAX;
+
 fn uf_find(parent: &mut Vec<usize>, x: usize) -> usize {
     if parent[x] != x {
         parent[x] = uf_find(parent, parent[x]);
@@ -1939,6 +1941,120 @@ impl Store {
     #[must_use]
     pub fn batch_node_degree(&self, ids: &[NodeId]) -> Vec<NodeDegree> {
         ids.iter().map(|&id| self.node_degree(id)).collect()
+    }
+
+    /// Symbol nodes that are articulation points (cut vertices) in the undirected
+    /// version of the symbol graph for `kind`.
+    ///
+    /// Uses Tarjan's iterative DFS (discovery time + low-link values), O(V+E).
+    /// Edges treated as undirected.  File nodes and singleton nodes excluded.
+    /// Results sorted ascending.
+    #[must_use]
+    pub fn articulation_points(&self, kind: EdgeKind) -> Vec<String> {
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+
+        let n = sym_ids.len();
+        if n == 0 {
+            return Vec::new();
+        }
+
+        let id_to_idx: HashMap<NodeId, usize> = sym_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, id)| (id, i))
+            .collect();
+
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+
+        // Build undirected adjacency (deduplicated).
+        let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
+        for (idx, &id) in sym_ids.iter().enumerate() {
+            for &nb in self.synapse.outgoing(id, kind) {
+                if sym_set.contains(&nb) && nb != id {
+                    let nb_idx = id_to_idx[&nb];
+                    adj[idx].push(nb_idx);
+                    adj[nb_idx].push(idx);
+                }
+            }
+        }
+        // Dedup adjacency lists to avoid multi-edge issues.
+        for list in &mut adj {
+            list.sort_unstable();
+            list.dedup();
+        }
+
+        let mut disc = vec![AP_UNVISITED; n];
+        let mut low = vec![0usize; n];
+        let mut parent = vec![AP_UNVISITED; n];
+        let mut is_ap = vec![false; n];
+        let mut timer = 0usize;
+
+        for start in 0..n {
+            if disc[start] != AP_UNVISITED {
+                continue;
+            }
+
+            // Iterative DFS using explicit stack.
+            // Each entry: (node, index into adj[node] to process next).
+            let mut stack: Vec<(usize, usize)> = vec![(start, 0)];
+            disc[start] = timer;
+            low[start] = timer;
+            timer += 1;
+            let mut root_dfs_children = 0usize;
+
+            while let Some((u, ei)) = stack.last_mut() {
+                let u = *u;
+                if *ei < adj[u].len() {
+                    let v = adj[u][*ei];
+                    *ei += 1;
+                    if disc[v] == AP_UNVISITED {
+                        // Tree edge.
+                        if u == start {
+                            root_dfs_children += 1;
+                        }
+                        parent[v] = u;
+                        disc[v] = timer;
+                        low[v] = timer;
+                        timer += 1;
+                        stack.push((v, 0));
+                    } else if v != parent[u] {
+                        // Back edge: update low.
+                        low[u] = low[u].min(disc[v]);
+                    }
+                } else {
+                    stack.pop();
+                    if let Some(&(pu, _)) = stack.last() {
+                        low[pu] = low[pu].min(low[u]);
+                        // Non-root AP condition: low[child] >= disc[parent].
+                        // Clippy flags low[u]/disc[pu] as suspicious grouping; it is intentional.
+                        #[allow(clippy::suspicious_operation_groupings)]
+                        if pu != start && low[u] >= disc[pu] {
+                            is_ap[pu] = true;
+                        }
+                    }
+                }
+            }
+
+            // Root AP condition: root has > 1 DFS tree children.
+            if root_dfs_children > 1 {
+                is_ap[start] = true;
+            }
+        }
+
+        let mut result: Vec<String> = sym_ids
+            .iter()
+            .enumerate()
+            .filter(|&(idx, _)| is_ap[idx])
+            .filter_map(|(_, &id)| self.path_of(id).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
     }
 
     /// Topological ordering of the symbol graph for `kind` via Kahn's algorithm.
