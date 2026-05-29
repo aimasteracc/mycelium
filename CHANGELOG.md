@@ -190,6 +190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0068: `mycelium_get_wcc` MCP tool — cluster detector; accepts `{ edge_kind, min_size? }` and returns `{ components, component_count, total_symbols }` or `{ error }` for unknown edge kind; `min_size` (default 1) filters singletons to focus on real clusters.
 - RFC-0069: `Store::topological_sort(kind)` — topological ordering of the symbol graph via Kahn's BFS algorithm; returns `TopologicalOrder { order, cycle_members }` where `order` places each symbol after all its `kind`-predecessors (ties broken by path ascending) and `cycle_members` lists symbols that form directed cycles; file nodes excluded.
 - RFC-0069: `mycelium_topological_sort` MCP tool — dependency order analysis; accepts `{ edge_kind }` and returns `{ order, cycle_members, ordered_count, cycle_count }` or `{ error }` for unknown edge kind. Useful for build order, initialization sequences, and layered architecture validation.
+- RFC-0070: `Store::articulation_points(kind)` — cut vertices in the undirected symbol graph for a given EdgeKind via iterative Tarjan DFS (O(V+E)); file nodes excluded; singleton nodes (degree 0) never returned; results sorted ascending. A node is an articulation point if its removal disconnects its weakly-connected component.
+- RFC-0070: `mycelium_find_articulation_points` MCP tool — single-point-of-failure detector; accepts `{ edge_kind }` and returns `{ points, count }` or `{ error }` for unknown edge kind. Identifies modules whose removal fragments the dependency graph — critical for safe refactoring and resilience analysis.
 
 ### Fixed
 
