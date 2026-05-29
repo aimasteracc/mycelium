@@ -1,0 +1,48 @@
+{
+  "skill": "batch-ops",
+  "description": "Parity for the 4 batch tools. Fixture: the same 5-function diamond used by reachability/centrality so batched queries can be cross-checked against single-call equivalents.",
+  "cases": [
+    {
+      "capability": "batch_symbol_info",
+      "name": "five_paths",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["batch-symbol-info", "--paths", "src/lib.rs>a,src/lib.rs>b,src/lib.rs>c,src/lib.rs>d,src/lib.rs>e", "--format", "json"],
+      "mcp_input": {"paths": ["src/lib.rs>a", "src/lib.rs>b", "src/lib.rs>c", "src/lib.rs>d", "src/lib.rs>e"]},
+      "parity_invariant": "CLI list (in input order) == MCP `infos` array"
+    },
+    {
+      "capability": "batch_node_degree",
+      "name": "five_paths",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["batch-node-degree", "--paths", "src/lib.rs>a,src/lib.rs>b,src/lib.rs>c,src/lib.rs>d,src/lib.rs>e", "--format", "json"],
+      "mcp_input": {"paths": ["src/lib.rs>a", "src/lib.rs>b", "src/lib.rs>c", "src/lib.rs>d", "src/lib.rs>e"]},
+      "parity_invariant": "Result has one entry per input, in input order"
+    },
+    {
+      "capability": "batch_reachable_from",
+      "name": "from_a_and_b",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["batch-reachable-from", "--paths", "src/lib.rs>a,src/lib.rs>b", "--edge-kind", "calls", "--max-depth", "10", "--format", "json"],
+      "mcp_input": {"paths": ["src/lib.rs>a", "src/lib.rs>b"], "edge_kind": "calls", "max_depth": 10},
+      "parity_invariant": "Same as union of get_reachable from each seed; seed paths excluded"
+    },
+    {
+      "capability": "batch_reachable_to",
+      "name": "to_d_and_e",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["batch-reachable-to", "--paths", "src/lib.rs>d,src/lib.rs>e", "--edge-kind", "calls", "--max-depth", "10", "--format", "json"],
+      "mcp_input": {"paths": ["src/lib.rs>d", "src/lib.rs>e"], "edge_kind": "calls", "max_depth": 10},
+      "parity_invariant": "Same as union of get_reachable_to from each seed"
+    }
+  ],
+  "fixture_definitions": {
+    "diamond_call_graph": {
+      "description": "Shared with reachability and centrality Skills — 5-function diamond.",
+      "files": {
+        "Cargo.toml": "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+        "src/lib.rs": "pub fn d() -> i32 { 4 }\npub fn e() -> i32 { 5 }\npub fn c() -> i32 { d() + 1 }\npub fn b() -> i32 { c() + e() }\npub fn a() -> i32 { b() * 2 }\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}

@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-30
+
+### Added
+
+- **Third wave of category Skills** (RFC-0090 Phase 2 closing, v0.1.3):
+  - [`skills/inheritance/`](skills/inheritance/) — 8 capabilities for
+    `Extends` and `Implements` edge navigation
+    (`get_extends`, `extends_tree`, `subclasses_tree`,
+    `find_extends_path`, `get_implements`, `implements_tree`,
+    `implementors_tree`, `find_implements_path`).
+  - [`skills/graph-structure/`](skills/graph-structure/) — 14 structural
+    analysis tools including `detect_cycles` and
+    `get_dependency_layers` (both top-10 per glm5.1).
+  - [`skills/batch-ops/`](skills/batch-ops/) — 4 batch variants for
+    token-efficient multi-symbol inspection
+    (`batch_symbol_info`, `batch_node_degree`,
+    `batch_reachable_from`, `batch_reachable_to`).
+  - Combined coverage now: 73/88 (83%). The remaining 15 capabilities
+    (not in any of the 8 glm5.1 categories) are triaged in Phase 2.3.
+- **Second wave of category Skills** (RFC-0090 Phase 2, v0.1.3):
+  - [`skills/import-graph/`](skills/import-graph/) — 3 capabilities
+    (`get_imports`, `get_import_tree`, `get_importers_tree`).
+  - [`skills/reachability/`](skills/reachability/) — 12 capabilities
+    including `get_shortest_path` (top-3 most useful per glm5.1).
+  - [`skills/centrality/`](skills/centrality/) — 14 capabilities
+    including `rank_symbols` and `get_top_files` (both top-10).
+  - 29 additional capabilities mapped in `skills/INDEX.md`. Combined
+    coverage now: 47/88 (54%, was 18/88 after wave 1).
+- **First wave of category Skills** (RFC-0090 Phase 2, v0.1.3):
+  - [`skills/basic-queries/`](skills/basic-queries/) covers 10 foundation
+    capabilities (`search_symbol`, `get_symbol_info`, `get_ancestors`,
+    `get_descendants`, `get_node_kind`, `get_symbols_by_kind`,
+    `get_source_span`, `get_siblings`, `get_all_symbols`,
+    `server_status`).
+  - [`skills/call-graph/`](skills/call-graph/) covers 7 Calls-edge
+    capabilities (`get_callees`, `get_callers`, `get_callee_tree`,
+    `get_caller_tree`, `get_entry_points`, `get_dead_symbols`,
+    `get_isolated_symbols`).
+  - Each Skill includes a worked example and a `tests/parity.test.json`
+    asserting CLI ↔ MCP byte-equality for every covered capability.
+  - `skills/INDEX.md` coverage matrix gains 17 rows (status 🟡 — Skill
+    landed; CLI subcommand backfill follows in v0.1.4–v0.1.5 alongside
+    the parity-CI workflow).
+- **`mycelium query <hyphae>` works end-to-end** (#151). The marquee feature
+  Hyphae was previously advertised in the README but the CLI subcommand
+  was a `tracing::warn!` stub. It now: loads `.mycelium/index.rmp`, parses
+  the selector (RFC-0003 grammar), runs the evaluator, and prints matches
+  one per line (or as a JSON array with `--format=json`). Examples:
+  ```
+  mycelium query "#login"          # name selector
+  mycelium query ".function"       # kind selector
+  mycelium query ".class>.method"  # direct-child combinator
+  ```
+- **MCP twin tool `mycelium_query`.** Same Hyphae selector grammar, same
+  match-set shape — Three-Surface Rule (RFC-0090) parity. Returns
+  `{ matches: [...], count: N }` on success or `{ error: "..." }` on
+  parse failure.
+- **First real category Skill: `skills/hyphae-query/`.** SKILL.md +
+  two worked examples (name-selector basic, kind+combinator advanced)
+  + `tests/parity.test.json` asserting CLI ↔ MCP output equality.
+  `skills/INDEX.md` updated with the coverage row.
+- `mycelium-hyphae` crate now exposes `pub mod evaluator` (was previously
+  unreachable). The `Evaluator::new` becomes `const fn` and gains
+  clippy-clean control flow on the `BaseSelector::Kind` and
+  `pseudo_arg_ids` paths.
+
 ## [0.1.2] — 2026-05-30
 
 ### Fixed

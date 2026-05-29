@@ -1,0 +1,74 @@
+{
+  "skill": "call-graph",
+  "description": "Parity assertions for the 7 Calls-edge tools. CLI --format=json must equal MCP structured response byte-for-byte modulo timestamps. Fixture is a 3-function chain (entry → middle → leaf) that exercises every direct- and tree-shaped tool plus the entry/dead/isolated diagnostics.",
+  "cases": [
+    {
+      "capability": "get_callees",
+      "name": "direct_callees",
+      "fixture": "three_function_chain",
+      "cli_args": ["get-callees", "src/lib.rs>entry", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>entry"},
+      "expected_includes_paths": ["src/lib.rs>middle"],
+      "parity_invariant": "CLI callees set == MCP `callees` array"
+    },
+    {
+      "capability": "get_callers",
+      "name": "direct_callers",
+      "fixture": "three_function_chain",
+      "cli_args": ["get-callers", "src/lib.rs>leaf", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>leaf"},
+      "expected_includes_paths": ["src/lib.rs>middle"]
+    },
+    {
+      "capability": "get_callee_tree",
+      "name": "depth_3_tree",
+      "fixture": "three_function_chain",
+      "cli_args": ["get-callee-tree", "src/lib.rs>entry", "--max-depth", "3", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>entry", "max_depth": 3},
+      "parity_invariant": "CLI nested tree JSON == MCP `tree` field, structurally and ordering-equivalent",
+      "normalize": ["computed_at"]
+    },
+    {
+      "capability": "get_caller_tree",
+      "name": "depth_3_tree_back",
+      "fixture": "three_function_chain",
+      "cli_args": ["get-caller-tree", "src/lib.rs>leaf", "--max-depth", "3", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>leaf", "max_depth": 3},
+      "parity_invariant": "CLI tree == MCP `tree`"
+    },
+    {
+      "capability": "get_entry_points",
+      "name": "entry_visible",
+      "fixture": "three_function_chain",
+      "cli_args": ["get-entry-points", "--limit", "100", "--format", "json"],
+      "mcp_input": {"limit": 100},
+      "expected_includes_paths": ["src/lib.rs>entry"]
+    },
+    {
+      "capability": "get_dead_symbols",
+      "name": "no_dead_in_chain",
+      "fixture": "three_function_chain",
+      "cli_args": ["get-dead-symbols", "--limit", "100", "--format", "json"],
+      "mcp_input": {"limit": 100},
+      "parity_invariant": "CLI dead set == MCP `dead_symbols` set (a connected chain has zero dead)"
+    },
+    {
+      "capability": "get_isolated_symbols",
+      "name": "no_isolated_in_chain",
+      "fixture": "three_function_chain",
+      "cli_args": ["get-isolated-symbols", "--limit", "100", "--format", "json"],
+      "mcp_input": {"limit": 100},
+      "parity_invariant": "CLI isolated set == MCP `isolated_symbols` set"
+    }
+  ],
+  "fixture_definitions": {
+    "three_function_chain": {
+      "description": "A linear call chain: entry() → middle() → leaf(). Exercises Calls edges in both directions; the chain has no dead or isolated nodes.",
+      "files": {
+        "Cargo.toml": "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+        "src/lib.rs": "pub fn leaf() -> i32 { 42 }\npub fn middle() -> i32 { leaf() + 1 }\npub fn entry() -> i32 { middle() * 2 }\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}

@@ -836,6 +836,18 @@ pub struct GetSiblingsRequest {
     pub path: String,
 }
 
+/// Input parameters for `mycelium_query` — the MCP twin of the CLI
+/// `mycelium query <expr>` subcommand (Three-Surface Rule, RFC-0090, #151).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct QueryRequest {
+    /// A Hyphae DSL selector. See RFC-0003 for the grammar.
+    ///
+    /// Examples: `#login` (name selector), `.function` (kind selector),
+    /// `.class>.method` (direct-child combinator),
+    /// `.function:calls(.function)` (pseudo-class — when executor supports it).
+    pub expr: String,
+}
+
 /// Input parameters for `mycelium_get_node_degree`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetNodeDegreeRequest {
@@ -1931,6 +1943,32 @@ impl MyceliumServer {
         };
         let count = siblings.len();
         serde_json::json!({ "siblings": siblings, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Execute a Hyphae DSL selector against the project's index. \
+                       Hyphae is a CSS-selector-inspired query language (RFC-0003) that lets agents \
+                       fetch a set of matching symbols in one call instead of multiple JSON tool round-trips. \
+                       Returns { matches: [...], count: N } on success, { error: \"...\" } on parse failure. \
+                       Twin of the CLI `mycelium query <expr>` subcommand — same selector grammar, \
+                       same match-set shape (RFC-0090 Three-Surface Rule)."
+    )]
+    async fn mycelium_query(&self, Parameters(req): Parameters<QueryRequest>) -> String {
+        let ast = match mycelium_hyphae::parse(&req.expr) {
+            Ok(ast) => ast,
+            Err(e) => {
+                return serde_json::json!({
+                    "error": format!("hyphae parse error: {e:?}")
+                })
+                .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let evaluator = mycelium_hyphae::evaluator::Evaluator::new(&store);
+        let matches = evaluator.eval(&ast);
+        drop(store);
+        let count = matches.len();
+        serde_json::json!({ "matches": matches, "count": count }).to_string()
     }
 
     #[tool(
@@ -8758,6 +8796,57 @@ mod tests {
     }
 
     // ── RFC-0045: mycelium_get_siblings ──────────────────────────────────────
+
+    // ── mycelium_query (Three-Surface Rule: MCP twin of CLI `mycelium query`) ──
+
+    #[tokio::test]
+    async fn query_name_selector_returns_matches() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>login").unwrap());
+            store.upsert_node(TrunkPath::parse("src/a.rs>logout").unwrap());
+        }
+        let raw = server
+            .mycelium_query(Parameters(QueryRequest {
+                expr: "#login".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].is_null(), "did not expect error, got: {val}");
+        let matches: Vec<&str> = val["matches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s.as_str().unwrap())
+            .collect();
+        assert!(
+            matches.iter().any(|s| s.contains("login")),
+            "expected login in matches, got: {matches:?}"
+        );
+        assert!(
+            !matches.iter().any(|s| s.contains("logout")),
+            "name selector #login should NOT match logout"
+        );
+    }
+
+    #[tokio::test]
+    async fn query_parse_error_returns_error_envelope() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_query(Parameters(QueryRequest {
+                expr: "this is not a selector >>".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let err = val["error"].as_str().unwrap_or("");
+        assert!(
+            err.to_lowercase().contains("hyphae") || err.to_lowercase().contains("parse"),
+            "expected parse error envelope, got: {raw}"
+        );
+        // No partial-result leakage.
+        assert!(val.get("matches").is_none());
+    }
 
     #[tokio::test]
     async fn get_siblings_class_methods() {

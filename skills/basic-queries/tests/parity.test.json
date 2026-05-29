@@ -1,0 +1,97 @@
+{
+  "skill": "basic-queries",
+  "description": "Parity assertions for the 10 foundation tools — CLI --format=json must equal MCP structured response byte-for-byte modulo timestamps. One case per capability is the v0.1.3 floor; coverage expands per follow-up PR.",
+  "cases": [
+    {
+      "capability": "server_status",
+      "name": "smoke",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["server-status", "--format", "json"],
+      "mcp_input": {},
+      "expected_field_keys": ["version", "nodes", "edges"],
+      "normalize": ["timestamp", "uptime_ms"]
+    },
+    {
+      "capability": "search_symbol",
+      "name": "find_login",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["search-symbol", "login", "--limit", "10", "--format", "json"],
+      "mcp_input": {"query": "login", "limit": 10},
+      "parity_invariant": "CLI sorted match list == MCP `matches` array"
+    },
+    {
+      "capability": "get_symbol_info",
+      "name": "inspect_login",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-symbol-info", "src/lib.rs>login", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>login"},
+      "expected_field_keys": ["path", "kind", "file", "start_line", "end_line"],
+      "normalize": ["computed_at"]
+    },
+    {
+      "capability": "get_ancestors",
+      "name": "method_chain",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-ancestors", "src/lib.rs>login", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>login"},
+      "parity_invariant": "CLI ancestors == MCP `ancestors` array, ordered child-to-root"
+    },
+    {
+      "capability": "get_descendants",
+      "name": "file_descendants",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-descendants", "src/lib.rs", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs"},
+      "parity_invariant": "CLI descendants set == MCP `descendants` set (sort-agnostic)"
+    },
+    {
+      "capability": "get_node_kind",
+      "name": "kind_of_login",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-node-kind", "src/lib.rs>login"],
+      "mcp_input": {"path": "src/lib.rs>login"},
+      "parity_invariant": "CLI prints kind string; MCP returns same string in `kind`"
+    },
+    {
+      "capability": "get_symbols_by_kind",
+      "name": "all_functions",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-symbols-by-kind", "function", "--format", "json"],
+      "mcp_input": {"kind": "function"},
+      "parity_invariant": "CLI list == MCP `symbols` array (sorted)"
+    },
+    {
+      "capability": "get_source_span",
+      "name": "login_span",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-source-span", "src/lib.rs>login", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>login"},
+      "expected_field_keys": ["file", "start_line", "end_line"]
+    },
+    {
+      "capability": "get_siblings",
+      "name": "lib_siblings",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-siblings", "src/lib.rs>login", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>login"},
+      "expected_includes_paths": ["src/lib.rs>logout"]
+    },
+    {
+      "capability": "get_all_symbols",
+      "name": "full_inventory",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["get-all-symbols", "--limit", "1000", "--format", "json"],
+      "mcp_input": {"limit": 1000},
+      "parity_invariant": "CLI list (sorted) == MCP `symbols` array (sorted)"
+    }
+  ],
+  "fixture_definitions": {
+    "tiny_two_function_project": {
+      "files": {
+        "Cargo.toml": "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+        "src/lib.rs": "pub fn login(name: &str) -> String { name.to_string() }\npub fn logout() {}\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}

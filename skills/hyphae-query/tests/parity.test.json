@@ -1,0 +1,56 @@
+{
+  "skill": "hyphae-query",
+  "description": "Parity assertion: CLI `mycelium query --format=json` and MCP `mycelium_query` must agree on the match set for the same selector against the same index. Output normalization strips timestamps and duration counters; the match list itself must be byte-equal.",
+  "cases": [
+    {
+      "capability": "query",
+      "name": "name_selector_happy_path",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["query", "#login", "--format", "json"],
+      "mcp_input": { "expr": "#login" },
+      "expected_cli_stdout_json": ["src/lib.rs>login"],
+      "expected_mcp_response": {
+        "matches": ["src/lib.rs>login"],
+        "count": 1
+      },
+      "normalize": ["timestamp", "duration_ms"],
+      "parity_invariant": "expected_cli_stdout_json == expected_mcp_response.matches"
+    },
+    {
+      "capability": "query",
+      "name": "kind_selector_returns_both_functions",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["query", ".function", "--format", "json"],
+      "mcp_input": { "expr": ".function" },
+      "expected_cli_stdout_json": ["src/lib.rs>login", "src/lib.rs>logout"],
+      "expected_mcp_response": {
+        "matches": ["src/lib.rs>login", "src/lib.rs>logout"],
+        "count": 2
+      },
+      "normalize": ["timestamp", "duration_ms"],
+      "parity_invariant": "expected_cli_stdout_json == expected_mcp_response.matches"
+    },
+    {
+      "capability": "query",
+      "name": "parse_error_envelope_includes_hyphae_token",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["query", "this is not a selector >>"],
+      "mcp_input": { "expr": "this is not a selector >>" },
+      "expected_cli_exit_code_nonzero": true,
+      "expected_cli_stderr_substring": "hyphae",
+      "expected_mcp_response_field": {
+        "error_substring": "hyphae"
+      },
+      "parity_invariant": "both surfaces signal a parse error and mention 'hyphae'"
+    }
+  ],
+  "fixture_definitions": {
+    "tiny_two_function_project": {
+      "files": {
+        "Cargo.toml": "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+        "src/lib.rs": "pub fn login(name: &str) -> String { name.to_string() }\npub fn logout() {}\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}

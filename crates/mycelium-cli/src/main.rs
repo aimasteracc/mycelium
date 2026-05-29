@@ -7,6 +7,11 @@ use clap::{Parser, Subcommand};
 use tokio::runtime::Runtime;
 
 mod index;
+#[allow(
+    clippy::redundant_pub_crate,
+    reason = "items used by main.rs require pub(crate); bin-crate root cannot consume private child-mod items"
+)]
+mod query;
 
 /// The `mycelium` CLI. See `mycelium --help` for details.
 #[derive(Debug, Parser)]
@@ -19,6 +24,23 @@ mod index;
 struct Cli {
     #[command(subcommand)]
     command: Cmd,
+}
+
+/// Output format for `mycelium query`. Stable values; the MCP twin tool
+/// `mycelium_query` accepts the same set.
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum QueryFormat {
+    Text,
+    Json,
+}
+
+impl From<QueryFormat> for query::Format {
+    fn from(f: QueryFormat) -> Self {
+        match f {
+            QueryFormat::Text => Self::Text,
+            QueryFormat::Json => Self::Json,
+        }
+    }
 }
 
 /// Subcommands.
@@ -36,12 +58,26 @@ enum Cmd {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
-    /// Placeholder for `mycelium query <hyphae>`.
-    /// Hidden until implemented — see issue #151 (lands in v0.1.3).
-    #[command(hide = true)]
+    /// Execute a Hyphae DSL selector against the project's index.
     Query {
-        /// The Hyphae expression. Syntax is RFC-0003 (forthcoming).
+        /// The Hyphae expression. See RFC-0003 for the full grammar.
+        ///
+        /// Examples:
+        ///   `#login`          match symbols named `login`
+        ///   `.function`       match all function symbols
+        ///   `.class>.method`  methods of classes (direct child)
         expr: String,
+
+        /// Project root (defaults to current directory). The index is read
+        /// from `<root>/.mycelium/index.rmp`.
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+
+        /// Output format. `text` writes one match per line. `json` writes a
+        /// JSON array of strings — the stable contract used by the MCP twin
+        /// tool `mycelium_query`.
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
     },
     /// Start the MCP server over stdio.
     Serve {
@@ -95,10 +131,9 @@ fn main() -> Result<()> {
             store.save(&snap)?;
             println!("Index saved to .mycelium/index.rmp");
         }
-        Cmd::Query { expr } => {
-            tracing::warn!(
-                "`mycelium query` is not implemented yet (query={expr:?}) — see RFC-0003"
-            );
+        Cmd::Query { expr, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            query::run(&canonical, &expr, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

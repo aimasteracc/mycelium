@@ -24,7 +24,7 @@ pub struct Evaluator<'s> {
 impl<'s> Evaluator<'s> {
     /// Create an evaluator bound to `store`.
     #[must_use]
-    pub fn new(store: &'s Store) -> Self {
+    pub const fn new(store: &'s Store) -> Self {
         Self { store }
     }
 
@@ -123,13 +123,8 @@ impl<'s> Evaluator<'s> {
                 .into_iter()
                 .filter(|p| p.rsplit('>').next().is_some_and(|seg| seg == name.as_str()))
                 .collect(),
-            BaseSelector::Kind(kind_str) => {
-                if let Some(nk) = node_kind_from_str(kind_str) {
-                    self.store.all_symbols(None, Some(nk))
-                } else {
-                    Vec::new()
-                }
-            }
+            BaseSelector::Kind(kind_str) => node_kind_from_str(kind_str)
+                .map_or_else(Vec::new, |nk| self.store.all_symbols(None, Some(nk))),
         }
     }
 
@@ -197,15 +192,15 @@ impl<'s> Evaluator<'s> {
         }
     }
 
-    /// Evaluate the pseudo-class argument and collect matching NodeIds.
+    /// Evaluate the pseudo-class argument and collect matching `NodeId`s.
     fn pseudo_arg_ids(
         &self,
         pseudo: &PseudoClass,
     ) -> std::collections::HashSet<mycelium_core::types::NodeId> {
-        let paths = match &pseudo.argument {
-            Some(arg_ast) => self.eval(arg_ast),
-            None => self.store.all_symbols(None, None),
-        };
+        let paths = pseudo.argument.as_ref().map_or_else(
+            || self.store.all_symbols(None, None),
+            |arg_ast| self.eval(arg_ast),
+        );
         paths.iter().filter_map(|p| self.store.lookup(p)).collect()
     }
 }

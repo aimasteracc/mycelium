@@ -22,8 +22,9 @@ workspace = true
 
 [dependencies]
 mycelium-core      = { workspace = true }
+mycelium-hyphae    = { workspace = true }
 mycelium-pack      = { workspace = true }
-mycelium-mcp       = { path = "../mycelium-mcp", version = "0.1.2", package = "mycelium-rcig-mcp" }
+mycelium-mcp       = { path = "../mycelium-mcp", version = "0.1.3", package = "mycelium-rcig-mcp" }
 tree-sitter             = { workspace = true }
 tree-sitter-javascript  = { workspace = true }
 tree-sitter-python      = { workspace = true }
@@ -42,7 +43,7 @@ tracing-subscriber = { workspace = true }
 walkdir            = { workspace = true }
 ignore             = { workspace = true }
 tokio              = { workspace = true }
+serde_json         = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-serde_json = { workspace = true }

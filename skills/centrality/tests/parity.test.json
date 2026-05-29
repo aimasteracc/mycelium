@@ -1,0 +1,117 @@
+{
+  "skill": "centrality",
+  "description": "Parity for the 14 centrality/ranking tools. Fixture is the 5-function diamond used by the reachability Skill — small enough to compute scores exactly, large enough to give non-trivial rankings.",
+  "cases": [
+    {
+      "capability": "rank_symbols",
+      "name": "top_5",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["rank-symbols", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5},
+      "parity_invariant": "CLI ranked list == MCP `ranked` array"
+    },
+    {
+      "capability": "get_top_files",
+      "name": "top_5_files",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["get-top-files", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5},
+      "expected_field_keys": ["files"]
+    },
+    {
+      "capability": "get_most_connected",
+      "name": "top_5_connected",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["get-most-connected", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5}
+    },
+    {
+      "capability": "get_hub_symbols",
+      "name": "top_5_hubs",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["get-hub-symbols", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5}
+    },
+    {
+      "capability": "get_fan_out_rank",
+      "name": "top_5_fan_out",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["get-fan-out-rank", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5}
+    },
+    {
+      "capability": "get_fan_in_rank",
+      "name": "top_5_fan_in",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["get-fan-in-rank", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5}
+    },
+    {
+      "capability": "betweenness_centrality",
+      "name": "top_5_betweenness",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["betweenness-centrality", "--edge-kind", "calls", "--limit", "5", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls", "limit": 5}
+    },
+    {
+      "capability": "closeness_centrality",
+      "name": "top_5_closeness",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["closeness-centrality", "--edge-kind", "calls", "--limit", "5", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls", "limit": 5}
+    },
+    {
+      "capability": "degree_centrality",
+      "name": "top_5_degree",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["degree-centrality", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5}
+    },
+    {
+      "capability": "clustering_coefficient",
+      "name": "top_5_clustering",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["clustering-coefficient", "--limit", "5", "--format", "json"],
+      "mcp_input": {"limit": 5}
+    },
+    {
+      "capability": "eccentricity",
+      "name": "top_5_eccentricity",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["eccentricity", "--edge-kind", "calls", "--limit", "5", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls", "limit": 5}
+    },
+    {
+      "capability": "page_rank",
+      "name": "top_5_pagerank",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["page-rank", "--edge-kind", "calls", "--limit", "5", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls", "limit": 5},
+      "performance_note": "see issue #153 — on graphs > 5k nodes a time_budget_ms parameter may be required."
+    },
+    {
+      "capability": "harmonic_centrality",
+      "name": "top_5_harmonic",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["harmonic-centrality", "--edge-kind", "calls", "--limit", "5", "--format", "json"],
+      "mcp_input": {"edge_kind": "calls", "limit": 5}
+    },
+    {
+      "capability": "neighbor_similarity",
+      "name": "similar_to_b",
+      "fixture": "diamond_call_graph",
+      "cli_args": ["neighbor-similarity", "src/lib.rs>b", "--limit", "5", "--format", "json"],
+      "mcp_input": {"path": "src/lib.rs>b", "limit": 5}
+    }
+  ],
+  "fixture_definitions": {
+    "diamond_call_graph": {
+      "description": "Shared with reachability Skill — 5-function diamond.",
+      "files": {
+        "Cargo.toml": "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+        "src/lib.rs": "pub fn d() -> i32 { 4 }\npub fn e() -> i32 { 5 }\npub fn c() -> i32 { d() + 1 }\npub fn b() -> i32 { c() + e() }\npub fn a() -> i32 { b() * 2 }\n"
+      },
+      "index_command": ["mycelium", "index", "."]
+    }
+  }
+}
