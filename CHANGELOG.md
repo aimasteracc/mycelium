@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 1** (v0.1.4): three high-frequency
+  basic-queries capabilities now have CLI subcommands flipping their
+  `skills/INDEX.md` rows from 🟡 to ✅ Three-Surface:
+  - `mycelium search-symbol <query> [--limit N] [--format text|json]`
+  - `mycelium get-symbol-info <path> [--format text|json]`
+  - `mycelium get-ancestors <path> [--format text|json]`
+  Each is the human-facing twin of an existing MCP tool. Shared
+  loader (`load_index`) gives every subcommand the same "no index
+  found — run `mycelium index <root>` first" recovery hint. Tests:
+  8 integration assertions in `crates/mycelium-cli/tests/cli_basic_queries.rs`.
+
 - **Performance hardening — issue #153** (v0.1.4):
   - Added `Trunk::symbol_nodes()` and `Store::symbol_nodes()` — O(V) iterator over
     symbol nodes yielding `(NodeId, &str)` without trie navigation. Eliminates the

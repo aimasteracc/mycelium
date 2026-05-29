@@ -41,9 +41,9 @@ authored in Phase 2 PRs, one PR per category.
 | Capability | CLI | MCP | Covering Skill(s) | Status |
 |---|---|---|---|---|
 | `query` | `mycelium query <expr>` | `mycelium_query` | [`hyphae-query`](hyphae-query/SKILL.md) | ✅ Three-Surface, v0.1.3 (#151) |
-| `search_symbol` | `mycelium search-symbol` | `mycelium_search_symbol` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_symbol_info` | `mycelium get-symbol-info` | `mycelium_get_symbol_info` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_ancestors` | `mycelium get-ancestors` | `mycelium_get_ancestors` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `search_symbol` | `mycelium search-symbol` | `mycelium_search_symbol` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.4 (CLI batch 1) |
+| `get_symbol_info` | `mycelium get-symbol-info` | `mycelium_get_symbol_info` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.4 (CLI batch 1) |
+| `get_ancestors` | `mycelium get-ancestors` | `mycelium_get_ancestors` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.4 (CLI batch 1) |
 | `get_descendants` | `mycelium get-descendants` | `mycelium_get_descendants` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `get_node_kind` | `mycelium get-node-kind` | `mycelium_get_node_kind` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `get_symbols_by_kind` | `mycelium get-symbols-by-kind` | `mycelium_get_symbols_by_kind` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
