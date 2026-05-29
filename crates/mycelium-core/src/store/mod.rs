@@ -85,6 +85,19 @@ pub struct ImportNode {
     pub imports: Vec<Self>,
 }
 
+/// A node in the importers tree returned by [`Store::importers_tree`].
+///
+/// Represents a module and the modules that directly import it (recursively
+/// up to the configured `max_depth`).  Cycles are represented as leaf nodes
+/// (`importers` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImporterNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Importer subtrees, one per incoming `Imports` edge, up to `max_depth`.
+    pub importers: Vec<Self>,
+}
+
 /// A node in the extends tree returned by [`Store::extends_tree`].
 ///
 /// Represents a class and its direct superclasses (recursively up to the
@@ -989,6 +1002,38 @@ impl Store {
             .collect();
         visited.remove(&id);
         ImplementorNode { id, implementors }
+    }
+
+    /// Return the reverse-dependency forest rooted at `id` via incoming `Imports` edges.
+    ///
+    /// DFS over incoming `Imports` edges up to `max_depth` hops.  Cycles produce
+    /// leaf nodes (no infinite recursion).
+    #[must_use]
+    pub fn importers_tree(&self, id: NodeId, max_depth: usize) -> ImporterNode {
+        let mut visited = HashSet::new();
+        self.importers_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn importers_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> ImporterNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return ImporterNode {
+                id,
+                importers: vec![],
+            };
+        }
+        let importers: Vec<ImporterNode> = self
+            .synapse
+            .incoming(id, EdgeKind::Imports)
+            .iter()
+            .map(|&dep_id| self.importers_tree_inner(dep_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        ImporterNode { id, importers }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.
