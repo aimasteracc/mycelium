@@ -3202,3 +3202,73 @@ fn store_two_hop_neighbors_no_outgoing_returns_empty() {
     let result = store.two_hop_neighbors(sym_a, EdgeKind::Calls);
     assert!(result.is_empty());
 }
+
+// ── RFC-0060: Store::symbol_neighborhood ─────────────────────────────────────
+
+#[test]
+fn store_symbol_neighborhood_basic() {
+    // main → service → util
+    let mut store = Store::new();
+    let main = store.upsert_node(path("src/main.rs>main"));
+    let svc = store.upsert_node(path("src/service.rs>svc"));
+    let util = store.upsert_node(path("src/util.rs>util"));
+    store.upsert_edge(EdgeKind::Calls, main, svc);
+    store.upsert_edge(EdgeKind::Calls, svc, util);
+    let nb = store.symbol_neighborhood(svc, EdgeKind::Calls);
+    assert_eq!(nb.path, "src/service.rs>svc");
+    assert_eq!(nb.incoming, vec!["src/main.rs>main"]);
+    assert_eq!(nb.outgoing, vec!["src/util.rs>util"]);
+}
+
+#[test]
+fn store_symbol_neighborhood_sorted() {
+    // Multiple incoming and outgoing — all should be sorted ascending.
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/hub.rs>hub"));
+    let z_in = store.upsert_node(path("src/z.rs>z_caller"));
+    let a_in = store.upsert_node(path("src/a.rs>a_caller"));
+    let z_out = store.upsert_node(path("src/z.rs>z_callee"));
+    let a_out = store.upsert_node(path("src/a.rs>a_callee"));
+    store.upsert_edge(EdgeKind::Calls, z_in, hub);
+    store.upsert_edge(EdgeKind::Calls, a_in, hub);
+    store.upsert_edge(EdgeKind::Calls, hub, z_out);
+    store.upsert_edge(EdgeKind::Calls, hub, a_out);
+    let nb = store.symbol_neighborhood(hub, EdgeKind::Calls);
+    assert_eq!(nb.incoming[0], "src/a.rs>a_caller");
+    assert_eq!(nb.incoming[1], "src/z.rs>z_caller");
+    assert_eq!(nb.outgoing[0], "src/a.rs>a_callee");
+    assert_eq!(nb.outgoing[1], "src/z.rs>z_callee");
+}
+
+#[test]
+fn store_symbol_neighborhood_no_edges() {
+    let mut store = Store::new();
+    let lone = store.upsert_node(path("src/lone.rs>lone"));
+    let nb = store.symbol_neighborhood(lone, EdgeKind::Calls);
+    assert_eq!(nb.path, "src/lone.rs>lone");
+    assert!(nb.incoming.is_empty());
+    assert!(nb.outgoing.is_empty());
+}
+
+#[test]
+fn store_symbol_neighborhood_unknown_id() {
+    let store = Store::new();
+    let nb = store.symbol_neighborhood(NodeId(9999), EdgeKind::Calls);
+    assert_eq!(nb.path, "");
+    assert!(nb.incoming.is_empty());
+    assert!(nb.outgoing.is_empty());
+}
+
+#[test]
+fn store_symbol_neighborhood_different_edge_kind() {
+    // Make sure the kind filter is respected — Calls edges should not appear in Imports.
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/a.rs>src_fn"));
+    let dst = store.upsert_node(path("src/b.rs>dst_fn"));
+    store.upsert_edge(EdgeKind::Calls, src, dst);
+    let nb = store.symbol_neighborhood(src, EdgeKind::Imports);
+    assert!(
+        nb.outgoing.is_empty(),
+        "Calls edge must not appear under Imports kind"
+    );
+}

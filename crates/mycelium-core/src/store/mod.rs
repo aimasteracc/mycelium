@@ -185,6 +185,21 @@ pub struct OutgoingRefs {
     pub implements: Vec<String>,
 }
 
+/// The ego-graph of a symbol for a single `EdgeKind`.
+///
+/// Contains the symbol's own path plus its direct incoming and outgoing
+/// neighbours for the requested edge kind. Both lists are sorted ascending.
+/// Returned by [`Store::symbol_neighborhood`].
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SymbolNeighborhood {
+    /// The symbol's own path. Empty string if the node was not found.
+    pub path: String,
+    /// Direct incoming neighbours for the requested edge kind, sorted ascending.
+    pub incoming: Vec<String>,
+    /// Direct outgoing neighbours for the requested edge kind, sorted ascending.
+    pub outgoing: Vec<String>,
+}
+
 /// Comprehensive statistics about the indexed symbol graph.
 ///
 /// Returned by [`Store::graph_stats`].
@@ -1363,6 +1378,30 @@ impl Store {
             .collect();
         result.sort_unstable();
         result
+    }
+
+    /// Ego-graph of `id` for `kind`: path + direct incoming + direct outgoing.
+    ///
+    /// Both lists are sorted ascending. All node types included (no file-node
+    /// filter). Returns a default empty [`SymbolNeighborhood`] for unknown `id`.
+    #[must_use]
+    pub fn symbol_neighborhood(&self, id: NodeId, kind: EdgeKind) -> SymbolNeighborhood {
+        let Some(own_path) = self.path_of(id) else {
+            return SymbolNeighborhood::default();
+        };
+        let resolve_sorted = |ids: &[NodeId]| -> Vec<String> {
+            let mut paths: Vec<String> = ids
+                .iter()
+                .filter_map(|&nid| self.path_of(nid).map(str::to_owned))
+                .collect();
+            paths.sort_unstable();
+            paths
+        };
+        SymbolNeighborhood {
+            path: own_path.to_owned(),
+            incoming: resolve_sorted(self.synapse.incoming(id, kind)),
+            outgoing: resolve_sorted(self.synapse.outgoing(id, kind)),
+        }
     }
 
     /// Kahn's BFS topological dependency layering for symbol nodes.
