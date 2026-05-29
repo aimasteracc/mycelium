@@ -5473,3 +5473,89 @@ fn store_closeness_file_nodes_excluded() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].path, "src/cc_file.rs>cc_fsym");
 }
+
+// RFC-0089: Store::dependency_depth
+
+#[test]
+fn dep_depth_leaf_node_is_zero() {
+    let mut store = Store::new();
+    let leaf = store.upsert_node(path("src/dd.rs>dd_leaf"));
+    assert_eq!(store.dependency_depth(leaf, EdgeKind::Calls), Some(0));
+}
+
+#[test]
+fn dep_depth_one_hop() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/dd.rs>dd_1_a"));
+    let b = store.upsert_node(path("src/dd.rs>dd_1_b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    assert_eq!(store.dependency_depth(a, EdgeKind::Calls), Some(0));
+    assert_eq!(store.dependency_depth(b, EdgeKind::Calls), Some(1));
+}
+
+#[test]
+fn dep_depth_two_hop_chain() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/dd.rs>dd_2_a"));
+    let b = store.upsert_node(path("src/dd.rs>dd_2_b"));
+    let c = store.upsert_node(path("src/dd.rs>dd_2_c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    assert_eq!(store.dependency_depth(a, EdgeKind::Calls), Some(0));
+    assert_eq!(store.dependency_depth(b, EdgeKind::Calls), Some(1));
+    assert_eq!(store.dependency_depth(c, EdgeKind::Calls), Some(2));
+}
+
+#[test]
+fn dep_depth_longest_path_wins() {
+    // a->c (1 hop) and a->b->c (2 hops): depth of c = 2.
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/dd.rs>dd_long_a"));
+    let b = store.upsert_node(path("src/dd.rs>dd_long_b"));
+    let c = store.upsert_node(path("src/dd.rs>dd_long_c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    assert_eq!(store.dependency_depth(c, EdgeKind::Calls), Some(2));
+}
+
+#[test]
+fn dep_depth_cycle_member_safe() {
+    // a->b->c->a cycle: algorithm terminates.
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/dd.rs>dd_cyc_a"));
+    let b = store.upsert_node(path("src/dd.rs>dd_cyc_b"));
+    let c = store.upsert_node(path("src/dd.rs>dd_cyc_c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    assert!(store.dependency_depth(a, EdgeKind::Calls).is_some());
+    assert!(store.dependency_depth(b, EdgeKind::Calls).is_some());
+    assert!(store.dependency_depth(c, EdgeKind::Calls).is_some());
+}
+
+#[test]
+fn dep_depth_file_node_returns_none() {
+    let mut store = Store::new();
+    let file = store.upsert_node(path("src/dd_file.rs"));
+    assert_eq!(store.dependency_depth(file, EdgeKind::Calls), None);
+}
+
+#[test]
+fn dep_depth_file_nodes_excluded_from_subgraph() {
+    let mut store = Store::new();
+    let file = store.upsert_node(path("src/dd_excl.rs"));
+    let sym = store.upsert_node(path("src/dd_excl.rs>dd_excl_sym"));
+    store.upsert_edge(EdgeKind::Calls, file, sym);
+    assert_eq!(store.dependency_depth(sym, EdgeKind::Calls), Some(0));
+}
+
+#[test]
+fn dep_depth_imports_edge_kind() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/dd.rs>dd_imp_a"));
+    let b = store.upsert_node(path("src/dd.rs>dd_imp_b"));
+    store.upsert_edge(EdgeKind::Imports, a, b);
+    assert_eq!(store.dependency_depth(a, EdgeKind::Imports), Some(0));
+    assert_eq!(store.dependency_depth(b, EdgeKind::Imports), Some(1));
+}

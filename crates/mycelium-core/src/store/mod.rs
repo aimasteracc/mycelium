@@ -3771,6 +3771,67 @@ impl Store {
         entries
     }
 
+    /// Compute the **dependency depth** of symbol node `id` for `kind` edges.
+    ///
+    /// Dependency depth is the length of the *longest* path from any root
+    /// (symbol with no incoming `kind` edges within the symbol-only subgraph)
+    /// to `id`, following *incoming* edges.
+    ///
+    /// A leaf node (no incoming symbol edges) returns 0.
+    /// File nodes are excluded and return `None`.
+    /// Cycles are handled safely: each node is updated at most once per
+    /// improvement step, so the algorithm terminates even with cycles.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use mycelium_core::store::Store;
+    /// use mycelium_core::trunk::TrunkPath;
+    /// use mycelium_core::types::EdgeKind;
+    ///
+    /// let mut store = Store::new();
+    /// let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+    /// let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+    /// let c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+    /// store.upsert_edge(EdgeKind::Calls, a, b);
+    /// store.upsert_edge(EdgeKind::Calls, b, c);
+    ///
+    /// assert_eq!(store.dependency_depth(a, EdgeKind::Calls), Some(0));
+    /// assert_eq!(store.dependency_depth(b, EdgeKind::Calls), Some(1));
+    /// assert_eq!(store.dependency_depth(c, EdgeKind::Calls), Some(2));
+    /// ```
+    #[must_use]
+    pub fn dependency_depth(&self, id: NodeId, kind: EdgeKind) -> Option<usize> {
+        let path = self.trunk.path_of(id)?;
+        if !path.contains('>') {
+            return None;
+        }
+        // Bellman-Ford style longest-path over the reversed graph (incoming edges).
+        // dist[node] = longest known distance from `id` following callers.
+        // We update a node whenever we find a longer path, stopping when stable.
+        let mut dist: HashMap<NodeId, usize> = HashMap::new();
+        dist.insert(id, 0);
+        let mut queue: VecDeque<(NodeId, usize)> = VecDeque::new();
+        queue.push_back((id, 0));
+        let mut max_depth: usize = 0;
+        while let Some((node, d)) = queue.pop_front() {
+            for &caller in self.synapse.incoming(node, kind) {
+                if self.trunk.path_of(caller).is_none_or(|p| !p.contains('>')) {
+                    continue;
+                }
+                let new_d = d + 1;
+                if dist.get(&caller).is_none_or(|&prev| new_d > prev) {
+                    dist.insert(caller, new_d);
+                    if new_d > max_depth {
+                        max_depth = new_d;
+                    }
+                    queue.push_back((caller, new_d));
+                }
+            }
+        }
+        Some(max_depth)
+    }
+
     /// Compute Wasserman-Faust normalized closeness centrality for all symbol nodes.
     ///
     /// `CC_WF(v) = (n_reach/(n-1))^2 * (n_reach / Σ d(v,u))`
