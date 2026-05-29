@@ -656,6 +656,138 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Whole-graph node/edge counts and per-kind breakdown.
+    GetStats {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Density / avg-degree / max-degree summary for an edge kind.
+    GetGraphMetrics {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Symbols that participate in at least one directed cycle.
+    DetectCycles {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long)]
+        path_prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Tarjan SCC groups (size ≥ 2) as `groups: [[...]]`.
+    GetSccGroups {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Kahn topological order; nodes in cycles reported separately.
+    TopologicalSort {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Articulation points (cut vertices) in the undirected graph.
+    FindArticulationPoints {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Bridge edges (cut edges) in the undirected graph.
+    FindBridgeEdges {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Biconnected components.
+    GetBiconnectedComponents {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Maximal k-core subgraph for an edge kind.
+    GetKCore {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 2)]
+        k: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Kahn BFS dependency layers.
+    GetDependencyLayers {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Strongly connected components (raw entries with size).
+    GetScc {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 1)]
+        min_size: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Weakly connected components.
+    GetWcc {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 1)]
+        min_size: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// In/out degree frequency distribution.
+    GetDegreeHistogram {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// All symbols participating in at least one directed cycle.
+    FindCycleMembers {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -1172,6 +1304,123 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 &edge_kind,
                 format.into(),
             )?;
+        }
+        Cmd::GetStats { root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_stats(&canonical, format.into())?;
+        }
+        Cmd::GetGraphMetrics {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_graph_metrics(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::DetectCycles {
+            edge_kind,
+            path_prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_detect_cycles(
+                &canonical,
+                &edge_kind,
+                path_prefix.as_deref(),
+                format.into(),
+            )?;
+        }
+        Cmd::GetSccGroups {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_scc_groups(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::TopologicalSort {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_topological_sort(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::FindArticulationPoints {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_articulation_points(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::FindBridgeEdges {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_bridge_edges(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::GetBiconnectedComponents {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_biconnected_components(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::GetKCore {
+            edge_kind,
+            k,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_k_core(&canonical, &edge_kind, k, format.into())?;
+        }
+        Cmd::GetDependencyLayers {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_dependency_layers(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::GetScc {
+            edge_kind,
+            min_size,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_scc(&canonical, &edge_kind, min_size, format.into())?;
+        }
+        Cmd::GetWcc {
+            edge_kind,
+            min_size,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_wcc(&canonical, &edge_kind, min_size, format.into())?;
+        }
+        Cmd::GetDegreeHistogram {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_degree_histogram(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::FindCycleMembers {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_cycle_members(&canonical, &edge_kind, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

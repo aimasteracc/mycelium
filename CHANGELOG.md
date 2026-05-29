@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 8** (v0.1.5): all 14 `graph-structure`
+  capabilities. Three-Surface compliant: 55 → 69 / 89 (78%). Remaining
+  20: batch-ops (4) + index-management (15) + 1 misc.
+
 - **Hyphae jQuery-inspired selector extensions** (RFC-0091, v0.1.5).
   Closes the gap between Hyphae v1's CSS-selector core and full
   jQuery expressiveness. Eight new selector forms, all parse-compatible

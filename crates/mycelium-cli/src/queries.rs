@@ -1272,6 +1272,230 @@ pub(crate) fn run_neighbor_similarity(
     )
 }
 
+// ── graph-structure: 14 structural-analysis tools ────────────────────────────
+
+pub(crate) fn run_get_stats(root: &Path, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let stats = store.graph_stats();
+    let value = serde_json::json!({
+        "total_nodes":   stats.total_nodes,
+        "total_edges":   stats.total_edges,
+        "nodes_by_kind": stats.nodes_by_kind,
+        "edges_by_kind": stats.edges_by_kind,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_graph_metrics(root: &Path, edge_kind: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let m = store.graph_metrics(kind);
+    let value = serde_json::json!({
+        "symbol_count":        m.symbol_count,
+        "directed_edge_count": m.directed_edge_count,
+        "density":             m.density,
+        "avg_degree":          m.avg_degree,
+        "max_in_degree":       m.max_in_degree,
+        "max_out_degree":      m.max_out_degree,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_detect_cycles(
+    root: &Path,
+    edge_kind: &str,
+    prefix: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let nodes = store.nodes_in_cycles(kind, prefix);
+    let count = nodes.len();
+    let value = serde_json::json!({ "cycle_nodes": nodes, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_scc_groups(root: &Path, edge_kind: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let groups = store.scc_groups(kind);
+    let group_count = groups.len();
+    let total_symbols: usize = groups.iter().map(Vec::len).sum();
+    let value = serde_json::json!({
+        "groups": groups,
+        "group_count": group_count,
+        "total_symbols": total_symbols,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_topological_sort(root: &Path, edge_kind: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let order = store.topological_sort(kind);
+    let ordered_count = order.order.len();
+    let cycle_count = order.cycle_members.len();
+    let value = serde_json::json!({
+        "order": order.order,
+        "cycle_members": order.cycle_members,
+        "ordered_count": ordered_count,
+        "cycle_count": cycle_count,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_find_articulation_points(
+    root: &Path,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let points = store.articulation_points(kind);
+    let count = points.len();
+    let value = serde_json::json!({ "points": points, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_find_bridge_edges(root: &Path, edge_kind: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let bridges = store.bridge_edges(kind);
+    let count = bridges.len();
+    let bridge_list: Vec<serde_json::Value> = bridges
+        .into_iter()
+        .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
+        .collect();
+    let value = serde_json::json!({ "bridges": bridge_list, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_biconnected_components(
+    root: &Path,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let comps = store.biconnected_components(kind);
+    let component_count = comps.len();
+    let total_symbols: usize = comps.iter().map(Vec::len).sum();
+    let value = serde_json::json!({
+        "components": comps,
+        "component_count": component_count,
+        "total_symbols": total_symbols,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_k_core(root: &Path, edge_kind: &str, k: usize, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let core = store.k_core(kind, k);
+    let count = core.len();
+    let value = serde_json::json!({ "core": core, "count": count, "k": k });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_dependency_layers(
+    root: &Path,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let layers = store.dependency_layers(kind);
+    let all_symbol_count = store.all_symbols(None, None).len();
+    let layer_count = layers.len();
+    let total_symbols: usize = layers.iter().map(Vec::len).sum();
+    let cycle_excluded_count = all_symbol_count.saturating_sub(total_symbols);
+    let value = serde_json::json!({
+        "layers": layers,
+        "layer_count": layer_count,
+        "total_symbols": total_symbols,
+        "cycle_excluded_count": cycle_excluded_count,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_scc(
+    root: &Path,
+    edge_kind: &str,
+    min_size: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let all_sccs = store.strongly_connected_components(kind);
+    let symbol_count: usize = all_sccs.iter().map(|e| e.size).sum();
+    let total_components = all_sccs.len();
+    let components: Vec<serde_json::Value> = all_sccs
+        .into_iter()
+        .filter(|e| e.size >= min_size)
+        .map(|e| serde_json::json!({ "members": e.members, "size": e.size }))
+        .collect();
+    let value = serde_json::json!({
+        "components": components,
+        "total_components": total_components,
+        "symbol_count": symbol_count,
+        "min_size": min_size,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_wcc(
+    root: &Path,
+    edge_kind: &str,
+    min_size: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let all = store.weakly_connected_components(kind);
+    let min_size = min_size.max(1);
+    let components: Vec<Vec<String>> = all.into_iter().filter(|c| c.len() >= min_size).collect();
+    let component_count = components.len();
+    let total_symbols: usize = components.iter().map(Vec::len).sum();
+    let value = serde_json::json!({
+        "components": components,
+        "component_count": component_count,
+        "total_symbols": total_symbols,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_degree_histogram(root: &Path, edge_kind: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let hist = store.degree_histogram(kind);
+    let total_symbols: u64 = hist.in_degrees.iter().map(|&(_, c)| c).sum();
+    let in_list: Vec<serde_json::Value> = hist
+        .in_degrees
+        .iter()
+        .map(|&(d, c)| serde_json::json!({ "degree": d, "count": c }))
+        .collect();
+    let out_list: Vec<serde_json::Value> = hist
+        .out_degrees
+        .iter()
+        .map(|&(d, c)| serde_json::json!({ "degree": d, "count": c }))
+        .collect();
+    let value = serde_json::json!({
+        "in_degrees": in_list,
+        "out_degrees": out_list,
+        "total_symbols": total_symbols,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_find_cycle_members(root: &Path, edge_kind: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let members = store.cycle_members(kind);
+    let count = members.len();
+    let value = serde_json::json!({ "members": members, "count": count });
+    print_tree_value(&value, format)
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {

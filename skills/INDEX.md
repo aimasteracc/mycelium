@@ -95,20 +95,20 @@ authored in Phase 2 PRs, one PR per category.
 | `implements_tree` | `mycelium implements-tree` | `mycelium_implements_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
 | `implementors_tree` | `mycelium implementors-tree` | `mycelium_implementors_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
 | `find_implements_path` | `mycelium find-implements-path` | `mycelium_find_implements_path` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
-| `get_stats` | `mycelium get-stats` | `mycelium_get_stats` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_stats` | `mycelium get-stats` | `mycelium_get_stats` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `get_graph_metrics` | `mycelium get-graph-metrics` | `mycelium_get_graph_metrics` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
-| `detect_cycles` | `mycelium detect-cycles` | `mycelium_detect_cycles` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_scc_groups` | `mycelium get-scc-groups` | `mycelium_get_scc_groups` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `topological_sort` | `mycelium topological-sort` | `mycelium_topological_sort` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `find_articulation_points` | `mycelium find-articulation-points` | `mycelium_find_articulation_points` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `find_bridge_edges` | `mycelium find-bridge-edges` | `mycelium_find_bridge_edges` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_biconnected_components` | `mycelium get-biconnected-components` | `mycelium_get_biconnected_components` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_k_core` | `mycelium get-k-core` | `mycelium_get_k_core` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_dependency_layers` | `mycelium get-dependency-layers` | `mycelium_get_dependency_layers` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_strongly_connected_components` | `mycelium get-strongly-connected-components` | `mycelium_get_strongly_connected_components` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `detect_cycles` | `mycelium detect-cycles` | `mycelium_detect_cycles` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `get_scc_groups` | `mycelium get-scc-groups` | `mycelium_get_scc_groups` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `topological_sort` | `mycelium topological-sort` | `mycelium_topological_sort` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `find_articulation_points` | `mycelium find-articulation-points` | `mycelium_find_articulation_points` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `find_bridge_edges` | `mycelium find-bridge-edges` | `mycelium_find_bridge_edges` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `get_biconnected_components` | `mycelium get-biconnected-components` | `mycelium_get_biconnected_components` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `get_k_core` | `mycelium get-k-core` | `mycelium_get_k_core` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `get_dependency_layers` | `mycelium get-dependency-layers` | `mycelium_get_dependency_layers` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
+| `get_strongly_connected_components` | `mycelium get-strongly-connected-components` | `mycelium_get_strongly_connected_components` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `get_wcc` | `mycelium get-wcc` | `mycelium_get_wcc` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
 | `get_degree_histogram` | `mycelium get-degree-histogram` | `mycelium_get_degree_histogram` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
-| `find_cycle_members` | `mycelium find-cycle-members` | `mycelium_find_cycle_members` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `find_cycle_members` | `mycelium find-cycle-members` | `mycelium_find_cycle_members` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `batch_symbol_info` | `mycelium batch-symbol-info` | `mycelium_batch_symbol_info` | [`batch-ops`](batch-ops/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `batch_node_degree` | `mycelium batch-node-degree` | `mycelium_batch_node_degree` | [`batch-ops`](batch-ops/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `batch_reachable_from` | `mycelium batch-reachable-from` | `mycelium_batch_reachable_from` | [`batch-ops`](batch-ops/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
