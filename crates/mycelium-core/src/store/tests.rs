@@ -2980,3 +2980,82 @@ fn store_isolated_symbols_empty_graph() {
     let store = Store::new();
     assert!(store.isolated_symbols(None).is_empty());
 }
+
+// ── RFC-0057: Store::scc_groups ───────────────────────────────────────────────
+
+#[test]
+fn store_scc_groups_finds_simple_cycle() {
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    let sym_c = store.upsert_node(path("src/c.rs>c"));
+    // a → b → c → a (cycle)
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_c);
+    store.upsert_edge(EdgeKind::Calls, sym_c, sym_a);
+    let groups = store.scc_groups(EdgeKind::Calls);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].len(), 3);
+    assert!(groups[0].contains(&"src/a.rs>a".to_owned()));
+    assert!(groups[0].contains(&"src/b.rs>b".to_owned()));
+    assert!(groups[0].contains(&"src/c.rs>c".to_owned()));
+}
+
+#[test]
+fn store_scc_groups_excludes_singletons() {
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    // One-way edge: no cycle
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    let groups = store.scc_groups(EdgeKind::Calls);
+    assert!(groups.is_empty());
+}
+
+#[test]
+fn store_scc_groups_excludes_file_nodes() {
+    let mut store = Store::new();
+    let _file = store.upsert_node(path("src/a.rs")); // file node — no `>`
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+    let groups = store.scc_groups(EdgeKind::Calls);
+    assert_eq!(groups.len(), 1);
+    // file node must not appear
+    assert!(groups[0].iter().all(|p| p.contains('>')));
+}
+
+#[test]
+fn store_scc_groups_multiple_components_sorted_by_size() {
+    let mut store = Store::new();
+    // Large cycle: a ↔ b ↔ c
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    let sym_c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_c);
+    store.upsert_edge(EdgeKind::Calls, sym_c, sym_a);
+    // Small cycle: x ↔ y
+    let sym_x = store.upsert_node(path("src/x.rs>x"));
+    let sym_y = store.upsert_node(path("src/y.rs>y"));
+    store.upsert_edge(EdgeKind::Calls, sym_x, sym_y);
+    store.upsert_edge(EdgeKind::Calls, sym_y, sym_x);
+    let groups = store.scc_groups(EdgeKind::Calls);
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].len(), 3); // larger group first
+    assert_eq!(groups[1].len(), 2);
+}
+
+#[test]
+fn store_scc_groups_paths_sorted_within_group() {
+    let mut store = Store::new();
+    let sym_z = store.upsert_node(path("src/z.rs>z"));
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    store.upsert_edge(EdgeKind::Calls, sym_z, sym_a);
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_z);
+    let groups = store.scc_groups(EdgeKind::Calls);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0][0], "src/a.rs>a"); // alphabetically first
+    assert_eq!(groups[0][1], "src/z.rs>z");
+}
