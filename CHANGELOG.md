@@ -132,6 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0041: `OutgoingRefs { callees, imports, extends, implements }` struct — all outgoing edges from a symbol grouped by `EdgeKind`; symmetric complement to `CrossRefs`.
 - RFC-0041: `Store::outgoing_refs(id)` — collects outgoing `Calls`, `Imports`, `Extends`, `Implements` edges and resolves them to sorted path strings; all four lists always present.
 - RFC-0041: `mycelium_get_outgoing_refs` MCP tool — "what does this reference?" primitive; paired with `mycelium_get_cross_refs` provides complete incoming/outgoing reference picture in two calls; returns `{ callees, imports, extends, implements }` or `{ error }`.
+- RFC-0042: `Store::all_symbols(prefix, kind)` — returns all non-file symbol paths (paths containing `>`), sorted lexicographically, with optional path-prefix and `NodeKind` filters; file-level nodes are excluded.
+- RFC-0042: `mycelium_get_all_symbols` MCP tool — enumerates every indexed symbol across all kinds; accepts optional `path_prefix` and `kind` parameters; returns `{ symbols, count }` or `{ error }` for an unknown kind string.
 
 ### Fixed
 
