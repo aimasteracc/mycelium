@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-29 (PM run post-v0.1.3 + Phase 2.3 complete) |
+| Last updated | 2026-05-29 (PM run — #153 perf PR opened) |
 | Current sprint | v0.1.4 (performance hardening + CLI parity backfill) |
 | Active release branch | none (between releases) |
 | Next release target | v0.1.4, ETA 2026-06-20 |
@@ -15,16 +15,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ## Live priorities (ordered)
 
 P1:
-1. [#153](https://github.com/aimasteracc/mycelium/issues/153) — Graph-algorithm timeouts on 926-node graph. **v0.1.4 lead item.** Affects: `get_leaf_symbols`, `find_call_path`, `get_graph_metrics`, `page_rank`, `get_wcc`, `get_degree_histogram`. Need profile → fix → bench → SLA row.
+1. [#153](https://github.com/aimasteracc/mycelium/issues/153) — **PR #168 OPEN** (pending CI + review). Root cause: cold-start/deserialization overhead, not algorithmic. Delivered: `symbol_nodes()`, parent-map BFS, 8 regression tests, Criterion benchmark, 2 new Charter §2 SLA rows.
 
 P2 (governance backfill):
 2. RFC-0090 Phase 1 — `parity.yml` CI workflow. **v0.1.4.** (Was Sprint v0.1.3 item 3; slipped to v0.1.4.)
 3. `mycelium init` — still hidden/unimplemented per #154. Either implement or remove. **v0.1.4.**
 
 Sprint v0.1.4 backlog:
-4. Charter §2 SLA grows heavy-graph rows — architect work.
-5. `mycelium index` benchmarks against 1K/10K/100K node repos — new SLA row.
-6. CLI parity backfill — ~87 CLI subcommands still pending (🟡 rows in INDEX.md); systematic batch landing.
+4. Charter §2 SLA `mycelium index` benchmarks against 1K/10K/100K node repos — new SLA row. *(heavy-graph SLA rows done in PR #168)*
+5. CLI parity backfill — ~87 CLI subcommands still pending (🟡 rows in INDEX.md); systematic batch landing.
 
 Completed in v0.1.3 (2026-05-29):
 - [#151](https://github.com/aimasteracc/mycelium/issues/151) ✅ — `mycelium query` Hyphae CLI wired (PR #159)
@@ -35,8 +34,8 @@ Completed in v0.1.3 (2026-05-29):
 
 | Agent | Status | Current item |
 |---|---|---|
-| rust-implementer | **next-up** | [#153](https://github.com/aimasteracc/mycelium/issues/153) — profile + fix 6 timeout tools. TDD: write failing perf tests first. |
-| architect | idle | next: draft Charter §2 SLA heavy-graph rows + `parity.yml` CI workflow design |
+| rust-implementer | **waiting-review** | PR #168 (#153) — awaiting CI + founder review |
+| architect | idle | next: `parity.yml` CI workflow design (heavy-graph SLA rows done) |
 | tech-writer | idle | next: doc-sync pass on Skills for recently added tools (brief descriptions for `find_call_path`, `get_leaf_symbols`, etc.) |
 | code-reviewer | idle | blocks on PR opens |
 | security-reviewer | idle | next: routine post-sprint scan |
