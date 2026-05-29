@@ -2601,3 +2601,57 @@ fn store_shortest_path_cycle_safe() {
     // c is unreachable from a
     assert!(store.shortest_path(a, c, EdgeKind::Calls).is_none());
 }
+
+// ── RFC-0051: Store::symbol_count_by_kind ────────────────────────────────────
+
+#[test]
+fn store_symbol_count_by_kind_basic() {
+    let mut store = Store::new();
+    store.upsert_node_with_kind(path("src/a.rs>fn1"), NodeKind::Function);
+    store.upsert_node_with_kind(path("src/a.rs>fn2"), NodeKind::Function);
+    store.upsert_node_with_kind(path("src/a.rs>MyClass"), NodeKind::Class);
+    let counts = store.symbol_count_by_kind();
+    assert_eq!(
+        counts,
+        vec![("class".to_owned(), 1), ("function".to_owned(), 2),]
+    );
+}
+
+#[test]
+fn store_symbol_count_by_kind_sorted_alphabetically() {
+    let mut store = Store::new();
+    store.upsert_node_with_kind(path("src/a.rs>m"), NodeKind::Method);
+    store.upsert_node_with_kind(path("src/a.rs>i"), NodeKind::Interface);
+    store.upsert_node_with_kind(path("src/a.rs>f"), NodeKind::Function);
+    let counts = store.symbol_count_by_kind();
+    let kinds: Vec<&str> = counts.iter().map(|(k, _)| k.as_str()).collect();
+    assert_eq!(kinds, vec!["function", "interface", "method"]);
+}
+
+#[test]
+fn store_symbol_count_by_kind_empty_graph() {
+    let store = Store::new();
+    assert!(store.symbol_count_by_kind().is_empty());
+}
+
+#[test]
+fn store_symbol_count_by_kind_excludes_unknown_kind_nodes() {
+    let mut store = Store::new();
+    // node without kind_map entry (raw upsert_node with no kind) — excluded
+    store.upsert_node(path("src/a.rs>notype"));
+    store.upsert_node_with_kind(path("src/a.rs>typed"), NodeKind::Function);
+    let counts = store.symbol_count_by_kind();
+    assert_eq!(counts, vec![("function".to_owned(), 1)]);
+}
+
+#[test]
+fn store_symbol_count_by_kind_total_matches_sum() {
+    let mut store = Store::new();
+    for i in 0..3u8 {
+        store.upsert_node_with_kind(path(&format!("src/a.rs>fn{i}")), NodeKind::Function);
+    }
+    store.upsert_node_with_kind(path("src/a.rs>MyClass"), NodeKind::Class);
+    let counts = store.symbol_count_by_kind();
+    let total: usize = counts.iter().map(|(_, n)| n).sum();
+    assert_eq!(total, 4);
+}
