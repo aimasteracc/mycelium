@@ -182,6 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0064: `mycelium_get_k_core` MCP tool — hard-to-refactor core detector; accepts `{ edge_kind, k? }` and returns `{ core, count, k }` or `{ error }` for unknown edge kind; k defaults to 2.
 - RFC-0065: `Store::batch_reachable_from(ids, kind, max_depth)` — union of symbols transitively reachable FROM a set of sources via outgoing edges; deduplicated, input nodes excluded, sorted ascending, max_depth capped at 20. Symmetric complement of `batch_reachable_to` (RFC-0063).
 - RFC-0065: `mycelium_batch_reachable_from` MCP tool — collective forward-reachability in one call; accepts `{ paths (up to 20), edge_kind, max_depth? }` and returns `{ reachable, count }` or `{ error }` for unknown edge kind; max_depth defaults to 10.
+- RFC-0066: `Store::batch_node_degree(ids)` — returns one `NodeDegree` per `NodeId` in input order; ids absent from the synapse return `NodeDegree::default()` (all counts zero). Batch version of `node_degree` (RFC-0046) eliminating N round trips when analysing a set of related symbols.
+- RFC-0066: `mycelium_batch_node_degree` MCP tool — batch degree query for up to 50 symbols in one call; accepts `{ paths }` and returns `{ degrees: [{ path, in_calls, out_calls, in_imports, out_imports, in_extends, out_extends, in_implements, out_implements }], count }` with unknown paths returning `{ path, error: "path not found" }`; results in input order.
 
 ### Fixed
 
