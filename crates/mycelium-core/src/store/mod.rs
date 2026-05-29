@@ -1907,6 +1907,14 @@ impl Store {
         }
     }
 
+    /// Batch degree query — returns one `NodeDegree` per id, in input order.
+    ///
+    /// IDs absent from the synapse return `NodeDegree::default()` (all zeros).
+    #[must_use]
+    pub fn batch_node_degree(&self, ids: &[NodeId]) -> Vec<NodeDegree> {
+        ids.iter().map(|&id| self.node_degree(id)).collect()
+    }
+
     /// Symbol nodes with zero connectivity across all four `EdgeKind`s.
     /// File nodes excluded. Optional prefix filter. Results sorted alphabetically.
     #[must_use]

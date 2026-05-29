@@ -499,6 +499,13 @@ pub struct BatchReachableFromRequest {
     pub max_depth: Option<usize>,
 }
 
+/// Input parameters for `mycelium_batch_node_degree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BatchNodeDegreeRequest {
+    /// Symbol paths to query (up to 50 entries).
+    pub paths: Vec<String>,
+}
+
 /// Input parameters for `mycelium_get_k_core`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetKCoreRequest {
@@ -1972,6 +1979,48 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return the full in/out degree breakdown across all four EdgeKinds for up to \
+                       50 symbol paths in a single call. Eliminates N round trips when analysing \
+                       a set of related symbols. Known paths return { path, in_calls, out_calls, \
+                       in_imports, out_imports, in_extends, out_extends, in_implements, \
+                       out_implements }. Unknown paths return { path, error: 'path not found' }. \
+                       Results in input order."
+    )]
+    async fn mycelium_batch_node_degree(
+        &self,
+        Parameters(req): Parameters<BatchNodeDegreeRequest>,
+    ) -> String {
+        let store = self.store.read().await;
+        let degrees: Vec<serde_json::Value> = req
+            .paths
+            .iter()
+            .take(50)
+            .map(|p| {
+                store.lookup(p).map_or_else(
+                    || serde_json::json!({ "path": p, "error": "path not found" }),
+                    |id| {
+                        let d = store.node_degree(id);
+                        serde_json::json!({
+                            "path": p,
+                            "in_calls": d.in_calls,
+                            "out_calls": d.out_calls,
+                            "in_imports": d.in_imports,
+                            "out_imports": d.out_imports,
+                            "in_extends": d.in_extends,
+                            "out_extends": d.out_extends,
+                            "in_implements": d.in_implements,
+                            "out_implements": d.out_implements,
+                        })
+                    },
+                )
+            })
+            .collect();
+        let count = degrees.len();
+        drop(store);
+        serde_json::json!({ "degrees": degrees, "count": count }).to_string()
     }
 
     #[tool(
@@ -5825,6 +5874,53 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["reachable"].as_array().unwrap().is_empty());
+    }
+
+    // ── RFC-0066: mycelium_batch_node_degree ──────────────────────────────
+
+    #[tokio::test]
+    async fn batch_node_degree_known_path() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+        }
+        let raw = server
+            .mycelium_batch_node_degree(Parameters(BatchNodeDegreeRequest {
+                paths: vec!["src/a.rs>a".to_owned(), "src/b.rs>b".to_owned()],
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
+        let degs = val["degrees"].as_array().unwrap();
+        assert_eq!(degs[0]["out_calls"].as_u64().unwrap(), 1);
+        assert_eq!(degs[1]["in_calls"].as_u64().unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn batch_node_degree_unknown_path_returns_error_entry() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_batch_node_degree(Parameters(BatchNodeDegreeRequest {
+                paths: vec!["src/missing.rs>nope".to_owned()],
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let degs = val["degrees"].as_array().unwrap();
+        assert!(degs[0]["error"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn batch_node_degree_empty_paths_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_batch_node_degree(Parameters(BatchNodeDegreeRequest { paths: vec![] }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert!(val["degrees"].as_array().unwrap().is_empty());
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────
