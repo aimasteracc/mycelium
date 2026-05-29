@@ -239,6 +239,17 @@ pub struct NodeDegree {
     pub out_implements: usize,
 }
 
+/// Result of [`Store::topological_sort`].
+#[derive(Debug, Clone, Default)]
+pub struct TopologicalOrder {
+    /// Symbol paths in dependency order: each symbol appears after all its
+    /// predecessors for the queried `EdgeKind`.  Sources come first.
+    pub order: Vec<String>,
+    /// Symbol paths that could not be placed in `order` because they
+    /// participate in a directed cycle.  Sorted ascending.
+    pub cycle_members: Vec<String>,
+}
+
 fn uf_find(parent: &mut Vec<usize>, x: usize) -> usize {
     if parent[x] != x {
         parent[x] = uf_find(parent, parent[x]);
@@ -1928,6 +1939,100 @@ impl Store {
     #[must_use]
     pub fn batch_node_degree(&self, ids: &[NodeId]) -> Vec<NodeDegree> {
         ids.iter().map(|&id| self.node_degree(id)).collect()
+    }
+
+    /// Topological ordering of the symbol graph for `kind` via Kahn's algorithm.
+    ///
+    /// Returns a [`TopologicalOrder`] with:
+    /// - `order`: symbols in dependency order (sources first); ties broken by
+    ///   path ascending for determinism.
+    /// - `cycle_members`: symbols that are part of a directed cycle and could
+    ///   not be placed in the linear order; sorted ascending.
+    ///
+    /// File nodes excluded.
+    #[must_use]
+    pub fn topological_sort(&self, kind: EdgeKind) -> TopologicalOrder {
+        // Collect symbol ids and build adjacency + in-degree structures.
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+
+        if sym_ids.is_empty() {
+            return TopologicalOrder::default();
+        }
+
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+        let id_to_idx: HashMap<NodeId, usize> = sym_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, id)| (id, i))
+            .collect();
+
+        let n = sym_ids.len();
+        let mut in_degree = vec![0usize; n];
+        let mut successors: Vec<Vec<usize>> = vec![Vec::new(); n];
+
+        for (idx, &id) in sym_ids.iter().enumerate() {
+            for &nb in self.synapse.outgoing(id, kind) {
+                if sym_set.contains(&nb) {
+                    let nb_idx = id_to_idx[&nb];
+                    successors[idx].push(nb_idx);
+                    in_degree[nb_idx] += 1;
+                }
+            }
+        }
+
+        // Kahn's BFS: start with all zero-in-degree nodes, sorted by path for determinism.
+        let mut queue: std::collections::BinaryHeap<std::cmp::Reverse<(String, usize)>> = sym_ids
+            .iter()
+            .enumerate()
+            .filter(|&(idx, _)| in_degree[idx] == 0)
+            .filter_map(|(idx, &id)| {
+                self.path_of(id)
+                    .map(|p| std::cmp::Reverse((p.to_owned(), idx)))
+            })
+            .collect();
+
+        let mut order: Vec<String> = Vec::with_capacity(n);
+
+        while let Some(std::cmp::Reverse((path, idx))) = queue.pop() {
+            order.push(path);
+            // Sort successors by path for determinism.
+            let mut next: Vec<(String, usize)> = successors[idx]
+                .iter()
+                .copied()
+                .filter_map(|nb| {
+                    in_degree[nb] -= 1;
+                    if in_degree[nb] == 0 {
+                        self.path_of(sym_ids[nb]).map(|p| (p.to_owned(), nb))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            next.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+            for (p, nb) in next {
+                queue.push(std::cmp::Reverse((p, nb)));
+            }
+        }
+
+        // Remaining nodes with in_degree > 0 are cycle members.
+        let mut cycle_members: Vec<String> = sym_ids
+            .iter()
+            .enumerate()
+            .filter(|&(idx, _)| in_degree[idx] > 0)
+            .filter_map(|(_, &id)| self.path_of(id).map(str::to_owned))
+            .collect();
+        cycle_members.sort_unstable();
+
+        TopologicalOrder {
+            order,
+            cycle_members,
+        }
     }
 
     /// Groups symbol nodes into weakly-connected components for `kind`, treating edges
