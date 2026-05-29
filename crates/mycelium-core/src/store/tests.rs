@@ -5366,3 +5366,110 @@ fn store_degree_centrality_file_nodes_excluded() {
     // File edge not counted since file node excluded from traversal.
     assert_eq!(result[0].in_degree, 0);
 }
+
+// ── RFC-0088: closeness_centrality ────────────────────────────────────────
+
+#[test]
+fn store_closeness_empty_graph() {
+    let store = Store::new();
+    let result = store.closeness_centrality(EdgeKind::Calls);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_closeness_single_node() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/cc.rs>cc_solo").unwrap());
+    let result = store.closeness_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    assert!((result[0].score).abs() < 1e-9);
+}
+
+#[test]
+fn store_closeness_two_nodes_no_edge() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/cc.rs>cc_na").unwrap());
+    store.upsert_node(TrunkPath::parse("src/cc.rs>cc_nb").unwrap());
+    let result = store.closeness_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 2);
+    for e in &result {
+        assert!((e.score).abs() < 1e-9);
+    }
+}
+
+#[test]
+fn store_closeness_two_nodes_one_edge() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_2a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_2b").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let result = store.closeness_centrality(EdgeKind::Calls);
+    // A reaches B; B reaches no one.
+    let entry_a = result.iter().find(|e| e.path == "src/cc.rs>cc_2a").unwrap();
+    let entry_b = result.iter().find(|e| e.path == "src/cc.rs>cc_2b").unwrap();
+    assert!(entry_a.score > 0.0, "A should have positive closeness");
+    assert!((entry_b.score).abs() < 1e-9, "B reaches no one → 0.0");
+}
+
+#[test]
+fn store_closeness_linear_chain_ordering() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_lin_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_lin_b").unwrap());
+    let c = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_lin_c").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    // A can reach B and C; B can reach C; C reaches no one.
+    let result = store.closeness_centrality(EdgeKind::Calls);
+    let score_a = result
+        .iter()
+        .find(|e| e.path == "src/cc.rs>cc_lin_a")
+        .unwrap()
+        .score;
+    let score_b = result
+        .iter()
+        .find(|e| e.path == "src/cc.rs>cc_lin_b")
+        .unwrap()
+        .score;
+    let score_c = result
+        .iter()
+        .find(|e| e.path == "src/cc.rs>cc_lin_c")
+        .unwrap()
+        .score;
+    assert!(
+        score_a > score_b,
+        "A reaches more nodes with shorter total dist"
+    );
+    assert!(score_b > score_c, "B reaches C; C reaches no one");
+    assert!((score_c).abs() < 1e-9);
+}
+
+#[test]
+fn store_closeness_scores_in_range() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_rng_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_rng_b").unwrap());
+    let c = store.upsert_node(TrunkPath::parse("src/cc.rs>cc_rng_c").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let result = store.closeness_centrality(EdgeKind::Calls);
+    for e in &result {
+        assert!(
+            e.score >= 0.0 && e.score <= 1.0,
+            "score {} out of [0,1]",
+            e.score
+        );
+    }
+}
+
+#[test]
+fn store_closeness_file_nodes_excluded() {
+    let mut store = Store::new();
+    let file = store.upsert_node(TrunkPath::parse("src/cc_file.rs").unwrap());
+    let sym = store.upsert_node(TrunkPath::parse("src/cc_file.rs>cc_fsym").unwrap());
+    store.upsert_edge(EdgeKind::Calls, file, sym);
+    let result = store.closeness_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].path, "src/cc_file.rs>cc_fsym");
+}
