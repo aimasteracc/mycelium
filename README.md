@@ -9,7 +9,8 @@ Your AI agent perceives your code like a nervous system perceives a body —
 every change, instantly felt, instantly understood.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-pre--alpha-orange.svg)](#)
+[![Status](https://img.shields.io/badge/status-alpha-blue.svg)](#)
+[![Version](https://img.shields.io/badge/version-v0.1.0-green.svg)](CHANGELOG.md)
 [![Rust](https://img.shields.io/badge/built_with-Rust-dea584.svg)](https://www.rust-lang.org/)
 [![Sponsor](https://img.shields.io/badge/sponsor-aimasteracc-ea4aaa.svg?logo=github-sponsors)](https://github.com/sponsors/aimasteracc)
 
@@ -39,12 +40,22 @@ everything between sessions.
 
 ## Status
 
-**Pre-alpha.** Day 0. Founder: [@aimasteracc](https://github.com/aimasteracc).
-The Hive (an autonomous team of Claude-powered agents) is being bootstrapped.
-First spike (v0.1) targets a working Python + TypeScript indexer with the
-Trunk + Synapse storage core and the first Hyphae query benchmarks.
+**v0.1.0 — Alpha.** All Charter §2 performance SLAs satisfied. 835 tests passing. 96% coverage.
+
+| Component | Status |
+|---|---|
+| Core engine (Trunk + Synapse + Cortex) | ✅ Shipped |
+| Language packs: Python, TS, JS, Rust, Go | ✅ Tier 1 complete |
+| Language packs: Java, C, C++, C#, Ruby | ✅ Tier 2 complete |
+| MCP server (90+ tools) | ✅ Shipped |
+| Hyphae DSL (lexer + parser + evaluator) | ✅ RFC-0004 complete |
+| CLI (`mycelium index`, `mycelium serve --mcp`) | ✅ Shipped |
+| Persistence (MessagePack snapshot) | ✅ Shipped |
+| Watch mode (reactive FSE re-index) | ✅ Shipped |
+| npm / PyPI bindings | 🔜 v0.2 |
 
 **Public roadmap:** [GitHub Projects](https://github.com/aimasteracc/mycelium/projects).
+**Changelog:** [CHANGELOG.md](CHANGELOG.md).
 **Charter:** [CHARTER.md](CHARTER.md) — read this before any contribution.
 
 ## Design Pillars
@@ -78,24 +89,29 @@ Install once. Use from terminal, from your AI agent, or as a skill bundle.
 
 ## Quick Start
 
-> ⚠️ Pre-alpha — these commands are the **target** interface. The CLI is not
-> shipped yet. Watch the repo or sponsor to track progress.
+```bash
+# Install from source (crates.io publishing coming in v0.2)
+cargo install --git https://github.com/aimasteracc/mycelium mycelium-cli
+
+# Index a project (Python, TS, JS, Rust, Go, Java, C, C++, C#, Ruby)
+mycelium index ./my-project
+
+# Serve as MCP for your AI agent (Claude, GPT-4, etc.)
+mycelium serve --mcp --root ./my-project
+```
+
+### Hyphae DSL — query the graph like CSS selects DOM
 
 ```bash
-# Install (planned)
-cargo install mycelium
-# or
-npm install -g @aimasteracc/mycelium
+# via mycelium_query MCP tool:
+# Find all functions that call AuthService
+{ "query": "function:calls(#AuthService)" }
 
-# Index a project
-mycelium init
-mycelium index
+# Find all methods inside Foo class
+{ "query": "#Foo > method" }
 
-# Query with Hyphae
-mycelium query 'class.AuthService > method[public]:calls(UserRepo)'
-
-# Serve as MCP for your AI agent
-mycelium serve --mcp
+# Find callers of login, up to depth 3
+{ "query": "*:callers(#login)" }
 ```
 
 ## Performance SLA (the bar we ship against)

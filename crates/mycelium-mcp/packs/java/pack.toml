@@ -1,0 +1,10 @@
+# Mycelium Java language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "java"
+description = "Java language pack for Mycelium. Extracts classes, interfaces, methods, and imports."
+extensions  = [".java"]
+grammar     = "crates.io:tree-sitter-java@^0.23"

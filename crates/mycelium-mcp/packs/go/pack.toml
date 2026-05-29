@@ -1,0 +1,32 @@
+# Mycelium Go language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "go"
+description = "Go language pack for Mycelium. Extracts packages, functions, methods, types, interfaces, structs, and import references."
+extensions  = [".go"]
+grammar     = "crates.io:tree-sitter-go@^0.25"
+
+[node_kinds]
+source_file         = "module"
+function_declaration = "function"
+method_declaration   = "method"
+type_declaration     = "type"
+interface_type       = "interface"
+struct_type          = "struct"
+
+[fields]
+name_field   = "name"
+body_field   = "body"
+
+[import]
+# Go import pattern: import "pkg/path" or import alias "pkg/path"
+resolve       = "import \"$path\" → lookup($path)"
+package_marker = "go.mod"
+
+[signature_template]
+function = "func {name}({params}) {return_type}"
+method   = "func ({receiver}) {name}({params}) {return_type}"
+type     = "type {name} {underlying}"
