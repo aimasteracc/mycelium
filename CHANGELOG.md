@@ -202,6 +202,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0074: `EdgeKindMetrics { symbol_count, directed_edge_count, density, avg_degree, max_in_degree, max_out_degree }` struct — structural summary for one EdgeKind.
 - RFC-0074: `Store::graph_metrics(kind)` — O(V+E) structural summary: directed graph density (`E / V(V-1)`), average degree, and maximum in/out degree across all symbol nodes; file nodes excluded.
 - RFC-0074: `mycelium_get_graph_metrics` MCP tool — instant architectural health check; accepts `{ edge_kind }` and returns `{ symbol_count, directed_edge_count, density, avg_degree, max_in_degree, max_out_degree }` or `{ error }`. Density near 0 = sparse/modular; near 1 = tightly coupled.
+- RFC-0075: `Store::neighbor_similarity_stats(id1, id2, kind)` — returns `(similarity, shared, total)` in one pass; N(x) = outgoing ∪ incoming neighbors (self excluded); Jaccard = shared / total; both isolated → (0.0, 0, 0). O(max_degree).
+- RFC-0075: `Store::neighbor_similarity(id1, id2, kind)` — Jaccard similarity ∈ [0.0, 1.0] between combined neighbor sets for a given EdgeKind; thin wrapper over `neighbor_similarity_stats`.
+- RFC-0075: `mycelium_get_neighbor_similarity` MCP tool — structural role similarity detector; accepts `{ path1, path2, edge_kind }` and returns `{ similarity, shared, total }` or `{ error }`. Score 1.0 = identical structural roles (same callers+callees); 0.0 = no overlap. Useful for refactoring candidates and duplicate detection.
 
 ### Fixed
 
