@@ -124,6 +124,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0038: `Synapse::edge_counts_by_kind()` — iterator over non-empty `(EdgeKind, usize)` pairs.
 - RFC-0038: `Store::graph_stats()` — returns `GraphStats` with node counts grouped by `NodeKind` and edge counts grouped by `EdgeKind`; kinds with zero count are omitted.
 - RFC-0038: `mycelium_get_stats` MCP tool — comprehensive per-kind statistics; extends `mycelium_server_status` with the breakdown needed for architectural analysis; returns `{ total_nodes, total_edges, nodes_by_kind, edges_by_kind }`.
+- RFC-0039: `CrossRefs { callers, importers, extended_by, implemented_by }` struct — all incoming edges for a symbol grouped by `EdgeKind`.
+- RFC-0039: `Store::cross_refs(id)` — collects incoming `Calls`, `Imports`, `Extends`, and `Implements` edges and resolves them to sorted path strings; all four lists always present.
+- RFC-0039: `mycelium_get_cross_refs` MCP tool — unified "who references this?" primitive for impact analysis; returns `{ callers, importers, extended_by, implemented_by }` or `{ error }` for unknown paths.
 
 ### Fixed
 
