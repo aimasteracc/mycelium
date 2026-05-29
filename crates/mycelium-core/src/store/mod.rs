@@ -1915,6 +1915,108 @@ impl Store {
         ids.iter().map(|&id| self.node_degree(id)).collect()
     }
 
+    /// Symbol nodes that participate in at least one directed cycle for `kind`.
+    ///
+    /// Uses Kosaraju's two-pass SCC algorithm.  Any node whose SCC has size ≥ 2
+    /// is a cycle member.  File nodes are excluded.  Results sorted ascending.
+    #[must_use]
+    pub fn cycle_members(&self, kind: EdgeKind) -> Vec<String> {
+        // Collect symbol node ids and build forward/reverse adjacency lists.
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+
+        // Map NodeId → dense index for the arrays.
+        let id_to_idx: HashMap<NodeId, usize> = sym_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, id)| (id, i))
+            .collect();
+
+        let n = sym_ids.len();
+        let mut fwd: Vec<Vec<usize>> = vec![Vec::new(); n];
+        let mut rev: Vec<Vec<usize>> = vec![Vec::new(); n];
+
+        for (idx, &id) in sym_ids.iter().enumerate() {
+            for &nb in self.synapse.outgoing(id, kind) {
+                if sym_set.contains(&nb) {
+                    let nb_idx = id_to_idx[&nb];
+                    fwd[idx].push(nb_idx);
+                    rev[nb_idx].push(idx);
+                }
+            }
+        }
+
+        // Kosaraju pass 1: DFS on forward graph, record finish order.
+        let mut visited = vec![false; n];
+        let mut finish_order: Vec<usize> = Vec::with_capacity(n);
+        for start in 0..n {
+            if !visited[start] {
+                // Iterative DFS to avoid stack overflow on large graphs.
+                let mut stack: Vec<(usize, usize)> = vec![(start, 0)];
+                visited[start] = true;
+                while let Some((node, edge_idx)) = stack.last_mut() {
+                    if *edge_idx < fwd[*node].len() {
+                        let nb = fwd[*node][*edge_idx];
+                        *edge_idx += 1;
+                        if !visited[nb] {
+                            visited[nb] = true;
+                            stack.push((nb, 0));
+                        }
+                    } else {
+                        let node = *node;
+                        stack.pop();
+                        finish_order.push(node);
+                    }
+                }
+            }
+        }
+
+        // Kosaraju pass 2: DFS on reverse graph in reverse finish order.
+        let mut comp = vec![usize::MAX; n];
+        let mut comp_id = 0usize;
+        for &start in finish_order.iter().rev() {
+            if comp[start] != usize::MAX {
+                continue;
+            }
+            let mut stack: Vec<usize> = vec![start];
+            comp[start] = comp_id;
+            while let Some(node) = stack.pop() {
+                for &nb in &rev[node] {
+                    if comp[nb] == usize::MAX {
+                        comp[nb] = comp_id;
+                        stack.push(nb);
+                    }
+                }
+            }
+            comp_id += 1;
+        }
+
+        // Count component sizes.
+        let mut comp_size = vec![0usize; comp_id];
+        for &c in &comp {
+            if c != usize::MAX {
+                comp_size[c] += 1;
+            }
+        }
+
+        // Collect nodes in SCCs with size ≥ 2.
+        let mut result: Vec<String> = sym_ids
+            .iter()
+            .enumerate()
+            .filter(|&(idx, _)| comp[idx] != usize::MAX && comp_size[comp[idx]] >= 2)
+            .filter_map(|(_, &id)| self.path_of(id).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Symbol nodes with zero connectivity across all four `EdgeKind`s.
     /// File nodes excluded. Optional prefix filter. Results sorted alphabetically.
     #[must_use]
