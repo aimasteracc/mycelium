@@ -370,6 +370,133 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Return all symbols reachable from a starting path via outgoing
+    /// `edge_kind` edges.
+    GetReachable {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Reverse reachability: symbols that can reach the given path.
+    GetReachableTo {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols at exactly k hops from the given path.
+    GetKHopNeighbors {
+        path: String,
+        #[arg(long)]
+        k: usize,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Convenience for k=2.
+    GetTwoHopNeighbors {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Find the shortest path between two symbols via the given edge kind.
+    GetShortestPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the ego-graph of a symbol for a given edge kind.
+    GetSymbolNeighborhood {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return ALL incoming references grouped by edge kind.
+    GetCrossRefs {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return ALL outgoing references grouped by edge kind.
+    GetOutgoingRefs {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the longest path from the symbol to a leaf (no outgoing edges).
+    GetDependencyDepth {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Transitive forward reachability (no max-depth bound).
+    GetReachableSet {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Transitive reverse reachability (no max-depth bound).
+    GetReachesInto {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with exactly one incoming edge of the given kind.
+    GetSinglyReferenced {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -634,6 +761,108 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_find_implements_path(&canonical, &from, &to, max_depth, format.into())?;
+        }
+        Cmd::GetReachable {
+            path,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reachable(&canonical, &path, &edge_kind, max_depth, format.into())?;
+        }
+        Cmd::GetReachableTo {
+            path,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reachable_to(&canonical, &path, &edge_kind, max_depth, format.into())?;
+        }
+        Cmd::GetKHopNeighbors {
+            path,
+            k,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_k_hop_neighbors(&canonical, &path, k, &edge_kind, format.into())?;
+        }
+        Cmd::GetTwoHopNeighbors {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_two_hop_neighbors(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetShortestPath {
+            from,
+            to,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_shortest_path(&canonical, &from, &to, &edge_kind, format.into())?;
+        }
+        Cmd::GetSymbolNeighborhood {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_symbol_neighborhood(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetCrossRefs { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_cross_refs(&canonical, &path, format.into())?;
+        }
+        Cmd::GetOutgoingRefs { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_outgoing_refs(&canonical, &path, format.into())?;
+        }
+        Cmd::GetDependencyDepth {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_dependency_depth(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetReachableSet {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reachable_set(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetReachesInto {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reaches_into(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetSinglyReferenced {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_singly_referenced(&canonical, &edge_kind, limit, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

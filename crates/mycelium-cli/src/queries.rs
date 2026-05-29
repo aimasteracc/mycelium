@@ -726,6 +726,245 @@ pub(crate) fn run_find_implements_path(
     print_tree_value(&value, format)
 }
 
+// ── reachability: 12 multi-hop tools ──────────────────────────────────────────
+
+fn parse_edge_kind(s: &str) -> Result<EdgeKind> {
+    match s.to_ascii_lowercase().as_str() {
+        "calls" => Ok(EdgeKind::Calls),
+        "imports" => Ok(EdgeKind::Imports),
+        "extends" => Ok(EdgeKind::Extends),
+        "implements" => Ok(EdgeKind::Implements),
+        other => Err(anyhow!(
+            "unknown edge_kind '{other}'; expected: calls, imports, extends, implements"
+        )),
+    }
+}
+
+pub(crate) fn run_get_reachable(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let reachable = store.reachable_from(id, kind, max_depth);
+    let count = reachable.len();
+    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_reachable_to(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let reachable = store.reachable_to(id, kind, max_depth);
+    let count = reachable.len();
+    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_k_hop_neighbors(
+    root: &Path,
+    path: &str,
+    k: usize,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let neighbors = store.k_hop_neighbors(id, kind, k);
+    let count = neighbors.len();
+    let value = serde_json::json!({ "neighbors": neighbors, "count": count, "k": k });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_two_hop_neighbors(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let neighbors = store.two_hop_neighbors(id, kind);
+    let count = neighbors.len();
+    let value = serde_json::json!({ "neighbors": neighbors, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_shortest_path(
+    root: &Path,
+    from_path: &str,
+    to_path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let from_id = store
+        .lookup(from_path)
+        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+    let to_id = store
+        .lookup(to_path)
+        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+    let value = store.shortest_path(from_id, to_id, kind).map_or_else(
+        || serde_json::json!({ "path": serde_json::Value::Null, "length": serde_json::Value::Null }),
+        |p| {
+            let length = p.len() - 1;
+            serde_json::json!({ "path": p, "length": length })
+        },
+    );
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_symbol_neighborhood(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let nb = store
+        .lookup(path)
+        .map_or_else(mycelium_core::SymbolNeighborhood::default, |id| {
+            store.symbol_neighborhood(id, kind)
+        });
+    let incoming_count = nb.incoming.len();
+    let outgoing_count = nb.outgoing.len();
+    let value = serde_json::json!({
+        "path": nb.path,
+        "incoming": nb.incoming,
+        "outgoing": nb.outgoing,
+        "incoming_count": incoming_count,
+        "outgoing_count": outgoing_count,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_cross_refs(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let refs = store.cross_refs(id);
+    let value = serde_json::json!({
+        "callers": refs.callers,
+        "importers": refs.importers,
+        "extended_by": refs.extended_by,
+        "implemented_by": refs.implemented_by,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_outgoing_refs(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let refs = store.outgoing_refs(id);
+    let value = serde_json::json!({
+        "callees": refs.callees,
+        "imports": refs.imports,
+        "extends": refs.extends,
+        "implements": refs.implements,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_dependency_depth(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let depth = store
+        .dependency_depth(id, kind)
+        .ok_or_else(|| anyhow!("not a symbol node: {path}"))?;
+    let value = serde_json::json!({
+        "path": path,
+        "depth": depth,
+        "edge_kind": edge_kind,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_reachable_set(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let reachable = store.reachable_set(id, kind);
+    let count = reachable.len();
+    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_reaches_into(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let callers = store.reaches_into(id, kind);
+    let count = callers.len();
+    let value = serde_json::json!({ "callers": callers, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_singly_referenced(
+    root: &Path,
+    edge_kind: &str,
+    limit: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let pairs = store.singly_referenced(kind, limit);
+    let count = pairs.len();
+    let symbols: Vec<serde_json::Value> = pairs
+        .into_iter()
+        .map(|(p, ref_by)| serde_json::json!({ "path": p, "referenced_by": ref_by }))
+        .collect();
+    let value = serde_json::json!({ "symbols": symbols, "count": count });
+    print_tree_value(&value, format)
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {
