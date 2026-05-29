@@ -1414,6 +1414,32 @@ impl Store {
         }
     }
 
+    /// Return top-`limit` files (nodes without `>`) ranked by direct child
+    /// symbol count, descending.  Ties broken by path ascending.  Files with
+    /// zero direct children are excluded.  `limit` is capped at 100.
+    #[must_use]
+    pub fn top_files(&self, limit: usize) -> Vec<(String, usize)> {
+        let limit = limit.min(100);
+        let mut counts: Vec<(String, usize)> = self
+            .trunk
+            .all_paths()
+            .filter(|p| !p.contains('>'))
+            .map(|file_path| {
+                let prefix = format!("{file_path}>");
+                let count = self
+                    .trunk
+                    .all_paths()
+                    .filter(|p| p.starts_with(prefix.as_str()) && !p[prefix.len()..].contains('>'))
+                    .count();
+                (file_path.to_owned(), count)
+            })
+            .filter(|(_, count)| *count > 0)
+            .collect();
+        counts.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        counts.truncate(limit);
+        counts
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
