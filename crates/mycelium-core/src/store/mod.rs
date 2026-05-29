@@ -1486,6 +1486,40 @@ impl Store {
         result
     }
 
+    /// BFS shortest path from `from` to `to` following outgoing `kind` edges.
+    /// Returns `Some(path)` where each element is a node path string (endpoints
+    /// included), or `None` if no path exists.  `from == to` returns a
+    /// single-element vec.  Cycle-safe via visited set.
+    #[must_use]
+    pub fn shortest_path(&self, from: NodeId, to: NodeId, kind: EdgeKind) -> Option<Vec<String>> {
+        if from == to {
+            return self.path_of(from).map(|p| vec![p.to_owned()]);
+        }
+        // BFS: queue holds (current_node, path_so_far)
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        visited.insert(from);
+        let mut queue: VecDeque<(NodeId, Vec<NodeId>)> = VecDeque::new();
+        queue.push_back((from, vec![from]));
+        while let Some((node, node_path)) = queue.pop_front() {
+            for &neighbor in self.synapse.outgoing(node, kind) {
+                if neighbor == to {
+                    let mut full_path = node_path;
+                    full_path.push(to);
+                    return full_path
+                        .iter()
+                        .map(|&id| self.path_of(id).map(str::to_owned))
+                        .collect();
+                }
+                if visited.insert(neighbor) {
+                    let mut new_path = node_path.clone();
+                    new_path.push(neighbor);
+                    queue.push_back((neighbor, new_path));
+                }
+            }
+        }
+        None
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
