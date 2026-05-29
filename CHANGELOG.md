@@ -180,6 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0063: `mycelium_batch_reachable_to` MCP tool — total change-impact surface in one call; accepts `{ paths (up to 20), edge_kind, max_depth? }` and returns `{ reachable, count }` or `{ error }` for unknown edge kind; max_depth defaults to 10.
 - RFC-0064: `Store::k_core(kind, k)` — k-core decomposition of the symbol graph; the maximal induced subgraph where every node has total degree (in + out within the subgraph) ≥ k; iterative peeling algorithm; k=0 returns all symbols; file nodes excluded; results sorted ascending.
 - RFC-0064: `mycelium_get_k_core` MCP tool — hard-to-refactor core detector; accepts `{ edge_kind, k? }` and returns `{ core, count, k }` or `{ error }` for unknown edge kind; k defaults to 2.
+- RFC-0065: `Store::batch_reachable_from(ids, kind, max_depth)` — union of symbols transitively reachable FROM a set of sources via outgoing edges; deduplicated, input nodes excluded, sorted ascending, max_depth capped at 20. Symmetric complement of `batch_reachable_to` (RFC-0063).
+- RFC-0065: `mycelium_batch_reachable_from` MCP tool — collective forward-reachability in one call; accepts `{ paths (up to 20), edge_kind, max_depth? }` and returns `{ reachable, count }` or `{ error }` for unknown edge kind; max_depth defaults to 10.
 
 ### Fixed
 
