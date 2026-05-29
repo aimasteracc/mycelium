@@ -49,8 +49,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{
-    CalleeNode, CallerNode, ExtendsNode, ImplementorNode, ImplementsNode, ImportNode, ImporterNode,
-    SubclassNode, extractor::Extractor, store::Store,
+    CalleeNode, CallerNode, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode, ImportNode,
+    ImporterNode, SubclassNode, extractor::Extractor, store::Store,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -320,6 +320,10 @@ pub struct GetDeadSymbolsRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
 }
+
+/// Input parameters for `mycelium_get_stats` (no parameters).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetStatsRequest {}
 
 /// Input parameters for `mycelium_find_call_path`.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -1140,6 +1144,24 @@ impl MyceliumServer {
             .dead_symbols(req.path_prefix.as_deref());
         let count = dead.len();
         serde_json::json!({ "dead_symbols": dead, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return comprehensive per-kind statistics about the indexed symbol graph: \
+                       total node and edge counts plus breakdowns by NodeKind (file, function, \
+                       class, …) and EdgeKind (calls, imports, extends, …). \
+                       Returns { total_nodes, total_edges, nodes_by_kind, edges_by_kind }. \
+                       Kinds with zero count are omitted."
+    )]
+    async fn mycelium_get_stats(&self, Parameters(_req): Parameters<GetStatsRequest>) -> String {
+        let stats: GraphStats = self.store.read().await.graph_stats();
+        serde_json::json!({
+            "total_nodes": stats.total_nodes,
+            "total_edges": stats.total_edges,
+            "nodes_by_kind": stats.nodes_by_kind,
+            "edges_by_kind": stats.edges_by_kind,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -3946,6 +3968,45 @@ mod tests {
         assert!(dead.iter().all(|s| s.starts_with("src/lib.rs")));
         assert!(dead.contains(&"src/lib.rs>dead_fn".to_owned()));
         assert!(!dead.contains(&"src/main.rs>main".to_owned()));
+    }
+
+    // ── RFC-0038: mycelium_get_stats ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn get_stats_empty_store() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_stats(Parameters(GetStatsRequest {}))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["total_nodes"].as_u64().unwrap(), 0);
+        assert_eq!(val["total_edges"].as_u64().unwrap(), 0);
+        assert_eq!(val["nodes_by_kind"].as_object().unwrap().len(), 0);
+        assert_eq!(val["edges_by_kind"].as_object().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_stats_counts_nodes_and_edges() {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            let fn1 = store.upsert_node(TrunkPath::parse("src/a.rs>fn1").unwrap());
+            let fn2 = store.upsert_node(TrunkPath::parse("src/b.rs>fn2").unwrap());
+            store.set_kind(fn1, mycelium_core::NodeKind::Function);
+            store.set_kind(fn2, mycelium_core::NodeKind::Function);
+            store.upsert_edge(EdgeKind::Calls, fn1, fn2);
+            store.upsert_edge(EdgeKind::Imports, fn1, fn2);
+        }
+        let raw = server
+            .mycelium_get_stats(Parameters(GetStatsRequest {}))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["total_nodes"].as_u64().unwrap(), 2);
+        assert_eq!(val["total_edges"].as_u64().unwrap(), 2);
+        assert_eq!(val["nodes_by_kind"]["function"].as_u64().unwrap(), 2);
+        assert_eq!(val["edges_by_kind"]["calls"].as_u64().unwrap(), 1);
+        assert_eq!(val["edges_by_kind"]["imports"].as_u64().unwrap(), 1);
+        assert!(val["edges_by_kind"].get("contains").is_none());
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`

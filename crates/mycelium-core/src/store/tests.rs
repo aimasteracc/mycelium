@@ -1730,3 +1730,61 @@ fn store_dead_symbols_sorted() {
     sorted.sort_unstable();
     assert_eq!(dead, sorted);
 }
+
+// ── RFC-0038: Store::graph_stats ──────────────────────────────────────
+
+#[test]
+fn store_graph_stats_empty() {
+    let store = Store::new();
+    let stats = store.graph_stats();
+    assert_eq!(stats.total_nodes, 0);
+    assert_eq!(stats.total_edges, 0);
+    assert!(stats.nodes_by_kind.is_empty());
+    assert!(stats.edges_by_kind.is_empty());
+}
+
+#[test]
+fn store_graph_stats_node_counts() {
+    let mut store = Store::new();
+    let fn1 = store.upsert_node(path("src/lib.rs>fn1"));
+    let fn2 = store.upsert_node(path("src/lib.rs>fn2"));
+    let cls = store.upsert_node(path("src/lib.rs>MyClass"));
+    store.set_kind(fn1, NodeKind::Function);
+    store.set_kind(fn2, NodeKind::Function);
+    store.set_kind(cls, NodeKind::Class);
+    let stats = store.graph_stats();
+    assert_eq!(stats.total_nodes, 3);
+    assert_eq!(stats.nodes_by_kind["function"], 2);
+    assert_eq!(stats.nodes_by_kind["class"], 1);
+}
+
+#[test]
+fn store_graph_stats_edge_counts() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    let c = store.upsert_node(path("c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    store.upsert_edge(EdgeKind::Imports, b, c);
+    let stats = store.graph_stats();
+    assert_eq!(stats.total_edges, 3);
+    assert_eq!(stats.edges_by_kind["calls"], 2);
+    assert_eq!(stats.edges_by_kind["imports"], 1);
+    assert!(!stats.edges_by_kind.contains_key("contains"));
+}
+
+#[test]
+fn store_graph_stats_totals_consistent() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>a"));
+    let b = store.upsert_node(path("b.rs>b"));
+    store.set_kind(a, NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let stats = store.graph_stats();
+    let kind_sum: usize = stats.nodes_by_kind.values().sum();
+    // nodes without a kind are counted in total_nodes but not in nodes_by_kind
+    assert!(stats.total_nodes >= kind_sum);
+    let edge_sum: usize = stats.edges_by_kind.values().sum();
+    assert_eq!(stats.total_edges, edge_sum);
+}

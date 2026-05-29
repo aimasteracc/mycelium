@@ -166,6 +166,15 @@ impl Synapse {
         self.by_kind.values().map(AdjacencyList::edge_count).sum()
     }
 
+    /// Returns an iterator of `(EdgeKind, edge_count)` pairs for all edge
+    /// kinds that have at least one edge.
+    pub fn edge_counts_by_kind(&self) -> impl Iterator<Item = (EdgeKind, usize)> + '_ {
+        self.by_kind
+            .iter()
+            .map(|(&kind, adj)| (kind, adj.edge_count()))
+            .filter(|&(_, count)| count > 0)
+    }
+
     /// Rewire all edges touching `from` to touch `to` instead, across all
     /// edge kinds. Delegates to [`AdjacencyList::redirect_node`].
     pub fn redirect_node(&mut self, from: NodeId, to: NodeId) {

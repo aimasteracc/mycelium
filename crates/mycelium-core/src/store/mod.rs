@@ -37,6 +37,8 @@ use std::collections::{HashSet, VecDeque};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
 
+use std::collections::BTreeMap;
+
 use anyhow::Context as _;
 use serde::{Deserialize, Serialize};
 
@@ -148,6 +150,24 @@ pub struct ImplementorNode {
     pub id: NodeId,
     /// Implementor subtrees, one per incoming `Implements` edge, up to `max_depth`.
     pub implementors: Vec<Self>,
+}
+
+/// Comprehensive statistics about the indexed symbol graph.
+///
+/// Returned by [`Store::graph_stats`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GraphStats {
+    /// Total number of nodes in the graph.
+    pub total_nodes: usize,
+    /// Total number of directed edges across all edge kinds.
+    pub total_edges: usize,
+    /// Node count broken down by [`NodeKind`] wire string.  Kinds with zero
+    /// nodes are omitted.  Nodes without a recorded kind are counted in
+    /// `total_nodes` but do not appear here.
+    pub nodes_by_kind: BTreeMap<String, usize>,
+    /// Edge count broken down by [`EdgeKind`] wire string.  Kinds with zero
+    /// edges are omitted.
+    pub edges_by_kind: BTreeMap<String, usize>,
 }
 
 /// The unified storage surface for a single codebase graph.
@@ -1034,6 +1054,34 @@ impl Store {
             .collect();
         visited.remove(&id);
         ImporterNode { id, importers }
+    }
+
+    /// Return comprehensive per-kind statistics about the indexed graph.
+    ///
+    /// Nodes without a recorded [`NodeKind`] are included in `total_nodes`
+    /// but do not appear in `nodes_by_kind`.  Edge kinds with zero edges are
+    /// omitted from `edges_by_kind`.
+    #[must_use]
+    pub fn graph_stats(&self) -> GraphStats {
+        let total_nodes = self.node_count();
+        let total_edges = self.edge_count();
+
+        let mut nodes_by_kind: BTreeMap<String, usize> = BTreeMap::new();
+        for &kind in self.kind_map.values() {
+            *nodes_by_kind.entry(kind.as_str().to_owned()).or_insert(0) += 1;
+        }
+
+        let mut edges_by_kind: BTreeMap<String, usize> = BTreeMap::new();
+        for (kind, count) in self.synapse.edge_counts_by_kind() {
+            edges_by_kind.insert(kind.as_str().to_owned(), count);
+        }
+
+        GraphStats {
+            total_nodes,
+            total_edges,
+            nodes_by_kind,
+            edges_by_kind,
+        }
     }
 
     /// Return all symbol paths (path contains `>`) with zero incoming `Calls`
