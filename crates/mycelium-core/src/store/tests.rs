@@ -3424,3 +3424,80 @@ fn store_singly_referenced_limit_respected() {
     let result = store.singly_referenced(EdgeKind::Calls, 3);
     assert_eq!(result.len(), 3);
 }
+
+// RFC-0063: batch_reachable_to
+
+#[test]
+fn store_batch_reachable_to_single_input() {
+    let mut store = Store::new();
+    let tgt = store.upsert_node(path("src/util.rs>helper"));
+    let mid = store.upsert_node(path("src/mid.rs>mid"));
+    let top = store.upsert_node(path("src/top.rs>top"));
+    store.upsert_edge(EdgeKind::Calls, mid, tgt);
+    store.upsert_edge(EdgeKind::Calls, top, mid);
+    let result = store.batch_reachable_to(&[tgt], EdgeKind::Calls, 10);
+    assert!(result.contains(&"src/mid.rs>mid".to_owned()));
+    assert!(result.contains(&"src/top.rs>top".to_owned()));
+    assert!(!result.contains(&"src/util.rs>helper".to_owned()));
+}
+
+#[test]
+fn store_batch_reachable_to_union_of_two() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let dep_a = store.upsert_node(path("src/dep_a.rs>dep_a"));
+    let dep_b = store.upsert_node(path("src/dep_b.rs>dep_b"));
+    let common = store.upsert_node(path("src/common.rs>common"));
+    store.upsert_edge(EdgeKind::Calls, dep_a, a);
+    store.upsert_edge(EdgeKind::Calls, dep_b, b);
+    store.upsert_edge(EdgeKind::Calls, common, a);
+    store.upsert_edge(EdgeKind::Calls, common, b);
+    let result = store.batch_reachable_to(&[a, b], EdgeKind::Calls, 10);
+    let mut expected = vec![
+        "src/common.rs>common",
+        "src/dep_a.rs>dep_a",
+        "src/dep_b.rs>dep_b",
+    ];
+    expected.sort_unstable();
+    let mut got: Vec<&str> = result.iter().map(String::as_str).collect();
+    got.sort_unstable();
+    assert_eq!(got, expected);
+}
+
+#[test]
+fn store_batch_reachable_to_deduplication() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let shared_dep = store.upsert_node(path("src/shared.rs>shared"));
+    store.upsert_edge(EdgeKind::Calls, shared_dep, a);
+    store.upsert_edge(EdgeKind::Calls, shared_dep, b);
+    let result = store.batch_reachable_to(&[a, b], EdgeKind::Calls, 10);
+    assert_eq!(
+        result
+            .iter()
+            .filter(|p| p.as_str() == "src/shared.rs>shared")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn store_batch_reachable_to_empty_input() {
+    let store = Store::new();
+    let result = store.batch_reachable_to(&[], EdgeKind::Calls, 10);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_batch_reachable_to_sorted_ascending() {
+    let mut store = Store::new();
+    let tgt = store.upsert_node(path("src/tgt.rs>tgt"));
+    let z = store.upsert_node(path("src/z.rs>z_dep"));
+    let a = store.upsert_node(path("src/a.rs>a_dep"));
+    store.upsert_edge(EdgeKind::Calls, z, tgt);
+    store.upsert_edge(EdgeKind::Calls, a, tgt);
+    let result = store.batch_reachable_to(&[tgt], EdgeKind::Calls, 10);
+    assert_eq!(result, vec!["src/a.rs>a_dep", "src/z.rs>z_dep"]);
+}
