@@ -174,6 +174,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0060: `mycelium_get_symbol_neighborhood` MCP tool — bidirectional single-kind ego-graph query; accepts `{ path, edge_kind }` and returns `{ path, incoming, outgoing, incoming_count, outgoing_count }`, empty neighborhood for unknown path, or `{ error }` for unknown edge kind.
 - RFC-0061: `Store::hub_symbols(kind, min_in, min_out, limit)` — symbols with both in-degree ≥ `min_in` AND out-degree ≥ `min_out` for a given EdgeKind; returns `(path, in_degree, out_degree)` sorted by `in_degree + out_degree` descending (ties by path ascending); limit capped at 100; file nodes excluded.
 - RFC-0061: `mycelium_get_hub_symbols` MCP tool — architectural hub detector identifying symbols that are both widely-used (high in-degree) and orchestrating (high out-degree); accepts `{ edge_kind, min_in?, min_out?, limit? }` and returns `{ hubs: [{ path, in_degree, out_degree }], count }` or `{ error }` for unknown edge kind; `min_in`/`min_out` default to 1.
+- RFC-0062: `Store::singly_referenced(kind, limit)` — symbols with exactly one incoming edge for a given EdgeKind; returns `(symbol_path, referencing_path)` pairs sorted by symbol path ascending; limit capped at 100; file nodes excluded. Fills the in-degree=1 gap between `entry_points` (0) and `fan_in_rank` (top-N).
+- RFC-0062: `mycelium_get_singly_referenced` MCP tool — inlining and privatisation candidate detector; accepts `{ edge_kind, limit? }` and returns `{ symbols: [{ path, referenced_by }], count }` or `{ error }` for unknown edge kind; limit defaults to 10.
 
 ### Fixed
 
