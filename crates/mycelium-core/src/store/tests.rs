@@ -1398,3 +1398,58 @@ fn store_extends_tree_cycle_safe() {
     assert_eq!(tree.parents[0].parents[0].id, a);
     assert!(tree.parents[0].parents[0].parents.is_empty()); // cycle cut here
 }
+
+// ── RFC-0032: Store::subclasses_tree ────────────────────────────────────
+
+#[test]
+fn store_subclasses_tree_leaf_at_max_depth_zero() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/a.rs>A"));
+    let tree = store.subclasses_tree(id, 0);
+    assert_eq!(tree.id, id);
+    assert!(tree.subclasses.is_empty());
+}
+
+#[test]
+fn store_subclasses_tree_single_child() {
+    let mut store = Store::new();
+    let base = store.upsert_node(path("src/base.rs>Base"));
+    let child = store.upsert_node(path("src/child.rs>Child"));
+    store.upsert_edge(EdgeKind::Extends, child, base); // child extends base
+    let tree = store.subclasses_tree(base, 4);
+    assert_eq!(tree.id, base);
+    assert_eq!(tree.subclasses.len(), 1);
+    assert_eq!(tree.subclasses[0].id, child);
+    assert!(tree.subclasses[0].subclasses.is_empty());
+}
+
+#[test]
+fn store_subclasses_tree_transitive_chain() {
+    let mut store = Store::new();
+    let base = store.upsert_node(path("base.rs>Base"));
+    let mid = store.upsert_node(path("mid.rs>Mid"));
+    let leaf = store.upsert_node(path("leaf.rs>Leaf"));
+    store.upsert_edge(EdgeKind::Extends, mid, base); // mid extends base
+    store.upsert_edge(EdgeKind::Extends, leaf, mid); // leaf extends mid
+    let tree = store.subclasses_tree(base, 4);
+    assert_eq!(tree.subclasses.len(), 1);
+    assert_eq!(tree.subclasses[0].id, mid);
+    assert_eq!(tree.subclasses[0].subclasses.len(), 1);
+    assert_eq!(tree.subclasses[0].subclasses[0].id, leaf);
+}
+
+#[test]
+fn store_subclasses_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    store.upsert_edge(EdgeKind::Extends, b, a); // b extends a
+    store.upsert_edge(EdgeKind::Extends, a, b); // a extends b (cycle)
+    let tree = store.subclasses_tree(a, 10);
+    // A ← B ← A(leaf) — second visit to A is cut
+    assert_eq!(tree.subclasses.len(), 1);
+    assert_eq!(tree.subclasses[0].id, b);
+    assert_eq!(tree.subclasses[0].subclasses.len(), 1);
+    assert_eq!(tree.subclasses[0].subclasses[0].id, a);
+    assert!(tree.subclasses[0].subclasses[0].subclasses.is_empty());
+}

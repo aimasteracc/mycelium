@@ -34,8 +34,9 @@
 //! | `mycelium_get_source_span` | Return the source location (line/col/byte) for a given path |
 //! | `mycelium_find_extends_path` | Find the shortest extends (inheritance) chain between two symbols via BFS |
 //! | `mycelium_get_extends_tree` | Return the depth-limited superclass tree for a symbol (outgoing Extends edges) |
+//! | `mycelium_get_subclasses_tree` | Return the depth-limited subclass forest for a symbol (incoming Extends edges) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, and RFC-0031 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, and RFC-0032 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -44,7 +45,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{
-    CalleeNode, CallerNode, ExtendsNode, ImportNode, extractor::Extractor, store::Store,
+    CalleeNode, CallerNode, ExtendsNode, ImportNode, SubclassNode, extractor::Extractor,
+    store::Store,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -187,6 +189,15 @@ pub struct FindImportPathRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetExtendsTreeRequest {
     /// Root symbol path, e.g. `"src/child.ts>Child"`.
+    pub path: String,
+    /// Maximum DFS depth. Defaults to 4, capped at 10.
+    pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_subclasses_tree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSubclassesTreeRequest {
+    /// Root symbol path, e.g. `"src/base.ts>Base"`.
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
@@ -1260,6 +1271,29 @@ impl MyceliumServer {
         drop(store_guard);
         serde_json::json!({ "root": json }).to_string()
     }
+
+    #[tool(
+        description = "Return the depth-limited subclass forest for a symbol, following incoming \
+                       Extends edges. The result is { root: { path, subclasses: [...] } } where \
+                       each node has a path and its own subclasses list. Cycles are cut as leaf \
+                       nodes. max_depth defaults to 4, capped at 10. Unknown path returns { error }."
+    )]
+    async fn mycelium_get_subclasses_tree(
+        &self,
+        Parameters(req): Parameters<GetSubclassesTreeRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let tree = store_guard.subclasses_tree(id, max_depth);
+        let json = subclass_node_to_json(&tree, &store_guard);
+        drop(store_guard);
+        serde_json::json!({ "root": json }).to_string()
+    }
 }
 
 #[tool_handler]
@@ -1311,6 +1345,16 @@ fn extends_node_to_json(node: &ExtendsNode, store: &Store) -> serde_json::Value 
         .map(|p| extends_node_to_json(p, store))
         .collect();
     serde_json::json!({ "path": path, "parents": parents })
+}
+
+fn subclass_node_to_json(node: &SubclassNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let subclasses: Vec<serde_json::Value> = node
+        .subclasses
+        .iter()
+        .map(|s| subclass_node_to_json(s, store))
+        .collect();
+    serde_json::json!({ "path": path, "subclasses": subclasses })
 }
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
@@ -3314,6 +3358,58 @@ mod tests {
         let server = server_with_extends_fixture().await;
         let raw = server
             .mycelium_get_extends_tree(Parameters(GetExtendsTreeRequest {
+                path: "no/such>path".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0032: mycelium_get_subclasses_tree ───────────────────────────
+
+    #[tokio::test]
+    async fn get_subclasses_tree_returns_subclass_forest() {
+        let server = server_with_extends_fixture().await;
+        // Fixture: Child→Mid→Base (Child extends Mid, Mid extends Base)
+        // From Base perspective: Base has one subclass Mid, Mid has one subclass Child
+        let raw = server
+            .mycelium_get_subclasses_tree(Parameters(GetSubclassesTreeRequest {
+                path: "src/base.ts>Base".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").expect("root key present");
+        assert_eq!(root["path"], "src/base.ts>Base");
+        let subclasses = root["subclasses"].as_array().unwrap();
+        assert_eq!(subclasses.len(), 1);
+        assert_eq!(subclasses[0]["path"], "src/mid.ts>Mid");
+        let mid_subclasses = subclasses[0]["subclasses"].as_array().unwrap();
+        assert_eq!(mid_subclasses.len(), 1);
+        assert_eq!(mid_subclasses[0]["path"], "src/child.ts>Child");
+    }
+
+    #[tokio::test]
+    async fn get_subclasses_tree_leaf_at_max_depth_zero() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_get_subclasses_tree(Parameters(GetSubclassesTreeRequest {
+                path: "src/base.ts>Base".to_string(),
+                max_depth: Some(0),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").expect("root key present");
+        let subclasses = root["subclasses"].as_array().unwrap();
+        assert!(subclasses.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_subclasses_tree_unknown_path_returns_error() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_get_subclasses_tree(Parameters(GetSubclassesTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
             }))
