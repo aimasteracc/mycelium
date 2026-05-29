@@ -18,10 +18,12 @@
     name: (identifier) @name)) @definition.function
 
 ; ── Methods (receiver functions) ─────────────────────────────────────
+; Go methods are top-level symbols without an OOP class chain.
+; Use @definition.function so they are flat file-level nodes.
 
 (source_file
   (method_declaration
-    name: (field_identifier) @name)) @definition.method
+    name: (field_identifier) @name)) @definition.function
 
 ; ── Type declarations (struct, interface, alias, etc.) ───────────────
 

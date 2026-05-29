@@ -18,6 +18,7 @@ const JAVASCRIPT_QUERIES: &str = include_str!("../../../packs/javascript/queries
 const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
 const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
 const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
+const GO_QUERIES: &str = include_str!("../../../packs/go/queries.scm");
 
 // ── public surface ────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ pub struct IndexStats {
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
 /// Supported languages: JavaScript (`.js`, `.jsx`), Python (`.py`, `.pyi`),
-/// TypeScript (`.ts`, `.tsx`), Rust (`.rs`).
+/// TypeScript (`.ts`, `.tsx`), Rust (`.rs`), Go (`.go`).
 ///
 /// # Errors
 ///
@@ -62,6 +63,9 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
     let rs_lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
     let rs_ext =
         Extractor::new(rs_lang, RUST_QUERIES).context("failed to compile Rust extractor")?;
+
+    let go_lang: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
+    let go_ext = Extractor::new(go_lang, GO_QUERIES).context("failed to compile Go extractor")?;
 
     let mut store = Store::new();
     let mut stats = IndexStats::default();
@@ -102,6 +106,7 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
             "ts" => &ts_ext,
             "tsx" => &tsx_ext,
             "rs" => &rs_ext,
+            "go" => &go_ext,
             _ => continue,
         };
 
@@ -411,5 +416,92 @@ mod tests {
         );
         assert!(store.lookup("app.py>app").is_some());
         assert!(store.lookup("vendor/third.py").is_none());
+    }
+
+    // ── Go tests ─────────────────────────────────────────────────────
+
+    fn write_temp_go(dir: &Path, name: &str, src: &str) {
+        fs::write(dir.join(name), src).unwrap();
+    }
+
+    #[test]
+    fn index_path_extracts_go_function() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_go(tmp.path(), "main.go", "package main\n\nfunc greet() {}\n");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1, "should process one .go file");
+        assert_eq!(stats.errors, 0);
+        assert!(store.lookup("main.go").is_some(), "module node must exist");
+        assert!(
+            store.lookup("main.go>greet").is_some(),
+            "Go function must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_go_type_declaration() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_go(
+            tmp.path(),
+            "types.go",
+            "package main\n\ntype Point struct { X int; Y int }\n",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("types.go>Point").is_some(),
+            "Go struct type must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_extracts_go_method() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_go(
+            tmp.path(),
+            "geom.go",
+            "package main\n\ntype Rect struct {}\nfunc (r Rect) Area() int { return 0 }\n",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("geom.go>Rect").is_some(),
+            "Rect type must be extracted"
+        );
+        assert!(
+            store.lookup("geom.go>Area").is_some(),
+            "Go method must be extracted"
+        );
+    }
+
+    #[test]
+    fn index_path_indexes_go_alongside_other_languages() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
+        write_temp_rs(tmp.path(), "lib.rs", "fn bar() {}");
+        write_temp_go(tmp.path(), "main.go", "package main\nfunc baz() {}");
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 3, "all three languages should be indexed");
+        assert!(store.lookup("mod.py>foo").is_some());
+        assert!(store.lookup("lib.rs>bar").is_some());
+        assert!(store.lookup("main.go>baz").is_some());
+    }
+
+    #[test]
+    fn index_path_extracts_go_interface() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_temp_go(
+            tmp.path(),
+            "iface.go",
+            "package main\n\ntype Stringer interface { String() string }\n",
+        );
+        let (store, stats) = index_path(tmp.path()).unwrap();
+        assert_eq!(stats.files, 1);
+        assert!(
+            store.lookup("iface.go>Stringer").is_some(),
+            "Go interface type must be extracted"
+        );
     }
 }
