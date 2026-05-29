@@ -1453,3 +1453,57 @@ fn store_subclasses_tree_cycle_safe() {
     assert_eq!(tree.subclasses[0].subclasses[0].id, a);
     assert!(tree.subclasses[0].subclasses[0].subclasses.is_empty());
 }
+
+// ── RFC-0033: Store::find_implements_path ─────────────────────────────
+
+#[test]
+fn store_find_implements_path_self_returns_single_element() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>A"));
+    assert_eq!(store.find_implements_path(a, a, 5), Some(vec![a]));
+}
+
+#[test]
+fn store_find_implements_path_direct_hop() {
+    let mut store = Store::new();
+    let cls = store.upsert_node(path("src/cls.rs>Cls"));
+    let iface = store.upsert_node(path("src/iface.rs>IFace"));
+    store.upsert_edge(EdgeKind::Implements, cls, iface);
+    assert_eq!(
+        store.find_implements_path(cls, iface, 5),
+        Some(vec![cls, iface])
+    );
+}
+
+#[test]
+fn store_find_implements_path_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    store.upsert_edge(EdgeKind::Implements, a, b);
+    store.upsert_edge(EdgeKind::Implements, b, c);
+    let result = store.find_implements_path(a, c, 5);
+    assert_eq!(result, Some(vec![a, b, c]));
+}
+
+#[test]
+fn store_find_implements_path_unreachable_returns_none() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    assert_eq!(store.find_implements_path(a, b, 5), None);
+}
+
+#[test]
+fn store_find_implements_path_max_depth_limits_hops() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    store.upsert_edge(EdgeKind::Implements, a, b);
+    store.upsert_edge(EdgeKind::Implements, b, c);
+    // max_depth=1: A→B reachable, A→C not
+    assert!(store.find_implements_path(a, b, 1).is_some());
+    assert!(store.find_implements_path(a, c, 1).is_none());
+}
