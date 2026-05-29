@@ -276,6 +276,22 @@ pub struct EdgeKindMetrics {
     pub max_out_degree: usize,
 }
 
+/// Result of [`Store::mutual_reachability`]: forward/backward BFS distances
+/// and derived reachability flags for two symbol nodes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MutualReachability {
+    /// `true` if `id1` can reach `id2`.
+    pub forward: bool,
+    /// `true` if `id2` can reach `id1`.
+    pub backward: bool,
+    /// `true` if both directions are reachable.
+    pub mutual: bool,
+    /// BFS hop count `id1 → id2`; `None` if unreachable.
+    pub forward_distance: Option<usize>,
+    /// BFS hop count `id2 → id1`; `None` if unreachable.
+    pub backward_distance: Option<usize>,
+}
+
 const AP_UNVISITED: usize = usize::MAX;
 
 fn uf_find(parent: &mut Vec<usize>, x: usize) -> usize {
@@ -3150,5 +3166,64 @@ impl Store {
     #[must_use]
     pub fn harmonic_centrality(&self, id: NodeId, kind: EdgeKind) -> f64 {
         self.harmonic_centrality_stats(id, kind).0
+    }
+
+    /// BFS hop count from `from` to `to` following `kind` edges, excluding file
+    /// nodes.  Returns `None` if unreachable or `from == to` (caller handles
+    /// the same-node special case).
+    fn bfs_distance(&self, from: NodeId, to: NodeId, kind: EdgeKind) -> Option<usize> {
+        let is_file =
+            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| !p.contains('>')) };
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        visited.insert(from);
+        let mut queue: VecDeque<(NodeId, usize)> = VecDeque::new();
+        queue.push_back((from, 0));
+        while let Some((node, dist)) = queue.pop_front() {
+            for &neighbor in self.synapse.outgoing(node, kind) {
+                if neighbor == to {
+                    return Some(dist + 1);
+                }
+                if !is_file(neighbor) && visited.insert(neighbor) {
+                    queue.push_back((neighbor, dist + 1));
+                }
+            }
+        }
+        None
+    }
+
+    /// Bidirectional reachability between two symbol nodes for a given
+    /// [`EdgeKind`].
+    ///
+    /// Returns a [`MutualReachability`] containing forward/backward BFS
+    /// distances and derived flags.  `id1 == id2` short-circuits with both
+    /// directions true and distances `Some(0)`.  File nodes are excluded from
+    /// traversal.
+    #[must_use]
+    pub fn mutual_reachability(
+        &self,
+        id1: NodeId,
+        id2: NodeId,
+        kind: EdgeKind,
+    ) -> MutualReachability {
+        if id1 == id2 {
+            return MutualReachability {
+                forward: true,
+                backward: true,
+                mutual: true,
+                forward_distance: Some(0),
+                backward_distance: Some(0),
+            };
+        }
+        let forward_distance = self.bfs_distance(id1, id2, kind);
+        let backward_distance = self.bfs_distance(id2, id1, kind);
+        let forward = forward_distance.is_some();
+        let backward = backward_distance.is_some();
+        MutualReachability {
+            forward,
+            backward,
+            mutual: forward && backward,
+            forward_distance,
+            backward_distance,
+        }
     }
 }

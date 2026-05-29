@@ -4623,3 +4623,78 @@ fn store_harmonic_centrality_file_nodes_excluded() {
         "expected 0.0 with file nodes excluded, got {hc}"
     );
 }
+
+// ── RFC-0079: mutual_reachability ─────────────────────────────────────────
+
+#[test]
+fn store_mutual_reachability_same_node() {
+    let mut store = Store::new();
+    let alpha = store.upsert_node(path("src/a.rs>alpha_mr"));
+    let mr = store.mutual_reachability(alpha, alpha, EdgeKind::Calls);
+    assert!(mr.forward);
+    assert!(mr.backward);
+    assert!(mr.mutual);
+    assert_eq!(mr.forward_distance, Some(0));
+    assert_eq!(mr.backward_distance, Some(0));
+}
+
+#[test]
+fn store_mutual_reachability_forward_only() {
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/a.rs>src_mr"));
+    let dst = store.upsert_node(path("src/b.rs>dst_mr"));
+    store.upsert_edge(EdgeKind::Calls, src, dst);
+    let mr = store.mutual_reachability(src, dst, EdgeKind::Calls);
+    assert!(mr.forward);
+    assert!(!mr.backward);
+    assert!(!mr.mutual);
+    assert_eq!(mr.forward_distance, Some(1));
+    assert_eq!(mr.backward_distance, None);
+}
+
+#[test]
+fn store_mutual_reachability_no_connection() {
+    let mut store = Store::new();
+    let node_a = store.upsert_node(path("src/a.rs>node_a_mr"));
+    let node_b = store.upsert_node(path("src/b.rs>node_b_mr"));
+    let mr = store.mutual_reachability(node_a, node_b, EdgeKind::Calls);
+    assert!(!mr.forward);
+    assert!(!mr.backward);
+    assert!(!mr.mutual);
+    assert_eq!(mr.forward_distance, None);
+    assert_eq!(mr.backward_distance, None);
+}
+
+#[test]
+fn store_mutual_reachability_mutual_cycle() {
+    // src → dst → src (cycle): both can reach each other
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/a.rs>cycle_src_mr"));
+    let dst = store.upsert_node(path("src/b.rs>cycle_dst_mr"));
+    store.upsert_edge(EdgeKind::Calls, src, dst);
+    store.upsert_edge(EdgeKind::Calls, dst, src);
+    let mr = store.mutual_reachability(src, dst, EdgeKind::Calls);
+    assert!(mr.forward);
+    assert!(mr.backward);
+    assert!(mr.mutual);
+    assert_eq!(mr.forward_distance, Some(1));
+    assert_eq!(mr.backward_distance, Some(1));
+}
+
+#[test]
+fn store_mutual_reachability_multi_hop() {
+    // src → mid → dst (2 hops forward), dst → src (1 hop backward)
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/a.rs>mh_src_mr"));
+    let mid = store.upsert_node(path("src/b.rs>mh_mid_mr"));
+    let dst = store.upsert_node(path("src/c.rs>mh_dst_mr"));
+    store.upsert_edge(EdgeKind::Calls, src, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, dst);
+    store.upsert_edge(EdgeKind::Calls, dst, src);
+    let mr = store.mutual_reachability(src, dst, EdgeKind::Calls);
+    assert!(mr.forward);
+    assert!(mr.backward);
+    assert!(mr.mutual);
+    assert_eq!(mr.forward_distance, Some(2));
+    assert_eq!(mr.backward_distance, Some(1));
+}
