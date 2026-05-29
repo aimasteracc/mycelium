@@ -208,6 +208,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0076: `Store::clustering_coefficient_stats(id, kind)` — returns `(coefficient, neighbor_count, neighbor_edge_count)` in one pass; CC(u) = #{directed edges among N(u)} / (|N(u)|*(|N(u)|-1)); N(u) = outgoing ∪ incoming, self and file nodes excluded; `|N| < 2` → 0.0. O(degree²).
 - RFC-0076: `Store::clustering_coefficient(id, kind)` — local clustering coefficient ∈ [0.0, 1.0] for a symbol node; thin wrapper over `clustering_coefficient_stats`. High CC = node embedded in tightly-coupled cluster.
 - RFC-0076: `mycelium_get_clustering_coefficient` MCP tool — cluster density probe; accepts `{ path, edge_kind }` and returns `{ coefficient, neighbor_count, neighbor_edge_count }` or `{ error }`. Complements neighbor_similarity (RFC-0075): measures how densely a single node's neighborhood is interconnected.
+- RFC-0077: `Store::eccentricity_stats(id, kind)` — returns `(max_distance, reachable_count)` via single BFS (O(V+E)); file nodes excluded; isolated node → (0, 0).
+- RFC-0077: `Store::eccentricity(id, kind)` — maximum BFS distance from a symbol node to any reachable symbol node; thin wrapper over `eccentricity_stats`.
+- RFC-0077: `mycelium_get_eccentricity` MCP tool — directed reach depth probe; accepts `{ path, edge_kind }` and returns `{ eccentricity, reachable_count }` or `{ error }`. High eccentricity = deep dependency chains emanating from this node.
 
 ### Fixed
 
