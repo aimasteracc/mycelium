@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 1** (v0.1.4): three new CLI subcommands completing the Three-Surface
+  Rule for the highest-frequency query tools:
+  - `mycelium search-symbol <query> [--limit N] [--format text|json]` — mirrors `mycelium_search_symbol`
+  - `mycelium get-ancestors <path> [--format text|json]` — mirrors `mycelium_get_ancestors`
+  - `mycelium get-symbol-info <path> [--format text|json]` — mirrors `mycelium_get_symbol_info`
+  - Unified `OutputFormat` enum replaces the previous per-subcommand `QueryFormat`; all three
+    subcommands share the same text/json contract.
+  - 7 unit tests covering missing-index and unknown-path error paths for all three commands.
+
 - **Performance hardening — issue #153** (v0.1.4):
   - Added `Trunk::symbol_nodes()` and `Store::symbol_nodes()` — O(V) iterator over
     symbol nodes yielding `(NodeId, &str)` without trie navigation. Eliminates the

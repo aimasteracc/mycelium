@@ -12,6 +12,11 @@ mod index;
     reason = "items used by main.rs require pub(crate); bin-crate root cannot consume private child-mod items"
 )]
 mod query;
+#[allow(
+    clippy::redundant_pub_crate,
+    reason = "items used by main.rs require pub(crate); bin-crate root cannot consume private child-mod items"
+)]
+mod symbol;
 
 /// The `mycelium` CLI. See `mycelium --help` for details.
 #[derive(Debug, Parser)]
@@ -26,19 +31,28 @@ struct Cli {
     command: Cmd,
 }
 
-/// Output format for `mycelium query`. Stable values; the MCP twin tool
-/// `mycelium_query` accepts the same set.
+/// Output format for subcommands that support `--format`. Stable values;
+/// MCP twin tools accept the same set.
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
-enum QueryFormat {
+enum OutputFormat {
     Text,
     Json,
 }
 
-impl From<QueryFormat> for query::Format {
-    fn from(f: QueryFormat) -> Self {
+impl From<OutputFormat> for query::Format {
+    fn from(f: OutputFormat) -> Self {
         match f {
-            QueryFormat::Text => Self::Text,
-            QueryFormat::Json => Self::Json,
+            OutputFormat::Text => Self::Text,
+            OutputFormat::Json => Self::Json,
+        }
+    }
+}
+
+impl From<OutputFormat> for symbol::Format {
+    fn from(f: OutputFormat) -> Self {
+        match f {
+            OutputFormat::Text => Self::Text,
+            OutputFormat::Json => Self::Json,
         }
     }
 }
@@ -76,8 +90,51 @@ enum Cmd {
         /// Output format. `text` writes one match per line. `json` writes a
         /// JSON array of strings — the stable contract used by the MCP twin
         /// tool `mycelium_query`.
-        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
-        format: QueryFormat,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
+    },
+    /// Search symbols by name fragment (case-insensitive). MCP twin: `mycelium_search_symbol`.
+    SearchSymbol {
+        /// Name prefix or substring to search for.
+        query: String,
+
+        /// Maximum number of results (default: 20).
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+
+        /// Project root containing `.mycelium/index.rmp` (defaults to `.`).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+
+        /// Output format. `json` is byte-identical to the MCP twin response.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
+    },
+    /// Return the containment chain for a symbol path. MCP twin: `mycelium_get_ancestors`.
+    GetAncestors {
+        /// Trunk path, e.g. `src/auth.rs>AuthService>login`.
+        path: String,
+
+        /// Project root containing `.mycelium/index.rmp` (defaults to `.`).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+
+        /// Output format. `json` is byte-identical to the MCP twin response.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
+    },
+    /// Return ancestors, descendants, callers, and callees for a symbol. MCP twin: `mycelium_get_symbol_info`.
+    GetSymbolInfo {
+        /// Trunk path, e.g. `src/auth.rs>AuthService>login`.
+        path: String,
+
+        /// Project root containing `.mycelium/index.rmp` (defaults to `.`).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+
+        /// Output format. `json` is byte-identical to the MCP twin response.
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
     },
     /// Start the MCP server over stdio.
     Serve {
@@ -134,6 +191,23 @@ fn main() -> Result<()> {
         Cmd::Query { expr, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
             query::run(&canonical, &expr, format.into())?;
+        }
+        Cmd::SearchSymbol {
+            query,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            symbol::run_search_symbol(&canonical, &query, limit, format.into())?;
+        }
+        Cmd::GetAncestors { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            symbol::run_get_ancestors(&canonical, &path, format.into())?;
+        }
+        Cmd::GetSymbolInfo { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            symbol::run_get_symbol_info(&canonical, &path, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

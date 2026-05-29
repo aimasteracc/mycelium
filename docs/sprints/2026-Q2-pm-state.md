@@ -60,8 +60,8 @@ Completed in v0.1.3 (2026-05-29):
 - [x] Benchmarks in `benches/` for each of the 6 tools. (PR #168)
 - [x] `parity.yml` CI workflow live (informational). (PR #170) *Promote to required in v0.2.0.*
 - [x] `mycelium init` resolved — keeping hidden per v0.1.2; no further work needed in v0.1.4.
-- [ ] PR template Three-Surface self-check section. (RFC-0090 Phase 1, 1 item remaining)
-- [ ] CLI parity backfill batch 1 (3 high-value twins). *Carried to v0.1.4 close.*
+- [x] PR template Three-Surface self-check section. (already shipped in PR #149 — confirmed 2026-05-29)
+- [x] CLI parity backfill batch 1: `search-symbol`, `get-ancestors`, `get-symbol-info`.
 
 ## Decision gates (require founder)
 
