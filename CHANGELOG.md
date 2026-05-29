@@ -154,6 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0051: `Store::symbol_count_by_kind()` — per-`NodeKind` symbol histogram from `kind_map`; wire-string keys sorted alphabetically; zero-count kinds excluded.
 - RFC-0051: `Store::upsert_node_with_kind(path, kind)` — convenience method: insert or retrieve a node and record its `NodeKind` in a single call.
 - RFC-0051: `mycelium_get_symbol_count_by_kind` MCP tool — codebase composition histogram; returns `{ kinds: [{ kind, count }], total }`.
+- RFC-0052: `Store::common_callers(target_ids, kind)` — set intersection of each target's incoming-neighbour set for any EdgeKind; answers "which symbols depend on ALL of these targets?"; results sorted alphabetically.
+- RFC-0052: `mycelium_get_common_callers` MCP tool — shared-dependency detector; accepts `{ paths, edge_kind }` and returns `{ callers, count }` or `{ error }`.
 
 ### Fixed
 
