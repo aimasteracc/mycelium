@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- SPRINT-007: C++ language pack (`packs/cpp/`) — `function_definition`, `class_specifier`, `struct_specifier`, `namespace_definition`, `enum_specifier`, `template_declaration`, `preproc_include`, and `call_expression`. Primary extensions: `.cpp`, `.cc`, `.cxx`, `.hpp`; `.h` is secondary (defaults to C extractor).
+- SPRINT-007: C# language pack (`packs/csharp/`) — `class_declaration`, `interface_declaration`, `method_declaration`, `constructor_declaration`, `namespace_declaration`, `enum_declaration`, `struct_declaration`, `using_directive`, and `invocation_expression`. Extension: `.cs`.
+- SPRINT-007: `pack.toml` schema extended with `primary_extensions` and `secondary_extensions` fields; `Meta::dispatch_extensions()` returns unambiguous extensions for indexer dispatch.
+- SPRINT-007: `mycelium index` and MCP `mycelium_index_workspace` now index C++ and C# source files.
 - Day-0 project skeleton: charter, governance, GitFlow, code of conduct, security policy.
 - `.hive/` definition of the autonomous AI development team.
 - `.hive/memory/` persistent shared memory (append-only JSONL).
