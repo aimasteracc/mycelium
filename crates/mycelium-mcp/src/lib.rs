@@ -488,6 +488,17 @@ pub struct BatchReachableToRequest {
     pub max_depth: Option<usize>,
 }
 
+/// Input parameters for `mycelium_batch_reachable_from`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BatchReachableFromRequest {
+    /// Symbol paths to start from (up to 20 entries).
+    pub paths: Vec<String>,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Maximum BFS depth per source. Defaults to 10, capped at 20.
+    pub max_depth: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_k_core`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetKCoreRequest {
@@ -1916,6 +1927,46 @@ impl MyceliumServer {
                 .filter_map(|p| store.lookup(p))
                 .collect();
             let result = store.batch_reachable_to(&ids, kind, max_depth);
+            drop(store);
+            result
+        };
+        let count = reachable.len();
+        serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return the union of all symbols transitively reachable FROM any of the \
+                       given source paths via outgoing EdgeKind edges. Answers: 'if these symbols \
+                       run, what else do they collectively touch transitively?' Symmetric complement \
+                       of mycelium_batch_reachable_to (impact = who depends on me; this = what do \
+                       I depend on). Accepts up to 20 paths; union is deduplicated; source paths \
+                       excluded from result. Returns { reachable, count } or { error } for unknown \
+                       edge_kind. max_depth defaults to 10, capped at 20."
+    )]
+    async fn mycelium_batch_reachable_from(
+        &self,
+        Parameters(req): Parameters<BatchReachableFromRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let max_depth = req.max_depth.unwrap_or(10);
+        let reachable = {
+            let store = self.store.read().await;
+            let ids: Vec<_> = req
+                .paths
+                .iter()
+                .take(20)
+                .filter_map(|p| store.lookup(p))
+                .collect();
+            let result = store.batch_reachable_from(&ids, kind, max_depth);
             drop(store);
             result
         };
@@ -5721,6 +5772,59 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["core"].as_array().unwrap().is_empty());
+    }
+
+    // ── RFC-0065: mycelium_batch_reachable_from ───────────────────────────
+
+    #[tokio::test]
+    async fn batch_reachable_from_basic() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let src = store.upsert_node(TrunkPath::parse("src/top.rs>top").unwrap());
+            let leaf = store.upsert_node(TrunkPath::parse("src/leaf.rs>leaf").unwrap());
+            store.upsert_edge(EdgeKind::Calls, src, leaf);
+        }
+        let raw = server
+            .mycelium_batch_reachable_from(Parameters(BatchReachableFromRequest {
+                paths: vec!["src/top.rs>top".to_owned()],
+                edge_kind: "calls".to_owned(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        let reachable = val["reachable"].as_array().unwrap();
+        assert_eq!(reachable[0].as_str().unwrap(), "src/leaf.rs>leaf");
+    }
+
+    #[tokio::test]
+    async fn batch_reachable_from_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_batch_reachable_from(Parameters(BatchReachableFromRequest {
+                paths: vec!["src/a.rs>a".to_owned()],
+                edge_kind: "invalid".to_owned(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    #[tokio::test]
+    async fn batch_reachable_from_empty_paths_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_batch_reachable_from(Parameters(BatchReachableFromRequest {
+                paths: vec![],
+                edge_kind: "calls".to_owned(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert!(val["reachable"].as_array().unwrap().is_empty());
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────
