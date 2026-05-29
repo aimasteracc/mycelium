@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0014                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0011 (Call graph), RFC-0013 (Two-pass extraction) |
@@ -74,8 +74,8 @@ analysis is deferred to a future RFC.
 
 ## Acceptance Criteria
 
-- [ ] `a.py` calling `bar()` defined in `b.py`: after `resolve_bare_call_stubs`, `mycelium_get_callers("b.py>bar")` returns `["a.py>foo"]`.
-- [ ] Bare stub `bar` no longer exists as a separate node after resolution.
-- [ ] Ambiguous stubs (same name in multiple files) are left unchanged.
-- [ ] `stubs_resolved` field added to `mycelium_index_workspace` response.
-- [ ] All prior tests pass.
+- [x] `a.py` calling `bar()` defined in `b.py`: after `resolve_bare_call_stubs`, `mycelium_get_callers("b.py>bar")` returns `["a.py>foo"]`.
+- [x] Bare stub `bar` no longer exists as a separate node after resolution.
+- [x] Ambiguous stubs (same name in multiple files) are left unchanged.
+- [x] `stubs_resolved` field added to `mycelium_index_workspace` response.
+- [x] All prior tests pass.

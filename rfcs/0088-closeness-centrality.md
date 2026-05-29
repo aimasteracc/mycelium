@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0088                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0078 (harmonic_centrality), RFC-0085 (betweenness_centrality), RFC-0087 (degree_centrality) |
@@ -75,13 +75,13 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] Empty graph → empty result.
-- [ ] Single node → score 0.0.
-- [ ] Two nodes, no edge → both scores 0.0.
-- [ ] Two nodes, A→B: A has positive score (reaches B), B has score 0.0 (reaches no one).
-- [ ] Linear chain A→B→C: A has highest score, B has second, C has 0.0.
-- [ ] Scores ∈ [0.0, 1.0].
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_closeness_centrality`: valid edge_kind returns `{ nodes, symbol_count, top_n }`.
-- [ ] `mycelium_get_closeness_centrality`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Empty graph → empty result.
+- [x] Single node → score 0.0.
+- [x] Two nodes, no edge → both scores 0.0.
+- [x] Two nodes, A→B: A has positive score (reaches B), B has score 0.0 (reaches no one).
+- [x] Linear chain A→B→C: A has highest score, B has second, C has 0.0.
+- [x] Scores ∈ [0.0, 1.0].
+- [x] File nodes excluded.
+- [x] `mycelium_get_closeness_centrality`: valid edge_kind returns `{ nodes, symbol_count, top_n }`.
+- [x] `mycelium_get_closeness_centrality`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

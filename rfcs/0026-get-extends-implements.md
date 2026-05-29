@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0026                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0023 (get_imports) |
@@ -110,9 +110,9 @@ None — these are simple edge lookups with no traversal.
 
 ## Acceptance Criteria
 
-- [ ] `mycelium_get_extends`: found path returns `{ extends, extended_by }` (both sorted).
-- [ ] `mycelium_get_extends`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_implements`: found path returns `{ implements, implemented_by }` (both sorted).
-- [ ] `mycelium_get_implements`: unknown path returns `{ error }`.
-- [ ] Both lists are empty (not omitted) when no edges of that kind exist.
-- [ ] All prior tests pass.
+- [x] `mycelium_get_extends`: found path returns `{ extends, extended_by }` (both sorted).
+- [x] `mycelium_get_extends`: unknown path returns `{ error }`.
+- [x] `mycelium_get_implements`: found path returns `{ implements, implemented_by }` (both sorted).
+- [x] `mycelium_get_implements`: unknown path returns `{ error }`.
+- [x] Both lists are empty (not omitted) when no edges of that kind exist.
+- [x] All prior tests pass.

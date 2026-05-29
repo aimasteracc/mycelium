@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0073                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0046 (node_degree), RFC-0053/54 (fan_out/fan_in_rank) |
@@ -65,10 +65,10 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `degree_histogram` returns sorted `in_degrees` and `out_degrees` vectors.
-- [ ] Degree 0 is included for symbols with no edges.
-- [ ] File nodes excluded.
-- [ ] Counts sum to the total symbol count.
-- [ ] `mycelium_get_degree_histogram`: valid edge_kind returns `{ in_degrees, out_degrees, total_symbols }`.
-- [ ] `mycelium_get_degree_histogram`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `degree_histogram` returns sorted `in_degrees` and `out_degrees` vectors.
+- [x] Degree 0 is included for symbols with no edges.
+- [x] File nodes excluded.
+- [x] Counts sum to the total symbol count.
+- [x] `mycelium_get_degree_histogram`: valid edge_kind returns `{ in_degrees, out_degrees, total_symbols }`.
+- [x] `mycelium_get_degree_histogram`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

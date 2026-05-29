@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0076                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0075 (neighbor_similarity), RFC-0060 (symbol_neighborhood) |
@@ -60,11 +60,11 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `clustering_coefficient` returns 0.0 for a node with fewer than 2 neighbors.
-- [ ] `clustering_coefficient` returns 1.0 when all neighbors form a complete directed graph.
-- [ ] `clustering_coefficient` returns correct fractional value for partial connectivity.
-- [ ] File nodes excluded from neighbor set and edge counting.
-- [ ] `mycelium_get_clustering_coefficient`: valid path returns `{ coefficient, neighbor_count, neighbor_edge_count }`.
-- [ ] `mycelium_get_clustering_coefficient`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_clustering_coefficient`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `clustering_coefficient` returns 0.0 for a node with fewer than 2 neighbors.
+- [x] `clustering_coefficient` returns 1.0 when all neighbors form a complete directed graph.
+- [x] `clustering_coefficient` returns correct fractional value for partial connectivity.
+- [x] File nodes excluded from neighbor set and edge counting.
+- [x] `mycelium_get_clustering_coefficient`: valid path returns `{ coefficient, neighbor_count, neighbor_edge_count }`.
+- [x] `mycelium_get_clustering_coefficient`: unknown path returns `{ error }`.
+- [x] `mycelium_get_clustering_coefficient`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | 字段 | 值 |
 |------|----|
 | RFC  | 0089 |
-| 状态 | Accepted |
+| 状态 | Implemented |
 | 作者 | rust-implementer (Hive AI agent) |
 | 日期 | 2026-05-29 |
 | 参考 | RFC-0001 (Trunk + Synapse), Charter §2 SLA |
@@ -70,13 +70,13 @@ pub struct Trunk {
 
 ## 验收标准
 
-- [ ] 所有现有 Trunk 测试通过（零修改）
-- [ ] `descendants@100k` < **10 µs**（目标：比 HashMap 快 25×）
-- [ ] `lookup_path@100k` 不退步（保持 < 15 ns）
-- [ ] `ancestors@100k` 不退步
-- [ ] `upsert@100k` 不退步（< 20 ms）
-- [ ] Criterion benchmark 自动对比基线，无回归
-- [ ] 通过 `cargo clippy -- -D warnings` 和 `cargo fmt --check`
+- [x] 所有现有 Trunk 测试通过（零修改）
+- [x] `descendants@100k` < **10 µs**（目标：比 HashMap 快 25×）
+- [x] `lookup_path@100k` 不退步（保持 < 15 ns）
+- [x] `ancestors@100k` 不退步
+- [x] `upsert@100k` 不退步（< 20 ms）
+- [x] Criterion benchmark 自动对比基线，无回归
+- [x] 通过 `cargo clippy -- -D warnings` 和 `cargo fmt --check`
 
 ## 迁移策略
 

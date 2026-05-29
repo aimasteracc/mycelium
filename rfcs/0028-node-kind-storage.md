@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0028                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0001 (Store design), RFC-0002 (Extractor) |
@@ -97,14 +97,14 @@ Unknown kind returns `{ "error": "unknown kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::set_kind` stores kind; `kind_of` retrieves it.
-- [ ] `Store::symbols_of_kind` returns only matching paths, sorted.
-- [ ] `Store::symbols_of_kind` with `prefix` filters correctly.
-- [ ] Extractor populates `kind_map` for file, function, class, method, and other definition captures.
-- [ ] `mycelium_get_node_kind`: known path+kind returns `{ path, kind }`.
-- [ ] `mycelium_get_node_kind`: known path, unknown kind returns `{ path, kind: null }`.
-- [ ] `mycelium_get_node_kind`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_symbols_by_kind`: returns all matching symbols sorted.
-- [ ] `mycelium_get_symbols_by_kind`: `path_prefix` filter works.
-- [ ] `mycelium_get_symbols_by_kind`: unknown kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::set_kind` stores kind; `kind_of` retrieves it.
+- [x] `Store::symbols_of_kind` returns only matching paths, sorted.
+- [x] `Store::symbols_of_kind` with `prefix` filters correctly.
+- [x] Extractor populates `kind_map` for file, function, class, method, and other definition captures.
+- [x] `mycelium_get_node_kind`: known path+kind returns `{ path, kind }`.
+- [x] `mycelium_get_node_kind`: known path, unknown kind returns `{ path, kind: null }`.
+- [x] `mycelium_get_node_kind`: unknown path returns `{ error }`.
+- [x] `mycelium_get_symbols_by_kind`: returns all matching symbols sorted.
+- [x] `mycelium_get_symbols_by_kind`: `path_prefix` filter works.
+- [x] `mycelium_get_symbols_by_kind`: unknown kind returns `{ error }`.
+- [x] All prior tests pass.

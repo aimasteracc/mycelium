@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0068                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0067 (cycle_members / SCC), RFC-0064 (k_core) |
@@ -64,12 +64,12 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::weakly_connected_components(kind)` returns one Vec<String> per
+- [x] `Store::weakly_connected_components(kind)` returns one Vec<String> per
       component, symbols sorted ascending, components sorted by size desc.
-- [ ] Edges treated as undirected (both endpoints in same component regardless
+- [x] Edges treated as undirected (both endpoints in same component regardless
       of direction).
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_wcc`: valid edge_kind returns `{ components, component_count, total_symbols }`.
-- [ ] `min_size` filter applied before returning.
-- [ ] `mycelium_get_wcc`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] File nodes excluded.
+- [x] `mycelium_get_wcc`: valid edge_kind returns `{ components, component_count, total_symbols }`.
+- [x] `min_size` filter applied before returning.
+- [x] `mycelium_get_wcc`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

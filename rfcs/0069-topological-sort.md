@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0069                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0067 (cycle_members), RFC-0058 (dependency_layers) |
@@ -68,12 +68,12 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::topological_sort(kind)` returns `TopologicalOrder` with `order`
+- [x] `Store::topological_sort(kind)` returns `TopologicalOrder` with `order`
       and `cycle_members`.
-- [ ] Each symbol in `order` appears after all its `kind`-predecessors.
-- [ ] Symbols forming directed cycles appear in `cycle_members`, not `order`.
-- [ ] `cycle_members` sorted ascending; `order` is a valid topological ordering.
-- [ ] File nodes excluded from both lists.
-- [ ] `mycelium_topological_sort`: valid edge_kind returns `{ order, cycle_members, ordered_count, cycle_count }`.
-- [ ] `mycelium_topological_sort`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Each symbol in `order` appears after all its `kind`-predecessors.
+- [x] Symbols forming directed cycles appear in `cycle_members`, not `order`.
+- [x] `cycle_members` sorted ascending; `order` is a valid topological ordering.
+- [x] File nodes excluded from both lists.
+- [x] `mycelium_topological_sort`: valid edge_kind returns `{ order, cycle_members, ordered_count, cycle_count }`.
+- [x] `mycelium_topological_sort`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

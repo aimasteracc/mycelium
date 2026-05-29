@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0013                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0002 (Extractor), RFC-0011 (Call graph) |
@@ -50,7 +50,7 @@ No public API changes — `Extractor::extract` signature is unchanged.
 
 ## Acceptance Criteria
 
-- [ ] Forward-reference call: `def foo(): bar()\ndef bar(): pass` — `foo -> Calls -> bar` using the definition node (not a stub).
-- [ ] All existing call-graph tests still pass.
-- [ ] `node_count` is identical between single-pass and two-pass for the same input.
-- [ ] All prior tests pass.
+- [x] Forward-reference call: `def foo(): bar()\ndef bar(): pass` — `foo -> Calls -> bar` using the definition node (not a stub).
+- [x] All existing call-graph tests still pass.
+- [x] `node_count` is identical between single-pass and two-pass for the same input.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0050                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0043 (reachable_from), RFC-0044 (reachable_to) |
@@ -58,12 +58,12 @@ Unknown `from`/`to` path returns `{ "error": "path not found: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::shortest_path(from, to, kind)` returns the shortest hop sequence via outgoing `kind` edges.
-- [ ] `from == to` returns `Some(vec![path_of(from)])` (zero-hop path).
-- [ ] No path returns `None`.
-- [ ] Cycle-safe (visited set prevents infinite loops).
-- [ ] `mycelium_get_shortest_path`: path found → `{ path, length }`.
-- [ ] `mycelium_get_shortest_path`: no path → `{ path: null, length: null }`.
-- [ ] `mycelium_get_shortest_path`: unknown edge_kind → `{ error }`.
-- [ ] `mycelium_get_shortest_path`: unknown from/to → `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::shortest_path(from, to, kind)` returns the shortest hop sequence via outgoing `kind` edges.
+- [x] `from == to` returns `Some(vec![path_of(from)])` (zero-hop path).
+- [x] No path returns `None`.
+- [x] Cycle-safe (visited set prevents infinite loops).
+- [x] `mycelium_get_shortest_path`: path found → `{ path, length }`.
+- [x] `mycelium_get_shortest_path`: no path → `{ path: null, length: null }`.
+- [x] `mycelium_get_shortest_path`: unknown edge_kind → `{ error }`.
+- [x] `mycelium_get_shortest_path`: unknown from/to → `{ error }`.
+- [x] All prior tests pass.

@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0062                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0022 (entry_points, in-degree=0), RFC-0049 (leaf_symbols, out-degree=0), RFC-0054 (fan_in_rank) |
@@ -70,13 +70,13 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::singly_referenced(kind, limit)` returns symbols with in-degree == 1.
-- [ ] `limit` capped at 100.
-- [ ] Results sorted by symbol path ascending.
-- [ ] File nodes excluded from result set.
-- [ ] Returns `(symbol_path, referencing_path)` tuples.
-- [ ] Pairs where the referencing path cannot be resolved are skipped.
-- [ ] `mycelium_get_singly_referenced`: valid request returns `{ symbols, count }`.
-- [ ] `mycelium_get_singly_referenced`: unknown edge_kind returns `{ error }`.
-- [ ] `limit` defaults to 10 if omitted in the MCP request.
-- [ ] All prior tests pass.
+- [x] `Store::singly_referenced(kind, limit)` returns symbols with in-degree == 1.
+- [x] `limit` capped at 100.
+- [x] Results sorted by symbol path ascending.
+- [x] File nodes excluded from result set.
+- [x] Returns `(symbol_path, referencing_path)` tuples.
+- [x] Pairs where the referencing path cannot be resolved are skipped.
+- [x] `mycelium_get_singly_referenced`: valid request returns `{ symbols, count }`.
+- [x] `mycelium_get_singly_referenced`: unknown edge_kind returns `{ error }`.
+- [x] `limit` defaults to 10 if omitted in the MCP request.
+- [x] All prior tests pass.

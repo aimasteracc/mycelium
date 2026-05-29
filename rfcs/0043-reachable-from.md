@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0043                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0041 (outgoing_refs), RFC-0017 (find_call_path) |
@@ -65,13 +65,13 @@ Unknown edge_kind returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::reachable_from(id, kind, max_depth)` performs BFS via outgoing `kind` edges.
-- [ ] Starting node excluded from result.
-- [ ] Each node visited at most once (cycle-safe).
-- [ ] `max_depth` respected; 0 returns empty list.
-- [ ] Results sorted lexicographically.
-- [ ] `mycelium_get_reachable`: known path + valid edge_kind returns `{ reachable, count }`.
-- [ ] `mycelium_get_reachable`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_reachable`: unknown edge_kind returns `{ error }`.
-- [ ] `max_depth` defaults to 10 when omitted; capped at 20.
-- [ ] All prior tests pass.
+- [x] `Store::reachable_from(id, kind, max_depth)` performs BFS via outgoing `kind` edges.
+- [x] Starting node excluded from result.
+- [x] Each node visited at most once (cycle-safe).
+- [x] `max_depth` respected; 0 returns empty list.
+- [x] Results sorted lexicographically.
+- [x] `mycelium_get_reachable`: known path + valid edge_kind returns `{ reachable, count }`.
+- [x] `mycelium_get_reachable`: unknown path returns `{ error }`.
+- [x] `mycelium_get_reachable`: unknown edge_kind returns `{ error }`.
+- [x] `max_depth` defaults to 10 when omitted; capped at 20.
+- [x] All prior tests pass.

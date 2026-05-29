@@ -283,6 +283,126 @@ fn trunk_node_ids_have_shard_byte_reserved() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// TrunkPath::from_segments
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn trunk_path_from_segments_builds_correct_path() {
+    let p = TrunkPath::from_segments(&["src/lib.rs", "Foo", "bar"]).unwrap();
+    assert_eq!(p.as_str(), "src/lib.rs>Foo>bar");
+    assert_eq!(p.depth(), 3);
+}
+
+#[test]
+fn trunk_path_from_segments_single_segment() {
+    let p = TrunkPath::from_segments(&["solo"]).unwrap();
+    assert_eq!(p.as_str(), "solo");
+    assert_eq!(p.depth(), 1);
+}
+
+#[test]
+fn trunk_path_from_segments_rejects_empty_slice() {
+    let empty: &[&str] = &[];
+    assert!(matches!(
+        TrunkPath::from_segments(empty),
+        Err(Error::InvalidPath { .. })
+    ));
+}
+
+#[test]
+fn trunk_path_from_segments_rejects_empty_segment() {
+    assert!(matches!(
+        TrunkPath::from_segments(&["a", "", "b"]),
+        Err(Error::InvalidPath { .. })
+    ));
+}
+
+#[test]
+fn trunk_path_from_segments_rejects_segment_containing_separator() {
+    assert!(matches!(
+        TrunkPath::from_segments(&["a>b", "c"]),
+        Err(Error::InvalidPath { .. })
+    ));
+}
+
+#[test]
+fn trunk_path_from_segments_rejects_control_character_in_segment() {
+    assert!(matches!(
+        TrunkPath::from_segments(&["a", "b\x01c"]),
+        Err(Error::InvalidPath { .. })
+    ));
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// TrunkPath::join error paths
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn trunk_path_join_rejects_empty_child() {
+    let p = TrunkPath::parse("a").unwrap();
+    assert!(matches!(p.join(""), Err(Error::InvalidPath { .. })));
+}
+
+#[test]
+fn trunk_path_join_rejects_control_character_in_child() {
+    let p = TrunkPath::parse("a").unwrap();
+    assert!(matches!(p.join("b\x1fc"), Err(Error::InvalidPath { .. })));
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// TrunkPath trait impls: Display, AsRef, into_string
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn trunk_path_display_matches_as_str() {
+    let p = TrunkPath::parse("src/lib.rs>Foo>bar").unwrap();
+    assert_eq!(p.to_string(), "src/lib.rs>Foo>bar");
+    assert_eq!(format!("{p}"), p.as_str());
+}
+
+#[test]
+fn trunk_path_as_ref_str() {
+    let p = TrunkPath::parse("a>b").unwrap();
+    let s: &str = p.as_ref();
+    assert_eq!(s, "a>b");
+}
+
+#[test]
+fn trunk_path_into_string_consumes_path() {
+    let p = TrunkPath::parse("x>y>z").unwrap();
+    let s = p.into_string();
+    assert_eq!(s, "x>y>z");
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// TrunkPath depth and segments edge cases
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn trunk_path_depth_single_segment_is_one() {
+    let p = TrunkPath::parse("root").unwrap();
+    assert_eq!(p.depth(), 1);
+}
+
+#[test]
+fn trunk_path_segments_iterator_matches_depth() {
+    let p = TrunkPath::parse("a>b>c>d").unwrap();
+    let segs: Vec<&str> = p.segments().collect();
+    assert_eq!(segs.len(), p.depth());
+    assert_eq!(segs, vec!["a", "b", "c", "d"]);
+}
+
+#[test]
+fn trunk_path_parent_chain_walks_to_root() {
+    let p = TrunkPath::parse("a>b>c").unwrap();
+    let parent = p.parent().unwrap();
+    assert_eq!(parent.as_str(), "a>b");
+    let grandparent = parent.parent().unwrap();
+    assert_eq!(grandparent.as_str(), "a");
+    assert!(grandparent.parent().is_none());
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // path::parent helper
 // ──────────────────────────────────────────────────────────────────────
 

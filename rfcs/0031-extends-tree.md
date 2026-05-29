@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0031                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0020 (callee_tree), RFC-0024 (import_tree), RFC-0026 (get_extends) |
@@ -69,10 +69,10 @@ Unknown path returns `{ "error": "path not found: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `ExtendsNode` struct with `id` and `parents` fields defined in core.
-- [ ] `Store::extends_tree` returns a leaf node for `max_depth = 0`.
-- [ ] DFS follows outgoing Extends edges.
-- [ ] Cycles produce leaf nodes (not infinite recursion).
-- [ ] `mycelium_get_extends_tree`: known path returns `{ root: { path, parents } }`.
-- [ ] `mycelium_get_extends_tree`: unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `ExtendsNode` struct with `id` and `parents` fields defined in core.
+- [x] `Store::extends_tree` returns a leaf node for `max_depth = 0`.
+- [x] DFS follows outgoing Extends edges.
+- [x] Cycles produce leaf nodes (not infinite recursion).
+- [x] `mycelium_get_extends_tree`: known path returns `{ root: { path, parents } }`.
+- [x] `mycelium_get_extends_tree`: unknown path returns `{ error }`.
+- [x] All prior tests pass.

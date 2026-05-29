@@ -4,7 +4,7 @@
 |------------|--------------------------------|
 | RFC        | 0008                           |
 | Title      | Watch mode — incremental index |
-| Status     | Draft                          |
+| Status     | Implemented                          |
 | Author     | Hive / rust-implementer        |
 | Created    | 2026-05-29                     |
 

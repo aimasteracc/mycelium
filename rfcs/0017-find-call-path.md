@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0017                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0011 (Call graph), RFC-0016 (Symbol info) |
@@ -82,10 +82,10 @@ endpoints, or `None` if unreachable within `max_depth`.
 
 ## Acceptance Criteria
 
-- [ ] Direct call `A → B`: path is `[A, B]`, hops = 1.
-- [ ] Transitive call `A → B → C`: path is `[A, B, C]`, hops = 2.
-- [ ] No path: returns `path: []`, `hops: null`.
-- [ ] Unknown `from_path` or `to_path`: returns `error`.
-- [ ] `max_depth` limits traversal depth.
-- [ ] Cycles do not cause infinite loops.
-- [ ] All prior tests pass.
+- [x] Direct call `A → B`: path is `[A, B]`, hops = 1.
+- [x] Transitive call `A → B → C`: path is `[A, B, C]`, hops = 2.
+- [x] No path: returns `path: []`, `hops: null`.
+- [x] Unknown `from_path` or `to_path`: returns `error`.
+- [x] `max_depth` limits traversal depth.
+- [x] Cycles do not cause infinite loops.
+- [x] All prior tests pass.

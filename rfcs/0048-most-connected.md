@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0048                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0019 (rank_symbols), RFC-0046 (node_degree) |
@@ -56,12 +56,12 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::most_connected(limit, kind)` ranks by `in + out` degree for `kind`.
-- [ ] Symbol nodes only (paths containing `>`); file nodes excluded.
-- [ ] Nodes with degree 0 excluded.
-- [ ] Results sorted descending by degree, ties broken by path ascending.
-- [ ] `limit` respected; capped at 100 internally.
-- [ ] `mycelium_get_most_connected`: valid edge_kind returns `{ symbols, count }`.
-- [ ] `mycelium_get_most_connected`: unknown edge_kind returns `{ error }`.
-- [ ] `limit` defaults to 10 when omitted.
-- [ ] All prior tests pass.
+- [x] `Store::most_connected(limit, kind)` ranks by `in + out` degree for `kind`.
+- [x] Symbol nodes only (paths containing `>`); file nodes excluded.
+- [x] Nodes with degree 0 excluded.
+- [x] Results sorted descending by degree, ties broken by path ascending.
+- [x] `limit` respected; capped at 100 internally.
+- [x] `mycelium_get_most_connected`: valid edge_kind returns `{ symbols, count }`.
+- [x] `mycelium_get_most_connected`: unknown edge_kind returns `{ error }`.
+- [x] `limit` defaults to 10 when omitted.
+- [x] All prior tests pass.

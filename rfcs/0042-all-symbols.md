@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0042                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0028 (NodeKind), RFC-0018 (get_files) |
@@ -55,11 +55,11 @@ No parameters returns all symbols.
 
 ## Acceptance Criteria
 
-- [ ] `Store::all_symbols(prefix, kind)` returns only symbol paths (containing `>`).
-- [ ] File-level nodes are excluded.
-- [ ] Optional `prefix` filter applies.
-- [ ] Optional `kind` filter applies (by `NodeKind` value).
-- [ ] Results sorted lexicographically.
-- [ ] `mycelium_get_all_symbols`: returns `{ symbols, count }`.
-- [ ] `mycelium_get_all_symbols`: unknown kind string returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::all_symbols(prefix, kind)` returns only symbol paths (containing `>`).
+- [x] File-level nodes are excluded.
+- [x] Optional `prefix` filter applies.
+- [x] Optional `kind` filter applies (by `NodeKind` value).
+- [x] Results sorted lexicographically.
+- [x] `mycelium_get_all_symbols`: returns `{ symbols, count }`.
+- [x] `mycelium_get_all_symbols`: unknown kind string returns `{ error }`.
+- [x] All prior tests pass.

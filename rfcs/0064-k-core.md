@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0064                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0048 (most_connected), RFC-0057 (scc_groups), RFC-0058 (dependency_layers) |
@@ -76,12 +76,12 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::k_core(kind, k)` returns the maximal subgraph where every node has total degree ≥ k.
-- [ ] Degree counts only edges within the symbol subgraph (file nodes ignored).
-- [ ] `k = 0` returns all symbol nodes.
-- [ ] Results sorted ascending.
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_k_core`: valid request returns `{ core, count, k }`.
-- [ ] `mycelium_get_k_core`: unknown edge_kind returns `{ error }`.
-- [ ] `k` defaults to 2 if omitted in the MCP request.
-- [ ] All prior tests pass.
+- [x] `Store::k_core(kind, k)` returns the maximal subgraph where every node has total degree ≥ k.
+- [x] Degree counts only edges within the symbol subgraph (file nodes ignored).
+- [x] `k = 0` returns all symbol nodes.
+- [x] Results sorted ascending.
+- [x] File nodes excluded.
+- [x] `mycelium_get_k_core`: valid request returns `{ core, count, k }`.
+- [x] `mycelium_get_k_core`: unknown edge_kind returns `{ error }`.
+- [x] `k` defaults to 2 if omitted in the MCP request.
+- [x] All prior tests pass.

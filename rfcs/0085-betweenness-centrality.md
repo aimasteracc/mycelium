@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0085                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0082 (page_rank), RFC-0078 (harmonic_centrality) |
@@ -73,11 +73,11 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] Empty graph → empty result.
-- [ ] Single node → empty result.
-- [ ] Two nodes → both scores 0.0.
-- [ ] Linear chain A→B→C → B has highest betweenness.
-- [ ] Scores normalized to [0.0, 1.0].
-- [ ] `mycelium_get_betweenness_centrality`: valid edge_kind returns `{ nodes, symbol_count, top_n }`.
-- [ ] `mycelium_get_betweenness_centrality`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Empty graph → empty result.
+- [x] Single node → empty result.
+- [x] Two nodes → both scores 0.0.
+- [x] Linear chain A→B→C → B has highest betweenness.
+- [x] Scores normalized to [0.0, 1.0].
+- [x] `mycelium_get_betweenness_centrality`: valid edge_kind returns `{ nodes, symbol_count, top_n }`.
+- [x] `mycelium_get_betweenness_centrality`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

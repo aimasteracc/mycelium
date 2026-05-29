@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0083                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0080 (reachable_set), RFC-0081 (reaches_into) |
@@ -60,14 +60,14 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] Both isolated → empty result.
-- [ ] No overlap in reachable sets → empty result.
-- [ ] Single shared dependency → returns that one path.
-- [ ] `id1 == id2` → same result as `reachable_set(id1, kind)`.
-- [ ] `id1` and `id2` themselves excluded from result.
-- [ ] Results sorted alphabetically.
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_common_reachable`: valid paths returns `{ common, count }`.
-- [ ] `mycelium_get_common_reachable`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_common_reachable`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Both isolated → empty result.
+- [x] No overlap in reachable sets → empty result.
+- [x] Single shared dependency → returns that one path.
+- [x] `id1 == id2` → same result as `reachable_set(id1, kind)`.
+- [x] `id1` and `id2` themselves excluded from result.
+- [x] Results sorted alphabetically.
+- [x] File nodes excluded.
+- [x] `mycelium_get_common_reachable`: valid paths returns `{ common, count }`.
+- [x] `mycelium_get_common_reachable`: unknown path returns `{ error }`.
+- [x] `mycelium_get_common_reachable`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

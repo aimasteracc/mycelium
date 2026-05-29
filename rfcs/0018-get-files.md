@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0018                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0004 (MCP server), RFC-0005 (descendants tool) |
@@ -63,9 +63,9 @@ Always sorted lexicographically.  Empty array when no files match.
 
 ## Acceptance Criteria
 
-- [ ] `Store::all_file_paths()` returns only file-level paths (no `>`).
-- [ ] `Store::all_file_paths()` returns paths in sorted order.
-- [ ] `mycelium_get_files` with no prefix returns all indexed files.
-- [ ] `mycelium_get_files` with a prefix filters by prefix match.
-- [ ] Symbol-level paths (containing `>`) are excluded from the result.
-- [ ] All prior tests pass.
+- [x] `Store::all_file_paths()` returns only file-level paths (no `>`).
+- [x] `Store::all_file_paths()` returns paths in sorted order.
+- [x] `mycelium_get_files` with no prefix returns all indexed files.
+- [x] `mycelium_get_files` with a prefix filters by prefix match.
+- [x] Symbol-level paths (containing `>`) are excluded from the result.
+- [x] All prior tests pass.

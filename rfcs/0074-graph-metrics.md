@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0074                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0038 (graph_stats), RFC-0073 (degree_histogram) |
@@ -72,11 +72,11 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `graph_metrics` returns correct `symbol_count` and `directed_edge_count`.
-- [ ] `density` is 0 for V < 2 and 1 for a complete graph.
-- [ ] `avg_degree` is 0 for empty graph.
-- [ ] `max_in_degree` / `max_out_degree` correctly identify the highest-degree node.
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_graph_metrics`: valid edge_kind returns the metrics struct.
-- [ ] `mycelium_get_graph_metrics`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `graph_metrics` returns correct `symbol_count` and `directed_edge_count`.
+- [x] `density` is 0 for V < 2 and 1 for a complete graph.
+- [x] `avg_degree` is 0 for empty graph.
+- [x] `max_in_degree` / `max_out_degree` correctly identify the highest-degree node.
+- [x] File nodes excluded.
+- [x] `mycelium_get_graph_metrics`: valid edge_kind returns the metrics struct.
+- [x] `mycelium_get_graph_metrics`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

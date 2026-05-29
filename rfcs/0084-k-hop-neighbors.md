@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0084                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0080 (reachable_set), RFC-0050 (shortest_path) |
@@ -54,14 +54,14 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `k == 0` → empty result.
-- [ ] `k == 1` → direct outgoing symbol neighbors.
-- [ ] `k == 2` → neighbors two hops away (not including hop-1 nodes).
-- [ ] Nodes reachable at depth < k are not re-reported at k.
-- [ ] `id` itself excluded even if a cycle returns it at exactly hop k.
-- [ ] Results sorted alphabetically.
-- [ ] File nodes excluded.
-- [ ] `mycelium_get_k_hop_neighbors`: valid path returns `{ neighbors, count, k }`.
-- [ ] `mycelium_get_k_hop_neighbors`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_k_hop_neighbors`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `k == 0` → empty result.
+- [x] `k == 1` → direct outgoing symbol neighbors.
+- [x] `k == 2` → neighbors two hops away (not including hop-1 nodes).
+- [x] Nodes reachable at depth < k are not re-reported at k.
+- [x] `id` itself excluded even if a cycle returns it at exactly hop k.
+- [x] Results sorted alphabetically.
+- [x] File nodes excluded.
+- [x] `mycelium_get_k_hop_neighbors`: valid path returns `{ neighbors, count, k }`.
+- [x] `mycelium_get_k_hop_neighbors`: unknown path returns `{ error }`.
+- [x] `mycelium_get_k_hop_neighbors`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

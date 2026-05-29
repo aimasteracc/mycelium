@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0081                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0080 (reachable_set), RFC-0079 (mutual_reachability) |
@@ -52,13 +52,13 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `reaches_into` returns empty for an isolated node.
-- [ ] Returns direct callers for a single-hop graph.
-- [ ] Returns full transitive reverse closure for a chain A→B→C (reaches_into(C) = {A, B}).
-- [ ] Does not include `id` itself (even if there is a cycle back to it).
-- [ ] Results are sorted alphabetically.
-- [ ] File nodes excluded from results.
-- [ ] `mycelium_get_reaches_into`: valid path returns `{ callers, count }`.
-- [ ] `mycelium_get_reaches_into`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_reaches_into`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `reaches_into` returns empty for an isolated node.
+- [x] Returns direct callers for a single-hop graph.
+- [x] Returns full transitive reverse closure for a chain A→B→C (reaches_into(C) = {A, B}).
+- [x] Does not include `id` itself (even if there is a cycle back to it).
+- [x] Results are sorted alphabetically.
+- [x] File nodes excluded from results.
+- [x] `mycelium_get_reaches_into`: valid path returns `{ callers, count }`.
+- [x] `mycelium_get_reaches_into`: unknown path returns `{ error }`.
+- [x] `mycelium_get_reaches_into`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

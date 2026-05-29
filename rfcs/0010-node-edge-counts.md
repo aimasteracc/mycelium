@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0010                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0007 (server_status)           |
@@ -44,8 +44,8 @@ Add `"edge_count": <usize>` to the JSON response alongside the existing
 
 ## Acceptance Criteria
 
-- [ ] `Synapse::edge_count()` returns the sum of all directed edges across all kinds.
-- [ ] `Store::edge_count()` delegates to `Synapse::edge_count()`.
-- [ ] `mycelium_server_status` JSON includes `"edge_count"` key.
-- [ ] Unit tests cover the new methods.
-- [ ] All existing tests pass.
+- [x] `Synapse::edge_count()` returns the sum of all directed edges across all kinds.
+- [x] `Store::edge_count()` delegates to `Synapse::edge_count()`.
+- [x] `mycelium_server_status` JSON includes `"edge_count"` key.
+- [x] Unit tests cover the new methods.
+- [x] All existing tests pass.

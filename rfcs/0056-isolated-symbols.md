@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0056                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0037 (dead_symbols — zero incoming Calls/Imports), RFC-0049 (leaf_symbols — zero outgoing for one kind) |
@@ -51,10 +51,10 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `Store::isolated_symbols(prefix)` returns symbol nodes with all-zero degree across all EdgeKinds.
-- [ ] File nodes excluded (paths not containing `>`).
-- [ ] Optional prefix filter applied.
-- [ ] Results sorted ascending by path.
-- [ ] `mycelium_get_isolated_symbols`: returns `{ isolated_symbols, count }`.
-- [ ] `mycelium_get_isolated_symbols`: optional `path_prefix` filters results.
-- [ ] All prior tests pass.
+- [x] `Store::isolated_symbols(prefix)` returns symbol nodes with all-zero degree across all EdgeKinds.
+- [x] File nodes excluded (paths not containing `>`).
+- [x] Optional prefix filter applied.
+- [x] Results sorted ascending by path.
+- [x] `mycelium_get_isolated_symbols`: returns `{ isolated_symbols, count }`.
+- [x] `mycelium_get_isolated_symbols`: optional `path_prefix` filters results.
+- [x] All prior tests pass.

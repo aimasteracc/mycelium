@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0060                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0039 (cross_refs), RFC-0041 (outgoing_refs), RFC-0059 (two_hop_neighbors) |
@@ -74,11 +74,11 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `SymbolNeighborhood` struct exported from `mycelium_core::store`.
-- [ ] `Store::symbol_neighborhood(id, kind)` returns correct ego-graph.
-- [ ] `incoming` sorted ascending; `outgoing` sorted ascending.
-- [ ] Returns empty neighborhood for unknown `id`.
-- [ ] `mycelium_get_symbol_neighborhood`: unknown path returns empty neighborhood JSON.
-- [ ] `mycelium_get_symbol_neighborhood`: unknown edge_kind returns `{ error }`.
-- [ ] `mycelium_get_symbol_neighborhood`: valid request returns `{ path, incoming, outgoing, incoming_count, outgoing_count }`.
-- [ ] All prior tests pass.
+- [x] `SymbolNeighborhood` struct exported from `mycelium_core::store`.
+- [x] `Store::symbol_neighborhood(id, kind)` returns correct ego-graph.
+- [x] `incoming` sorted ascending; `outgoing` sorted ascending.
+- [x] Returns empty neighborhood for unknown `id`.
+- [x] `mycelium_get_symbol_neighborhood`: unknown path returns empty neighborhood JSON.
+- [x] `mycelium_get_symbol_neighborhood`: unknown edge_kind returns `{ error }`.
+- [x] `mycelium_get_symbol_neighborhood`: valid request returns `{ path, incoming, outgoing, incoming_count, outgoing_count }`.
+- [x] All prior tests pass.

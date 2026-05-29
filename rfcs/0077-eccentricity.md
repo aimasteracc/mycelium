@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0077                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0050 (shortest_path), RFC-0076 (clustering_coefficient) |
@@ -55,12 +55,12 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `eccentricity` returns 0 for an isolated node.
-- [ ] `eccentricity` returns 1 for a node that only directly reaches others.
-- [ ] `eccentricity` returns the correct max distance for a chain.
-- [ ] `eccentricity` counts directed reachability (not undirected).
-- [ ] File nodes excluded from traversal and reachable count.
-- [ ] `mycelium_get_eccentricity`: valid path returns `{ eccentricity, reachable_count }`.
-- [ ] `mycelium_get_eccentricity`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_eccentricity`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `eccentricity` returns 0 for an isolated node.
+- [x] `eccentricity` returns 1 for a node that only directly reaches others.
+- [x] `eccentricity` returns the correct max distance for a chain.
+- [x] `eccentricity` counts directed reachability (not undirected).
+- [x] File nodes excluded from traversal and reachable count.
+- [x] `mycelium_get_eccentricity`: valid path returns `{ eccentricity, reachable_count }`.
+- [x] `mycelium_get_eccentricity`: unknown path returns `{ error }`.
+- [x] `mycelium_get_eccentricity`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

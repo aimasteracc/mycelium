@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0022                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0011 (Call graph), RFC-0019 (rank_symbols) |
@@ -63,9 +63,9 @@ Optional prefix filter applied before the caller-count check.
 
 ## Acceptance Criteria
 
-- [ ] Returns symbols with 0 incoming Calls edges.
-- [ ] Excludes file-level paths (no `>`).
-- [ ] Optional `path_prefix` filter applied correctly.
-- [ ] Results sorted lexicographically.
-- [ ] Empty graph returns `{ entry_points: [] }`.
-- [ ] All prior tests pass.
+- [x] Returns symbols with 0 incoming Calls edges.
+- [x] Excludes file-level paths (no `>`).
+- [x] Optional `path_prefix` filter applied correctly.
+- [x] Results sorted lexicographically.
+- [x] Empty graph returns `{ entry_points: [] }`.
+- [x] All prior tests pass.

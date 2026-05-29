@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0054                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0019 (rank_symbols — in-degree Calls), RFC-0053 (fan_out_rank — out-degree) |
@@ -59,12 +59,12 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::fan_in_rank(kind, limit)` ranks by in-degree for `kind`.
-- [ ] Symbol nodes only (paths containing `>`); file nodes excluded.
-- [ ] Nodes with in-degree 0 excluded.
-- [ ] Results sorted descending by degree, ties broken by path ascending.
-- [ ] `limit` respected; capped at 100 internally.
-- [ ] `mycelium_get_fan_in_rank`: valid edge_kind returns `{ symbols, count }`.
-- [ ] `mycelium_get_fan_in_rank`: unknown edge_kind returns `{ error }`.
-- [ ] `limit` defaults to 10 when omitted.
-- [ ] All prior tests pass.
+- [x] `Store::fan_in_rank(kind, limit)` ranks by in-degree for `kind`.
+- [x] Symbol nodes only (paths containing `>`); file nodes excluded.
+- [x] Nodes with in-degree 0 excluded.
+- [x] Results sorted descending by degree, ties broken by path ascending.
+- [x] `limit` respected; capped at 100 internally.
+- [x] `mycelium_get_fan_in_rank`: valid edge_kind returns `{ symbols, count }`.
+- [x] `mycelium_get_fan_in_rank`: unknown edge_kind returns `{ error }`.
+- [x] `limit` defaults to 10 when omitted.
+- [x] All prior tests pass.

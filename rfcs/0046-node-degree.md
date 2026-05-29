@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0046                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0039 (cross_refs), RFC-0041 (outgoing_refs) |
@@ -66,9 +66,9 @@ Unknown path returns `{ "error": "path not found: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `NodeDegree` struct with 8 fields (in/out × 4 kinds).
-- [ ] `Store::node_degree(id)` returns correct counts for all kinds.
-- [ ] Isolated node returns all-zero `NodeDegree`.
-- [ ] `mycelium_get_node_degree`: known path returns `{ in_calls, out_calls, … }`.
-- [ ] `mycelium_get_node_degree`: unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `NodeDegree` struct with 8 fields (in/out × 4 kinds).
+- [x] `Store::node_degree(id)` returns correct counts for all kinds.
+- [x] Isolated node returns all-zero `NodeDegree`.
+- [x] `mycelium_get_node_degree`: known path returns `{ in_calls, out_calls, … }`.
+- [x] `mycelium_get_node_degree`: unknown path returns `{ error }`.
+- [x] All prior tests pass.

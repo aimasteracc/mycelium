@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0020                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0011 (Call graph), RFC-0017 (find_call_path) |
@@ -89,9 +89,9 @@ The MCP tool converts `CalleeNode` to JSON by resolving `id` → path via
 
 ## Acceptance Criteria
 
-- [ ] Direct callees appear as level-1 children.
-- [ ] Transitive callees appear at depth 2+.
-- [ ] `max_depth` limits traversal; nodes at the depth limit appear as leaves.
-- [ ] Cycles produce a leaf (not infinite recursion).
-- [ ] Unknown `path` returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] Direct callees appear as level-1 children.
+- [x] Transitive callees appear at depth 2+.
+- [x] `max_depth` limits traversal; nodes at the depth limit appear as leaves.
+- [x] Cycles produce a leaf (not infinite recursion).
+- [x] Unknown `path` returns `{ error }`.
+- [x] All prior tests pass.

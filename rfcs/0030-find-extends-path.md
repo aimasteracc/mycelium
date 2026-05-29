@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0030                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0017 (find_call_path), RFC-0027 (find_import_path), RFC-0026 (get_extends) |
@@ -68,13 +68,13 @@ Response (unknown path):
 
 ## Acceptance Criteria
 
-- [ ] `Store::find_extends_path` returns `Some(vec![id])` when `from == to`.
-- [ ] BFS finds direct single-hop extends chain.
-- [ ] BFS finds transitive multi-hop extends chain.
-- [ ] Returns `None` when unreachable.
-- [ ] `max_depth` limits hops correctly.
-- [ ] `mycelium_find_extends_path`: direct extends path returns `{ path, hops: 1 }`.
-- [ ] `mycelium_find_extends_path`: transitive path returns correct `hops`.
-- [ ] `mycelium_find_extends_path`: unreachable returns `{ path: [], hops: null, message }`.
-- [ ] `mycelium_find_extends_path`: unknown `from_path` returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::find_extends_path` returns `Some(vec![id])` when `from == to`.
+- [x] BFS finds direct single-hop extends chain.
+- [x] BFS finds transitive multi-hop extends chain.
+- [x] Returns `None` when unreachable.
+- [x] `max_depth` limits hops correctly.
+- [x] `mycelium_find_extends_path`: direct extends path returns `{ path, hops: 1 }`.
+- [x] `mycelium_find_extends_path`: transitive path returns correct `hops`.
+- [x] `mycelium_find_extends_path`: unreachable returns `{ path: [], hops: null, message }`.
+- [x] `mycelium_find_extends_path`: unknown `from_path` returns `{ error }`.
+- [x] All prior tests pass.

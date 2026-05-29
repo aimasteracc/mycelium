@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0029                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0028 (NodeKind storage), RFC-0002 (Extractor) |
@@ -102,11 +102,11 @@ Response (not found):
 
 ## Acceptance Criteria
 
-- [ ] `SourceSpan` derives `Serialize` + `Deserialize`.
-- [ ] `Store::set_span` stores a span; `span_of` retrieves it.
-- [ ] `span_map` is cleaned up by `remove_node` and `remove_file`.
-- [ ] Extractor populates spans for file, function, class, method, and other definition nodes.
-- [ ] `mycelium_get_source_span`: known path + span returns the six fields.
-- [ ] `mycelium_get_source_span`: known path, span unknown returns `{ path, span: null }`.
-- [ ] `mycelium_get_source_span`: unknown path returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `SourceSpan` derives `Serialize` + `Deserialize`.
+- [x] `Store::set_span` stores a span; `span_of` retrieves it.
+- [x] `span_map` is cleaned up by `remove_node` and `remove_file`.
+- [x] Extractor populates spans for file, function, class, method, and other definition nodes.
+- [x] `mycelium_get_source_span`: known path + span returns the six fields.
+- [x] `mycelium_get_source_span`: known path, span unknown returns `{ path, span: null }`.
+- [x] `mycelium_get_source_span`: unknown path returns `{ error }`.
+- [x] All prior tests pass.

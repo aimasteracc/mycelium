@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0040                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0039 (cross_refs), RFC-0023 (imports), RFC-0011 (calls) |
@@ -68,10 +68,10 @@ Unknown edge_kind returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::nodes_in_cycles(edge_kind, prefix)` returns nodes that are part of a cycle.
-- [ ] Nodes not in any cycle are excluded.
-- [ ] Prefix filter applies to paths.
-- [ ] Results are sorted lexicographically.
-- [ ] `mycelium_detect_cycles`: valid edge_kind returns `{ cycle_nodes, count }`.
-- [ ] `mycelium_detect_cycles`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `Store::nodes_in_cycles(edge_kind, prefix)` returns nodes that are part of a cycle.
+- [x] Nodes not in any cycle are excluded.
+- [x] Prefix filter applies to paths.
+- [x] Results are sorted lexicographically.
+- [x] `mycelium_detect_cycles`: valid edge_kind returns `{ cycle_nodes, count }`.
+- [x] `mycelium_detect_cycles`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

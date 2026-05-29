@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0012                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0011 (Calls edges), RFC-0004 (MCP server) |
@@ -60,9 +60,9 @@ If the path is not in the store, return:
 
 ## Acceptance Criteria
 
-- [ ] `mycelium_get_callees` returns outgoing Calls edges for a known path.
-- [ ] `mycelium_get_callers` returns incoming Calls edges for a known path.
-- [ ] Both tools return a sorted, deduplicated list of path strings.
-- [ ] Both tools return an error JSON for unknown paths.
-- [ ] MCP tool doc table updated to list 9 tools.
-- [ ] All prior tests pass.
+- [x] `mycelium_get_callees` returns outgoing Calls edges for a known path.
+- [x] `mycelium_get_callers` returns incoming Calls edges for a known path.
+- [x] Both tools return a sorted, deduplicated list of path strings.
+- [x] Both tools return an error JSON for unknown paths.
+- [x] MCP tool doc table updated to list 9 tools.
+- [x] All prior tests pass.

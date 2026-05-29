@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0075                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0060 (symbol_neighborhood), RFC-0052 (common_callers) |
@@ -51,12 +51,12 @@ Response:
 
 ## Acceptance Criteria
 
-- [ ] `neighbor_similarity` returns 1.0 for two nodes with identical neighbors.
-- [ ] `neighbor_similarity` returns 0.0 for two isolated nodes.
-- [ ] `neighbor_similarity` returns 0.0 for nodes with no overlapping neighbors.
-- [ ] `neighbor_similarity(id, id, kind)` returns 1.0 when id has neighbors.
-- [ ] File nodes excluded from neighbor sets.
-- [ ] `mycelium_get_neighbor_similarity`: valid paths return `{ similarity, shared, total }`.
-- [ ] `mycelium_get_neighbor_similarity`: unknown path returns `{ error }`.
-- [ ] `mycelium_get_neighbor_similarity`: unknown edge_kind returns `{ error }`.
-- [ ] All prior tests pass.
+- [x] `neighbor_similarity` returns 1.0 for two nodes with identical neighbors.
+- [x] `neighbor_similarity` returns 0.0 for two isolated nodes.
+- [x] `neighbor_similarity` returns 0.0 for nodes with no overlapping neighbors.
+- [x] `neighbor_similarity(id, id, kind)` returns 1.0 when id has neighbors.
+- [x] File nodes excluded from neighbor sets.
+- [x] `mycelium_get_neighbor_similarity`: valid paths return `{ similarity, shared, total }`.
+- [x] `mycelium_get_neighbor_similarity`: unknown path returns `{ error }`.
+- [x] `mycelium_get_neighbor_similarity`: unknown edge_kind returns `{ error }`.
+- [x] All prior tests pass.

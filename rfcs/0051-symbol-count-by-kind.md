@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0051                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0038 (graph_stats), RFC-0042 (all_symbols) |
@@ -49,9 +49,9 @@ Empty graph returns `{ "kinds": [], "total": 0 }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::symbol_count_by_kind()` counts nodes per `NodeKind`; only nodes in `kind_map` counted.
-- [ ] Returns `(wire_string, count)` pairs sorted alphabetically by wire string.
-- [ ] Kinds with count 0 are excluded.
-- [ ] `mycelium_get_symbol_count_by_kind`: returns `{ kinds: [{ kind, count }], total }`.
-- [ ] Empty graph returns `{ kinds: [], total: 0 }`.
-- [ ] All prior tests pass.
+- [x] `Store::symbol_count_by_kind()` counts nodes per `NodeKind`; only nodes in `kind_map` counted.
+- [x] Returns `(wire_string, count)` pairs sorted alphabetically by wire string.
+- [x] Kinds with count 0 are excluded.
+- [x] `mycelium_get_symbol_count_by_kind`: returns `{ kinds: [{ kind, count }], total }`.
+- [x] Empty graph returns `{ kinds: [], total: 0 }`.
+- [x] All prior tests pass.

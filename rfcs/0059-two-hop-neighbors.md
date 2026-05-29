@@ -3,7 +3,7 @@
 | Field    | Value                              |
 |----------|------------------------------------|
 | RFC      | 0059                               |
-| Status   | Accepted                           |
+| Status   | Implemented                           |
 | Author   | rust-implementer (Hive AI agent)   |
 | Date     | 2026-05-29                         |
 | Refs     | RFC-0043 (reachable_from), RFC-0011 (call graph) |
@@ -56,13 +56,13 @@ Unknown `edge_kind` returns `{ "error": "unknown edge_kind: ..." }`.
 
 ## Acceptance Criteria
 
-- [ ] `Store::two_hop_neighbors(id, kind)` returns symbols exactly 2 hops away.
-- [ ] Direct (1-hop) neighbors excluded from result.
-- [ ] `id` itself excluded from result.
-- [ ] File nodes excluded (paths not containing `>`).
-- [ ] Results sorted ascending.
-- [ ] Empty result if source has no outgoing edges.
-- [ ] `mycelium_get_two_hop_neighbors`: unknown path returns `{ neighbors: [], count: 0 }`.
-- [ ] `mycelium_get_two_hop_neighbors`: unknown edge_kind returns `{ error }`.
-- [ ] `mycelium_get_two_hop_neighbors`: valid request returns `{ neighbors, count }`.
-- [ ] All prior tests pass.
+- [x] `Store::two_hop_neighbors(id, kind)` returns symbols exactly 2 hops away.
+- [x] Direct (1-hop) neighbors excluded from result.
+- [x] `id` itself excluded from result.
+- [x] File nodes excluded (paths not containing `>`).
+- [x] Results sorted ascending.
+- [x] Empty result if source has no outgoing edges.
+- [x] `mycelium_get_two_hop_neighbors`: unknown path returns `{ neighbors: [], count: 0 }`.
+- [x] `mycelium_get_two_hop_neighbors`: unknown edge_kind returns `{ error }`.
+- [x] `mycelium_get_two_hop_neighbors`: valid request returns `{ neighbors, count }`.
+- [x] All prior tests pass.
