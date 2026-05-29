@@ -5120,3 +5120,153 @@ fn store_betweenness_scores_normalized_in_range() {
         );
     }
 }
+
+// ── RFC-0086: strongly_connected_components ───────────────────────────────
+
+#[test]
+fn store_scc_empty_graph() {
+    let store = Store::new();
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_scc_single_node() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/scc.rs>scc_solo").unwrap());
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].size, 1);
+    assert_eq!(result[0].members, vec!["src/scc.rs>scc_solo".to_owned()]);
+}
+
+#[test]
+fn store_scc_two_nodes_no_edges() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/scc.rs>scc_a").unwrap());
+    store.upsert_node(TrunkPath::parse("src/scc.rs>scc_b").unwrap());
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    assert_eq!(result.len(), 2);
+    assert!(result.iter().all(|e| e.size == 1));
+}
+
+#[test]
+fn store_scc_two_nodes_one_directed_edge() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_d_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_d_b").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    // A→B but no B→A: two singleton SCCs.
+    assert_eq!(result.len(), 2);
+    assert!(result.iter().all(|e| e.size == 1));
+}
+
+#[test]
+fn store_scc_two_nodes_mutual_edges() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_m_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_m_b").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].size, 2);
+    let mut members = result[0].members.clone();
+    members.sort();
+    assert!(members.contains(&"src/scc.rs>scc_m_a".to_owned()));
+    assert!(members.contains(&"src/scc.rs>scc_m_b".to_owned()));
+}
+
+#[test]
+fn store_scc_linear_chain_no_cycle() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_lin_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_lin_b").unwrap());
+    let c = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_lin_c").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    // A→B→C: three singletons.
+    assert_eq!(result.len(), 3);
+    assert!(result.iter().all(|e| e.size == 1));
+}
+
+#[test]
+fn store_scc_three_node_cycle() {
+    let mut store = Store::new();
+    let a = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_cyc_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_cyc_b").unwrap());
+    let c = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_cyc_c").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].size, 3);
+    let mut members = result[0].members.clone();
+    members.sort();
+    assert_eq!(
+        members,
+        vec![
+            "src/scc.rs>scc_cyc_a".to_owned(),
+            "src/scc.rs>scc_cyc_b".to_owned(),
+            "src/scc.rs>scc_cyc_c".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn store_scc_members_sorted_alphabetically() {
+    let mut store = Store::new();
+    let z = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_sort_z").unwrap());
+    let a = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_sort_a").unwrap());
+    let m = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_sort_m").unwrap());
+    store.upsert_edge(EdgeKind::Calls, z, a);
+    store.upsert_edge(EdgeKind::Calls, a, m);
+    store.upsert_edge(EdgeKind::Calls, m, z);
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    assert_eq!(result.len(), 1);
+    assert_eq!(
+        result[0].members,
+        vec![
+            "src/scc.rs>scc_sort_a".to_owned(),
+            "src/scc.rs>scc_sort_m".to_owned(),
+            "src/scc.rs>scc_sort_z".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn store_scc_results_sorted_by_size_descending() {
+    let mut store = Store::new();
+    // Cycle of 3.
+    let a = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_ord_a").unwrap());
+    let b = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_ord_b").unwrap());
+    let c = store.upsert_node(TrunkPath::parse("src/scc.rs>scc_ord_c").unwrap());
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    // Singleton.
+    store.upsert_node(TrunkPath::parse("src/scc.rs>scc_ord_d").unwrap());
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    assert!(result[0].size >= result[result.len() - 1].size);
+    assert_eq!(result[0].size, 3);
+}
+
+#[test]
+fn store_scc_file_nodes_excluded() {
+    let mut store = Store::new();
+    let file = store.upsert_node(TrunkPath::parse("src/scc_file.rs").unwrap());
+    let sym = store.upsert_node(TrunkPath::parse("src/scc_file.rs>scc_file_sym").unwrap());
+    store.upsert_edge(EdgeKind::Calls, file, sym);
+    store.upsert_edge(EdgeKind::Calls, sym, file);
+    let result = store.strongly_connected_components(EdgeKind::Calls);
+    // Only the symbol node should appear; file excluded.
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].size, 1);
+    assert_eq!(
+        result[0].members,
+        vec!["src/scc_file.rs>scc_file_sym".to_owned()]
+    );
+}

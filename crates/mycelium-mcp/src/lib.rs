@@ -608,6 +608,16 @@ pub struct BetweennessCentralityRequest {
     pub top_n: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_strongly_connected_components`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct StronglyConnectedComponentsRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Minimum component size to include; defaults to 1 (all components).
+    /// Use `2` to return only non-trivial SCCs (circular dependencies).
+    pub min_size: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_k_hop_neighbors`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct KHopNeighborsRequest {
@@ -3567,6 +3577,47 @@ impl MyceliumServer {
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json }).to_string()
+    }
+
+    #[tool(
+        description = "Find strongly connected components (SCCs) in the symbol graph — groups of \
+                       symbols that mutually depend on each other (circular dependencies). Returns \
+                       { components: [{ members, size }], total_components, symbol_count, min_size }. \
+                       Set min_size=2 to show only non-trivial cycles. Uses Tarjan's O(V+E) algorithm. \
+                       Unknown edge_kind returns { error }."
+    )]
+    async fn mycelium_get_strongly_connected_components(
+        &self,
+        Parameters(req): Parameters<StronglyConnectedComponentsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let min_size = req.min_size.unwrap_or(1);
+        let store = self.store.read().await;
+        let all_sccs = store.strongly_connected_components(kind);
+        let symbol_count: usize = all_sccs.iter().map(|e| e.size).sum();
+        let total_components = all_sccs.len();
+        drop(store);
+        let components: Vec<serde_json::Value> = all_sccs
+            .into_iter()
+            .filter(|e| e.size >= min_size)
+            .map(|e| serde_json::json!({ "members": e.members, "size": e.size }))
+            .collect();
+        serde_json::json!({
+            "components": components,
+            "total_components": total_components,
+            "symbol_count": symbol_count,
+            "min_size": min_size,
+        })
+        .to_string()
     }
 }
 
@@ -7864,6 +7915,51 @@ mod tests {
                 edge_kind: "unknown".into(),
                 top_n: None,
             }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0086: mycelium_get_strongly_connected_components ─────────────
+
+    #[tokio::test]
+    async fn scc_finds_cycle_with_min_size_2() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/scc_mcp.rs>mcp_scc_a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/scc_mcp.rs>mcp_scc_b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, a);
+            // Singleton node outside the cycle.
+            store.upsert_node(TrunkPath::parse("src/scc_mcp.rs>mcp_scc_c").unwrap());
+        }
+        let raw = server
+            .mycelium_get_strongly_connected_components(Parameters(
+                StronglyConnectedComponentsRequest {
+                    edge_kind: "calls".into(),
+                    min_size: Some(2),
+                },
+            ))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["min_size"].as_u64().unwrap(), 2);
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
+        let comps = val["components"].as_array().unwrap();
+        assert_eq!(comps.len(), 1);
+        assert_eq!(comps[0]["size"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn scc_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_strongly_connected_components(Parameters(
+                StronglyConnectedComponentsRequest {
+                    edge_kind: "unknown".into(),
+                    min_size: None,
+                },
+            ))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));

@@ -294,6 +294,15 @@ pub struct BetweennessEntry {
     pub score: f64,
 }
 
+/// One strongly connected component from [`Store::strongly_connected_components`].
+#[derive(Debug, Clone)]
+pub struct SccEntry {
+    /// Materialized paths of symbol nodes in this component, sorted alphabetically.
+    pub members: Vec<String>,
+    /// Number of members; equals `members.len()`.
+    pub size: usize,
+}
+
 /// Result of [`Store::mutual_reachability`]: forward/backward BFS distances
 /// and derived reachability flags for two symbol nodes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3544,6 +3553,130 @@ impl Store {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        entries
+    }
+
+    /// Compute strongly connected components (SCCs) over symbol nodes via Tarjan's algorithm.
+    ///
+    /// Returns one [`SccEntry`] per component.  Members within each component are sorted
+    /// alphabetically.  Results are sorted descending by size, then alphabetically by first
+    /// member.  File nodes are excluded.  O(V + E).
+    ///
+    /// # Panics
+    ///
+    /// Does not panic under normal operation; the internal `unwrap` on `scc_stack.pop()` is
+    /// protected by Tarjan's invariant that the SCC stack is non-empty when popping a root.
+    #[must_use]
+    pub fn strongly_connected_components(&self, kind: EdgeKind) -> Vec<SccEntry> {
+        let symbols: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        let n = symbols.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        let idx: HashMap<NodeId, usize> =
+            symbols.iter().enumerate().map(|(i, &id)| (id, i)).collect();
+
+        // Precompute adjacency lists (symbol-to-symbol edges only) for O(V+E) total.
+        let adj: Vec<Vec<usize>> = symbols
+            .iter()
+            .map(|&nid| {
+                self.synapse
+                    .outgoing(nid, kind)
+                    .iter()
+                    .filter(|&&w| self.trunk.path_of(w).is_some_and(|p| p.contains('>')))
+                    .filter_map(|&w| idx.get(&w).copied())
+                    .collect()
+            })
+            .collect();
+
+        // Iterative Tarjan's SCC.
+        // call_stack frame = (node_index, next_neighbor_index).
+        // Nodes are initialized (index/lowlink set) when first pushed.
+        let mut index_counter = 0usize;
+        let mut scc_stack: Vec<usize> = Vec::new();
+        let mut on_stack = vec![false; n];
+        let mut index = vec![usize::MAX; n]; // MAX = unvisited
+        let mut lowlink = vec![0usize; n];
+        let mut sccs: Vec<Vec<usize>> = Vec::new();
+
+        for start in 0..n {
+            if index[start] != usize::MAX {
+                continue;
+            }
+            index[start] = index_counter;
+            lowlink[start] = index_counter;
+            index_counter += 1;
+            scc_stack.push(start);
+            on_stack[start] = true;
+            let mut call_stack: Vec<(usize, usize)> = vec![(start, 0)];
+
+            while !call_stack.is_empty() {
+                // Copy the top frame (both fields are usize — Copy).
+                let (vi, ci) = *call_stack.last().unwrap();
+                if ci < adj[vi].len() {
+                    call_stack.last_mut().unwrap().1 += 1;
+                    let wi = adj[vi][ci];
+                    if index[wi] == usize::MAX {
+                        // Tree edge — push child.
+                        index[wi] = index_counter;
+                        lowlink[wi] = index_counter;
+                        index_counter += 1;
+                        scc_stack.push(wi);
+                        on_stack[wi] = true;
+                        call_stack.push((wi, 0));
+                    } else if on_stack[wi] {
+                        // Back edge — update lowlink.
+                        if index[wi] < lowlink[vi] {
+                            lowlink[vi] = index[wi];
+                        }
+                    }
+                } else {
+                    // All neighbors of vi processed — pop.
+                    call_stack.pop();
+                    if let Some(&(parent, _)) = call_stack.last() {
+                        if lowlink[vi] < lowlink[parent] {
+                            lowlink[parent] = lowlink[vi];
+                        }
+                    }
+                    if lowlink[vi] == index[vi] {
+                        let mut component: Vec<usize> = Vec::new();
+                        loop {
+                            let w = scc_stack.pop().unwrap();
+                            on_stack[w] = false;
+                            component.push(w);
+                            if w == vi {
+                                break;
+                            }
+                        }
+                        sccs.push(component);
+                    }
+                }
+            }
+        }
+
+        let mut entries: Vec<SccEntry> = sccs
+            .into_iter()
+            .map(|component| {
+                let mut members: Vec<String> = component
+                    .into_iter()
+                    .filter_map(|i| self.trunk.path_of(symbols[i]).map(ToOwned::to_owned))
+                    .collect();
+                members.sort();
+                let size = members.len();
+                SccEntry { members, size }
+            })
+            .collect();
+
+        entries.sort_by(|a, b| {
+            b.size
+                .cmp(&a.size)
+                .then_with(|| a.members.first().cmp(&b.members.first()))
         });
         entries
     }
