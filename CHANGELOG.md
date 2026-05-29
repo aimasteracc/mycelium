@@ -156,6 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0051: `mycelium_get_symbol_count_by_kind` MCP tool — codebase composition histogram; returns `{ kinds: [{ kind, count }], total }`.
 - RFC-0052: `Store::common_callers(target_ids, kind)` — set intersection of each target's incoming-neighbour set for any EdgeKind; answers "which symbols depend on ALL of these targets?"; results sorted alphabetically.
 - RFC-0052: `mycelium_get_common_callers` MCP tool — shared-dependency detector; accepts `{ paths, edge_kind }` and returns `{ callers, count }` or `{ error }`.
+- RFC-0053: `Store::fan_out_rank(kind, limit)` — top-N symbol nodes ranked by out-degree for any EdgeKind; "orchestrator detector" identifying symbols that call/import/extend many others; zero-degree nodes excluded; sorted descending by degree, ties broken alphabetically; limit capped at 100.
+- RFC-0053: `mycelium_get_fan_out_rank` MCP tool — identifies orchestrating symbols; returns `{ symbols: [{ path, out_degree }], count }` or `{ error }` for unknown edge kind; limit defaults to 10.
 
 ### Fixed
 
