@@ -1788,3 +1788,60 @@ fn store_graph_stats_totals_consistent() {
     let edge_sum: usize = stats.edges_by_kind.values().sum();
     assert_eq!(stats.total_edges, edge_sum);
 }
+
+// ── RFC-0039: Store::cross_refs ────────────────────────────────────────
+
+#[test]
+fn store_cross_refs_empty_node() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>Foo"));
+    let refs = store.cross_refs(id);
+    assert!(refs.callers.is_empty());
+    assert!(refs.importers.is_empty());
+    assert!(refs.extended_by.is_empty());
+    assert!(refs.implemented_by.is_empty());
+}
+
+#[test]
+fn store_cross_refs_callers() {
+    let mut store = Store::new();
+    let foo = store.upsert_node(path("src/lib.rs>foo"));
+    let bar = store.upsert_node(path("src/main.rs>bar"));
+    store.upsert_edge(EdgeKind::Calls, bar, foo);
+    let refs = store.cross_refs(foo);
+    assert_eq!(refs.callers, vec!["src/main.rs>bar".to_owned()]);
+    assert!(refs.importers.is_empty());
+}
+
+#[test]
+fn store_cross_refs_mixed_edges() {
+    let mut store = Store::new();
+    let target = store.upsert_node(path("src/lib.rs>Base"));
+    let caller = store.upsert_node(path("src/a.rs>caller"));
+    let importer = store.upsert_node(path("src/b.rs>importer"));
+    let child = store.upsert_node(path("src/c.rs>Child"));
+    let impl_node = store.upsert_node(path("src/d.rs>Impl"));
+    store.upsert_edge(EdgeKind::Calls, caller, target);
+    store.upsert_edge(EdgeKind::Imports, importer, target);
+    store.upsert_edge(EdgeKind::Extends, child, target);
+    store.upsert_edge(EdgeKind::Implements, impl_node, target);
+    let refs = store.cross_refs(target);
+    assert_eq!(refs.callers, vec!["src/a.rs>caller".to_owned()]);
+    assert_eq!(refs.importers, vec!["src/b.rs>importer".to_owned()]);
+    assert_eq!(refs.extended_by, vec!["src/c.rs>Child".to_owned()]);
+    assert_eq!(refs.implemented_by, vec!["src/d.rs>Impl".to_owned()]);
+}
+
+#[test]
+fn store_cross_refs_sorted() {
+    let mut store = Store::new();
+    let target = store.upsert_node(path("lib.rs>Lib"));
+    let z = store.upsert_node(path("z.rs>z_caller"));
+    let a = store.upsert_node(path("a.rs>a_caller"));
+    store.upsert_edge(EdgeKind::Calls, z, target);
+    store.upsert_edge(EdgeKind::Calls, a, target);
+    let refs = store.cross_refs(target);
+    let mut expected = refs.callers.clone();
+    expected.sort_unstable();
+    assert_eq!(refs.callers, expected);
+}

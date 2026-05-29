@@ -49,8 +49,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{
-    CalleeNode, CallerNode, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode, ImportNode,
-    ImporterNode, SubclassNode, extractor::Extractor, store::Store,
+    CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
+    ImportNode, ImporterNode, SubclassNode, extractor::Extractor, store::Store,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -324,6 +324,13 @@ pub struct GetDeadSymbolsRequest {
 /// Input parameters for `mycelium_get_stats` (no parameters).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetStatsRequest {}
+
+/// Input parameters for `mycelium_get_cross_refs`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetCrossRefsRequest {
+    /// Symbol path to look up, e.g. `"src/lib.rs>MyClass"`.
+    pub path: String,
+}
 
 /// Input parameters for `mycelium_find_call_path`.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -1160,6 +1167,34 @@ impl MyceliumServer {
             "total_edges": stats.total_edges,
             "nodes_by_kind": stats.nodes_by_kind,
             "edges_by_kind": stats.edges_by_kind,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Return ALL incoming edge references to a symbol, grouped by edge kind: \
+                       callers (Calls), importers (Imports), extended_by (Extends), \
+                       implemented_by (Implements). This is the unified 'who references this?' \
+                       primitive for impact analysis. All lists are sorted lexicographically. \
+                       Empty lists are included. Unknown path returns { error }."
+    )]
+    async fn mycelium_get_cross_refs(
+        &self,
+        Parameters(req): Parameters<GetCrossRefsRequest>,
+    ) -> String {
+        let refs_opt: Option<CrossRefs> = {
+            let store = self.store.read().await;
+            store.lookup(&req.path).map(|id| store.cross_refs(id))
+        };
+        let Some(refs) = refs_opt else {
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        serde_json::json!({
+            "callers": refs.callers,
+            "importers": refs.importers,
+            "extended_by": refs.extended_by,
+            "implemented_by": refs.implemented_by,
         })
         .to_string()
     }
@@ -4007,6 +4042,66 @@ mod tests {
         assert_eq!(val["edges_by_kind"]["calls"].as_u64().unwrap(), 1);
         assert_eq!(val["edges_by_kind"]["imports"].as_u64().unwrap(), 1);
         assert!(val["edges_by_kind"].get("contains").is_none());
+    }
+
+    // ── RFC-0039: mycelium_get_cross_refs ────────────────────────────────
+
+    #[tokio::test]
+    async fn get_cross_refs_all_kinds() {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            let target = store.upsert_node(TrunkPath::parse("src/lib.rs>Base").unwrap());
+            let caller = store.upsert_node(TrunkPath::parse("src/a.rs>caller").unwrap());
+            let importer = store.upsert_node(TrunkPath::parse("src/b.rs>importer").unwrap());
+            let child = store.upsert_node(TrunkPath::parse("src/c.rs>Child").unwrap());
+            let impl_sym = store.upsert_node(TrunkPath::parse("src/d.rs>Impl").unwrap());
+            store.upsert_edge(EdgeKind::Calls, caller, target);
+            store.upsert_edge(EdgeKind::Imports, importer, target);
+            store.upsert_edge(EdgeKind::Extends, child, target);
+            store.upsert_edge(EdgeKind::Implements, impl_sym, target);
+        }
+        let raw = server
+            .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
+                path: "src/lib.rs>Base".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["callers"][0].as_str().unwrap(), "src/a.rs>caller");
+        assert_eq!(val["importers"][0].as_str().unwrap(), "src/b.rs>importer");
+        assert_eq!(val["extended_by"][0].as_str().unwrap(), "src/c.rs>Child");
+        assert_eq!(val["implemented_by"][0].as_str().unwrap(), "src/d.rs>Impl");
+    }
+
+    #[tokio::test]
+    async fn get_cross_refs_empty_lists_present() {
+        let server = MyceliumServer::new();
+        {
+            let mut store: tokio::sync::RwLockWriteGuard<'_, Store> = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/lone.rs>lone").unwrap());
+        }
+        let raw = server
+            .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
+                path: "src/lone.rs>lone".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["callers"].as_array().unwrap().len(), 0);
+        assert_eq!(val["importers"].as_array().unwrap().len(), 0);
+        assert_eq!(val["extended_by"].as_array().unwrap().len(), 0);
+        assert_eq!(val["implemented_by"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_cross_refs_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
+                path: "no/such>path".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
