@@ -1335,6 +1335,90 @@ impl Store {
         groups
     }
 
+    /// Kahn's BFS topological dependency layering for symbol nodes.
+    ///
+    /// Layer 0 = utility/leaf symbols (zero outgoing edges for `kind` within
+    /// the symbol-only subgraph). Layer k+1 = symbols all of whose outgoing
+    /// symbol neighbours are in layers 0..=k. Symbols in cycles are excluded.
+    ///
+    /// Paths within each layer sorted ascending. Empty layers omitted.
+    /// Returns an empty `Vec` if there are no symbol nodes.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic in practice; the subtraction of `out_remaining` is
+    /// guarded by the invariant that each edge is processed exactly once.
+    #[must_use]
+    pub fn dependency_layers(&self, kind: EdgeKind) -> Vec<Vec<String>> {
+        // Collect symbol NodeIds only (paths containing '>').
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+
+        if sym_ids.is_empty() {
+            return Vec::new();
+        }
+
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+
+        // Build `out_remaining[u]` = count of outgoing symbol-subgraph neighbours.
+        // Build `incoming_sym[v]` = callers of v within the symbol subgraph.
+        let mut out_remaining: HashMap<NodeId, usize> = HashMap::new();
+        let mut incoming_sym: HashMap<NodeId, Vec<NodeId>> = HashMap::new();
+
+        for &id in &sym_ids {
+            let sym_out: Vec<NodeId> = self
+                .synapse
+                .outgoing(id, kind)
+                .iter()
+                .copied()
+                .filter(|t| sym_set.contains(t))
+                .collect();
+            out_remaining.insert(id, sym_out.len());
+            for &target in &sym_out {
+                incoming_sym.entry(target).or_default().push(id);
+            }
+        }
+
+        // Kahn's BFS layering.
+        let mut layers: Vec<Vec<String>> = Vec::new();
+        let mut current: Vec<NodeId> = sym_ids
+            .iter()
+            .copied()
+            .filter(|id| out_remaining[id] == 0)
+            .collect();
+
+        while !current.is_empty() {
+            let mut layer_paths: Vec<String> = current
+                .iter()
+                .filter_map(|&id| self.path_of(id).map(str::to_owned))
+                .collect();
+            layer_paths.sort_unstable();
+
+            let mut next: Vec<NodeId> = Vec::new();
+            for &id in &current {
+                if let Some(callers) = incoming_sym.get(&id) {
+                    for &caller in callers {
+                        if let Some(rem) = out_remaining.get_mut(&caller) {
+                            *rem -= 1;
+                            if *rem == 0 {
+                                next.push(caller);
+                            }
+                        }
+                    }
+                }
+            }
+
+            layers.push(layer_paths);
+            current = next;
+        }
+
+        layers
+    }
+
     /// Return all incoming edge references to `id`, grouped by edge kind.
     ///
     /// Each list in the returned [`CrossRefs`] is sorted lexicographically.

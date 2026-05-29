@@ -430,6 +430,13 @@ pub struct GetSccGroupsRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_dependency_layers`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetDependencyLayersRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_get_all_symbols`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetAllSymbolsRequest {
@@ -1613,6 +1620,48 @@ impl MyceliumServer {
             "groups": groups,
             "group_count": group_count,
             "total_symbols": total_symbols,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Return symbol nodes grouped into Kahn BFS dependency layers for a given edge \
+                       kind. Layer 0 = utility/leaf symbols with no outgoing edges (no dependencies). \
+                       Layer k+1 = symbols all of whose direct dependencies are in layers 0..=k. \
+                       Symbols in cycles are excluded and reported in cycle_excluded_count. \
+                       Useful for understanding architectural layering and build-order dependencies. \
+                       edge_kind: 'calls', 'imports', 'extends', or 'implements'. \
+                       Returns { layers, layer_count, total_symbols, cycle_excluded_count } or { error }."
+    )]
+    async fn mycelium_get_dependency_layers(
+        &self,
+        Parameters(req): Parameters<GetDependencyLayersRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let (layers, all_symbol_count) = {
+            let store = self.store.read().await;
+            let layers = store.dependency_layers(kind);
+            let all_symbol_count = store.all_symbols(None, None).len();
+            drop(store);
+            (layers, all_symbol_count)
+        };
+        let layer_count = layers.len();
+        let total_symbols: usize = layers.iter().map(Vec::len).sum();
+        let cycle_excluded_count = all_symbol_count.saturating_sub(total_symbols);
+        serde_json::json!({
+            "layers": layers,
+            "layer_count": layer_count,
+            "total_symbols": total_symbols,
+            "cycle_excluded_count": cycle_excluded_count,
         })
         .to_string()
     }
@@ -4985,6 +5034,69 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_get_scc_groups(Parameters(GetSccGroupsRequest {
+                edge_kind: "bad".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    // ── RFC-0058: mycelium_get_dependency_layers ─────────────────────────
+
+    #[tokio::test]
+    async fn get_dependency_layers_simple_chain() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let sym_a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let sym_b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            let sym_c = store.upsert_node(TrunkPath::parse("src/c.rs>c").unwrap());
+            // c → b → a
+            store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+            store.upsert_edge(EdgeKind::Calls, sym_c, sym_b);
+        }
+        let raw = server
+            .mycelium_get_dependency_layers(Parameters(GetDependencyLayersRequest {
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["layer_count"].as_u64().unwrap(), 3);
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 3);
+        assert_eq!(val["cycle_excluded_count"].as_u64().unwrap(), 0);
+        let layers = val["layers"].as_array().unwrap();
+        assert_eq!(
+            layers[0].as_array().unwrap()[0].as_str().unwrap(),
+            "src/a.rs>a"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_dependency_layers_cycle_excluded() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let sym_a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let sym_b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            // cycle: a ↔ b
+            store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+            store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+        }
+        let raw = server
+            .mycelium_get_dependency_layers(Parameters(GetDependencyLayersRequest {
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["layer_count"].as_u64().unwrap(), 0);
+        assert_eq!(val["cycle_excluded_count"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_dependency_layers_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_dependency_layers(Parameters(GetDependencyLayersRequest {
                 edge_kind: "bad".to_owned(),
             }))
             .await;
