@@ -1353,6 +1353,31 @@ impl Store {
         result
     }
 
+    /// Return all sibling paths — direct children of the same parent container,
+    /// excluding `id` itself.  Root nodes (no `>` in path) return empty `Vec`.
+    /// Results sorted lexicographically.
+    #[must_use]
+    pub fn siblings(&self, id: NodeId) -> Vec<String> {
+        let Some(path) = self.path_of(id) else {
+            return Vec::new();
+        };
+        let Some(idx) = path.rfind('>') else {
+            return Vec::new();
+        };
+        let parent_path = &path[..idx];
+        let prefix = format!("{parent_path}>");
+        let mut result: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.starts_with(prefix.as_str()))
+            .filter(|p| !p[prefix.len()..].contains('>'))
+            .filter(|p| *p != path)
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {

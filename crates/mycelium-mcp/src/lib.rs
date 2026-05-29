@@ -371,6 +371,13 @@ pub struct GetReachableToRequest {
     pub max_depth: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_siblings`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSiblingsRequest {
+    /// Symbol path whose siblings to look up, e.g. `"src/app.rs>App>render"`.
+    pub path: String,
+}
+
 /// Input parameters for `mycelium_detect_cycles`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DetectCyclesRequest {
@@ -1373,6 +1380,28 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return all sibling symbols — direct children of the same parent container, \
+                       excluding the given path itself. Useful for 'what else is in this class/file?'. \
+                       Returns { siblings: [...], count: N } or { error } for unknown path. \
+                       Root nodes (no parent) return { siblings: [], count: 0 }."
+    )]
+    async fn mycelium_get_siblings(
+        &self,
+        Parameters(req): Parameters<GetSiblingsRequest>,
+    ) -> String {
+        let siblings_opt: Option<Vec<String>> = {
+            let store = self.store.read().await;
+            store.lookup(&req.path).map(|id| store.siblings(id))
+        };
+        let Some(siblings) = siblings_opt else {
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let count = siblings.len();
+        serde_json::json!({ "siblings": siblings, "count": count }).to_string()
     }
 
     #[tool(
@@ -4743,6 +4772,83 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    // ── RFC-0045: mycelium_get_siblings ──────────────────────────────────────
+
+    #[tokio::test]
+    async fn get_siblings_class_methods() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>App>init").unwrap());
+            store.upsert_node(TrunkPath::parse("src/a.rs>App>render").unwrap());
+            store.upsert_node(TrunkPath::parse("src/a.rs>App>destroy").unwrap());
+        }
+        let raw = server
+            .mycelium_get_siblings(Parameters(GetSiblingsRequest {
+                path: "src/a.rs>App>render".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
+        let siblings: Vec<&str> = val["siblings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s.as_str().unwrap())
+            .collect();
+        assert!(siblings.contains(&"src/a.rs>App>init"));
+        assert!(siblings.contains(&"src/a.rs>App>destroy"));
+        assert!(!siblings.contains(&"src/a.rs>App>render"));
+    }
+
+    #[tokio::test]
+    async fn get_siblings_root_node_returns_empty() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs").unwrap());
+        }
+        let raw = server
+            .mycelium_get_siblings(Parameters(GetSiblingsRequest {
+                path: "src/a.rs".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert_eq!(val["siblings"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_siblings_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_siblings(Parameters(GetSiblingsRequest {
+                path: "no/such>path".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn get_siblings_excludes_grandchildren() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>App>method").unwrap());
+            store.upsert_node(TrunkPath::parse("src/a.rs>App>method>inner").unwrap());
+            store.upsert_node(TrunkPath::parse("src/a.rs>App>other").unwrap());
+        }
+        let raw = server
+            .mycelium_get_siblings(Parameters(GetSiblingsRequest {
+                path: "src/a.rs>App>method".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(val["siblings"][0].as_str().unwrap(), "src/a.rs>App>other");
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
