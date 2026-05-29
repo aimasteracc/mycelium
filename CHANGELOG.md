@@ -136,6 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0042: `mycelium_get_all_symbols` MCP tool — enumerates every indexed symbol across all kinds; accepts optional `path_prefix` and `kind` parameters; returns `{ symbols, count }` or `{ error }` for an unknown kind string.
 - RFC-0043: `Store::reachable_from(id, kind, max_depth)` — flat BFS reachability from a node via outgoing edges of any `EdgeKind`, depth-limited (cap 20), cycle-safe; starting node excluded; results sorted lexicographically.
 - RFC-0043: `mycelium_get_reachable` MCP tool — transitive dependency enumeration in a single call; accepts `path`, `edge_kind`, and optional `max_depth`; returns `{ reachable, count }` or `{ error }` for unknown path or edge kind.
+- RFC-0044: `Store::reachable_to(id, kind, max_depth)` — flat BFS backward reachability following incoming `EdgeKind` edges; depth-limited (cap 20), cycle-safe, starting node excluded; symmetric complement to `reachable_from`.
+- RFC-0044: `mycelium_get_reachable_to` MCP tool — impact analysis primitive answering "who transitively depends on this symbol?"; paired with `mycelium_get_reachable` provides complete forward+backward reachability.
 
 ### Fixed
 
