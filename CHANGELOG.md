@@ -160,6 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0053: `mycelium_get_fan_out_rank` MCP tool — identifies orchestrating symbols; returns `{ symbols: [{ path, out_degree }], count }` or `{ error }` for unknown edge kind; limit defaults to 10.
 - RFC-0054: `Store::fan_in_rank(kind, limit)` — top-N symbol nodes ranked by in-degree for any EdgeKind; "hotspot detector" identifying symbols depended upon by many others; zero-degree nodes excluded; sorted descending by degree, ties broken alphabetically; limit capped at 100. Symmetric complement to `fan_out_rank`.
 - RFC-0054: `mycelium_get_fan_in_rank` MCP tool — identifies high-demand hotspot symbols; returns `{ symbols: [{ path, in_degree }], count }` or `{ error }` for unknown edge kind; limit defaults to 10.
+- RFC-0055: `Store::common_callees(source_ids, kind)` — set intersection of each source's outgoing-neighbour set for any EdgeKind; answers "which symbols are called/imported by ALL of these sources?"; results sorted alphabetically. Symmetric complement to `common_callers` (RFC-0052).
+- RFC-0055: `mycelium_get_common_callees` MCP tool — shared-dependency detector (outgoing direction); accepts `{ paths, edge_kind }` and returns `{ callees, count }` or `{ error }`.
 
 ### Fixed
 
