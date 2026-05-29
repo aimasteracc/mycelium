@@ -240,6 +240,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0088: `ClosenessCentralityEntry` struct `{ path, score }` — one result entry from `closeness_centrality`.
 - RFC-0088: `Store::closeness_centrality(kind)` — Wasserman-Faust normalized BFS closeness; `CC_WF(v) = (n_reach/(n-1))^2 * (n_reach/sum_dist)`; handles disconnected graphs; file nodes excluded; sorted descending. Identifies well-connected hubs that propagate influence quickly.
 - RFC-0088: `mycelium_get_closeness_centrality` MCP tool — connection hub detector; accepts `{ edge_kind, top_n? }` and returns `{ nodes: [{path, score}], symbol_count, top_n }` or `{ error }`. Score ∈ [0, 1].
+- RFC-0090: `compact_mode: Arc<AtomicBool>` field on `MyceliumServer` — server-side flag that switches symbol-search output format; thread-safe via `AtomicBool`; defaults to `false`.
+- RFC-0090: `mycelium_set_compact_mode` MCP tool — toggle compact output; accepts `{ "enabled": true | false }` and returns `{ compact_mode, message }`.
+- RFC-0090: `mycelium_get_token_stats` MCP tool — sample-payload byte-count comparison; returns `{ sample_query, json_bytes, msgpack_bytes, ratio }` to let callers verify the Charter §2 AI token-efficiency SLA (raw MessagePack bytes vs JSON bytes).
+- RFC-0090: `mycelium_search_symbol` — when compact mode is enabled, serialises the result with `rmp_serde::to_vec_named` and returns `{ "fmt": "msgpack_hex", "data": "<hex>", "bytes": N }` instead of plain JSON, achieving significant token-count reduction for large result sets.
+- RFC-0090: `encode_msgpack_hex` private helper — encodes any `serde_json::Value` as MessagePack then hex; falls back to plain JSON on serialization error (logged via `tracing::warn`).
 
 ### Fixed
 
