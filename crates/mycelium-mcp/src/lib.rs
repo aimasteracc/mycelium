@@ -50,8 +50,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use anyhow::Context as _;
 use mycelium_core::{
     CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
-    ImportNode, ImporterNode, NodeDegree, OutgoingRefs, SubclassNode, extractor::Extractor,
-    store::Store, types::EdgeKind,
+    ImportNode, ImporterNode, NodeDegree, OutgoingRefs, SubclassNode, SymbolNeighborhood,
+    extractor::Extractor, store::Store, types::EdgeKind,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
@@ -440,6 +440,15 @@ pub struct GetDependencyLayersRequest {
 /// Input parameters for `mycelium_get_two_hop_neighbors`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetTwoHopNeighborsRequest {
+    /// Symbol path, e.g. `"src/service.rs>Service"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
+/// Input parameters for `mycelium_get_symbol_neighborhood`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSymbolNeighborhoodRequest {
     /// Symbol path, e.g. `"src/service.rs>Service"`.
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
@@ -1707,6 +1716,50 @@ impl MyceliumServer {
         drop(store);
         let count = neighbors.len();
         serde_json::json!({ "neighbors": neighbors, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return the ego-graph of a symbol for a given edge kind: the symbol's own \
+                       path plus all direct incoming and outgoing neighbours. Combines cross_refs \
+                       (incoming) and outgoing_refs (outgoing) into a single focused call for one \
+                       edge kind. Both lists are sorted ascending. \
+                       Unknown path returns { path: '', incoming: [], outgoing: [], incoming_count: 0, outgoing_count: 0 }. \
+                       edge_kind: 'calls', 'imports', 'extends', or 'implements'. \
+                       Returns { path, incoming, outgoing, incoming_count, outgoing_count } or { error }."
+    )]
+    async fn mycelium_get_symbol_neighborhood(
+        &self,
+        Parameters(req): Parameters<GetSymbolNeighborhoodRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let nb = {
+            let store = self.store.read().await;
+            let id = store.lookup(&req.path);
+            let nb = id.map_or_else(SymbolNeighborhood::default, |id| {
+                store.symbol_neighborhood(id, kind)
+            });
+            drop(store);
+            nb
+        };
+        let incoming_count = nb.incoming.len();
+        let outgoing_count = nb.outgoing.len();
+        serde_json::json!({
+            "path": nb.path,
+            "incoming": nb.incoming,
+            "outgoing": nb.outgoing,
+            "incoming_count": incoming_count,
+            "outgoing_count": outgoing_count,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -5194,6 +5247,61 @@ mod tests {
         let server = MyceliumServer::new();
         let raw = server
             .mycelium_get_two_hop_neighbors(Parameters(GetTwoHopNeighborsRequest {
+                path: "src/a.rs>a".to_owned(),
+                edge_kind: "bad".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    // ── RFC-0060: mycelium_get_symbol_neighborhood ───────────────────────
+
+    #[tokio::test]
+    async fn get_symbol_neighborhood_basic() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let main = store.upsert_node(TrunkPath::parse("src/main.rs>main").unwrap());
+            let svc = store.upsert_node(TrunkPath::parse("src/svc.rs>svc").unwrap());
+            let util = store.upsert_node(TrunkPath::parse("src/util.rs>util").unwrap());
+            store.upsert_edge(EdgeKind::Calls, main, svc);
+            store.upsert_edge(EdgeKind::Calls, svc, util);
+        }
+        let raw = server
+            .mycelium_get_symbol_neighborhood(Parameters(GetSymbolNeighborhoodRequest {
+                path: "src/svc.rs>svc".to_owned(),
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["path"].as_str().unwrap(), "src/svc.rs>svc");
+        assert_eq!(val["incoming_count"].as_u64().unwrap(), 1);
+        assert_eq!(val["outgoing_count"].as_u64().unwrap(), 1);
+        assert_eq!(val["incoming"][0].as_str().unwrap(), "src/main.rs>main");
+        assert_eq!(val["outgoing"][0].as_str().unwrap(), "src/util.rs>util");
+    }
+
+    #[tokio::test]
+    async fn get_symbol_neighborhood_unknown_path_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_symbol_neighborhood(Parameters(GetSymbolNeighborhoodRequest {
+                path: "nonexistent.rs>x".to_owned(),
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["path"].as_str().unwrap(), "");
+        assert_eq!(val["incoming_count"].as_u64().unwrap(), 0);
+        assert_eq!(val["outgoing_count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_symbol_neighborhood_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_symbol_neighborhood(Parameters(GetSymbolNeighborhoodRequest {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "bad".to_owned(),
             }))
