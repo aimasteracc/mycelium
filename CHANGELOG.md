@@ -214,6 +214,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0078: `Store::harmonic_centrality_stats(id, kind)` — returns `(centrality, reachable_count, symbol_count)` via single BFS (O(V+E)); HC(u) = (1/(n-1))×Σ(1/d(v)); unreachable nodes contribute 0; file nodes excluded.
 - RFC-0078: `Store::harmonic_centrality(id, kind)` — harmonic centrality ∈ [0.0, 1.0]; thin wrapper over `harmonic_centrality_stats`. Near 1.0 = reaches all symbols in ~1 hop; 0.0 = isolated.
 - RFC-0078: `mycelium_get_harmonic_centrality` MCP tool — average closeness probe; accepts `{ path, edge_kind }` and returns `{ harmonic_centrality, reachable_count, symbol_count }` or `{ error }`. Complements eccentricity (RFC-0077): average vs. max distance.
+- RFC-0079: `MutualReachability` struct — `forward`, `backward`, `mutual` flags plus `forward_distance`/`backward_distance` `Option<usize>` hop counts.
+- RFC-0079: `Store::mutual_reachability(id1, id2, kind)` — bidirectional BFS reachability; two traversals O(V+E) each; `id1 == id2` short-circuits with both distances `Some(0)`; file nodes excluded.
+- RFC-0079: `mycelium_get_mutual_reachability` MCP tool — bidirectional reachability probe; accepts `{ path1, path2, edge_kind }` and returns `{ forward, backward, mutual, forward_distance, backward_distance }` or `{ error }`. Answers "are these two symbols connected, and in which direction(s)?".
 
 ### Fixed
 
