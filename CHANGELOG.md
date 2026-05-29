@@ -90,6 +90,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0026: `mycelium_get_implements` MCP tool — returns `{ implements, implemented_by }` for a path using `EdgeKind::Implements`; both lists sorted lexicographically; unknown path returns `{ error }`.
 - RFC-0027: `Store::find_import_path(from, to, max_depth)` — BFS shortest import-dependency path; returns `Some(Vec<NodeId>)` including both endpoints or `None` if unreachable; cycle-safe; `max_depth` limits hops.
 - RFC-0027: `mycelium_find_import_path` MCP tool — BFS import chain tool; request `{ from_path, to_path, max_depth? }`; returns `{ path, hops }` on success or `{ path: [], hops: null, message }` when unreachable; unknown paths return `{ error }`.
+- RFC-0028: `Store::kind_map` — per-node `NodeKind` metadata stored alongside each node; zero query-time cost.
+- RFC-0028: `Store::set_kind(id, kind)`, `Store::kind_of(id) -> Option<NodeKind>`, `Store::symbols_of_kind(kind, prefix) -> Vec<String>` — kind storage and query methods.
+- RFC-0028: `Extractor` now calls `set_kind` for every extracted node (file → `File`, functions → `Function`, classes → `Class`, methods → `Method`, etc.).
+- RFC-0028: `mycelium_get_node_kind` MCP tool — returns `{ path, kind }` where kind is the wire string or `null` if unrecorded; unknown path returns `{ error }`.
+- RFC-0028: `mycelium_get_symbols_by_kind` MCP tool — returns `{ symbols: [...] }` for all indexed symbols of a given kind; optional `path_prefix` filter; unknown kind returns `{ error }`.
 
 ### Fixed
 

@@ -40,9 +40,11 @@ use std::path::Path;
 use anyhow::Context as _;
 use serde::{Deserialize, Serialize};
 
+use hashbrown::HashMap;
+
 use crate::synapse::Synapse;
 use crate::trunk::{Trunk, TrunkPath};
-use crate::types::{EdgeKind, NodeId};
+use crate::types::{EdgeKind, NodeId, NodeKind};
 
 /// A node in the callee tree returned by [`Store::callee_tree`].
 ///
@@ -95,6 +97,8 @@ pub struct ImportNode {
 pub struct Store {
     trunk: Trunk,
     synapse: Synapse,
+    /// Per-node kind metadata, populated by the extractor.
+    kind_map: HashMap<NodeId, NodeKind>,
 }
 
 impl Store {
@@ -150,6 +154,37 @@ impl Store {
         self.trunk.upsert(path)
     }
 
+    /// Record the [`NodeKind`] for an already-upserted node.
+    ///
+    /// Overwrites any previous value for the same `id`.
+    pub fn set_kind(&mut self, id: NodeId, kind: NodeKind) {
+        self.kind_map.insert(id, kind);
+    }
+
+    /// Return the [`NodeKind`] for `id`, or `None` if not recorded.
+    #[must_use]
+    pub fn kind_of(&self, id: NodeId) -> Option<NodeKind> {
+        self.kind_map.get(&id).copied()
+    }
+
+    /// Return all materialized symbol paths whose recorded kind equals `kind`.
+    ///
+    /// If `prefix` is given, only paths starting with that string are returned.
+    /// Results are sorted lexicographically.
+    #[must_use]
+    pub fn symbols_of_kind(&self, kind: NodeKind, prefix: Option<&str>) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .kind_map
+            .iter()
+            .filter(|&(_, &k)| k == kind)
+            .filter_map(|(&id, _)| self.trunk.path_of(id))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Insert a directed edge of `kind` from `src` to `dst`.
     ///
     /// Idempotent: inserting the same edge multiple times has no effect.
@@ -165,6 +200,7 @@ impl Store {
     pub fn remove_node(&mut self, id: NodeId) {
         self.trunk.remove(id);
         self.synapse.remove_node(id);
+        self.kind_map.remove(&id);
     }
 
     /// Remove all nodes whose path is equal to or descended from
@@ -184,6 +220,7 @@ impl Store {
         for id in ids {
             self.trunk.remove(id);
             self.synapse.remove_node(id);
+            self.kind_map.remove(&id);
         }
     }
 

@@ -7,7 +7,11 @@
 
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator as _};
 
-use crate::{store::Store, trunk::TrunkPath, types::EdgeKind};
+use crate::{
+    store::Store,
+    trunk::TrunkPath,
+    types::{EdgeKind, NodeKind},
+};
 
 // ── error type ────────────────────────────────────────────────────────────────
 
@@ -103,6 +107,7 @@ impl Extractor {
             TrunkPath::parse(file_path)
                 .unwrap_or_else(|_| TrunkPath::parse("_unknown").expect("fallback path is valid")),
         );
+        store.set_kind(file_id, NodeKind::File);
 
         let names = self.query.capture_names();
 
@@ -137,11 +142,15 @@ impl Extractor {
                             && other != "definition.module"
                             && other != "definition.method" =>
                     {
+                        let suffix = other.trim_start_matches("definition.");
                         let name = name_text.unwrap_or("_unknown");
                         let path_str = format!("{file_path}>{name}");
                         if let Ok(path) = TrunkPath::parse(&path_str) {
                             let child_id = store.upsert_node(path);
                             store.upsert_edge(EdgeKind::Contains, file_id, child_id);
+                            if let Some(kind) = cap_suffix_to_kind(suffix) {
+                                store.set_kind(child_id, kind);
+                            }
                         }
                     }
                     "definition.method" => {
@@ -151,6 +160,7 @@ impl Extractor {
                         let path_str = format!("{file_path}>{chain_str}>{method_name}");
                         if let Ok(path) = TrunkPath::parse(&path_str) {
                             let method_id = store.upsert_node(path);
+                            store.set_kind(method_id, NodeKind::Method);
                             let class_path_str = format!("{file_path}>{chain_str}");
                             if let Ok(cls_path) = TrunkPath::parse(&class_path_str) {
                                 let cls_id = store.upsert_node(cls_path);
@@ -316,6 +326,26 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
         .unwrap_or("_Unknown");
     // Strip generic parameters (e.g. "Vec<T>" → "Vec").
     text.split('<').next().unwrap_or(text)
+}
+
+/// Map the suffix of a `definition.*` capture name to a [`NodeKind`].
+///
+/// Returns `None` for capture names that have no meaningful `NodeKind` mapping
+/// (e.g. `definition.module` which represents the whole file — callers should
+/// handle that case separately using `NodeKind::File`).
+fn cap_suffix_to_kind(suffix: &str) -> Option<NodeKind> {
+    match suffix {
+        "mod" | "module" => Some(NodeKind::Module),
+        "function" => Some(NodeKind::Function),
+        "class" => Some(NodeKind::Class),
+        "method" => Some(NodeKind::Method),
+        "interface" | "trait" => Some(NodeKind::Interface),
+        "type_alias" => Some(NodeKind::TypeAlias),
+        "const" | "constant" => Some(NodeKind::Constant),
+        "struct" => Some(NodeKind::Struct),
+        "enum" => Some(NodeKind::Enum),
+        other => NodeKind::try_from_wire(other),
+    }
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────

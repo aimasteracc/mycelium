@@ -28,8 +28,10 @@
 //! | `mycelium_batch_symbol_info` | Get symbol info for multiple paths in one call (max 50) |
 //! | `mycelium_get_extends` | Return direct inheritance neighbors (`extends` / `extended_by`) for a path |
 //! | `mycelium_get_implements` | Return direct interface-implementation neighbors (`implements` / `implemented_by`) for a path |
+//! | `mycelium_get_node_kind` | Return the `NodeKind` for a given path |
+//! | `mycelium_get_symbols_by_kind` | Return all symbols of a given `NodeKind`, optionally filtered by path prefix |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, and RFC-0026 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, and RFC-0028 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -173,6 +175,22 @@ pub struct FindImportPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_node_kind`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetNodeKindRequest {
+    /// Trunk path to query, e.g. `"src/auth.rs>login"`.
+    pub path: String,
+}
+
+/// Input parameters for `mycelium_get_symbols_by_kind`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSymbolsByKindRequest {
+    /// `NodeKind` wire string, e.g. `"function"`, `"class"`, `"method"`.
+    pub kind: String,
+    /// Optional path prefix to restrict results, e.g. `"src/"`.
+    pub path_prefix: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_extends`.
@@ -845,6 +863,54 @@ impl MyceliumServer {
         let json_tree = import_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json_tree }).to_string()
+    }
+
+    #[tool(
+        description = "Return the NodeKind for a given path. kind is the wire-string representation \
+                       (e.g. \"function\", \"class\", \"method\", \"file\"). Returns { path, kind } \
+                       where kind may be null if the kind was not recorded during indexing. \
+                       Unknown path returns { error }."
+    )]
+    async fn mycelium_get_node_kind(
+        &self,
+        Parameters(req): Parameters<GetNodeKindRequest>,
+    ) -> String {
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let kind_str: serde_json::Value = store_guard
+            .kind_of(id)
+            .map_or(serde_json::Value::Null, |k| {
+                serde_json::Value::String(k.as_str().to_owned())
+            });
+        drop(store_guard);
+        serde_json::json!({ "path": req.path, "kind": kind_str }).to_string()
+    }
+
+    #[tool(
+        description = "Return all indexed symbol paths whose recorded NodeKind matches kind. \
+                       kind must be a valid wire string, e.g. \"function\", \"class\", \
+                       \"method\", \"interface\", \"struct\", \"enum\", \"type_alias\", \
+                       \"constant\", \"module\", \"file\". Unknown kind returns { error }. \
+                       Optional path_prefix restricts results. Results sorted lexicographically."
+    )]
+    async fn mycelium_get_symbols_by_kind(
+        &self,
+        Parameters(req): Parameters<GetSymbolsByKindRequest>,
+    ) -> String {
+        let Some(kind) = mycelium_core::types::NodeKind::try_from_wire(&req.kind) else {
+            return serde_json::json!({ "error": format!("unknown kind: {}", req.kind) })
+                .to_string();
+        };
+        let symbols = self
+            .store
+            .read()
+            .await
+            .symbols_of_kind(kind, req.path_prefix.as_deref());
+        serde_json::json!({ "symbols": symbols }).to_string()
     }
 
     #[tool(
@@ -2804,6 +2870,114 @@ mod tests {
             .await;
         let val_deep: serde_json::Value = serde_json::from_str(&raw_deep).unwrap();
         assert_eq!(val_deep["hops"].as_u64(), Some(2));
+    }
+
+    // ── RFC-0028: mycelium_get_node_kind / mycelium_get_symbols_by_kind ──
+
+    async fn server_with_kind_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        let f1 = store.upsert_node(mycelium_core::trunk::TrunkPath::parse("src/a.rs>foo").unwrap());
+        let f2 = store.upsert_node(mycelium_core::trunk::TrunkPath::parse("src/b.rs>bar").unwrap());
+        let c1 = store.upsert_node(mycelium_core::trunk::TrunkPath::parse("src/c.rs>Baz").unwrap());
+        store.set_kind(f1, mycelium_core::types::NodeKind::Function);
+        store.set_kind(f2, mycelium_core::types::NodeKind::Function);
+        store.set_kind(c1, mycelium_core::types::NodeKind::Class);
+        drop(store);
+        server
+    }
+
+    #[tokio::test]
+    async fn get_node_kind_returns_kind_for_known_path() {
+        let server = server_with_kind_fixture().await;
+        let raw = server
+            .mycelium_get_node_kind(Parameters(GetNodeKindRequest {
+                path: "src/a.rs>foo".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert_eq!(val["kind"].as_str(), Some("function"));
+    }
+
+    #[tokio::test]
+    async fn get_node_kind_returns_null_when_kind_not_recorded() {
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        store.upsert_node(mycelium_core::trunk::TrunkPath::parse("x.rs>foo").unwrap());
+        drop(store);
+        let raw = server
+            .mycelium_get_node_kind(Parameters(GetNodeKindRequest {
+                path: "x.rs>foo".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert!(val["kind"].is_null());
+    }
+
+    #[tokio::test]
+    async fn get_node_kind_unknown_path_returns_error() {
+        let server = server_with_kind_fixture().await;
+        let raw = server
+            .mycelium_get_node_kind(Parameters(GetNodeKindRequest {
+                path: "no/such>path".to_string(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    #[tokio::test]
+    async fn get_symbols_by_kind_returns_all_matching() {
+        let server = server_with_kind_fixture().await;
+        let raw = server
+            .mycelium_get_symbols_by_kind(Parameters(GetSymbolsByKindRequest {
+                kind: "function".to_string(),
+                path_prefix: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms.len(), 2);
+        assert!(syms.iter().any(|s| s.as_str() == Some("src/a.rs>foo")));
+        assert!(syms.iter().any(|s| s.as_str() == Some("src/b.rs>bar")));
+    }
+
+    #[tokio::test]
+    async fn get_symbols_by_kind_with_prefix_filter() {
+        let server = server_with_kind_fixture().await;
+        // add one function outside src/
+        {
+            let mut store = server.store.write().await;
+            let id = store
+                .upsert_node(mycelium_core::trunk::TrunkPath::parse("tests/t.rs>test_fn").unwrap());
+            store.set_kind(id, mycelium_core::types::NodeKind::Function);
+        }
+        let raw = server
+            .mycelium_get_symbols_by_kind(Parameters(GetSymbolsByKindRequest {
+                kind: "function".to_string(),
+                path_prefix: Some("src/".to_string()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms.len(), 2, "only src/ functions");
+        assert!(syms.iter().all(|s| s.as_str().unwrap().starts_with("src/")));
+    }
+
+    #[tokio::test]
+    async fn get_symbols_by_kind_unknown_kind_returns_error() {
+        let server = server_with_kind_fixture().await;
+        let raw = server
+            .mycelium_get_symbols_by_kind(Parameters(GetSymbolsByKindRequest {
+                kind: "not_a_real_kind".to_string(),
+                path_prefix: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
