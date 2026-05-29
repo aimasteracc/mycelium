@@ -3787,3 +3787,77 @@ fn store_cycle_members_non_cycle_node_excluded() {
     assert_eq!(members, expected);
     assert!(!members.iter().any(|m: &String| m.contains("src/c.rs")));
 }
+
+// RFC-0068: weakly_connected_components
+#[test]
+fn store_wcc_two_disjoint_components() {
+    // a → b (one cluster), c → d (another)
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    let d = store.upsert_node(path("src/d.rs>d"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, c, d);
+    let comps = store.weakly_connected_components(EdgeKind::Calls);
+    assert_eq!(comps.len(), 2);
+    // Each component has 2 symbols
+    assert!(comps.iter().all(|c: &Vec<String>| c.len() == 2));
+}
+
+#[test]
+fn store_wcc_direction_ignored() {
+    // a → b and b → a should still be ONE component
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let _c = store.upsert_node(path("src/c.rs>c")); // isolated
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    let comps = store.weakly_connected_components(EdgeKind::Calls);
+    // a+b in one component, c in another
+    assert_eq!(comps.len(), 2);
+    let big = comps.iter().find(|c: &&Vec<String>| c.len() == 2).unwrap();
+    assert!(big.contains(&"src/a.rs>a".to_owned()));
+    assert!(big.contains(&"src/b.rs>b".to_owned()));
+}
+
+#[test]
+fn store_wcc_single_node_own_component() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/lone.rs>lone"));
+    let comps = store.weakly_connected_components(EdgeKind::Calls);
+    assert_eq!(comps.len(), 1);
+    assert_eq!(comps[0], vec!["src/lone.rs>lone".to_owned()]);
+}
+
+#[test]
+fn store_wcc_excludes_file_nodes() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_node(path("src/a.rs")); // file node
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let comps = store.weakly_connected_components(EdgeKind::Calls);
+    for comp in &comps {
+        for sym in comp {
+            assert!(sym.contains('>'), "file node leaked: {sym}");
+        }
+    }
+}
+
+#[test]
+fn store_wcc_sorted_by_size_desc() {
+    // a → b → c (size 3), d isolated (size 1)
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_node(path("src/d.rs>d")); // isolated
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let comps = store.weakly_connected_components(EdgeKind::Calls);
+    assert_eq!(comps.len(), 2);
+    assert_eq!(comps[0].len(), 3); // largest first
+    assert_eq!(comps[1].len(), 1);
+}

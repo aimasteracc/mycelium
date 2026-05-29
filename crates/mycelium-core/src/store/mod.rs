@@ -239,6 +239,21 @@ pub struct NodeDegree {
     pub out_implements: usize,
 }
 
+fn uf_find(parent: &mut Vec<usize>, x: usize) -> usize {
+    if parent[x] != x {
+        parent[x] = uf_find(parent, parent[x]);
+    }
+    parent[x]
+}
+
+fn uf_union(parent: &mut Vec<usize>, x: usize, y: usize) {
+    let rx = uf_find(parent, x);
+    let ry = uf_find(parent, y);
+    if rx != ry {
+        parent[rx] = ry;
+    }
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -1913,6 +1928,67 @@ impl Store {
     #[must_use]
     pub fn batch_node_degree(&self, ids: &[NodeId]) -> Vec<NodeDegree> {
         ids.iter().map(|&id| self.node_degree(id)).collect()
+    }
+
+    /// Groups symbol nodes into weakly-connected components for `kind`, treating edges
+    /// as undirected.  Uses path-compressed Union-Find (O(α(V) · E)).
+    ///
+    /// Returns one `Vec<String>` per component (symbols sorted ascending).
+    /// Components sorted by size descending; ties broken by first element ascending.
+    /// File nodes excluded.
+    #[must_use]
+    pub fn weakly_connected_components(&self, kind: EdgeKind) -> Vec<Vec<String>> {
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+
+        let n = sym_ids.len();
+        if n == 0 {
+            return Vec::new();
+        }
+
+        let id_to_idx: HashMap<NodeId, usize> = sym_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, id)| (id, i))
+            .collect();
+
+        // Path-compressed Union-Find.
+        let mut parent: Vec<usize> = (0..n).collect();
+
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+        for (idx, &id) in sym_ids.iter().enumerate() {
+            for &nb in self.synapse.outgoing(id, kind) {
+                if sym_set.contains(&nb) {
+                    let nb_idx = id_to_idx[&nb];
+                    uf_union(&mut parent, idx, nb_idx);
+                }
+            }
+        }
+
+        // Flatten path compression and group by root.
+        let mut groups: HashMap<usize, Vec<String>> = HashMap::new();
+        for (idx, &id) in sym_ids.iter().enumerate() {
+            let root = uf_find(&mut parent, idx);
+            if let Some(p) = self.path_of(id) {
+                groups.entry(root).or_default().push(p.to_owned());
+            }
+        }
+
+        let mut result: Vec<Vec<String>> = groups
+            .into_values()
+            .map(|mut comp| {
+                comp.sort_unstable();
+                comp
+            })
+            .collect();
+
+        result.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then_with(|| a[0].cmp(&b[0])));
+        result
     }
 
     /// Symbol nodes that participate in at least one directed cycle for `kind`.
