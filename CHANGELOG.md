@@ -234,6 +234,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0086: `SccEntry` struct `{ members, size }` — one strongly connected component from `strongly_connected_components`.
 - RFC-0086: `Store::strongly_connected_components(kind)` — iterative Tarjan's O(V+E) algorithm; identifies groups of symbols that mutually depend on each other (circular dependencies); members sorted alphabetically; results sorted descending by size.
 - RFC-0086: `mycelium_get_strongly_connected_components` MCP tool — circular dependency detector; accepts `{ edge_kind, min_size? }` (default `min_size=1`; use `2` for non-trivial cycles only) and returns `{ components: [{members, size}], total_components, symbol_count, min_size }` or `{ error }`.
+- RFC-0087: `DegreeCentralityEntry` struct `{ path, in_degree, out_degree, in_centrality, out_centrality }` — one result entry from `degree_centrality`.
+- RFC-0087: `Store::degree_centrality(kind)` — O(V+E) in-degree and out-degree centrality; both scores normalized by `(n-1)`; sorted descending by `in_centrality`. Identifies fan-in hubs (widely-used dependencies) and fan-out hubs (wide surface area).
+- RFC-0087: `mycelium_get_degree_centrality` MCP tool — degree hub detector; accepts `{ edge_kind, top_n?, sort_by? }` (`sort_by: "in"` or `"out"`, defaults to `"in"`) and returns `{ nodes: [{path, in_degree, out_degree, in_centrality, out_centrality}], symbol_count, top_n, sort_by }` or `{ error }`.
 
 ### Fixed
 
