@@ -1464,6 +1464,28 @@ impl Store {
         entries
     }
 
+    /// Return symbol nodes (paths containing `>`) with out-degree 0 for `kind`.
+    /// Symmetric complement to `entry_points` (which uses in-degree 0 for Calls).
+    /// Results are sorted alphabetically; `limit` is capped at 100.
+    #[must_use]
+    pub fn leaf_symbols(&self, kind: EdgeKind, limit: usize) -> Vec<String> {
+        let limit = limit.min(100);
+        let mut result: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_some_and(|id| self.synapse.outgoing(id, kind).is_empty())
+            })
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result.truncate(limit);
+        result
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
