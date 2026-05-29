@@ -339,7 +339,9 @@ fn node_to_span(node: tree_sitter::Node<'_>) -> SourceSpan {
     let start = node.start_position();
     let end = node.end_position();
     SourceSpan {
-        start_line: u32::try_from(start.row).unwrap_or(u32::MAX).saturating_add(1),
+        start_line: u32::try_from(start.row)
+            .unwrap_or(u32::MAX)
+            .saturating_add(1),
         start_col: u32::try_from(start.column).unwrap_or(u32::MAX),
         end_line: u32::try_from(end.row).unwrap_or(u32::MAX).saturating_add(1),
         end_col: u32::try_from(end.column).unwrap_or(u32::MAX),

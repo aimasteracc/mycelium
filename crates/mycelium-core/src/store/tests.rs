@@ -1288,3 +1288,57 @@ fn store_span_of_unknown_id_returns_none() {
     let store = Store::new();
     assert_eq!(store.span_of(NodeId(999_999)), None);
 }
+
+// ── RFC-0030: Store::find_extends_path ───────────────────────────────
+
+#[test]
+fn store_find_extends_path_self_returns_single_element() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>A"));
+    assert_eq!(store.find_extends_path(a, a, 5), Some(vec![a]));
+}
+
+#[test]
+fn store_find_extends_path_direct_hop() {
+    let mut store = Store::new();
+    let base = store.upsert_node(path("src/base.rs>Base"));
+    let child = store.upsert_node(path("src/child.rs>Child"));
+    store.upsert_edge(EdgeKind::Extends, child, base);
+    assert_eq!(
+        store.find_extends_path(child, base, 5),
+        Some(vec![child, base])
+    );
+}
+
+#[test]
+fn store_find_extends_path_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    store.upsert_edge(EdgeKind::Extends, a, b);
+    store.upsert_edge(EdgeKind::Extends, b, c);
+    let result = store.find_extends_path(a, c, 5);
+    assert_eq!(result, Some(vec![a, b, c]));
+}
+
+#[test]
+fn store_find_extends_path_unreachable_returns_none() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    assert_eq!(store.find_extends_path(a, b, 5), None);
+}
+
+#[test]
+fn store_find_extends_path_max_depth_limits_hops() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    store.upsert_edge(EdgeKind::Extends, a, b);
+    store.upsert_edge(EdgeKind::Extends, b, c);
+    // max_depth=1 means at most 1 hop — A→B is reachable, A→C is not
+    assert!(store.find_extends_path(a, b, 1).is_some());
+    assert!(store.find_extends_path(a, c, 1).is_none());
+}

@@ -626,6 +626,45 @@ impl Store {
         None
     }
 
+    /// BFS shortest extends-chain from `from` to `to`.
+    ///
+    /// Returns `Some(path)` including both endpoints, or `None` if `to` is
+    /// unreachable within `max_depth` hops. Cycle-safe via visited set.
+    #[must_use]
+    pub fn find_extends_path(
+        &self,
+        from: NodeId,
+        to: NodeId,
+        max_depth: usize,
+    ) -> Option<Vec<NodeId>> {
+        if from == to {
+            return Some(vec![from]);
+        }
+        let mut queue: VecDeque<(NodeId, Vec<NodeId>)> = VecDeque::new();
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        queue.push_back((from, vec![from]));
+        visited.insert(from);
+        while let Some((cur, path)) = queue.pop_front() {
+            if path.len() > max_depth {
+                continue;
+            }
+            for &next in self.synapse.outgoing(cur, EdgeKind::Extends) {
+                if next == to {
+                    let mut result = path;
+                    result.push(next);
+                    return Some(result);
+                }
+                if !visited.contains(&next) && path.len() < max_depth {
+                    visited.insert(next);
+                    let mut new_path = path.clone();
+                    new_path.push(next);
+                    queue.push_back((next, new_path));
+                }
+            }
+        }
+        None
+    }
+
     /// Return the transitive callee tree rooted at `id`, up to `max_depth` hops.
     ///
     /// Cycles are broken via a visited set: a node already in the current

@@ -32,8 +32,9 @@
 //! | `mycelium_get_symbols_by_kind` | Return all symbols of a given `NodeKind`, optionally filtered by path prefix |
 //! | `mycelium_find_import_path` | Find the shortest import-dependency chain between two symbols via BFS |
 //! | `mycelium_get_source_span` | Return the source location (line/col/byte) for a given path |
+//! | `mycelium_find_extends_path` | Find the shortest extends (inheritance) chain between two symbols via BFS |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, and RFC-0029 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, and RFC-0030 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -174,6 +175,17 @@ pub struct FindImportPathRequest {
     /// Start of the import chain, e.g. `"src/main.rs"`.
     pub from_path: String,
     /// End of the import chain, e.g. `"src/db.rs"`.
+    pub to_path: String,
+    /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
+    pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_find_extends_path`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FindExtendsPathRequest {
+    /// Start of the extends chain, e.g. `"src/io.ts>ReadStream"`.
+    pub from_path: String,
+    /// End of the extends chain, e.g. `"src/base.ts>EventEmitter"`.
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
@@ -1158,6 +1170,52 @@ impl MyceliumServer {
                     "path": [],
                     "hops": serde_json::Value::Null,
                     "message": format!("no import path found within max_depth={max_depth}"),
+                })
+                .to_string()
+            },
+            |path| {
+                let hops = path.len().saturating_sub(1);
+                serde_json::json!({ "path": path, "hops": hops }).to_string()
+            },
+        )
+    }
+
+    #[tool(
+        description = "Find the shortest extends (inheritance) chain between two symbols via BFS \
+                       over Extends edges. Returns { path, hops } where path is the ordered list \
+                       of symbol paths from from_path to to_path inclusive, and hops is the number \
+                       of edges. Returns { path: [], hops: null, message } when unreachable. \
+                       Unknown paths return { error }. max_depth defaults to 8, capped at 20."
+    )]
+    async fn mycelium_find_extends_path(
+        &self,
+        Parameters(req): Parameters<FindExtendsPathRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(8).min(20);
+        let store_guard = self.store.read().await;
+        let Some(from_id) = store_guard.lookup(&req.from_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
+                .to_string();
+        };
+        let Some(to_id) = store_guard.lookup(&req.to_path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
+                .to_string();
+        };
+        let maybe_path = store_guard.find_extends_path(from_id, to_id, max_depth);
+        let path_strings: Option<Vec<String>> = maybe_path.as_ref().map(|ids| {
+            ids.iter()
+                .filter_map(|&id| store_guard.path_of(id).map(str::to_owned))
+                .collect()
+        });
+        drop(store_guard);
+        path_strings.map_or_else(
+            || {
+                serde_json::json!({
+                    "path": [],
+                    "hops": serde_json::Value::Null,
+                    "message": format!("no extends path found within max_depth={max_depth}"),
                 })
                 .to_string()
             },
@@ -3095,6 +3153,83 @@ mod tests {
             val.get("error").is_some(),
             "must return error for unknown path"
         );
+    }
+
+    // ── RFC-0030: mycelium_find_extends_path ─────────────────────────────
+
+    async fn server_with_extends_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        let base =
+            store.upsert_node(mycelium_core::trunk::TrunkPath::parse("src/base.ts>Base").unwrap());
+        let mid =
+            store.upsert_node(mycelium_core::trunk::TrunkPath::parse("src/mid.ts>Mid").unwrap());
+        let child = store
+            .upsert_node(mycelium_core::trunk::TrunkPath::parse("src/child.ts>Child").unwrap());
+        store.upsert_edge(mycelium_core::types::EdgeKind::Extends, child, mid);
+        store.upsert_edge(mycelium_core::types::EdgeKind::Extends, mid, base);
+        drop(store);
+        server
+    }
+
+    #[tokio::test]
+    async fn find_extends_path_direct() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_find_extends_path(Parameters(FindExtendsPathRequest {
+                from_path: "src/child.ts>Child".to_string(),
+                to_path: "src/mid.ts>Mid".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert_eq!(val["hops"].as_u64(), Some(1));
+    }
+
+    #[tokio::test]
+    async fn find_extends_path_transitive() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_find_extends_path(Parameters(FindExtendsPathRequest {
+                from_path: "src/child.ts>Child".to_string(),
+                to_path: "src/base.ts>Base".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert_eq!(val["hops"].as_u64(), Some(2));
+    }
+
+    #[tokio::test]
+    async fn find_extends_path_unreachable_returns_empty() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_find_extends_path(Parameters(FindExtendsPathRequest {
+                from_path: "src/base.ts>Base".to_string(),
+                to_path: "src/child.ts>Child".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none());
+        assert!(val["hops"].is_null());
+        assert!(val["path"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_extends_path_unknown_from_returns_error() {
+        let server = server_with_extends_fixture().await;
+        let raw = server
+            .mycelium_find_extends_path(Parameters(FindExtendsPathRequest {
+                from_path: "no/such>path".to_string(),
+                to_path: "src/base.ts>Base".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
