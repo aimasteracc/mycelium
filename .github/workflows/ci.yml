@@ -95,7 +95,9 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate coverage
-        run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --fail-under-lines 90
+        run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info --fail-under-lines 90 --fail-under-branches 80
+      - name: Generate coverage JSON (branch % for Codecov)
+        run: cargo llvm-cov --workspace --all-features --json --output-path coverage.json --no-run
       - name: Upload to Codecov
         uses: codecov/codecov-action@v6
         with:
