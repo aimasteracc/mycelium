@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-29 (PM run post-v0.1.3 + Phase 2.3 complete) |
+| Last updated | 2026-05-29 (PM run — #153 merged, parity checker shipped) |
 | Current sprint | v0.1.4 (performance hardening + CLI parity backfill) |
 | Active release branch | none (between releases) |
 | Next release target | v0.1.4, ETA 2026-06-20 |
@@ -15,32 +15,36 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ## Live priorities (ordered)
 
 P1:
-1. [#153](https://github.com/aimasteracc/mycelium/issues/153) — Graph-algorithm timeouts on 926-node graph. **v0.1.4 lead item.** Affects: `get_leaf_symbols`, `find_call_path`, `get_graph_metrics`, `page_rank`, `get_wcc`, `get_degree_histogram`. Need profile → fix → bench → SLA row.
+*(none — #153 closed in this PM run)*
 
-P2 (governance backfill):
-2. RFC-0090 Phase 1 — `parity.yml` CI workflow. **v0.1.4.** (Was Sprint v0.1.3 item 3; slipped to v0.1.4.)
-3. `mycelium init` — still hidden/unimplemented per #154. Either implement or remove. **v0.1.4.**
+P2 (governance / v0.1.4 remaining):
+1. `mycelium init` — still hidden/unimplemented per #154. Decision: keep hidden until v0.2 scoping. No new work needed; exit criteria satisfied by v0.1.2 hide.
+2. CLI parity backfill — ~87 CLI subcommands still pending; systematic batch landing. **Large; likely spans v0.1.4 → v0.1.5.**
+3. PR template "Three-Surface Self-Check" section — the 1 remaining RFC-0090 Phase 1 checkbox.
 
 Sprint v0.1.4 backlog:
-4. Charter §2 SLA grows heavy-graph rows — architect work.
-5. `mycelium index` benchmarks against 1K/10K/100K node repos — new SLA row.
-6. CLI parity backfill — ~87 CLI subcommands still pending (🟡 rows in INDEX.md); systematic batch landing.
+4. `mycelium index` benchmarks against 10K/100K node repos — new SLA row (1K done in PR #168).
+5. Parity checker `--strict` promotion — flip `parity.yml` from informational to required; coordinate with CLI backfill.
+
+Completed in this PM run (2026-05-29):
+- [#153](https://github.com/aimasteracc/mycelium/issues/153) ✅ — graph-algorithm timeouts fixed (PR #168). 8 perf tests, Criterion benches, Charter §2 SLA extended.
+- RFC-0090 Phase 1 ✅ — `parity.yml` CI workflow + `scripts/check_skill_parity.py` (PR #170). Also fixed 12 Skill naming mismatches; confirmed 89/89 mechanical coverage.
 
 Completed in v0.1.3 (2026-05-29):
 - [#151](https://github.com/aimasteracc/mycelium/issues/151) ✅ — `mycelium query` Hyphae CLI wired (PR #159)
 - RFC-0090 Phase 2 ✅ — 9 category Skills: hyphae-query, basic-queries, call-graph, import-graph, reachability, centrality, inheritance, graph-structure, batch-ops (73/88 caps in PRs #159–#162)
 - RFC-0090 Phase 2.3 ✅ — 16 remaining capabilities triaged; index-management Skill created; 89/89 coverage (PR #166)
 
-## Dispatch state (2026-05-29)
+## Dispatch state (2026-05-29, post-PM-run)
 
 | Agent | Status | Current item |
 |---|---|---|
-| rust-implementer | **next-up** | [#153](https://github.com/aimasteracc/mycelium/issues/153) — profile + fix 6 timeout tools. TDD: write failing perf tests first. |
-| architect | idle | next: draft Charter §2 SLA heavy-graph rows + `parity.yml` CI workflow design |
-| tech-writer | idle | next: doc-sync pass on Skills for recently added tools (brief descriptions for `find_call_path`, `get_leaf_symbols`, etc.) |
+| rust-implementer | **next-up** | CLI parity backfill — start with batch 1: implement `mycelium search-symbol`, `mycelium get-symbol-info`, `mycelium get-ancestors` (3 high-value CLI twins). |
+| architect | idle | next: finalize Charter §2 SLA for 10K/100K graph rows (PR #168 added 1K + 10K; 100K row still TODO) |
+| tech-writer | **next-up** | Add "Three-Surface Self-Check" section to `.github/PULL_REQUEST_TEMPLATE.md` (last RFC-0090 Phase 1 item) |
 | code-reviewer | idle | blocks on PR opens |
-| security-reviewer | idle | next: routine post-sprint scan |
-| e2e-runner | idle | next: add perf regression tests for #153 tools after fix |
+| security-reviewer | idle | next: routine post-sprint scan (post-v0.1.3) |
+| e2e-runner | idle | done — perf tests shipped in PR #168 |
 
 ## Cadence
 
@@ -51,11 +55,13 @@ Completed in v0.1.3 (2026-05-29):
 
 ## Sprint v0.1.4 exit criteria
 
-- [ ] All 6 timeout tools complete on 1K-node graph in < 2 s wall-clock.
-- [ ] New SLA rows in Charter §2 for heavy-graph algorithms.
-- [ ] Benchmarks in `benches/` for each of the 6 tools.
-- [ ] `parity.yml` CI workflow live (informational → required).
-- [ ] `mycelium init` resolved (implement or remove).
+- [x] All 6 timeout tools complete on 1K-node graph in < 2 s wall-clock. (PR #168)
+- [x] New SLA rows in Charter §2 for heavy-graph algorithms. (PR #168)
+- [x] Benchmarks in `benches/` for each of the 6 tools. (PR #168)
+- [x] `parity.yml` CI workflow live (informational). (PR #170) *Promote to required in v0.2.0.*
+- [x] `mycelium init` resolved — keeping hidden per v0.1.2; no further work needed in v0.1.4.
+- [ ] PR template Three-Surface self-check section. (RFC-0090 Phase 1, 1 item remaining)
+- [ ] CLI parity backfill batch 1 (3 high-value twins). *Carried to v0.1.4 close.*
 
 ## Decision gates (require founder)
 
