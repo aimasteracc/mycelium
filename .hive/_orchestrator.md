@@ -31,14 +31,39 @@ loaded with a role brief from `.hive/<role>.agent.md`.
 
 ## The Mandatory Pre-flight (every agent, every invocation)
 
+> ⚠️ **These steps are not optional. Skipping them caused the RFC-0082~0088
+> anti-pattern: autonomous loop ignoring priorities. The pre-commit hook
+> enforces some technically; the rest are enforced by memory.**
+
 Before any productive work:
 
-1. **Read** `CHARTER.md` if not already in context. Internalize the SLAs.
+1. **Read** `CHARTER.md` — internalize SLAs and the twelve commitments.
 2. **Read** your role file (`.hive/<your-role>.agent.md`).
-3. **Read** `.hive/memory/INDEX.md` — a curated map of what's in memory.
-4. **Grep** `.hive/memory/anti-patterns.jsonl` for the domain you are about to touch (e.g., "async", "tree-sitter", "salsa", "ci"). **If any hit, halt and reconsider.**
-5. **Identify** the governing RFC for the area, if any. Reference it in commits and PR descriptions.
-6. **Confirm** the branch policy: never push to `main` or `develop` directly.
+3. **Read** `.hive/memory/INDEX.md` — curated map of what's in memory.
+4. **Grep** `.hive/memory/anti-patterns.jsonl` for your domain. If a hit, **halt and reconsider**.
+5. **Read** the last 5 entries of `.hive/memory/decisions.jsonl` — know what was decided recently.
+6. **Ask yourself**: "Is what I'm about to do the **highest-priority** thing right now?" If unsure, read PM's latest standup in `.hive/audit/`. Do not default to continuing whatever you were doing before.
+7. **Identify** the governing RFC. New non-trivial work needs a new RFC **before** writing code.
+8. **Confirm** branch policy: never push to `main` or `develop` directly.
+
+### ❌ Before writing ANY implementation code
+
+The pre-commit hook will **BLOCK** commits that add `.rs` implementation without tests.
+
+```
+CORRECT order (mandatory):
+  1. Write the failing test → cargo test (must FAIL / RED)
+  2. Write minimum implementation → cargo test (must PASS / GREEN)
+  3. Refactor → cargo test --all (all green)
+  4. Update RFC acceptance criteria: [ ] → [x]
+  5. cargo fmt + clippy + test --all
+  6. git commit -s (hook verifies everything)
+
+WRONG (will trigger TDD anti-pattern):
+  ✗ Write implementation and tests at the same time
+  ✗ Write implementation first, add tests later
+  ✗ Skip RFC acceptance criteria update
+```
 
 If any step fails or is impossible, write to `.hive/audit/YYYY-MM-DD.jsonl`:
 

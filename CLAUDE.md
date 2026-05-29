@@ -43,17 +43,60 @@ If any of the above fails or is impossible, **stop and report**, do not improvis
 - ✅ **Always update `CHANGELOG.md` "Unreleased" section** when shipping a user-visible change.
 - ✅ **Always close the loop** — after acting, append to `.hive/memory/decisions.jsonl` what was decided and why.
 
-## TDD Workflow (§5.1 of Charter)
+## TDD Workflow (§5.1 of Charter) — NON-NEGOTIABLE
 
-For any code change:
+> **This was violated in RFC-0082~0088.** The pre-commit hook now enforces it.
+> Bypassing with `--no-verify` is only allowed for pure infrastructure changes
+> and requires a `decisions.jsonl` entry explaining why.
 
-1. Write or extend a failing test that captures the intent.
-2. Run the test. Confirm it fails for the right reason.
-3. Write minimum implementation to pass.
-4. Refactor with tests green.
-5. Run `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`.
-6. Run `cargo llvm-cov` locally if you changed coverage-sensitive paths.
-7. Commit. PR to `develop`.
+**Correct order — no exceptions:**
+
+```
+Step 1:  Write the failing test.
+         → cargo test <test_name>   # Must FAIL (RED)
+         → If it passes already: test is wrong. Rewrite it.
+
+Step 2:  Write the minimum implementation to make it pass.
+         → cargo test <test_name>   # Must PASS (GREEN)
+
+Step 3:  Refactor.
+         → cargo test --all         # All must still pass
+
+Step 4:  Quality gate.
+         → cargo fmt --check
+         → cargo clippy --all-targets --all-features -- -D warnings
+         → cargo test --all
+         → (if coverage paths changed) cargo llvm-cov --workspace --fail-under-lines 90
+
+Step 5:  Update RFC acceptance criteria.
+         → In the governing RFC, change [ ] to [x] for each satisfied criterion.
+         → If all criteria are done, change RFC Status to "Implemented".
+
+Step 6:  Commit with DCO sign-off.
+         → git commit -s -m "feat(<scope>): <description>"
+```
+
+**Anti-patterns to avoid (recorded in `.hive/memory/anti-patterns.jsonl`):**
+- ❌ Writing implementation and tests in the same step without confirming RED first
+- ❌ Skipping RFC acceptance criteria updates after implementing
+- ❌ Continuing the autonomous loop without checking PM's latest priority
+
+## ADR Requirement (Charter §3)
+
+**Every architecture decision needs an ADR** in `docs/adr/NNNN-name.md`.
+
+An architecture decision is any choice affecting:
+- Public API shape
+- Data structures (Trunk, Synapse, storage format)
+- Performance strategy
+- External dependencies
+- Serialization formats
+- Language pack interface
+
+Existing ADR gaps (to be filled):
+- Patricia Trie for Trunk (`docs/adr/0004-patricia-trie-trunk.md`)
+- MessagePack as wire format (`docs/adr/0005-messagepack-wire-format.md`)
+- Hyphae CSS-selector grammar style (`docs/adr/0006-hyphae-grammar.md`)
 
 ## Branch and Commit
 
