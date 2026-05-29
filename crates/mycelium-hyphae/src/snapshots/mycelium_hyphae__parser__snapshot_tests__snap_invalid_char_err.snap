@@ -1,0 +1,10 @@
+---
+source: crates/mycelium-hyphae/src/parser.rs
+assertion_line: 574
+expression: result
+---
+Err(
+    LexError(
+        0,
+    ),
+)

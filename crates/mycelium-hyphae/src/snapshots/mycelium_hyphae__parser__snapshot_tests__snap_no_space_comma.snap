@@ -1,0 +1,27 @@
+---
+source: crates/mycelium-hyphae/src/parser.rs
+assertion_line: 572
+expression: result
+---
+Ok(
+    SelectorList(
+        [
+            Simple(
+                SimpleSelector {
+                    base: Name(
+                        "a",
+                    ),
+                    pseudo_classes: [],
+                },
+            ),
+            Simple(
+                SimpleSelector {
+                    base: Name(
+                        "b",
+                    ),
+                    pseudo_classes: [],
+                },
+            ),
+        ],
+    ),
+)

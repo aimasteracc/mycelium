@@ -1,26 +1,48 @@
 //! # mycelium-hyphae
 //!
-//! Hyphae — the query language for Mycelium.
+//! Hyphae — the CSS-selector-inspired query language for Mycelium.
 //!
-//! **Status: not yet designed.** This crate is scaffolded so the
-//! workspace builds. RFC-0003 will define the grammar and semantics.
-//! Until then, the only types here are placeholders.
+//! See [RFC-0003](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0003-hyphae-query-language.md)
+//! for the full grammar specification.
 //!
-//! See [RFC-0001](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0001-trunk-and-synapse.md)
-//! for the storage layer Hyphae will sit on top of.
+//! ## Quick start
+//!
+//! ```
+//! use mycelium_hyphae::parser::parse;
+//! use mycelium_hyphae::ast::Ast;
+//!
+//! let ast = parse("#login").unwrap();
+//! if let Ast::SelectorList(selectors) = &ast {
+//!     assert_eq!(selectors.len(), 1);
+//! }
+//! ```
+//!
+//! ## Modules
+//!
+//! - [`ast`] — AST types produced by the parser.
+//! - [`lexer`] — token types and the `tokenise` function.
+//! - [`parser`] — entry point: the `parse` function.
 
 #![doc(html_root_url = "https://docs.rs/mycelium-hyphae")]
 
-/// Placeholder. The real `Query` type lands with RFC-0003.
-#[derive(Clone, Debug, Default)]
-pub struct Query {
-    _placeholder: (),
-}
+pub mod ast;
+pub mod lexer;
+pub mod parser;
 
-impl Query {
-    /// Create an empty query placeholder. Not useful yet.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
+/// Parse a Hyphae query string into an [`ast::Ast`].
+///
+/// This is a convenience re-export of [`parser::parse`].
+///
+/// # Errors
+///
+/// Returns [`parser::ParseError`] on invalid input.
+///
+/// # Examples
+///
+/// ```
+/// let ast = mycelium_hyphae::parse("#login").unwrap();
+/// # let _ = ast;
+/// ```
+pub fn parse(input: &str) -> Result<ast::Ast, parser::ParseError> {
+    parser::parse(input)
 }
