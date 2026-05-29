@@ -58,9 +58,9 @@ authored in Phase 2 PRs, one PR per category.
 | `get_entry_points` | `mycelium get-entry-points` | `mycelium_get_entry_points` | [`call-graph`](call-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 3) |
 | `get_dead_symbols` | `mycelium get-dead-symbols` | `mycelium_get_dead_symbols` | [`call-graph`](call-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 3) |
 | `get_isolated_symbols` | `mycelium get-isolated-symbols` | `mycelium_get_isolated_symbols` | [`call-graph`](call-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 3) |
-| `get_imports` | `mycelium get-imports` | `mycelium_get_imports` | [`import-graph`](import-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_import_tree` | `mycelium get-import-tree` | `mycelium_get_import_tree` | [`import-graph`](import-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_importers_tree` | `mycelium get-importers-tree` | `mycelium_get_importers_tree` | [`import-graph`](import-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_imports` | `mycelium get-imports` | `mycelium_get_imports` | [`import-graph`](import-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 4) |
+| `get_import_tree` | `mycelium get-import-tree` | `mycelium_get_import_tree` | [`import-graph`](import-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 4) |
+| `get_importers_tree` | `mycelium get-importers-tree` | `mycelium_get_importers_tree` | [`import-graph`](import-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 4) |
 | `get_shortest_path` | `mycelium get-shortest-path` | `mycelium_get_shortest_path` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `get_reachable` | `mycelium get-reachable` | `mycelium_get_reachable` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
 | `get_reachable_to` | `mycelium get-reachable-to` | `mycelium_get_reachable_to` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |

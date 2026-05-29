@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 4** (v0.1.5): all three `import-graph`
+  capabilities get CLI subcommands. `import-graph` category is now
+  3/3 ✅ Three-Surface:
+  - `mycelium get-imports <path> [--format ...]`
+  - `mycelium get-import-tree <path> [--max-depth N] [--format ...]`
+  - `mycelium get-importers-tree <path> [--max-depth N] [--format ...]`
+  Tests: 4 integration assertions in
+  `crates/mycelium-cli/tests/cli_import_graph.rs` using a 3-file
+  Python import chain. Tree envelope `{ root: { path, imports: [...] } }`
+  matches the MCP tool shape byte-for-byte.
+
 - **CLI parity backfill batch 3** (v0.1.5): all seven `call-graph`
   capabilities get CLI subcommands. `call-graph` category is now
   7/7 ✅ Three-Surface (Charter §5.13 / RFC-0090):
