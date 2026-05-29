@@ -5041,3 +5041,82 @@ fn store_k_hop_neighbors_results_are_sorted() {
     sorted.sort();
     assert_eq!(result, sorted, "results must be sorted");
 }
+
+// ── RFC-0085: betweenness_centrality ─────────────────────────────────────
+
+#[test]
+fn store_betweenness_empty_graph_returns_empty() {
+    let store = Store::new();
+    let result = store.betweenness_centrality(EdgeKind::Calls);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_betweenness_single_node_returns_empty() {
+    let mut store = Store::new();
+    store.upsert_node(TrunkPath::parse("src/bc.rs>bc_only").unwrap());
+    let result = store.betweenness_centrality(EdgeKind::Calls);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_betweenness_two_nodes_scores_zero() {
+    let mut store = Store::new();
+    let node_p = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_p").unwrap());
+    let node_q = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_q").unwrap());
+    store.upsert_edge(EdgeKind::Calls, node_p, node_q);
+    let result = store.betweenness_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 2);
+    for entry in &result {
+        assert!(
+            entry.score.abs() < 1e-9,
+            "two-node graph must have all scores 0.0"
+        );
+    }
+}
+
+#[test]
+fn store_betweenness_chain_middle_has_highest_score() {
+    let mut store = Store::new();
+    let head = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_head").unwrap());
+    let mid = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_mid").unwrap());
+    let tail = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_tail").unwrap());
+    store.upsert_edge(EdgeKind::Calls, head, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, tail);
+    let result = store.betweenness_centrality(EdgeKind::Calls);
+    assert_eq!(result.len(), 3);
+    let mid_entry = result
+        .iter()
+        .find(|e| e.path == "src/bc.rs>bc_mid")
+        .unwrap();
+    let head_entry = result
+        .iter()
+        .find(|e| e.path == "src/bc.rs>bc_head")
+        .unwrap();
+    let tail_entry = result
+        .iter()
+        .find(|e| e.path == "src/bc.rs>bc_tail")
+        .unwrap();
+    assert!(mid_entry.score > head_entry.score, "mid must outrank head");
+    assert!(mid_entry.score > tail_entry.score, "mid must outrank tail");
+}
+
+#[test]
+fn store_betweenness_scores_normalized_in_range() {
+    let mut store = Store::new();
+    let node_a = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_norm_a").unwrap());
+    let node_b = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_norm_b").unwrap());
+    let node_c = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_norm_c").unwrap());
+    let node_d = store.upsert_node(TrunkPath::parse("src/bc.rs>bc_norm_d").unwrap());
+    store.upsert_edge(EdgeKind::Calls, node_a, node_b);
+    store.upsert_edge(EdgeKind::Calls, node_b, node_c);
+    store.upsert_edge(EdgeKind::Calls, node_c, node_d);
+    let result = store.betweenness_centrality(EdgeKind::Calls);
+    for entry in &result {
+        assert!(
+            entry.score >= 0.0 && entry.score <= 1.0,
+            "score {} out of [0,1] range",
+            entry.score
+        );
+    }
+}
