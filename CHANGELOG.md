@@ -95,6 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0028: `Extractor` now calls `set_kind` for every extracted node (file → `File`, functions → `Function`, classes → `Class`, methods → `Method`, etc.).
 - RFC-0028: `mycelium_get_node_kind` MCP tool — returns `{ path, kind }` where kind is the wire string or `null` if unrecorded; unknown path returns `{ error }`.
 - RFC-0028: `mycelium_get_symbols_by_kind` MCP tool — returns `{ symbols: [...] }` for all indexed symbols of a given kind; optional `path_prefix` filter; unknown kind returns `{ error }`.
+- RFC-0029: `SourceSpan` now derives `Serialize` + `Deserialize` so it persists in the MessagePack snapshot.
+- RFC-0029: `Store::set_span(id, span)`, `Store::span_of(id) -> Option<SourceSpan>` — source location storage and retrieval.
+- RFC-0029: `Extractor` now calls `set_span` for every extracted node using tree-sitter node positions (rows converted to 1-indexed lines).
+- RFC-0029: `mycelium_get_source_span` MCP tool — returns `{ path, start_line, start_col, end_line, end_col, start_byte, end_byte }` on hit, `{ path, span: null }` when unrecorded, or `{ error }` when path is not found.
 
 ### Fixed
 
