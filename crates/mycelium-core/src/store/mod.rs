@@ -1335,6 +1335,36 @@ impl Store {
         groups
     }
 
+    /// Symbols reachable from `id` in exactly 2 outgoing steps for `kind`.
+    ///
+    /// Excludes `id` itself and all direct (1-hop) outgoing neighbours.
+    /// Includes only symbol nodes (paths containing `>`).
+    /// Results sorted ascending. Returns empty `Vec` for unknown `id` or
+    /// nodes with no outgoing edges.
+    #[must_use]
+    pub fn two_hop_neighbors(&self, id: NodeId, kind: EdgeKind) -> Vec<String> {
+        let direct: HashSet<NodeId> = self.synapse.outgoing(id, kind).iter().copied().collect();
+
+        let mut two_hop: HashSet<NodeId> = HashSet::new();
+        for &hop1 in &direct {
+            for &hop2 in self.synapse.outgoing(hop1, kind) {
+                if hop2 != id
+                    && !direct.contains(&hop2)
+                    && self.path_of(hop2).is_some_and(|p| p.contains('>'))
+                {
+                    two_hop.insert(hop2);
+                }
+            }
+        }
+
+        let mut result: Vec<String> = two_hop
+            .iter()
+            .filter_map(|&nid| self.path_of(nid).map(str::to_owned))
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Kahn's BFS topological dependency layering for symbol nodes.
     ///
     /// Layer 0 = utility/leaf symbols (zero outgoing edges for `kind` within

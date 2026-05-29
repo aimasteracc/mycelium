@@ -3134,3 +3134,71 @@ fn store_dependency_layers_empty_store() {
     let layers = store.dependency_layers(EdgeKind::Calls);
     assert!(layers.is_empty());
 }
+
+// ── RFC-0059: Store::two_hop_neighbors ────────────────────────────────────────
+
+#[test]
+fn store_two_hop_neighbors_basic() {
+    // a → b → c  (a's 2-hop neighbor is c)
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    let sym_c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_c);
+    let result = store.two_hop_neighbors(sym_a, EdgeKind::Calls);
+    assert_eq!(result, vec!["src/c.rs>c"]);
+}
+
+#[test]
+fn store_two_hop_neighbors_excludes_direct_neighbors() {
+    // a → b, a → c, b → c  (c is both 1-hop and 2-hop; should be excluded)
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    let sym_c = store.upsert_node(path("src/c.rs>c"));
+    let sym_d = store.upsert_node(path("src/d.rs>d"));
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_c);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_c); // c reachable via b
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_d); // d is 2-hop only
+    let result = store.two_hop_neighbors(sym_a, EdgeKind::Calls);
+    // c excluded (direct neighbor); d included (2-hop only)
+    assert_eq!(result, vec!["src/d.rs>d"]);
+}
+
+#[test]
+fn store_two_hop_neighbors_excludes_self() {
+    // a → b → a  (a is in its own 2-hop set but must be excluded)
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+    let result = store.two_hop_neighbors(sym_a, EdgeKind::Calls);
+    assert!(result.is_empty(), "self should be excluded: {result:?}");
+}
+
+#[test]
+fn store_two_hop_neighbors_sorted_ascending() {
+    // a → b → [z, c]  → result should be sorted [c, z]
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let sym_b = store.upsert_node(path("src/b.rs>b"));
+    let sym_z = store.upsert_node(path("src/z.rs>z"));
+    let sym_c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_z);
+    store.upsert_edge(EdgeKind::Calls, sym_b, sym_c);
+    let result = store.two_hop_neighbors(sym_a, EdgeKind::Calls);
+    assert_eq!(result[0], "src/c.rs>c");
+    assert_eq!(result[1], "src/z.rs>z");
+}
+
+#[test]
+fn store_two_hop_neighbors_no_outgoing_returns_empty() {
+    let mut store = Store::new();
+    let sym_a = store.upsert_node(path("src/a.rs>a"));
+    let result = store.two_hop_neighbors(sym_a, EdgeKind::Calls);
+    assert!(result.is_empty());
+}
