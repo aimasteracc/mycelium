@@ -3,7 +3,7 @@
 //! Each test maps to an acceptance criterion from RFC-0001 §Public API sketch
 //! or §Testing strategy.
 
-use super::Store;
+use super::{NodeDegree, Store};
 use crate::trunk::TrunkPath;
 use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
 
@@ -3650,4 +3650,60 @@ fn store_batch_reachable_from_sorted_ascending() {
     store.upsert_edge(EdgeKind::Calls, src, a);
     let result = store.batch_reachable_from(&[src], EdgeKind::Calls, 10);
     assert_eq!(result, vec!["src/a.rs>a_fn", "src/z.rs>z_fn"]);
+}
+
+// RFC-0066: batch_node_degree
+
+#[test]
+fn store_batch_node_degree_basic() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let degrees = store.batch_node_degree(&[a, b]);
+    assert_eq!(degrees.len(), 2);
+    assert_eq!(degrees[0].out_calls, 1);
+    assert_eq!(degrees[1].in_calls, 1);
+}
+
+#[test]
+fn store_batch_node_degree_preserves_order() {
+    let mut store = Store::new();
+    let z = store.upsert_node(path("src/z.rs>z"));
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let mid = store.upsert_node(path("src/m.rs>m"));
+    store.upsert_edge(EdgeKind::Calls, z, mid);
+    store.upsert_edge(EdgeKind::Calls, a, mid);
+    let degrees = store.batch_node_degree(&[z, a, mid]);
+    // z: out_calls=1; a: out_calls=1; mid: in_calls=2
+    assert_eq!(degrees[0].out_calls, 1);
+    assert_eq!(degrees[1].out_calls, 1);
+    assert_eq!(degrees[2].in_calls, 2);
+}
+
+#[test]
+fn store_batch_node_degree_empty_input() {
+    let store = Store::new();
+    let degrees = store.batch_node_degree(&[]);
+    assert!(degrees.is_empty());
+}
+
+#[test]
+fn store_batch_node_degree_multi_kind() {
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/a.rs>a"));
+    let tgt = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, src, tgt);
+    store.upsert_edge(EdgeKind::Imports, src, tgt);
+    let degrees = store.batch_node_degree(&[src]);
+    assert_eq!(degrees[0].out_calls, 1);
+    assert_eq!(degrees[0].out_imports, 1);
+}
+
+#[test]
+fn store_batch_node_degree_isolated_node_returns_zeros() {
+    let mut store = Store::new();
+    let lone = store.upsert_node(path("src/lone.rs>lone"));
+    let degrees = store.batch_node_degree(&[lone]);
+    assert_eq!(degrees[0], NodeDegree::default());
 }
