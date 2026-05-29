@@ -608,6 +608,17 @@ pub struct BetweennessCentralityRequest {
     pub top_n: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_degree_centrality`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DegreeCentralityRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// How many top entries to return; defaults to 10 if absent.
+    pub top_n: Option<usize>,
+    /// Sort order: `"in"` (default, by in-degree centrality) or `"out"` (by out-degree centrality).
+    pub sort_by: Option<String>,
+}
+
 /// Input parameters for `mycelium_get_strongly_connected_components`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct StronglyConnectedComponentsRequest {
@@ -3577,6 +3588,73 @@ impl MyceliumServer {
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
         serde_json::json!({ "root": json }).to_string()
+    }
+
+    #[tool(
+        description = "Return normalized in-degree and out-degree centrality scores for all symbol \
+                       nodes. In-degree centrality identifies widely-used dependencies (fan-in hubs); \
+                       out-degree centrality identifies symbols with a wide surface area (fan-out hubs). \
+                       Returns { nodes: [{path, in_degree, out_degree, in_centrality, out_centrality}], \
+                       symbol_count, top_n, sort_by }. sort_by: 'in' (default) or 'out'. \
+                       Unknown edge_kind or sort_by returns { error }."
+    )]
+    async fn mycelium_get_degree_centrality(
+        &self,
+        Parameters(req): Parameters<DegreeCentralityRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let sort_by = req.sort_by.as_deref().unwrap_or("in");
+        if sort_by != "in" && sort_by != "out" {
+            return serde_json::json!({ "error": format!("unknown sort_by: {sort_by}") })
+                .to_string();
+        }
+        let top_n = req.top_n.unwrap_or(10);
+        let store = self.store.read().await;
+        let mut entries = store.degree_centrality(kind);
+        let symbol_count = entries.len();
+        drop(store);
+        if sort_by == "out" {
+            entries.sort_by(|a, b| {
+                b.out_centrality
+                    .partial_cmp(&a.out_centrality)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| {
+                        b.in_centrality
+                            .partial_cmp(&a.in_centrality)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .then_with(|| a.path.cmp(&b.path))
+            });
+        }
+        let nodes: Vec<serde_json::Value> = entries
+            .into_iter()
+            .take(top_n)
+            .map(|e| {
+                serde_json::json!({
+                    "path": e.path,
+                    "in_degree": e.in_degree,
+                    "out_degree": e.out_degree,
+                    "in_centrality": e.in_centrality,
+                    "out_centrality": e.out_centrality,
+                })
+            })
+            .collect();
+        serde_json::json!({
+            "nodes": nodes,
+            "symbol_count": symbol_count,
+            "top_n": top_n,
+            "sort_by": sort_by,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -7963,6 +8041,65 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0087: mycelium_get_degree_centrality ──────────────────────────
+
+    #[tokio::test]
+    async fn degree_centrality_identifies_fan_in_hub() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/dc_mcp.rs>mcp_dc_hub").unwrap());
+            let c1 = store.upsert_node(TrunkPath::parse("src/dc_mcp.rs>mcp_dc_c1").unwrap());
+            let c2 = store.upsert_node(TrunkPath::parse("src/dc_mcp.rs>mcp_dc_c2").unwrap());
+            store.upsert_edge(EdgeKind::Calls, c1, hub);
+            store.upsert_edge(EdgeKind::Calls, c2, hub);
+        }
+        let raw = server
+            .mycelium_get_degree_centrality(Parameters(DegreeCentralityRequest {
+                edge_kind: "calls".into(),
+                top_n: Some(3),
+                sort_by: Some("in".into()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
+        assert_eq!(val["sort_by"].as_str().unwrap(), "in");
+        let nodes = val["nodes"].as_array().unwrap();
+        assert_eq!(
+            nodes[0]["path"].as_str().unwrap(),
+            "src/dc_mcp.rs>mcp_dc_hub"
+        );
+        assert_eq!(nodes[0]["in_degree"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn degree_centrality_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_degree_centrality(Parameters(DegreeCentralityRequest {
+                edge_kind: "unknown".into(),
+                top_n: None,
+                sort_by: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    #[tokio::test]
+    async fn degree_centrality_unknown_sort_by_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_degree_centrality(Parameters(DegreeCentralityRequest {
+                edge_kind: "calls".into(),
+                top_n: None,
+                sort_by: Some("bogus".into()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown sort_by"));
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────
