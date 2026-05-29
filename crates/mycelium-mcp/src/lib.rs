@@ -423,6 +423,13 @@ pub struct GetOutgoingRefsRequest {
     pub path: String,
 }
 
+/// Input parameters for `mycelium_get_scc_groups`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSccGroupsRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_get_all_symbols`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetAllSymbolsRequest {
@@ -1574,6 +1581,40 @@ impl MyceliumServer {
             .nodes_in_cycles(kind, req.path_prefix.as_deref());
         let count = nodes.len();
         serde_json::json!({ "cycle_nodes": nodes, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Tarjan's Strongly Connected Components — groups of symbol nodes that are \
+                       mutually reachable via the given edge kind (size ≥ 2). Each group is a \
+                       dependency cycle cluster. Groups sorted by size descending (largest first). \
+                       Paths within each group sorted ascending. \
+                       Complements detect_cycles (which returns individual cycle nodes). \
+                       edge_kind: 'calls', 'imports', 'extends', or 'implements'. \
+                       Returns { groups, group_count, total_symbols } or { error }."
+    )]
+    async fn mycelium_get_scc_groups(
+        &self,
+        Parameters(req): Parameters<GetSccGroupsRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let groups = self.store.read().await.scc_groups(kind);
+        let group_count = groups.len();
+        let total_symbols: usize = groups.iter().map(Vec::len).sum();
+        serde_json::json!({
+            "groups": groups,
+            "group_count": group_count,
+            "total_symbols": total_symbols,
+        })
+        .to_string()
     }
 
     #[tool(
@@ -4894,6 +4935,61 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0057: mycelium_get_scc_groups ────────────────────────────────
+
+    #[tokio::test]
+    async fn get_scc_groups_finds_cycle_group() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let sym_a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let sym_b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+            store.upsert_edge(EdgeKind::Calls, sym_b, sym_a);
+        }
+        let raw = server
+            .mycelium_get_scc_groups(Parameters(GetSccGroupsRequest {
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["group_count"].as_u64().unwrap(), 1);
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 2);
+        let group = val["groups"].as_array().unwrap()[0].as_array().unwrap();
+        assert_eq!(group.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_scc_groups_no_cycles_returns_empty() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let sym_a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let sym_b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, sym_a, sym_b);
+        }
+        let raw = server
+            .mycelium_get_scc_groups(Parameters(GetSccGroupsRequest {
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["group_count"].as_u64().unwrap(), 0);
+        assert_eq!(val["total_symbols"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_scc_groups_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_scc_groups(Parameters(GetSccGroupsRequest {
+                edge_kind: "bad".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────

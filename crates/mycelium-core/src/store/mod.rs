@@ -1221,6 +1221,120 @@ impl Store {
         result
     }
 
+    /// Tarjan's SCC — groups of symbol nodes that are mutually reachable via
+    /// `kind` edges (size ≥ 2). Sorted by group size descending, then by
+    /// first path ascending. Paths within each group sorted ascending.
+    ///
+    /// # Panics
+    ///
+    /// Does not panic in practice; internal unwraps are invariant-guarded by
+    /// the Tarjan algorithm (a node's lowlink and stack entry always exist when
+    /// the algorithm accesses them).
+    #[must_use]
+    pub fn scc_groups(&self, kind: EdgeKind) -> Vec<Vec<String>> {
+        // Collect symbol node IDs only.
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+
+        // Tarjan's iterative SCC.
+        let mut index_counter: u32 = 0;
+        let mut index: HashMap<NodeId, u32> = HashMap::new();
+        let mut lowlink: HashMap<NodeId, u32> = HashMap::new();
+        let mut on_stack: HashSet<NodeId> = HashSet::new();
+        let mut tarjan_stack: Vec<NodeId> = Vec::new();
+        let mut sccs: Vec<Vec<NodeId>> = Vec::new();
+
+        // Iterative frame: (node, neighbour_index)
+        for &start in &sym_ids {
+            if index.contains_key(&start) {
+                continue;
+            }
+            let mut call_stack: Vec<(NodeId, usize)> = vec![(start, 0)];
+            while let Some((v, i)) = call_stack.last_mut() {
+                let v = *v;
+                if *i == 0 {
+                    // First visit: assign index and push to tarjan_stack.
+                    index.insert(v, index_counter);
+                    lowlink.insert(v, index_counter);
+                    index_counter += 1;
+                    on_stack.insert(v);
+                    tarjan_stack.push(v);
+                }
+                let neighbors = self.synapse.outgoing(v, kind);
+                let mut pushed = false;
+                while *i < neighbors.len() {
+                    let w = neighbors[*i];
+                    *i += 1;
+                    // Only follow edges to symbol nodes.
+                    if !sym_ids.contains(&w) {
+                        continue;
+                    }
+                    if !index.contains_key(&w) {
+                        // Recurse into w.
+                        call_stack.push((w, 0));
+                        pushed = true;
+                        break;
+                    } else if on_stack.contains(&w) {
+                        // w is on the stack — update lowlink.
+                        let w_idx = index[&w];
+                        let v_ll = lowlink.get_mut(&v).unwrap();
+                        if w_idx < *v_ll {
+                            *v_ll = w_idx;
+                        }
+                    }
+                }
+                if pushed {
+                    continue;
+                }
+                // Pop v: propagate lowlink to parent and check SCC root.
+                call_stack.pop();
+                if let Some(&(parent, _)) = call_stack.last() {
+                    let v_ll = lowlink[&v];
+                    let p_ll = lowlink.get_mut(&parent).unwrap();
+                    if v_ll < *p_ll {
+                        *p_ll = v_ll;
+                    }
+                }
+                if lowlink[&v] == index[&v] {
+                    // v is the root of an SCC — pop from tarjan_stack.
+                    let mut scc: Vec<NodeId> = Vec::new();
+                    loop {
+                        let w = tarjan_stack.pop().unwrap();
+                        on_stack.remove(&w);
+                        scc.push(w);
+                        if w == v {
+                            break;
+                        }
+                    }
+                    if scc.len() >= 2 {
+                        sccs.push(scc);
+                    }
+                }
+            }
+        }
+
+        // Resolve NodeIds to paths and sort.
+        let mut groups: Vec<Vec<String>> = sccs
+            .into_iter()
+            .map(|scc| {
+                let mut paths: Vec<String> = scc
+                    .iter()
+                    .filter_map(|&id| self.path_of(id).map(str::to_owned))
+                    .collect();
+                paths.sort_unstable();
+                paths
+            })
+            .filter(|g| g.len() >= 2)
+            .collect();
+        // Sort: largest group first, ties by first path ascending.
+        groups.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then_with(|| a[0].cmp(&b[0])));
+        groups
+    }
+
     /// Return all incoming edge references to `id`, grouped by edge kind.
     ///
     /// Each list in the returned [`CrossRefs`] is sorted lexicographically.
