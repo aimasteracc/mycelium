@@ -333,6 +333,17 @@ pub struct GetLeafSymbolsRequest {
     pub limit: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_shortest_path`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetShortestPathRequest {
+    /// Source node path (e.g. `"src/a.rs>main"`).
+    pub from: String,
+    /// Target node path (e.g. `"src/b.rs>helper"`).
+    pub to: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_get_files`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetFilesRequest {
@@ -1596,6 +1607,49 @@ impl MyceliumServer {
         let symbols = self.store.read().await.leaf_symbols(kind, limit);
         let count = symbols.len();
         serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "BFS shortest path between two symbol nodes along edges of a given edge kind. \
+                       Returns { path: [...], length: N } if a path exists, \
+                       { path: null, length: null } if no path, \
+                       or { error } for unknown edge_kind or unrecognised from/to paths."
+    )]
+    async fn mycelium_get_shortest_path(
+        &self,
+        Parameters(req): Parameters<GetShortestPathRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        // Two lookups then shortest_path — hold read guard for the whole block.
+        #[allow(clippy::significant_drop_tightening)]
+        let path_opt: Result<Option<Vec<String>>, String> = {
+            let store = self.store.read().await;
+            let Some(from_id) = store.lookup(&req.from) else {
+                return serde_json::json!({ "error": format!("path not found: {}", req.from) })
+                    .to_string();
+            };
+            let Some(to_id) = store.lookup(&req.to) else {
+                return serde_json::json!({ "error": format!("path not found: {}", req.to) })
+                    .to_string();
+            };
+            Ok(store.shortest_path(from_id, to_id, kind))
+        };
+        path_opt.unwrap().map_or_else(
+            || serde_json::json!({ "path": null, "length": null }).to_string(),
+            |p| {
+                let length = p.len() - 1;
+                serde_json::json!({ "path": p, "length": length }).to_string()
+            },
+        )
     }
 
     #[tool(
@@ -5208,6 +5262,80 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    // ── RFC-0050: mycelium_get_shortest_path ─────────────────────────────────
+
+    #[tokio::test]
+    async fn get_shortest_path_direct_edge() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>root").unwrap());
+            store.upsert_node(TrunkPath::parse("src/b.rs>leaf").unwrap());
+            let root = store.lookup("src/a.rs>root").unwrap();
+            let leaf = store.lookup("src/b.rs>leaf").unwrap();
+            store.upsert_edge(EdgeKind::Calls, root, leaf);
+        }
+        let raw = server
+            .mycelium_get_shortest_path(Parameters(GetShortestPathRequest {
+                from: "src/a.rs>root".to_owned(),
+                to: "src/b.rs>leaf".to_owned(),
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["length"].as_u64().unwrap(), 1);
+        let path = val["path"].as_array().unwrap();
+        assert_eq!(path.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_shortest_path_no_path_returns_null() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+        }
+        let raw = server
+            .mycelium_get_shortest_path(Parameters(GetShortestPathRequest {
+                from: "src/a.rs>a".to_owned(),
+                to: "src/b.rs>b".to_owned(),
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["path"].is_null());
+        assert!(val["length"].is_null());
+    }
+
+    #[tokio::test]
+    async fn get_shortest_path_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_shortest_path(Parameters(GetShortestPathRequest {
+                from: "src/a.rs>a".to_owned(),
+                to: "src/b.rs>b".to_owned(),
+                edge_kind: "unknown".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    #[tokio::test]
+    async fn get_shortest_path_unknown_from_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_shortest_path(Parameters(GetShortestPathRequest {
+                from: "no/such.rs>sym".to_owned(),
+                to: "src/b.rs>b".to_owned(),
+                edge_kind: "calls".to_owned(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("path not found"));
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`

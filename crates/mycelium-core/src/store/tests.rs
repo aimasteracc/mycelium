@@ -2527,3 +2527,77 @@ fn store_leaf_symbols_empty_graph() {
     let store = Store::new();
     assert!(store.leaf_symbols(EdgeKind::Calls, 10).is_empty());
 }
+
+// ── RFC-0050: Store::shortest_path ───────────────────────────────────────────
+
+#[test]
+fn store_shortest_path_direct_edge() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let p = store.shortest_path(a, b, EdgeKind::Calls).unwrap();
+    assert_eq!(p, vec!["src/a.rs>a".to_owned(), "src/b.rs>b".to_owned()]);
+}
+
+#[test]
+fn store_shortest_path_multi_hop() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let p = store.shortest_path(a, c, EdgeKind::Calls).unwrap();
+    assert_eq!(
+        p,
+        vec![
+            "src/a.rs>a".to_owned(),
+            "src/b.rs>b".to_owned(),
+            "src/c.rs>c".to_owned(),
+        ]
+    );
+}
+
+#[test]
+fn store_shortest_path_same_node() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let p = store.shortest_path(a, a, EdgeKind::Calls).unwrap();
+    assert_eq!(p, vec!["src/a.rs>a".to_owned()]);
+}
+
+#[test]
+fn store_shortest_path_no_path_returns_none() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    // no edge between a and b
+    assert!(store.shortest_path(a, b, EdgeKind::Calls).is_none());
+}
+
+#[test]
+fn store_shortest_path_prefers_shorter() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    // direct: a -> c; indirect: a -> b -> c
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, a, c);
+    let p = store.shortest_path(a, c, EdgeKind::Calls).unwrap();
+    assert_eq!(p.len(), 2); // direct hop
+}
+
+#[test]
+fn store_shortest_path_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a); // cycle a<->b
+    // c is unreachable from a
+    assert!(store.shortest_path(a, c, EdgeKind::Calls).is_none());
+}
