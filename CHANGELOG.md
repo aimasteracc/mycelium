@@ -184,6 +184,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0065: `mycelium_batch_reachable_from` MCP tool — collective forward-reachability in one call; accepts `{ paths (up to 20), edge_kind, max_depth? }` and returns `{ reachable, count }` or `{ error }` for unknown edge kind; max_depth defaults to 10.
 - RFC-0066: `Store::batch_node_degree(ids)` — returns one `NodeDegree` per `NodeId` in input order; ids absent from the synapse return `NodeDegree::default()` (all counts zero). Batch version of `node_degree` (RFC-0046) eliminating N round trips when analysing a set of related symbols.
 - RFC-0066: `mycelium_batch_node_degree` MCP tool — batch degree query for up to 50 symbols in one call; accepts `{ paths }` and returns `{ degrees: [{ path, in_calls, out_calls, in_imports, out_imports, in_extends, out_extends, in_implements, out_implements }], count }` with unknown paths returning `{ path, error: "path not found" }`; results in input order.
+- RFC-0067: `Store::cycle_members(kind)` — paths of all symbol nodes participating in at least one directed cycle for a given EdgeKind; uses iterative Kosaraju's SCC algorithm (O(V+E)); file nodes excluded; results sorted ascending. Returns `[]` when no cycles exist.
+- RFC-0067: `mycelium_find_cycle_members` MCP tool — circular dependency detector; accepts `{ edge_kind }` and returns `{ members, count }` (cycle-member symbol paths, sorted) or `{ error }` for unknown edge kind. Detects circular imports, mutually-recursive functions, and inheritance cycles.
 
 ### Fixed
 
