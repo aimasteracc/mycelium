@@ -188,6 +188,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0067: `mycelium_find_cycle_members` MCP tool — circular dependency detector; accepts `{ edge_kind }` and returns `{ members, count }` (cycle-member symbol paths, sorted) or `{ error }` for unknown edge kind. Detects circular imports, mutually-recursive functions, and inheritance cycles.
 - RFC-0068: `Store::weakly_connected_components(kind)` — groups symbol nodes into weakly-connected components (WCCs) treating edges as undirected; uses path-compressed Union-Find (O(α(V)·E)); components sorted by size descending (ties by first element); file nodes excluded. Surfaces isolated clusters and self-contained subsystems.
 - RFC-0068: `mycelium_get_wcc` MCP tool — cluster detector; accepts `{ edge_kind, min_size? }` and returns `{ components, component_count, total_symbols }` or `{ error }` for unknown edge kind; `min_size` (default 1) filters singletons to focus on real clusters.
+- RFC-0069: `Store::topological_sort(kind)` — topological ordering of the symbol graph via Kahn's BFS algorithm; returns `TopologicalOrder { order, cycle_members }` where `order` places each symbol after all its `kind`-predecessors (ties broken by path ascending) and `cycle_members` lists symbols that form directed cycles; file nodes excluded.
+- RFC-0069: `mycelium_topological_sort` MCP tool — dependency order analysis; accepts `{ edge_kind }` and returns `{ order, cycle_members, ordered_count, cycle_count }` or `{ error }` for unknown edge kind. Useful for build order, initialization sequences, and layered architecture validation.
 
 ### Fixed
 
