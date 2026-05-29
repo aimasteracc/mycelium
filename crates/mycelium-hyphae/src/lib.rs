@@ -26,6 +26,7 @@
 #![doc(html_root_url = "https://docs.rs/mycelium-hyphae")]
 
 pub mod ast;
+pub mod evaluator;
 pub mod lexer;
 pub mod parser;
 

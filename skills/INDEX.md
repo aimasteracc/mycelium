@@ -8,9 +8,9 @@
 
 | Phase | State |
 |---|---|
-| Phase 0 (this PR) | Coverage matrix scaffolded. No real Skills yet. Existing 88 MCP capabilities are unmapped. |
+| Phase 0 (RFC-0090 PR) | Coverage matrix scaffolded. No real Skills yet. Existing 88 MCP capabilities are unmapped. |
 | Phase 1 (v0.1.2) | Parity-check CI + generator script land. INDEX.md becomes mechanical. |
-| Phase 2 (v0.1.3) | All 88 capabilities mapped into ~10 category Skills (seeded from external eval; see below). |
+| Phase 2 (v0.1.3, in progress) | **First real Skill landed: `hyphae-query`** (#151 PR). Authoring proceeds one category per PR. |
 | Phase 3 (v0.2.0) | Coverage invariant CI-gated on `main`. Orphans block release. |
 
 ## Proposed Skill categories for v0.2
@@ -34,11 +34,11 @@ authored in Phase 2 PRs, one PR per category.
 
 ## Coverage matrix (real)
 
-> Empty until Phase 2. CI MUST fail any PR that adds a capability without filling a row here.
+> One row per capability. CI MUST fail any PR that adds a capability without filling a row here. CI MUST fail any row whose Skill folder is missing on disk.
 
 | Capability | CLI | MCP | Covering Skill(s) | Status |
 |---|---|---|---|---|
-| _(none yet)_ | | | | |
+| `query` | `mycelium query <expr>` | `mycelium_query` | [`hyphae-query`](hyphae-query/SKILL.md) | ✅ Three-Surface, v0.1.3 (#151) |
 
 ## Orphan detection
 
