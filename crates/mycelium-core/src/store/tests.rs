@@ -2307,3 +2307,79 @@ fn store_node_degree_all_kinds() {
     assert_eq!(deg_b.in_extends, 1);
     assert_eq!(deg_b.in_implements, 1);
 }
+// ──────────────────────────────────────────────────────────────────────
+// RFC-0047: Store::top_files
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_top_files_counts_direct_children() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/big.rs"));
+    store.upsert_node(path("src/big.rs>fn1"));
+    store.upsert_node(path("src/big.rs>fn2"));
+    store.upsert_node(path("src/big.rs>fn3"));
+    store.upsert_node(path("src/small.rs"));
+    store.upsert_node(path("src/small.rs>fn1"));
+    let top = store.top_files(10);
+    assert_eq!(top[0].0, "src/big.rs");
+    assert_eq!(top[0].1, 3);
+    assert_eq!(top[1].0, "src/small.rs");
+    assert_eq!(top[1].1, 1);
+}
+
+#[test]
+fn store_top_files_excludes_symbol_nodes() {
+    let mut store = Store::new();
+    // Only file nodes (no '>') are ranked
+    store.upsert_node(path("src/a.rs>MyClass"));
+    store.upsert_node(path("src/a.rs>MyClass>method"));
+    let top = store.top_files(10);
+    // src/a.rs was never explicitly inserted as a file node, so count comes
+    // from paths starting with "src/a.rs>" where remainder has no ">"
+    // Since we only count explicit file nodes, top should be empty or
+    // count only explicit file node children.
+    // NOTE: top_files counts children of FILE NODES — nodes without '>'.
+    // Since 'src/a.rs' was never explicitly inserted, top should be empty.
+    assert!(top.is_empty());
+}
+
+#[test]
+fn store_top_files_limit_respected() {
+    let mut store = Store::new();
+    for i in 0..20u32 {
+        let file = format!("src/{i}.rs");
+        store.upsert_node(TrunkPath::parse(&file).unwrap());
+        store.upsert_node(TrunkPath::parse(&format!("{file}>fn")).unwrap());
+    }
+    let top = store.top_files(5);
+    assert_eq!(top.len(), 5);
+}
+
+#[test]
+fn store_top_files_sorted_descending_then_path() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs"));
+    store.upsert_node(path("src/a.rs>fn1"));
+    store.upsert_node(path("src/a.rs>fn2"));
+    store.upsert_node(path("src/b.rs"));
+    store.upsert_node(path("src/b.rs>fn1"));
+    store.upsert_node(path("src/b.rs>fn2"));
+    store.upsert_node(path("src/c.rs"));
+    store.upsert_node(path("src/c.rs>fn1"));
+    store.upsert_node(path("src/c.rs>fn2"));
+    store.upsert_node(path("src/c.rs>fn3"));
+    let top = store.top_files(10);
+    // c.rs has 3, a.rs and b.rs have 2 each
+    assert_eq!(top[0].0, "src/c.rs");
+    assert_eq!(top[0].1, 3);
+    // ties broken alphabetically
+    assert_eq!(top[1].0, "src/a.rs");
+    assert_eq!(top[2].0, "src/b.rs");
+}
+
+#[test]
+fn store_top_files_empty_graph() {
+    let store = Store::new();
+    let top = store.top_files(10);
+    assert!(top.is_empty());
+}

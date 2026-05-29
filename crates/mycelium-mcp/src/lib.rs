@@ -308,6 +308,13 @@ pub struct RankSymbolsRequest {
     pub limit: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_top_files`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTopFilesRequest {
+    /// Maximum results to return (default 10, capped at 100).
+    pub limit: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_files`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetFilesRequest {
@@ -1491,6 +1498,27 @@ impl MyceliumServer {
             })
             .collect();
         serde_json::json!({ "symbols": symbols }).to_string()
+    }
+
+    #[tool(
+        description = "Return top-N source files ranked by direct symbol count (god-file detector). \
+                       limit defaults to 10, capped at 100. Files with no direct symbols are excluded. \
+                       Returns { files: [{ path, symbol_count }, ...], count: N }."
+    )]
+    async fn mycelium_get_top_files(
+        &self,
+        Parameters(req): Parameters<GetTopFilesRequest>,
+    ) -> String {
+        let limit = req.limit.unwrap_or(10);
+        let entries = self.store.read().await.top_files(limit);
+        let count = entries.len();
+        let files: Vec<serde_json::Value> = entries
+            .into_iter()
+            .map(|(path, symbol_count)| {
+                serde_json::json!({ "path": path, "symbol_count": symbol_count })
+            })
+            .collect();
+        serde_json::json!({ "files": files, "count": count }).to_string()
     }
 
     #[tool(
@@ -4943,6 +4971,60 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0047: mycelium_get_top_files ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn get_top_files_ranks_by_symbol_count() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/big.rs").unwrap());
+            store.upsert_node(TrunkPath::parse("src/big.rs>fn1").unwrap());
+            store.upsert_node(TrunkPath::parse("src/big.rs>fn2").unwrap());
+            store.upsert_node(TrunkPath::parse("src/big.rs>fn3").unwrap());
+            store.upsert_node(TrunkPath::parse("src/small.rs").unwrap());
+            store.upsert_node(TrunkPath::parse("src/small.rs>fn1").unwrap());
+        }
+        let raw = server
+            .mycelium_get_top_files(Parameters(GetTopFilesRequest { limit: Some(10) }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let files = val["files"].as_array().unwrap();
+        assert_eq!(files[0]["path"].as_str().unwrap(), "src/big.rs");
+        assert_eq!(files[0]["symbol_count"].as_u64().unwrap(), 3);
+        assert_eq!(files[1]["path"].as_str().unwrap(), "src/small.rs");
+    }
+
+    #[tokio::test]
+    async fn get_top_files_empty_graph_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_top_files(Parameters(GetTopFilesRequest { limit: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert_eq!(val["files"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_top_files_default_limit() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            for i in 0..15u32 {
+                let p = format!("src/{i}.rs");
+                store.upsert_node(TrunkPath::parse(&p).unwrap());
+                store.upsert_node(TrunkPath::parse(&format!("{p}>fn")).unwrap());
+            }
+        }
+        let raw = server
+            .mycelium_get_top_files(Parameters(GetTopFilesRequest { limit: None }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // default limit is 10, so at most 10 files returned even though 15 exist
+        assert!(val["files"].as_array().unwrap().len() <= 10);
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
