@@ -1571,6 +1571,29 @@ impl Store {
         result
     }
 
+    /// Top-N symbol nodes ranked by out-degree (outgoing edge count) for `kind`.
+    /// Excludes file nodes and nodes with out-degree 0.  Sorted descending by
+    /// out-degree; ties broken alphabetically.  `limit` capped at 100.
+    #[must_use]
+    pub fn fan_out_rank(&self, kind: EdgeKind, limit: usize) -> Vec<(String, usize)> {
+        let limit = limit.min(100);
+        let mut entries: Vec<(String, usize)> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| {
+                self.trunk.lookup_path(p).map(|id| {
+                    let deg = self.synapse.outgoing(id, kind).len();
+                    (p.to_owned(), deg)
+                })
+            })
+            .filter(|(_, deg)| *deg > 0)
+            .collect();
+        entries.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        entries.truncate(limit);
+        entries
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {

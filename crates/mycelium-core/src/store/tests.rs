@@ -2722,3 +2722,76 @@ fn store_common_callers_sorted_alphabetically() {
         ]
     );
 }
+
+// ── RFC-0053: Store::fan_out_rank ────────────────────────────────────────────
+
+#[test]
+fn store_fan_out_rank_basic() {
+    let mut store = Store::new();
+    let hub = store.upsert_node(path("src/hub.rs>hub"));
+    let spoke1 = store.upsert_node(path("src/s1.rs>s1"));
+    let spoke2 = store.upsert_node(path("src/s2.rs>s2"));
+    let spoke3 = store.upsert_node(path("src/s3.rs>s3"));
+    // hub calls 3 targets; spoke1 calls 1
+    store.upsert_edge(EdgeKind::Calls, hub, spoke1);
+    store.upsert_edge(EdgeKind::Calls, hub, spoke2);
+    store.upsert_edge(EdgeKind::Calls, hub, spoke3);
+    store.upsert_edge(EdgeKind::Calls, spoke1, spoke2);
+    let ranked = store.fan_out_rank(EdgeKind::Calls, 10);
+    assert_eq!(ranked[0].0, "src/hub.rs>hub");
+    assert_eq!(ranked[0].1, 3);
+    assert_eq!(ranked[1].0, "src/s1.rs>s1");
+    assert_eq!(ranked[1].1, 1);
+}
+
+#[test]
+fn store_fan_out_rank_excludes_zero_out_degree() {
+    let mut store = Store::new();
+    let root = store.upsert_node(path("src/a.rs>caller"));
+    let leaf = store.upsert_node(path("src/b.rs>callee"));
+    store.upsert_edge(EdgeKind::Calls, root, leaf);
+    // leaf has out-degree 0; only root appears
+    let ranked = store.fan_out_rank(EdgeKind::Calls, 10);
+    assert_eq!(ranked.len(), 1);
+    assert_eq!(ranked[0].0, "src/a.rs>caller");
+}
+
+#[test]
+fn store_fan_out_rank_excludes_file_nodes() {
+    let mut store = Store::new();
+    let _file = store.upsert_node(path("src/a.rs")); // file node
+    let sym = store.upsert_node(path("src/a.rs>sym"));
+    let tgt = store.upsert_node(path("src/b.rs>tgt"));
+    store.upsert_edge(EdgeKind::Calls, sym, tgt);
+    let ranked = store.fan_out_rank(EdgeKind::Calls, 10);
+    // only sym (not the file node) should appear
+    assert_eq!(ranked.len(), 1);
+    assert_eq!(ranked[0].0, "src/a.rs>sym");
+}
+
+#[test]
+fn store_fan_out_rank_limit_respected() {
+    let mut store = Store::new();
+    let tgt = store.upsert_node(path("src/t.rs>t"));
+    for i in 0..5u8 {
+        let src = store.upsert_node(path(&format!("src/{i}.rs>fn{i}")));
+        store.upsert_edge(EdgeKind::Calls, src, tgt);
+    }
+    let ranked = store.fan_out_rank(EdgeKind::Calls, 3);
+    assert_eq!(ranked.len(), 3);
+}
+
+#[test]
+fn store_fan_out_rank_sorted_desc_then_alpha() {
+    let mut store = Store::new();
+    let ta = store.upsert_node(path("src/ta.rs>ta"));
+    let tb = store.upsert_node(path("src/tb.rs>tb"));
+    // same out-degree 1 — should be sorted alphabetically
+    let z_sym = store.upsert_node(path("src/z.rs>z_sym"));
+    let a_sym = store.upsert_node(path("src/a.rs>a_sym"));
+    store.upsert_edge(EdgeKind::Calls, z_sym, ta);
+    store.upsert_edge(EdgeKind::Calls, a_sym, tb);
+    let ranked = store.fan_out_rank(EdgeKind::Calls, 10);
+    assert_eq!(ranked[0].0, "src/a.rs>a_sym"); // ties broken alphabetically
+    assert_eq!(ranked[1].0, "src/z.rs>z_sym");
+}
