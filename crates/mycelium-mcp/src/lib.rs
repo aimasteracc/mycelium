@@ -37,8 +37,9 @@
 //! | `mycelium_get_subclasses_tree` | Return the depth-limited subclass forest for a symbol (incoming Extends edges) |
 //! | `mycelium_find_implements_path` | Find the shortest implements chain between two symbols via BFS |
 //! | `mycelium_get_implements_tree` | Return the depth-limited interface tree for a symbol (outgoing Implements edges) |
+//! | `mycelium_get_implementors_tree` | Return the depth-limited implementor forest for an interface (incoming Implements edges) |
 //!
-//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, RFC-0032, RFC-0033, and RFC-0034 for the design.
+//! See RFC-0004, RFC-0005, RFC-0006, RFC-0007, RFC-0008, RFC-0010, RFC-0011, RFC-0012, RFC-0016, RFC-0017, RFC-0018, RFC-0019, RFC-0020, RFC-0021, RFC-0022, RFC-0023, RFC-0024, RFC-0025, RFC-0026, RFC-0027, RFC-0028, RFC-0029, RFC-0030, RFC-0031, RFC-0032, RFC-0033, RFC-0034, and RFC-0035 for the design.
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -47,7 +48,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{
-    CalleeNode, CallerNode, ExtendsNode, ImplementsNode, ImportNode, SubclassNode,
+    CalleeNode, CallerNode, ExtendsNode, ImplementorNode, ImplementsNode, ImportNode, SubclassNode,
     extractor::Extractor, store::Store,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
@@ -220,6 +221,15 @@ pub struct FindExtendsPathRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetImplementsTreeRequest {
     /// Root symbol path, e.g. `"src/cls.ts>Cls"`.
+    pub path: String,
+    /// Maximum DFS depth. Defaults to 4, capped at 10.
+    pub max_depth: Option<usize>,
+}
+
+/// Input parameters for `mycelium_get_implementors_tree`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetImplementorsTreeRequest {
+    /// Root symbol path (interface), e.g. `"src/iface.ts>IFace"`.
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
@@ -1381,6 +1391,30 @@ impl MyceliumServer {
         drop(store_guard);
         serde_json::json!({ "root": json }).to_string()
     }
+
+    #[tool(
+        description = "Return the depth-limited implementor forest for an interface, following \
+                       incoming Implements edges. The result is { root: { path, implementors: \
+                       [...] } } where each node has a path and its own implementors list. \
+                       Cycles are cut as leaf nodes. max_depth defaults to 4, capped at 10. \
+                       Unknown path returns { error }."
+    )]
+    async fn mycelium_get_implementors_tree(
+        &self,
+        Parameters(req): Parameters<GetImplementorsTreeRequest>,
+    ) -> String {
+        let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let tree = store_guard.implementors_tree(id, max_depth);
+        let json = implementor_node_to_json(&tree, &store_guard);
+        drop(store_guard);
+        serde_json::json!({ "root": json }).to_string()
+    }
 }
 
 #[tool_handler]
@@ -1452,6 +1486,16 @@ fn implements_node_to_json(node: &ImplementsNode, store: &Store) -> serde_json::
         .map(|i| implements_node_to_json(i, store))
         .collect();
     serde_json::json!({ "path": path, "interfaces": interfaces })
+}
+
+fn implementor_node_to_json(node: &ImplementorNode, store: &Store) -> serde_json::Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let implementors: Vec<serde_json::Value> = node
+        .implementors
+        .iter()
+        .map(|i| implementor_node_to_json(i, store))
+        .collect();
+    serde_json::json!({ "path": path, "implementors": implementors })
 }
 
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
@@ -3639,6 +3683,57 @@ mod tests {
         let server = server_with_implements_fixture().await;
         let raw = server
             .mycelium_get_implements_tree(Parameters(GetImplementsTreeRequest {
+                path: "no/such>path".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_some());
+    }
+
+    // ── RFC-0035: mycelium_get_implementors_tree ──────────────────────────
+
+    #[tokio::test]
+    async fn get_implementors_tree_returns_implementor_chain() {
+        // Fixture: Cls→IFace→BaseIFace (Cls implements IFace, IFace implements BaseIFace)
+        // From BaseIFace perspective: BaseIFace←IFace←Cls
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_get_implementors_tree(Parameters(GetImplementorsTreeRequest {
+                path: "src/base.ts>BaseIFace".to_string(),
+                max_depth: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").expect("root key present");
+        assert_eq!(root["path"], "src/base.ts>BaseIFace");
+        let impls = root["implementors"].as_array().unwrap();
+        assert_eq!(impls.len(), 1);
+        assert_eq!(impls[0]["path"], "src/iface.ts>IFace");
+        let cls_impls = impls[0]["implementors"].as_array().unwrap();
+        assert_eq!(cls_impls.len(), 1);
+        assert_eq!(cls_impls[0]["path"], "src/cls.ts>Cls");
+    }
+
+    #[tokio::test]
+    async fn get_implementors_tree_leaf_at_max_depth_zero() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_get_implementors_tree(Parameters(GetImplementorsTreeRequest {
+                path: "src/base.ts>BaseIFace".to_string(),
+                max_depth: Some(0),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let root = val.get("root").unwrap();
+        assert!(root["implementors"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_implementors_tree_unknown_path_returns_error() {
+        let server = server_with_implements_fixture().await;
+        let raw = server
+            .mycelium_get_implementors_tree(Parameters(GetImplementorsTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
             }))

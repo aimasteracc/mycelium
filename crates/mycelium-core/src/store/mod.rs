@@ -124,6 +124,19 @@ pub struct SubclassNode {
     pub subclasses: Vec<Self>,
 }
 
+/// A node in the implementors tree returned by [`Store::implementors_tree`].
+///
+/// Represents an interface and the classes that directly implement it
+/// (recursively up to the configured `max_depth`).  Cycles are represented as
+/// leaf nodes (`implementors` is empty) rather than causing infinite recursion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImplementorNode {
+    /// The node this tree entry represents.
+    pub id: NodeId,
+    /// Implementor subtrees, one per incoming `Implements` edge, up to `max_depth`.
+    pub implementors: Vec<Self>,
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -944,6 +957,38 @@ impl Store {
             .collect();
         visited.remove(&id);
         ImplementsNode { id, interfaces }
+    }
+
+    /// Return the implementor forest rooted at `id` via incoming `Implements` edges.
+    ///
+    /// DFS over incoming `Implements` edges up to `max_depth` hops.  Cycles produce
+    /// leaf nodes (no infinite recursion).
+    #[must_use]
+    pub fn implementors_tree(&self, id: NodeId, max_depth: usize) -> ImplementorNode {
+        let mut visited = HashSet::new();
+        self.implementors_tree_inner(id, max_depth, &mut visited)
+    }
+
+    fn implementors_tree_inner(
+        &self,
+        id: NodeId,
+        depth_remaining: usize,
+        visited: &mut HashSet<NodeId>,
+    ) -> ImplementorNode {
+        if depth_remaining == 0 || !visited.insert(id) {
+            return ImplementorNode {
+                id,
+                implementors: vec![],
+            };
+        }
+        let implementors: Vec<ImplementorNode> = self
+            .synapse
+            .incoming(id, EdgeKind::Implements)
+            .iter()
+            .map(|&cls_id| self.implementors_tree_inner(cls_id, depth_remaining - 1, visited))
+            .collect();
+        visited.remove(&id);
+        ImplementorNode { id, implementors }
     }
 
     /// Return all targets of edges of `kind` outgoing from `id`.
