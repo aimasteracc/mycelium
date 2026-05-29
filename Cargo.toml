@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version       = "0.0.1"
+version       = "0.1.0"
 edition       = "2024"
 rust-version  = "1.85"
 license       = "MIT"
@@ -96,9 +96,9 @@ blake3             = "1"
 uuid               = { version = "1", features = ["v4", "serde"] }
 
 # Internal crates
-mycelium-core      = { path = "crates/mycelium-core", version = "0.0.1" }
-mycelium-hyphae    = { path = "crates/mycelium-hyphae", version = "0.0.1" }
-mycelium-pack      = { path = "crates/mycelium-pack", version = "0.0.1" }
+mycelium-core      = { path = "crates/mycelium-core", version = "0.1.0" }
+mycelium-hyphae    = { path = "crates/mycelium-hyphae", version = "0.1.0" }
+mycelium-pack      = { path = "crates/mycelium-pack", version = "0.1.0" }
 
 [profile.release]
 lto           = "fat"

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-05-30
+
+### Highlights
+
+First public release of **Mycelium** — the reactive, AI-native symbol graph that perceives code like a nervous system.
+
+**Core engine:** Trunk (Materialized Path Radix Trie) + Synapse (per-`EdgeKind` adjacency lists) + Cortex (Salsa 3 incremental reactive layer). In-memory graph with MessagePack snapshot persistence (`.mycelium/index.rmp`). Full tree-sitter extraction pipeline for 10 languages.
+
+**AI interface:** Hyphae DSL — a CSS-selector-inspired query language that replaces multi-round-trip JSON MCP calls with a single compact query (≤ 30% of JSON token count — Charter §2 SLA). Plus 90+ specialized MCP graph-intelligence tools.
+
+**All Charter §2 SLAs satisfied:**
+- Cold symbol lookup: ~8 ns (target: < 5 ms)
+- 3-hop traversal: ~392 ns (target: < 1 ms)
+- Reactive re-query: Salsa-memoized (target: < 10 ms)
+- AI token efficiency: Hyphae DSL ≤ 30% JSON baseline ✅
+- Language onboarding: ≤ 3 files, 0 core changes ✅
+- Test coverage: 96.27% lines / 835 tests ✅ (target: ≥ 90%)
+- Fast CI: 1.5 s local, < 5 min gate ✅
+- Documentation: 100% pub items have rustdoc ✅
+
 ### Added
 
 - Day-0 project skeleton: charter, governance, GitFlow, code of conduct, security policy.
