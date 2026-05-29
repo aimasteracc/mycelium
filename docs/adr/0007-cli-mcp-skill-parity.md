@@ -15,7 +15,7 @@ Mycelium addresses three audiences:
 3. The Claude-Code-class skill-bundle consumer that installs a packaged
    capability and gets agent + prompt + tool wiring in one drop.
 
-The project has been built MCP-first: 90+ MCP tools, 8 CLI subcommands,
+The project has been built MCP-first: 88 MCP tools, 8 CLI subcommands,
 0 Skills. The asymmetry has three concrete costs:
 
 1. **Discoverability**: a terminal user cannot see what the AI can do.
@@ -65,7 +65,7 @@ There is no Skill-only exception.
 
 ## Alternatives rejected
 
-- **Strict 1:1:1 (one Skill per capability).** Would produce 90+
+- **Strict 1:1:1 (one Skill per capability).** Would produce 88+
   near-duplicate Skills for the existing MCP surface; agents would have
   cognitive overhead picking the right Skill; the per-Skill maintenance
   cost does not amortize. Rejected in favor of category-shaped Skills.
@@ -101,6 +101,6 @@ There is no Skill-only exception.
 - v0.1.0 + v0.1.1 ship in a non-compliant state. v0.1.x is the
   backfill window; v0.2.0 is the first release that ships compliant
   end-to-end.
-- A well-organized Skill set will likely cover all 90+ capabilities
+- A well-organized Skill set will likely cover all 88 capabilities
   with 10–15 Skills, not 90. This is a design constraint on Skill
   grouping, not a regression.
