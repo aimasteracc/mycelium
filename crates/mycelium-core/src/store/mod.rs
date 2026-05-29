@@ -3226,4 +3226,31 @@ impl Store {
             backward_distance,
         }
     }
+
+    /// Returns all symbol paths transitively reachable from `id` via `kind`
+    /// edges, sorted alphabetically.  `id` itself is not included.
+    /// File nodes are excluded from traversal and results.  O(V + E).
+    #[must_use]
+    pub fn reachable_set(&self, id: NodeId, kind: EdgeKind) -> Vec<String> {
+        let is_file =
+            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| !p.contains('>')) };
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        visited.insert(id);
+        let mut queue: VecDeque<NodeId> = VecDeque::new();
+        queue.push_back(id);
+        while let Some(node) = queue.pop_front() {
+            for &neighbor in self.synapse.outgoing(node, kind) {
+                if !is_file(neighbor) && visited.insert(neighbor) {
+                    queue.push_back(neighbor);
+                }
+            }
+        }
+        visited.remove(&id);
+        let mut paths: Vec<String> = visited
+            .into_iter()
+            .filter_map(|nid| self.trunk.path_of(nid).map(str::to_owned))
+            .collect();
+        paths.sort();
+        paths
+    }
 }
