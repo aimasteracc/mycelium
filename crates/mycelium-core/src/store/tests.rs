@@ -4103,3 +4103,79 @@ fn store_bridge_edges_sorted_canonical() {
     };
     assert_eq!(bridges, sorted, "bridges not sorted");
 }
+
+// ── RFC-0072: biconnected_components ─────────────────────────────────
+
+#[test]
+fn store_bcc_triangle_is_one_component() {
+    // a — b — c — a: one BCC of 3 nodes
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let comps = store.biconnected_components(EdgeKind::Calls);
+    assert_eq!(comps.len(), 1);
+    assert_eq!(comps[0].len(), 3);
+}
+
+#[test]
+fn store_bcc_bridge_produces_two_node_component() {
+    // a — b: bridge edge; BCC = {a, b}
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let comps = store.biconnected_components(EdgeKind::Calls);
+    assert_eq!(comps.len(), 1);
+    assert_eq!(comps[0].len(), 2);
+    assert!(comps[0].contains(&"src/a.rs>a".to_owned()));
+    assert!(comps[0].contains(&"src/b.rs>b".to_owned()));
+}
+
+#[test]
+fn store_bcc_singleton_excluded() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs>a")); // isolated
+    let comps = store.biconnected_components(EdgeKind::Calls);
+    assert!(comps.is_empty());
+}
+
+#[test]
+fn store_bcc_excludes_file_nodes() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_node(path("src/a.rs")); // file node
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let comps = store.biconnected_components(EdgeKind::Calls);
+    for comp in &comps {
+        for p in comp {
+            let p: &String = p;
+            assert!(p.contains('>'), "file node leaked: {p}");
+        }
+    }
+}
+
+#[test]
+fn store_bcc_bowtie_two_components() {
+    // Two triangles sharing vertex hub: left-hub-right1-left and hub-far1-far2-hub
+    // hub is an articulation point; the bowtie has two BCCs of 3 nodes each
+    let mut store = Store::new();
+    let left = store.upsert_node(path("src/left.rs>left"));
+    let hub = store.upsert_node(path("src/hub.rs>hub"));
+    let right1 = store.upsert_node(path("src/right1.rs>right1"));
+    let far1 = store.upsert_node(path("src/far1.rs>far1"));
+    let far2 = store.upsert_node(path("src/far2.rs>far2"));
+    store.upsert_edge(EdgeKind::Calls, left, hub);
+    store.upsert_edge(EdgeKind::Calls, hub, right1);
+    store.upsert_edge(EdgeKind::Calls, right1, left);
+    store.upsert_edge(EdgeKind::Calls, hub, far1);
+    store.upsert_edge(EdgeKind::Calls, far1, far2);
+    store.upsert_edge(EdgeKind::Calls, far2, hub);
+    let comps = store.biconnected_components(EdgeKind::Calls);
+    assert_eq!(comps.len(), 2);
+    assert!(comps.iter().all(|c| c.len() == 3));
+}

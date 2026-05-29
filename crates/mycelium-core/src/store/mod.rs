@@ -267,6 +267,29 @@ fn uf_union(parent: &mut Vec<usize>, x: usize, y: usize) {
     }
 }
 
+/// Pop edges from `edge_stack` until (and including) the canonical edge
+/// `(min(pu,u), max(pu,u))`, collect the node indices into a set, and push
+/// the set into `raw_comps` if it contains ≥ 2 distinct nodes.
+fn bcc_pop_component(
+    pu: usize,
+    u: usize,
+    edge_stack: &mut Vec<(usize, usize)>,
+    raw_comps: &mut Vec<Vec<usize>>,
+) {
+    let target = if pu < u { (pu, u) } else { (u, pu) };
+    let mut comp_nodes: std::collections::HashSet<usize> = std::collections::HashSet::new();
+    while let Some(e) = edge_stack.pop() {
+        comp_nodes.insert(e.0);
+        comp_nodes.insert(e.1);
+        if e == target {
+            break;
+        }
+    }
+    if comp_nodes.len() >= 2 {
+        raw_comps.push(comp_nodes.into_iter().collect());
+    }
+}
+
 /// The unified storage surface for a single codebase graph.
 ///
 /// Coordinates [`Trunk`] (containment tree) and [`Synapse`] (cross-cutting
@@ -2178,6 +2201,119 @@ impl Store {
             })
             .collect();
         result.sort_unstable();
+        result
+    }
+
+    /// Biconnected components of the undirected symbol graph for `kind`.
+    ///
+    /// A biconnected component (BCC) is a maximal subgraph with no
+    /// articulation point: removing any single vertex leaves it connected.
+    /// Uses Tarjan's iterative BCC detection via an edge stack, O(V+E).
+    /// Edges treated as undirected; file nodes excluded; singletons excluded.
+    ///
+    /// Returns groups of symbol node paths, sorted ascending within each group.
+    /// Groups sorted by size descending, ties broken by first element ascending.
+    #[must_use]
+    pub fn biconnected_components(&self, kind: EdgeKind) -> Vec<Vec<String>> {
+        let sym_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        let n = sym_ids.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        let id_to_idx: HashMap<NodeId, usize> = sym_ids
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, id)| (id, i))
+            .collect();
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
+
+        let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
+        for (idx, &id) in sym_ids.iter().enumerate() {
+            for &nb in self.synapse.outgoing(id, kind) {
+                if sym_set.contains(&nb) && nb != id {
+                    let nb_idx = id_to_idx[&nb];
+                    adj[idx].push(nb_idx);
+                    adj[nb_idx].push(idx);
+                }
+            }
+        }
+        for list in &mut adj {
+            list.sort_unstable();
+            list.dedup();
+        }
+
+        let mut disc = vec![AP_UNVISITED; n];
+        let mut low = vec![0usize; n];
+        let mut parent = vec![AP_UNVISITED; n];
+        let mut timer = 0usize;
+        // Edge stack: (u, v) with u < v (canonical)
+        let mut edge_stack: Vec<(usize, usize)> = Vec::new();
+        let mut raw_comps: Vec<Vec<usize>> = Vec::new();
+
+        for start in 0..n {
+            if disc[start] != AP_UNVISITED {
+                continue;
+            }
+            let mut stack: Vec<(usize, usize)> = vec![(start, 0)];
+            disc[start] = timer;
+            low[start] = timer;
+            timer += 1;
+
+            while let Some((u, ei)) = stack.last_mut() {
+                let u = *u;
+                if *ei < adj[u].len() {
+                    let v = adj[u][*ei];
+                    *ei += 1;
+                    if disc[v] == AP_UNVISITED {
+                        parent[v] = u;
+                        disc[v] = timer;
+                        low[v] = timer;
+                        timer += 1;
+                        let e = if u < v { (u, v) } else { (v, u) };
+                        edge_stack.push(e);
+                        stack.push((v, 0));
+                    } else if v != parent[u] && disc[v] < disc[u] {
+                        // Back edge: only push once (when disc[v] < disc[u])
+                        low[u] = low[u].min(disc[v]);
+                        let e = if u < v { (u, v) } else { (v, u) };
+                        edge_stack.push(e);
+                    }
+                } else {
+                    stack.pop();
+                    if let Some(&(pu, _)) = stack.last() {
+                        low[pu] = low[pu].min(low[u]);
+                        // BCC root condition: low[u] >= disc[pu]
+                        #[allow(clippy::suspicious_operation_groupings)]
+                        if low[u] >= disc[pu] {
+                            bcc_pop_component(pu, u, &mut edge_stack, &mut raw_comps);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut result: Vec<Vec<String>> = raw_comps
+            .into_iter()
+            .map(|mut idx_group| {
+                idx_group.sort_unstable();
+                idx_group.dedup();
+                let mut paths: Vec<String> = idx_group
+                    .into_iter()
+                    .filter_map(|i| self.path_of(sym_ids[i]).map(str::to_owned))
+                    .collect();
+                paths.sort_unstable();
+                paths
+            })
+            .filter(|g| g.len() >= 2)
+            .collect();
+
+        result.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then_with(|| a[0].cmp(&b[0])));
         result
     }
 
