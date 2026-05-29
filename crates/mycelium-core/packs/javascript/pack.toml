@@ -1,0 +1,10 @@
+# Mycelium JavaScript language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "javascript"
+description = "JavaScript language pack for Mycelium. Extracts top-level functions, arrow functions, classes, methods, and imports. Also handles JSX (.jsx) files."
+extensions  = [".js", ".jsx"]
+grammar     = "npm:tree-sitter-javascript@^0.25"

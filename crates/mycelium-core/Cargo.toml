@@ -1,5 +1,5 @@
 [package]
-name          = "mycelium-core"
+name          = "mycelium-rcig-core"
 description   = "The reactive code intelligence graph engine — Trunk (containment) + Synapse (cross-edges) + Cortex (reactivity)."
 version       = { workspace = true }
 edition       = { workspace = true }
@@ -12,6 +12,9 @@ documentation = { workspace = true }
 keywords      = ["code-intelligence", "tree-sitter", "graph", "ai", "mcp"]
 categories    = ["development-tools", "parser-implementations"]
 readme        = "README.md"
+
+[lib]
+name = "mycelium_core"
 
 [lints]
 workspace = true

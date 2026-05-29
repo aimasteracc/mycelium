@@ -1,0 +1,10 @@
+# Mycelium Python language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "python"
+description = "Python 3 language pack for Mycelium. Extracts modules, classes, functions, and imports."
+extensions  = [".py", ".pyi"]
+grammar     = "npm:tree-sitter-python@^0.21"

@@ -1,0 +1,10 @@
+# Mycelium Rust language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "rust"
+description = "Rust language pack for Mycelium. Extracts modules, functions, structs, enums, traits, impl blocks, type aliases, consts, and use declarations."
+extensions  = [".rs"]
+grammar     = "crates.io:tree-sitter-rust@^0.24"

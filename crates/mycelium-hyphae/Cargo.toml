@@ -1,5 +1,5 @@
 [package]
-name          = "mycelium-hyphae"
+name          = "mycelium-rcig-hyphae"
 description   = "Hyphae — the CSS-selector-inspired query language for Mycelium. RFC-0003."
 version       = { workspace = true }
 edition       = { workspace = true }
@@ -12,6 +12,9 @@ documentation = { workspace = true }
 readme        = "../mycelium-core/README.md"
 keywords      = ["code-intelligence", "query", "graph", "tree-sitter", "ai"]
 categories    = ["development-tools", "parser-implementations"]
+
+[lib]
+name = "mycelium_hyphae"
 
 [lints]
 workspace = true

@@ -1,0 +1,10 @@
+# Mycelium TypeScript language pack
+#
+# Charter §4 constraint: exactly 3 files, zero core-code changes.
+# This file + queries.scm are the complete pack.
+
+[meta]
+name        = "typescript"
+description = "TypeScript language pack for Mycelium. Extracts modules, classes, functions, methods, interfaces, and type aliases."
+extensions  = [".ts"]
+grammar     = "npm:tree-sitter-typescript@^0.23"
