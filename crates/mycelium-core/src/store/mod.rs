@@ -1100,6 +1100,81 @@ impl Store {
         }
     }
 
+    /// Return all paths whose nodes participate in at least one cycle of
+    /// `edge_kind` edges, sorted lexicographically.
+    ///
+    /// Uses iterative DFS with an `in_stack` tracking set.  Nodes that appear
+    /// on an active DFS stack path more than once are cycle members.  Optional
+    /// `prefix` restricts which paths are returned (the cycle detection still
+    /// covers the full graph; only the output is filtered).
+    #[must_use]
+    pub fn nodes_in_cycles(&self, edge_kind: EdgeKind, prefix: Option<&str>) -> Vec<String> {
+        use std::collections::HashSet;
+
+        let all_ids: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        let mut cycle_members: HashSet<NodeId> = HashSet::new();
+
+        for &start in &all_ids {
+            if visited.contains(&start) {
+                continue;
+            }
+            // Iterative DFS: stack items are (node, neighbor_index, stack_set)
+            // We track the DFS path stack as a Vec to detect back-edges.
+            let mut dfs_stack: Vec<NodeId> = Vec::new();
+            let mut in_stack: HashSet<NodeId> = HashSet::new();
+            let mut stack: Vec<(NodeId, usize)> = vec![(start, 0)];
+
+            while let Some((node, idx)) = stack.last_mut() {
+                let node = *node;
+                if *idx == 0 {
+                    // Entering node for the first time
+                    if visited.contains(&node) {
+                        stack.pop();
+                        continue;
+                    }
+                    dfs_stack.push(node);
+                    in_stack.insert(node);
+                }
+                let neighbors = self.synapse.outgoing(node, edge_kind);
+                if *idx < neighbors.len() {
+                    let neighbor = neighbors[*idx];
+                    *idx += 1;
+                    if in_stack.contains(&neighbor) {
+                        // Back-edge found: mark cycle members from neighbor to node
+                        let cycle_start =
+                            dfs_stack.iter().rposition(|&n| n == neighbor).unwrap_or(0);
+                        for &member in &dfs_stack[cycle_start..] {
+                            cycle_members.insert(member);
+                        }
+                    } else if !visited.contains(&neighbor) {
+                        stack.push((neighbor, 0));
+                    }
+                } else {
+                    // Leaving node
+                    visited.insert(node);
+                    dfs_stack.pop();
+                    in_stack.remove(&node);
+                    stack.pop();
+                }
+            }
+        }
+
+        let mut result: Vec<String> = cycle_members
+            .iter()
+            .filter_map(|&id| self.path_of(id))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return all incoming edge references to `id`, grouped by edge kind.
     ///
     /// Each list in the returned [`CrossRefs`] is sorted lexicographically.
