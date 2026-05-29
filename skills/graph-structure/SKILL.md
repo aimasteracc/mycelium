@@ -12,7 +12,7 @@ allowed-tools:
   - mcp__mycelium__get_biconnected_components
   - mcp__mycelium__get_k_core
   - mcp__mycelium__get_dependency_layers
-  - mcp__mycelium__get_scc
+  - mcp__mycelium__get_strongly_connected_components
   - mcp__mycelium__get_wcc
   - mcp__mycelium__get_degree_histogram
   - mcp__mycelium__find_cycle_members

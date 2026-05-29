@@ -22,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     all six tools; use `cargo bench -p mycelium-rcig-core --bench heavy_graph` for SLA tracking.
   - Charter §2 SLA table extended with two new rows for heavy-graph algorithm classes.
 
+- **RFC-0090 Phase 1 — Three-Surface parity checker** (v0.1.4):
+  - New [`scripts/check_skill_parity.py`](scripts/check_skill_parity.py): extracts MCP tool names
+    from `crates/mycelium-mcp/src/lib.rs` and Skill `allowed-tools` from `skills/*/SKILL.md`,
+    reports I1 (every MCP tool has ≥1 Skill) and I2 (no Skill orphans) coverage.
+  - New [`.github/workflows/parity.yml`](.github/workflows/parity.yml): runs the checker
+    on every PR touching MCP, CLI, or Skills. Phase 1: informational (exits 0).
+    Phase 3 / v0.2.0: add `--strict` to make the gate blocking.
+  - Fixed 12 Skill `allowed-tools` naming mismatches discovered by the checker:
+    `betweenness_centrality` → `get_betweenness_centrality`, `extends_tree` → `get_extends_tree`,
+    `get_scc` → `get_strongly_connected_components`, and nine more.
+    Confirmed coverage at 89/89 (100 %).
+
 - **RFC-0090 Phase 2.3 — Skill coverage complete (89/89)** (v0.1.4):
   - New [`skills/index-management/`](skills/index-management/) Skill — 7 tools covering
     the server lifecycle: `index_workspace`, `load_index`, `server_status` (shared with

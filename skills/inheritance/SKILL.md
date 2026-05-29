@@ -3,12 +3,12 @@ name: inheritance
 description: Navigate type relationships — extends/implements, subclass/implementor trees, and concrete-to-abstract paths.
 allowed-tools:
   - mcp__mycelium__get_extends
-  - mcp__mycelium__extends_tree
-  - mcp__mycelium__subclasses_tree
+  - mcp__mycelium__get_extends_tree
+  - mcp__mycelium__get_subclasses_tree
   - mcp__mycelium__find_extends_path
   - mcp__mycelium__get_implements
-  - mcp__mycelium__implements_tree
-  - mcp__mycelium__implementors_tree
+  - mcp__mycelium__get_implements_tree
+  - mcp__mycelium__get_implementors_tree
   - mcp__mycelium__find_implements_path
 ---
 
