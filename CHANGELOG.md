@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`mycelium query <hyphae>` works end-to-end** (#151). The marquee feature
+  Hyphae was previously advertised in the README but the CLI subcommand
+  was a `tracing::warn!` stub. It now: loads `.mycelium/index.rmp`, parses
+  the selector (RFC-0003 grammar), runs the evaluator, and prints matches
+  one per line (or as a JSON array with `--format=json`). Examples:
+  ```
+  mycelium query "#login"          # name selector
+  mycelium query ".function"       # kind selector
+  mycelium query ".class>.method"  # direct-child combinator
+  ```
+- **MCP twin tool `mycelium_query`.** Same Hyphae selector grammar, same
+  match-set shape — Three-Surface Rule (RFC-0090) parity. Returns
+  `{ matches: [...], count: N }` on success or `{ error: "..." }` on
+  parse failure.
+- **First real category Skill: `skills/hyphae-query/`.** SKILL.md +
+  two worked examples (name-selector basic, kind+combinator advanced)
+  + `tests/parity.test.json` asserting CLI ↔ MCP output equality.
+  `skills/INDEX.md` updated with the coverage row.
+- `mycelium-hyphae` crate now exposes `pub mod evaluator` (was previously
+  unreachable). The `Evaluator::new` becomes `const fn` and gains
+  clippy-clean control flow on the `BaseSelector::Kind` and
+  `pseudo_arg_ids` paths.
+
 ## [0.1.2] — 2026-05-30
 
 ### Fixed
