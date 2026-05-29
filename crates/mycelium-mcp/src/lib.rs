@@ -357,6 +357,15 @@ pub struct GetCommonCallersRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_fan_out_rank`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetFanOutRankRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Maximum results to return (default 10, capped at 100).
+    pub limit: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_files`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetFilesRequest {
@@ -1723,6 +1732,38 @@ impl MyceliumServer {
         let callers = callers_opt.unwrap();
         let count = callers.len();
         serde_json::json!({ "callers": callers, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return top-N symbol nodes ranked by out-degree (outgoing edge count) for \
+                       a given edge kind — orchestrator/high-fan-out detector. \
+                       Complements rank_symbols (in-degree) and most_connected (total degree). \
+                       edge_kind: 'calls', 'imports', 'extends', or 'implements'. \
+                       limit defaults to 10, capped at 100. Nodes with out-degree 0 excluded. \
+                       Returns { symbols: [{ path, out_degree }], count } or { error }."
+    )]
+    async fn mycelium_get_fan_out_rank(
+        &self,
+        Parameters(req): Parameters<GetFanOutRankRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let limit = req.limit.unwrap_or(10);
+        let entries = self.store.read().await.fan_out_rank(kind, limit);
+        let count = entries.len();
+        let symbols: Vec<serde_json::Value> = entries
+            .into_iter()
+            .map(|(path, out_degree)| serde_json::json!({ "path": path, "out_degree": out_degree }))
+            .collect();
+        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
     }
 
     #[tool(
@@ -5501,6 +5542,57 @@ mod tests {
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(val["error"].as_str().unwrap().contains("path not found"));
+    }
+
+    // ── RFC-0053: mycelium_get_fan_out_rank ──────────────────────────────────
+
+    #[tokio::test]
+    async fn get_fan_out_rank_ranks_by_out_degree() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/hub.rs>hub").unwrap());
+            let sp1 = store.upsert_node(TrunkPath::parse("src/s1.rs>s1").unwrap());
+            let sp2 = store.upsert_node(TrunkPath::parse("src/s2.rs>s2").unwrap());
+            store.upsert_edge(EdgeKind::Calls, hub, sp1);
+            store.upsert_edge(EdgeKind::Calls, hub, sp2);
+        }
+        let raw = server
+            .mycelium_get_fan_out_rank(Parameters(GetFanOutRankRequest {
+                edge_kind: "calls".to_owned(),
+                limit: Some(10),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms[0]["path"].as_str().unwrap(), "src/hub.rs>hub");
+        assert_eq!(syms[0]["out_degree"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_fan_out_rank_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_fan_out_rank(Parameters(GetFanOutRankRequest {
+                edge_kind: "bad".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    #[tokio::test]
+    async fn get_fan_out_rank_empty_graph_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_fan_out_rank(Parameters(GetFanOutRankRequest {
+                edge_kind: "calls".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
     /// Poll `predicate` every `interval` for up to `timeout`. Returns `true`
