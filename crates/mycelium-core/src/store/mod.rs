@@ -1036,6 +1036,31 @@ impl Store {
         ImporterNode { id, importers }
     }
 
+    /// Return all symbol paths (path contains `>`) with zero incoming `Calls`
+    /// edges and zero incoming `Imports` edges, sorted lexicographically.
+    ///
+    /// File-level nodes (no `>`) are excluded — they are containers, not
+    /// callable/importable symbols.  Pass `prefix` to restrict results to
+    /// symbols whose path starts with that string.
+    #[must_use]
+    pub fn dead_symbols(&self, prefix: Option<&str>) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
+            .filter(|p| {
+                self.trunk.lookup_path(p).is_some_and(|id| {
+                    self.synapse.incoming(id, EdgeKind::Calls).is_empty()
+                        && self.synapse.incoming(id, EdgeKind::Imports).is_empty()
+                })
+            })
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {

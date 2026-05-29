@@ -1669,3 +1669,64 @@ fn store_importers_tree_cycle_safe() {
     assert_eq!(tree.importers[0].importers[0].id, a);
     assert!(tree.importers[0].importers[0].importers.is_empty());
 }
+
+// ── RFC-0037: Store::dead_symbols ──────────────────────────────────────
+
+#[test]
+fn store_dead_symbols_excludes_file_nodes() {
+    let mut store = Store::new();
+    // file-level node has no `>` — should never appear in dead_symbols
+    let _file = store.upsert_node(path("src/lib.rs"));
+    let sym = store.upsert_node(path("src/lib.rs>unused_fn"));
+    let _ = sym; // suppress unused warning
+    let dead = store.dead_symbols(None);
+    // file node excluded; symbol has no callers/importers so it is dead
+    assert!(!dead.iter().any(|s| s == "src/lib.rs"));
+    assert!(dead.contains(&"src/lib.rs>unused_fn".to_owned()));
+}
+
+#[test]
+fn store_dead_symbols_live_if_called() {
+    let mut store = Store::new();
+    let caller = store.upsert_node(path("src/main.rs>main"));
+    let target = store.upsert_node(path("src/lib.rs>helper"));
+    store.upsert_edge(EdgeKind::Calls, caller, target);
+    let dead = store.dead_symbols(None);
+    // helper has an incoming Calls edge → not dead
+    assert!(!dead.contains(&"src/lib.rs>helper".to_owned()));
+    // main has no callers → dead
+    assert!(dead.contains(&"src/main.rs>main".to_owned()));
+}
+
+#[test]
+fn store_dead_symbols_live_if_imported() {
+    let mut store = Store::new();
+    let importer = store.upsert_node(path("src/app.rs>app"));
+    let lib = store.upsert_node(path("src/lib.rs>lib_fn"));
+    store.upsert_edge(EdgeKind::Imports, importer, lib);
+    let dead = store.dead_symbols(None);
+    // lib_fn has an incoming Imports edge → not dead
+    assert!(!dead.contains(&"src/lib.rs>lib_fn".to_owned()));
+}
+
+#[test]
+fn store_dead_symbols_prefix_filter() {
+    let mut store = Store::new();
+    let _a = store.upsert_node(path("src/a.rs>unused_a"));
+    let _b = store.upsert_node(path("lib/b.rs>unused_b"));
+    let dead_src = store.dead_symbols(Some("src/"));
+    assert!(dead_src.contains(&"src/a.rs>unused_a".to_owned()));
+    assert!(!dead_src.iter().any(|s| s.starts_with("lib/")));
+}
+
+#[test]
+fn store_dead_symbols_sorted() {
+    let mut store = Store::new();
+    store.upsert_node(path("z/z.rs>fn_z"));
+    store.upsert_node(path("a/a.rs>fn_a"));
+    store.upsert_node(path("m/m.rs>fn_m"));
+    let dead = store.dead_symbols(None);
+    let mut sorted = dead.clone();
+    sorted.sort_unstable();
+    assert_eq!(dead, sorted);
+}
