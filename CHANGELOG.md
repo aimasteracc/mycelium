@@ -224,6 +224,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0082: `PageRankEntry` struct `{ path, score }` — one result entry from `page_rank`.
 - RFC-0082: `Store::page_rank(kind, damping, iterations)` — iterative power-method PageRank; dangling nodes redistribute mass uniformly; damping clamped `[0.0, 1.0]`; file nodes excluded; returns entries sorted descending by score. Identifies globally important hub symbols.
 - RFC-0082: `mycelium_page_rank` MCP tool — global importance ranker; accepts `{ edge_kind, damping?, iterations?, top_n? }` and returns `{ nodes: [{path, score}], symbol_count, top_n }` or `{ error }`. Complements local metrics (harmonic centrality, eccentricity) with a global ranking.
+- RFC-0083: `Store::common_reachable(id1, id2, kind)` — intersection of transitive reachable sets of two symbol nodes; `id1 == id2` equals `reachable_set`; file nodes excluded; sorted alphabetically; O(V+E). Answers "what symbols do both nodes transitively depend on?".
+- RFC-0083: `mycelium_get_common_reachable` MCP tool — shared dependency finder; accepts `{ path1, path2, edge_kind }` and returns `{ common, count }` or `{ error }`. Useful for refactoring analysis and finding shared utilities.
 
 ### Fixed
 
