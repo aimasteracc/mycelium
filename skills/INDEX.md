@@ -73,20 +73,20 @@ authored in Phase 2 PRs, one PR per category.
 | `get_reachable_set` | `mycelium get-reachable-set` | `mycelium_get_reachable_set` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 6) |
 | `get_reaches_into` | `mycelium get-reaches-into` | `mycelium_get_reaches_into` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 6) |
 | `get_singly_referenced` | `mycelium get-singly-referenced` | `mycelium_get_singly_referenced` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 6) |
-| `rank_symbols` | `mycelium rank-symbols` | `mycelium_rank_symbols` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_top_files` | `mycelium get-top-files` | `mycelium_get_top_files` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_most_connected` | `mycelium get-most-connected` | `mycelium_get_most_connected` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_hub_symbols` | `mycelium get-hub-symbols` | `mycelium_get_hub_symbols` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_fan_out_rank` | `mycelium get-fan-out-rank` | `mycelium_get_fan_out_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `get_fan_in_rank` | `mycelium get-fan-in-rank` | `mycelium_get_fan_in_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `rank_symbols` | `mycelium rank-symbols` | `mycelium_rank_symbols` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `get_top_files` | `mycelium get-top-files` | `mycelium_get_top_files` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `get_most_connected` | `mycelium get-most-connected` | `mycelium_get_most_connected` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `get_hub_symbols` | `mycelium get-hub-symbols` | `mycelium_get_hub_symbols` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `get_fan_out_rank` | `mycelium get-fan-out-rank` | `mycelium_get_fan_out_rank` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `get_fan_in_rank` | `mycelium get-fan-in-rank` | `mycelium_get_fan_in_rank` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `betweenness_centrality` | `mycelium betweenness-centrality` | `mycelium_betweenness_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
-| `closeness_centrality` | `mycelium closeness-centrality` | `mycelium_closeness_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `degree_centrality` | `mycelium degree-centrality` | `mycelium_degree_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `clustering_coefficient` | `mycelium clustering-coefficient` | `mycelium_clustering_coefficient` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `eccentricity` | `mycelium eccentricity` | `mycelium_eccentricity` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `closeness_centrality` | `mycelium closeness-centrality` | `mycelium_closeness_centrality` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `degree_centrality` | `mycelium degree-centrality` | `mycelium_degree_centrality` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `clustering_coefficient` | `mycelium clustering-coefficient` | `mycelium_clustering_coefficient` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `eccentricity` | `mycelium eccentricity` | `mycelium_eccentricity` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `page_rank` | `mycelium page-rank` | `mycelium_page_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
-| `harmonic_centrality` | `mycelium harmonic-centrality` | `mycelium_harmonic_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
-| `neighbor_similarity` | `mycelium neighbor-similarity` | `mycelium_neighbor_similarity` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `harmonic_centrality` | `mycelium harmonic-centrality` | `mycelium_harmonic_centrality` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
+| `neighbor_similarity` | `mycelium neighbor-similarity` | `mycelium_neighbor_similarity` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `get_extends` | `mycelium get-extends` | `mycelium_get_extends` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
 | `extends_tree` | `mycelium extends-tree` | `mycelium_extends_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
 | `subclasses_tree` | `mycelium subclasses-tree` | `mycelium_subclasses_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
