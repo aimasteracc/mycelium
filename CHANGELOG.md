@@ -205,6 +205,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0075: `Store::neighbor_similarity_stats(id1, id2, kind)` — returns `(similarity, shared, total)` in one pass; N(x) = outgoing ∪ incoming neighbors (self excluded); Jaccard = shared / total; both isolated → (0.0, 0, 0). O(max_degree).
 - RFC-0075: `Store::neighbor_similarity(id1, id2, kind)` — Jaccard similarity ∈ [0.0, 1.0] between combined neighbor sets for a given EdgeKind; thin wrapper over `neighbor_similarity_stats`.
 - RFC-0075: `mycelium_get_neighbor_similarity` MCP tool — structural role similarity detector; accepts `{ path1, path2, edge_kind }` and returns `{ similarity, shared, total }` or `{ error }`. Score 1.0 = identical structural roles (same callers+callees); 0.0 = no overlap. Useful for refactoring candidates and duplicate detection.
+- RFC-0076: `Store::clustering_coefficient_stats(id, kind)` — returns `(coefficient, neighbor_count, neighbor_edge_count)` in one pass; CC(u) = #{directed edges among N(u)} / (|N(u)|*(|N(u)|-1)); N(u) = outgoing ∪ incoming, self and file nodes excluded; `|N| < 2` → 0.0. O(degree²).
+- RFC-0076: `Store::clustering_coefficient(id, kind)` — local clustering coefficient ∈ [0.0, 1.0] for a symbol node; thin wrapper over `clustering_coefficient_stats`. High CC = node embedded in tightly-coupled cluster.
+- RFC-0076: `mycelium_get_clustering_coefficient` MCP tool — cluster density probe; accepts `{ path, edge_kind }` and returns `{ coefficient, neighbor_count, neighbor_edge_count }` or `{ error }`. Complements neighbor_similarity (RFC-0075): measures how densely a single node's neighborhood is interconnected.
 
 ### Fixed
 
