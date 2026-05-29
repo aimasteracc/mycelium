@@ -2655,3 +2655,70 @@ fn store_symbol_count_by_kind_total_matches_sum() {
     let total: usize = counts.iter().map(|(_, n)| n).sum();
     assert_eq!(total, 4);
 }
+
+// ── RFC-0052: Store::common_callers ──────────────────────────────────────────
+
+#[test]
+fn store_common_callers_intersection() {
+    let mut store = Store::new();
+    let shared = store.upsert_node(path("src/shared.rs>shared"));
+    let only_a = store.upsert_node(path("src/oa.rs>only_a"));
+    let target_a = store.upsert_node(path("src/ta.rs>target_a"));
+    let target_b = store.upsert_node(path("src/tb.rs>target_b"));
+    // shared calls both targets; only_a calls only target_a
+    store.upsert_edge(EdgeKind::Calls, shared, target_a);
+    store.upsert_edge(EdgeKind::Calls, shared, target_b);
+    store.upsert_edge(EdgeKind::Calls, only_a, target_a);
+    let common = store.common_callers(&[target_a, target_b], EdgeKind::Calls);
+    assert_eq!(common, vec!["src/shared.rs>shared".to_owned()]);
+}
+
+#[test]
+fn store_common_callers_single_target() {
+    let mut store = Store::new();
+    let caller1 = store.upsert_node(path("src/c1.rs>c1"));
+    let caller2 = store.upsert_node(path("src/c2.rs>c2"));
+    let target = store.upsert_node(path("src/t.rs>t"));
+    store.upsert_edge(EdgeKind::Calls, caller1, target);
+    store.upsert_edge(EdgeKind::Calls, caller2, target);
+    let common = store.common_callers(&[target], EdgeKind::Calls);
+    assert_eq!(common.len(), 2);
+}
+
+#[test]
+fn store_common_callers_empty_targets_returns_empty() {
+    let store = Store::new();
+    assert!(store.common_callers(&[], EdgeKind::Calls).is_empty());
+}
+
+#[test]
+fn store_common_callers_no_intersection_returns_empty() {
+    let mut store = Store::new();
+    let caller1 = store.upsert_node(path("src/c1.rs>c1"));
+    let caller2 = store.upsert_node(path("src/c2.rs>c2"));
+    let target_a = store.upsert_node(path("src/ta.rs>ta"));
+    let target_b = store.upsert_node(path("src/tb.rs>tb"));
+    store.upsert_edge(EdgeKind::Calls, caller1, target_a);
+    store.upsert_edge(EdgeKind::Calls, caller2, target_b);
+    let common = store.common_callers(&[target_a, target_b], EdgeKind::Calls);
+    assert!(common.is_empty());
+}
+
+#[test]
+fn store_common_callers_sorted_alphabetically() {
+    let mut store = Store::new();
+    let t = store.upsert_node(path("src/t.rs>t"));
+    for name in &["src/z.rs>z", "src/a.rs>a", "src/m.rs>m"] {
+        let c = store.upsert_node(path(name));
+        store.upsert_edge(EdgeKind::Calls, c, t);
+    }
+    let common = store.common_callers(&[t], EdgeKind::Calls);
+    assert_eq!(
+        common,
+        vec![
+            "src/a.rs>a".to_owned(),
+            "src/m.rs>m".to_owned(),
+            "src/z.rs>z".to_owned(),
+        ]
+    );
+}
