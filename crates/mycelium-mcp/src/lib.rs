@@ -3881,9 +3881,7 @@ impl MyceliumServer {
         let json_bytes = sample.to_string().len();
         // The sample value is entirely static strings; serialisation cannot fail.
         #[allow(clippy::unwrap_used)]
-        let msgpack_bytes = rmp_serde::to_vec_named(&sample)
-            .unwrap_or_default()
-            .len();
+        let msgpack_bytes = rmp_serde::to_vec_named(&sample).unwrap_or_default().len();
         // Ratio is msgpack / json; target ≤ 0.30 per Charter §2.
         #[allow(clippy::cast_precision_loss)]
         let ratio = msgpack_bytes as f64 / json_bytes as f64;
@@ -9395,5 +9393,105 @@ mod tests {
             }
             tokio::time::sleep(interval).await;
         }
+    }
+
+    // ── RFC-0090: mycelium_set_compact_mode / mycelium_get_token_stats ────
+
+    #[tokio::test]
+    async fn set_compact_mode_toggles_flag() {
+        let server = MyceliumServer::new();
+
+        // Default: compact mode off.
+        assert!(
+            !server
+                .compact_mode
+                .load(std::sync::atomic::Ordering::Relaxed)
+        );
+
+        // Enable compact mode.
+        let raw = server
+            .mycelium_set_compact_mode(Parameters(SetCompactModeRequest { enabled: true }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["compact_mode"].as_bool().unwrap());
+        assert!(
+            server
+                .compact_mode
+                .load(std::sync::atomic::Ordering::Relaxed)
+        );
+
+        // Disable compact mode.
+        let raw = server
+            .mycelium_set_compact_mode(Parameters(SetCompactModeRequest { enabled: false }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(!val["compact_mode"].as_bool().unwrap());
+        assert!(
+            !server
+                .compact_mode
+                .load(std::sync::atomic::Ordering::Relaxed)
+        );
+    }
+
+    #[tokio::test]
+    async fn search_symbol_compact_mode_returns_msgpack_hex() {
+        let server = server_with_fixture().await;
+
+        // Enable compact mode.
+        server
+            .mycelium_set_compact_mode(Parameters(SetCompactModeRequest { enabled: true }))
+            .await;
+
+        let raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: "greet".to_string(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // Compact response must have fmt = "msgpack_hex".
+        assert_eq!(val["fmt"].as_str().unwrap(), "msgpack_hex");
+        let hex = val["data"].as_str().unwrap();
+        // Hex string must be non-empty and contain only hex chars.
+        assert!(!hex.is_empty());
+        assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[tokio::test]
+    async fn search_symbol_json_mode_when_compact_disabled() {
+        let server = server_with_fixture().await;
+        // compact mode off by default
+        let raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: "greet".to_string(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // Normal JSON response must have "matches" key.
+        assert!(val["matches"].as_array().is_some());
+    }
+
+    #[tokio::test]
+    async fn get_token_stats_returns_valid_shape() {
+        let server = MyceliumServer::new();
+        let raw = server.mycelium_get_token_stats().await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // All expected fields must be present and positive.
+        assert_eq!(val["sample_query"].as_str().unwrap(), "top 3 symbols");
+        let json_bytes = val["json_bytes"].as_u64().unwrap();
+        let msgpack_bytes = val["msgpack_bytes"].as_u64().unwrap();
+        assert!(json_bytes > 0, "json_bytes must be positive");
+        assert!(msgpack_bytes > 0, "msgpack_bytes must be positive");
+        let ratio = val["ratio"].as_f64().unwrap();
+        // Ratio must be a sane positive fraction.
+        assert!(ratio > 0.0, "ratio must be positive");
+        // MessagePack raw bytes are always smaller than an equivalent JSON
+        // string for structured data (field names not repeated).  For the
+        // fixed sample this is consistently < 1.0.
+        assert!(
+            ratio < 1.0,
+            "msgpack raw bytes should be smaller than JSON bytes, ratio was {ratio:.3}"
+        );
     }
 }
