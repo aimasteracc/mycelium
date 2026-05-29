@@ -5,7 +5,7 @@
 
 use super::Store;
 use crate::trunk::TrunkPath;
-use crate::types::{EdgeKind, NodeId};
+use crate::types::{EdgeKind, NodeId, NodeKind};
 
 #[cfg(test)]
 extern crate tempfile;
@@ -1158,4 +1158,68 @@ fn store_import_tree_leaf_when_no_imports() {
     let tree = store.import_tree(a, 4);
     assert_eq!(tree.id, a);
     assert!(tree.imports.is_empty());
+}
+
+// ── RFC-0028: Store::set_kind / kind_of / symbols_of_kind ─────────────
+
+#[test]
+fn store_set_and_get_kind() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>Foo"));
+    store.set_kind(id, NodeKind::Class);
+    assert_eq!(store.kind_of(id), Some(NodeKind::Class));
+}
+
+#[test]
+fn store_kind_of_unknown_node_is_none() {
+    let store = Store::new();
+    assert_eq!(store.kind_of(NodeId(0xdead_beef_0000_0000)), None);
+}
+
+#[test]
+fn store_symbols_of_kind_returns_matching() {
+    let mut store = Store::new();
+    let f1 = store.upsert_node(path("src/a.rs>foo"));
+    let f2 = store.upsert_node(path("src/b.rs>bar"));
+    let c1 = store.upsert_node(path("src/c.rs>Baz"));
+    store.set_kind(f1, NodeKind::Function);
+    store.set_kind(f2, NodeKind::Function);
+    store.set_kind(c1, NodeKind::Class);
+    let fns = store.symbols_of_kind(NodeKind::Function, None);
+    assert_eq!(fns.len(), 2);
+    assert!(fns.contains(&"src/a.rs>foo".to_string()));
+    assert!(fns.contains(&"src/b.rs>bar".to_string()));
+    let classes = store.symbols_of_kind(NodeKind::Class, None);
+    assert_eq!(classes, vec!["src/c.rs>Baz"]);
+}
+
+#[test]
+fn store_symbols_of_kind_with_prefix_filter() {
+    let mut store = Store::new();
+    let f1 = store.upsert_node(path("src/auth.rs>login"));
+    let f2 = store.upsert_node(path("tests/test_auth.rs>test_login"));
+    store.set_kind(f1, NodeKind::Function);
+    store.set_kind(f2, NodeKind::Function);
+    let src_only = store.symbols_of_kind(NodeKind::Function, Some("src/"));
+    assert_eq!(src_only, vec!["src/auth.rs>login"]);
+}
+
+#[test]
+fn store_symbols_of_kind_empty_when_none_match() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/lib.rs>Foo"));
+    store.set_kind(id, NodeKind::Class);
+    let fns = store.symbols_of_kind(NodeKind::Function, None);
+    assert!(fns.is_empty());
+}
+
+#[test]
+fn store_symbols_of_kind_sorted_lexicographically() {
+    let mut store = Store::new();
+    let b = store.upsert_node(path("b.rs>fn2"));
+    let a = store.upsert_node(path("a.rs>fn1"));
+    store.set_kind(b, NodeKind::Function);
+    store.set_kind(a, NodeKind::Function);
+    let result = store.symbols_of_kind(NodeKind::Function, None);
+    assert_eq!(result, vec!["a.rs>fn1", "b.rs>fn2"]);
 }
