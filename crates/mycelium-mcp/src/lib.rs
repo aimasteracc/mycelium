@@ -398,6 +398,13 @@ pub struct GetDeadSymbolsRequest {
     pub path_prefix: Option<String>,
 }
 
+/// Input parameters for `mycelium_get_isolated_symbols`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetIsolatedSymbolsRequest {
+    /// Optional path prefix to filter results (e.g. `"src/"`).
+    pub path_prefix: Option<String>,
+}
+
 /// Input parameters for `mycelium_get_stats` (no parameters).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetStatsRequest {}
@@ -1289,6 +1296,27 @@ impl MyceliumServer {
             .dead_symbols(req.path_prefix.as_deref());
         let count = dead.len();
         serde_json::json!({ "dead_symbols": dead, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return symbol nodes that have zero connectivity across ALL four edge kinds \
+                       (calls, imports, extends, implements) — completely isolated from the graph. \
+                       Stronger than dead_symbols (which only checks incoming Calls+Imports). \
+                       Isolated symbols have no incoming or outgoing edges of any kind and are \
+                       strong deletion candidates. Optional path_prefix filter. \
+                       Returns { isolated_symbols, count }."
+    )]
+    async fn mycelium_get_isolated_symbols(
+        &self,
+        Parameters(req): Parameters<GetIsolatedSymbolsRequest>,
+    ) -> String {
+        let isolated = self
+            .store
+            .read()
+            .await
+            .isolated_symbols(req.path_prefix.as_deref());
+        let count = isolated.len();
+        serde_json::json!({ "isolated_symbols": isolated, "count": count }).to_string()
     }
 
     #[tool(
@@ -4641,6 +4669,68 @@ mod tests {
         assert!(dead.iter().all(|s| s.starts_with("src/lib.rs")));
         assert!(dead.contains(&"src/lib.rs>dead_fn".to_owned()));
         assert!(!dead.contains(&"src/main.rs>main".to_owned()));
+    }
+
+    // ── RFC-0056: mycelium_get_isolated_symbols ───────────────────────────
+
+    #[tokio::test]
+    async fn get_isolated_symbols_returns_completely_disconnected() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let _orphan = store.upsert_node(TrunkPath::parse("src/orphan.rs>orphan").unwrap());
+            let conn_a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let conn_b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, conn_a, conn_b);
+        }
+        let raw = server
+            .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
+                path_prefix: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert_eq!(
+            val["isolated_symbols"].as_array().unwrap()[0]
+                .as_str()
+                .unwrap(),
+            "src/orphan.rs>orphan"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_isolated_symbols_empty_store() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
+                path_prefix: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_isolated_symbols_prefix_filter() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let _src_orphan = store.upsert_node(TrunkPath::parse("src/orphan.rs>orphan").unwrap());
+            let _lib_orphan = store.upsert_node(TrunkPath::parse("lib/orphan.rs>orphan").unwrap());
+        }
+        let raw = server
+            .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
+                path_prefix: Some("src/".to_owned()),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        assert!(
+            val["isolated_symbols"].as_array().unwrap()[0]
+                .as_str()
+                .unwrap()
+                .starts_with("src/")
+        );
     }
 
     // ── RFC-0038: mycelium_get_stats ─────────────────────────────────────
