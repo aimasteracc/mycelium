@@ -468,6 +468,15 @@ pub struct GetHubSymbolsRequest {
     pub limit: Option<usize>,
 }
 
+/// Input parameters for `mycelium_get_singly_referenced`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSinglyReferencedRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// Maximum results returned. Defaults to 10, capped at 100.
+    pub limit: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_all_symbols`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetAllSymbolsRequest {
@@ -1815,6 +1824,45 @@ impl MyceliumServer {
             })
             .collect();
         serde_json::json!({ "hubs": hubs_json, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return symbols that have exactly one incoming edge for a given EdgeKind. \
+                       These 'singly-referenced' symbols are only depended on by a single caller, \
+                       importer, or subclass — making them candidates for inlining, privatisation, \
+                       or co-location with their sole consumer. Returns { symbols: [{ path, \
+                       referenced_by }], count } or { error } for unknown edge_kind. limit defaults \
+                       to 10, capped at 100. File nodes are excluded from results."
+    )]
+    async fn mycelium_get_singly_referenced(
+        &self,
+        Parameters(req): Parameters<GetSinglyReferencedRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
+                    .to_string();
+            }
+        };
+        let limit = req.limit.unwrap_or(10);
+        let pairs = {
+            let store = self.store.read().await;
+            let result = store.singly_referenced(kind, limit);
+            drop(store);
+            result
+        };
+        let count = pairs.len();
+        let symbols: Vec<serde_json::Value> = pairs
+            .into_iter()
+            .map(|(path, referenced_by)| {
+                serde_json::json!({ "path": path, "referenced_by": referenced_by })
+            })
+            .collect();
+        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
     }
 
     #[tool(
@@ -5427,6 +5475,60 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["hubs"].as_array().unwrap().is_empty());
+    }
+
+    // ── RFC-0062: mycelium_get_singly_referenced ──────────────────────────
+
+    #[tokio::test]
+    async fn get_singly_referenced_basic() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let caller = store.upsert_node(TrunkPath::parse("src/main.rs>main").unwrap());
+            let tgt = store.upsert_node(TrunkPath::parse("src/util.rs>helper").unwrap());
+            store.upsert_edge(EdgeKind::Calls, caller, tgt);
+        }
+        let raw = server
+            .mycelium_get_singly_referenced(Parameters(GetSinglyReferencedRequest {
+                edge_kind: "calls".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 1);
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms[0]["path"].as_str().unwrap(), "src/util.rs>helper");
+        assert_eq!(
+            syms[0]["referenced_by"].as_str().unwrap(),
+            "src/main.rs>main"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_singly_referenced_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_singly_referenced(Parameters(GetSinglyReferencedRequest {
+                edge_kind: "unknown_kind".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
+    }
+
+    #[tokio::test]
+    async fn get_singly_referenced_empty_store_returns_empty() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_singly_referenced(Parameters(GetSinglyReferencedRequest {
+                edge_kind: "calls".to_owned(),
+                limit: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert!(val["symbols"].as_array().unwrap().is_empty());
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────

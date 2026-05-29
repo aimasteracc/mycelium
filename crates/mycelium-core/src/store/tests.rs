@@ -3364,3 +3364,63 @@ fn store_hub_symbols_empty_store() {
     let hubs = store.hub_symbols(EdgeKind::Calls, 1, 1, 10);
     assert!(hubs.is_empty());
 }
+
+// RFC-0062: singly_referenced
+
+#[test]
+fn store_singly_referenced_basic() {
+    let mut store = Store::new();
+    let src = store.upsert_node(path("src/main.rs>main"));
+    let tgt = store.upsert_node(path("src/util.rs>helper"));
+    store.upsert_edge(EdgeKind::Calls, src, tgt);
+    let result = store.singly_referenced(EdgeKind::Calls, 10);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "src/util.rs>helper");
+    assert_eq!(result[0].1, "src/main.rs>main");
+}
+
+#[test]
+fn store_singly_referenced_excludes_multi_referenced() {
+    let mut store = Store::new();
+    let tgt = store.upsert_node(path("src/lib.rs>shared"));
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, tgt);
+    store.upsert_edge(EdgeKind::Calls, b, tgt);
+    let result = store.singly_referenced(EdgeKind::Calls, 10);
+    // shared has 2 callers — excluded
+    assert!(result.iter().all(|(p, _)| p != "src/lib.rs>shared"));
+}
+
+#[test]
+fn store_singly_referenced_excludes_zero_referenced() {
+    let mut store = Store::new();
+    let _lone = store.upsert_node(path("src/lone.rs>lone"));
+    let result = store.singly_referenced(EdgeKind::Calls, 10);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn store_singly_referenced_sorted_ascending() {
+    let mut store = Store::new();
+    let caller = store.upsert_node(path("src/main.rs>main"));
+    let z = store.upsert_node(path("src/z.rs>z_fn"));
+    let a = store.upsert_node(path("src/a.rs>a_fn"));
+    store.upsert_edge(EdgeKind::Calls, caller, z);
+    store.upsert_edge(EdgeKind::Calls, caller, a);
+    let result = store.singly_referenced(EdgeKind::Calls, 10);
+    let paths: Vec<&str> = result.iter().map(|(p, _)| p.as_str()).collect();
+    assert_eq!(paths, vec!["src/a.rs>a_fn", "src/z.rs>z_fn"]);
+}
+
+#[test]
+fn store_singly_referenced_limit_respected() {
+    let mut store = Store::new();
+    let caller = store.upsert_node(path("src/main.rs>main"));
+    for i in 0..5_u32 {
+        let tgt = store.upsert_node(path(&format!("src/mod{i:02}.rs>f{i}")));
+        store.upsert_edge(EdgeKind::Calls, caller, tgt);
+    }
+    let result = store.singly_referenced(EdgeKind::Calls, 3);
+    assert_eq!(result.len(), 3);
+}
