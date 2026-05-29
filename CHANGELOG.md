@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **First wave of category Skills** (RFC-0090 Phase 2, v0.1.3):
+  - [`skills/basic-queries/`](skills/basic-queries/) covers 10 foundation
+    capabilities (`search_symbol`, `get_symbol_info`, `get_ancestors`,
+    `get_descendants`, `get_node_kind`, `get_symbols_by_kind`,
+    `get_source_span`, `get_siblings`, `get_all_symbols`,
+    `server_status`).
+  - [`skills/call-graph/`](skills/call-graph/) covers 7 Calls-edge
+    capabilities (`get_callees`, `get_callers`, `get_callee_tree`,
+    `get_caller_tree`, `get_entry_points`, `get_dead_symbols`,
+    `get_isolated_symbols`).
+  - Each Skill includes a worked example and a `tests/parity.test.json`
+    asserting CLI ↔ MCP byte-equality for every covered capability.
+  - `skills/INDEX.md` coverage matrix gains 17 rows (status 🟡 — Skill
+    landed; CLI subcommand backfill follows in v0.1.4–v0.1.5 alongside
+    the parity-CI workflow).
 - **`mycelium query <hyphae>` works end-to-end** (#151). The marquee feature
   Hyphae was previously advertised in the README but the CLI subcommand
   was a `tracing::warn!` stub. It now: loads `.mycelium/index.rmp`, parses

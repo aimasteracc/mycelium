@@ -39,6 +39,25 @@ authored in Phase 2 PRs, one PR per category.
 | Capability | CLI | MCP | Covering Skill(s) | Status |
 |---|---|---|---|---|
 | `query` | `mycelium query <expr>` | `mycelium_query` | [`hyphae-query`](hyphae-query/SKILL.md) | ✅ Three-Surface, v0.1.3 (#151) |
+| `search_symbol` | `mycelium search-symbol` | `mycelium_search_symbol` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_symbol_info` | `mycelium get-symbol-info` | `mycelium_get_symbol_info` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_ancestors` | `mycelium get-ancestors` | `mycelium_get_ancestors` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_descendants` | `mycelium get-descendants` | `mycelium_get_descendants` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_node_kind` | `mycelium get-node-kind` | `mycelium_get_node_kind` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_symbols_by_kind` | `mycelium get-symbols-by-kind` | `mycelium_get_symbols_by_kind` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_source_span` | `mycelium get-source-span` | `mycelium_get_source_span` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_siblings` | `mycelium get-siblings` | `mycelium_get_siblings` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_all_symbols` | `mycelium get-all-symbols` | `mycelium_get_all_symbols` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `server_status` | `mycelium server-status` | `mycelium_server_status` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_callees` | `mycelium get-callees` | `mycelium_get_callees` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_callers` | `mycelium get-callers` | `mycelium_get_callers` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_callee_tree` | `mycelium get-callee-tree` | `mycelium_get_callee_tree` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_caller_tree` | `mycelium get-caller-tree` | `mycelium_get_caller_tree` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_entry_points` | `mycelium get-entry-points` | `mycelium_get_entry_points` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_dead_symbols` | `mycelium get-dead-symbols` | `mycelium_get_dead_symbols` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+| `get_isolated_symbols` | `mycelium get-isolated-symbols` | `mycelium_get_isolated_symbols` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending |
+
+**Status legend:** 🟡 Skill bundle written + MCP tool exists, but the CLI half is still missing — `parity-backfill` epic tracks these. ✅ Three-Surface = all three surfaces shipped, parity-CI green. The CLI subcommands ship in v0.1.4–v0.1.5 alongside the parity-CI workflow.
 
 ## Orphan detection
 
