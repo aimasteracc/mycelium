@@ -1,0 +1,22 @@
+{
+  "skill": "CATEGORY_NAME",
+  "description": "Parity test asserting CLI --format=json and MCP structured response agree for every capability under this category.",
+  "cases": [
+    {
+      "capability": "CAPABILITY_A",
+      "name": "happy_path",
+      "cli_args": ["CAPABILITY_A", "--arg1", "value", "--format", "json"],
+      "mcp_input": { "arg1": "value" },
+      "expected_output": { "field1": "...", "field2": [] },
+      "normalize": ["timestamp", "duration_ms"]
+    },
+    {
+      "capability": "CAPABILITY_B",
+      "name": "happy_path",
+      "cli_args": ["CAPABILITY_B", "--arg1", "value", "--format", "json"],
+      "mcp_input": { "arg1": "value" },
+      "expected_output": { "field1": "...", "field2": [] },
+      "normalize": ["timestamp", "duration_ms"]
+    }
+  ]
+}

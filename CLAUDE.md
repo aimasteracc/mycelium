@@ -38,6 +38,7 @@ If any of the above fails or is impossible, **stop and report**, do not improvis
 - ❌ **Never commit secrets.** Use `.env.example` and document in `SECURITY.md`.
 - ❌ **Never reduce test coverage** without a `// coverage:skip <reason>` annotation and reviewer sign-off.
 - ❌ **Never add a new language by modifying core code.** Hard constraint: 3 files max under `packs/<lang>/`.
+- ❌ **Never ship a capability on only one surface.** [Charter §5.13 / RFC-0090](rfcs/0090-cli-mcp-skill-parity.md) — the **Three-Surface Rule** (colloquially "1:1:1"): **CLI ↔ MCP is 1:1 strict** (byte-identical name, description, args, JSON output); **(CLI, MCP) ↔ Skill is N:1 covered** — every CLI+MCP pair MUST appear in ≥ 1 `skills/<category>/SKILL.md`'s `allowed-tools`. No orphans. No Skill-only. Exceptions need an `EXCEPTION:` line in the governing RFC.
 - ✅ **Always sign commits** with `Signed-off-by:` (DCO).
 - ✅ **Always use Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`, `perf:`, `ci:`, `build:`, `meta:`).
 - ✅ **Always update `CHANGELOG.md` "Unreleased" section** when shipping a user-visible change.
@@ -80,6 +81,7 @@ Step 6:  Commit with DCO sign-off.
 - ❌ Writing implementation and tests in the same step without confirming RED first
 - ❌ Skipping RFC acceptance criteria updates after implementing
 - ❌ Continuing the autonomous loop without checking PM's latest priority
+- ❌ Shipping a capability on only one surface (MCP-only, CLI-only) or leaving a CLI+MCP pair without Skill coverage. Charter §5.13 / RFC-0090 (Three-Surface Rule): CLI ↔ MCP is strict 1:1; every pair lives under at least one category Skill in `skills/<category>/`. File an `EXCEPTION:` RFC line if a true exception applies.
 
 ## ADR Requirement (Charter §3)
 

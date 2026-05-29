@@ -27,6 +27,8 @@ enum Cmd {
     /// Print the engine version.
     Version,
     /// Placeholder for `mycelium init` (creates a `.mycelium/` config dir).
+    /// Hidden until implemented — see issue #154.
+    #[command(hide = true)]
     Init,
     /// Index a project directory and report symbol statistics.
     Index {
@@ -35,6 +37,8 @@ enum Cmd {
         path: PathBuf,
     },
     /// Placeholder for `mycelium query <hyphae>`.
+    /// Hidden until implemented — see issue #151 (lands in v0.1.3).
+    #[command(hide = true)]
     Query {
         /// The Hyphae expression. Syntax is RFC-0003 (forthcoming).
         expr: String,
@@ -54,11 +58,18 @@ enum Cmd {
 }
 
 fn main() -> Result<()> {
+    // Route all tracing to stderr (never stdout). For `serve --mcp` this is
+    // mandatory: stdout is reserved for JSON-RPC frames. For other subcommands
+    // it's harmless. ANSI is disabled so piped consumers (CI logs, MCP clients
+    // that surface stderr) don't see escape sequences.
+    // Regression test: tests/mcp_stdout_purity.rs (issue #150).
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "mycelium=info".into()),
         )
+        .with_writer(std::io::stderr)
+        .with_ansi(false)
         .init();
 
     let cli = Cli::parse();

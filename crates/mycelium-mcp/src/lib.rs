@@ -73,6 +73,62 @@ struct WatchState {
     batches_processed: AtomicU64,
 }
 
+/// Parse a user-supplied `edge_kind` string into an [`EdgeKind`].
+///
+/// Accepts any ASCII case form (`"calls"`, `"Calls"`, `"CALLS"`, ...). The
+/// tool descriptions used to advertise `PascalCase` examples (`EdgeKind::Calls`)
+/// while the runtime only accepted lowercase, which surprised users.
+/// Issue #152.
+fn parse_edge_kind(s: &str) -> Result<EdgeKind, String> {
+    match s.to_ascii_lowercase().as_str() {
+        "calls" => Ok(EdgeKind::Calls),
+        "imports" => Ok(EdgeKind::Imports),
+        "extends" => Ok(EdgeKind::Extends),
+        "implements" => Ok(EdgeKind::Implements),
+        other => Err(format!(
+            "unknown edge_kind '{other}'; expected one of: calls, imports, extends, implements"
+        )),
+    }
+}
+
+#[cfg(test)]
+mod edge_kind_tests {
+    use super::*;
+
+    #[test]
+    fn lowercase_canonical_forms_parse() {
+        assert_eq!(parse_edge_kind("calls"), Ok(EdgeKind::Calls));
+        assert_eq!(parse_edge_kind("imports"), Ok(EdgeKind::Imports));
+        assert_eq!(parse_edge_kind("extends"), Ok(EdgeKind::Extends));
+        assert_eq!(parse_edge_kind("implements"), Ok(EdgeKind::Implements));
+    }
+
+    #[test]
+    fn pascalcase_matches_lowercase() {
+        // Matches the form the original tool descriptions advertised.
+        assert_eq!(parse_edge_kind("Calls"), Ok(EdgeKind::Calls));
+        assert_eq!(parse_edge_kind("Imports"), Ok(EdgeKind::Imports));
+        assert_eq!(parse_edge_kind("Extends"), Ok(EdgeKind::Extends));
+        assert_eq!(parse_edge_kind("Implements"), Ok(EdgeKind::Implements));
+    }
+
+    #[test]
+    fn screaming_case_matches_lowercase() {
+        assert_eq!(parse_edge_kind("CALLS"), Ok(EdgeKind::Calls));
+        assert_eq!(parse_edge_kind("IMPORTS"), Ok(EdgeKind::Imports));
+    }
+
+    #[test]
+    fn unknown_value_returns_helpful_error() {
+        let err = parse_edge_kind("contains").unwrap_err();
+        assert!(err.contains("unknown edge_kind"));
+        assert!(err.contains("calls"));
+        assert!(err.contains("imports"));
+        assert!(err.contains("extends"));
+        assert!(err.contains("implements"));
+    }
+}
+
 // ── embedded pack queries ─────────────────────────────────────────────────────
 // Paths are relative to this crate's root so the crate is self-contained
 // for `cargo publish` (workspace-level `packs/` is mirrored under `packs/`
@@ -1806,15 +1862,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetReachableRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable_opt: Option<Vec<String>> = {
@@ -1842,15 +1892,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetReachableToRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable_opt: Option<Vec<String>> = {
@@ -1931,15 +1975,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<DetectCyclesRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let nodes = self
             .store
@@ -1963,15 +2001,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetSccGroupsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let groups = self.store.read().await.scc_groups(kind);
         let group_count = groups.len();
@@ -1997,15 +2029,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetDependencyLayersRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let (layers, all_symbol_count) = {
             let store = self.store.read().await;
@@ -2039,15 +2065,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetTwoHopNeighborsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -2073,15 +2093,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetSymbolNeighborhoodRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let nb = {
             let store = self.store.read().await;
@@ -2118,15 +2132,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetHubSymbolsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let min_in = req.min_in.unwrap_or(1);
         let min_out = req.min_out.unwrap_or(1);
@@ -2158,15 +2166,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetSinglyReferencedRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let limit = req.limit.unwrap_or(10);
         let pairs = {
@@ -2196,15 +2198,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<BatchReachableToRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable = {
@@ -2236,15 +2232,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<BatchReachableFromRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable = {
@@ -2317,15 +2307,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<TopologicalSortRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let TopologicalOrder {
             order,
@@ -2359,15 +2343,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<FindArticulationPointsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let points = {
             let store = self.store.read().await;
@@ -2391,15 +2369,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<FindBridgeEdgesRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let bridges = {
             let store = self.store.read().await;
@@ -2428,15 +2400,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<BiconnectedComponentsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let comps = {
             let store = self.store.read().await;
@@ -2465,15 +2431,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<DegreeHistogramRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let hist = {
             let store = self.store.read().await;
@@ -2511,15 +2471,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GraphMetricsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let m = {
             let store = self.store.read().await;
@@ -2550,15 +2504,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<NeighborSimilarityRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id1) = store.lookup(&req.path1) else {
@@ -2592,15 +2540,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<ClusteringCoefficientRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -2629,15 +2571,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<EccentricityRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -2665,15 +2601,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<HarmonicCentralityRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -2703,15 +2633,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<MutualReachabilityRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id1) = store.lookup(&req.path1) else {
@@ -2745,15 +2669,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<ReachableSetRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -2781,15 +2699,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<ReachesIntoRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -2818,15 +2730,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<CommonReachableRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id1) = store.lookup(&req.path1) else {
@@ -2858,15 +2764,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<KHopNeighborsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -2896,15 +2796,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<BetweennessCentralityRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let top_n = req.top_n.unwrap_or(10);
         let store = self.store.read().await;
@@ -2933,15 +2827,9 @@ impl MyceliumServer {
                        Returns { nodes: [{path, score}], symbol_count, top_n } or { error }."
     )]
     async fn mycelium_page_rank(&self, Parameters(req): Parameters<PageRankRequest>) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let damping = req.damping.unwrap_or(0.85);
         let iterations = req.iterations.unwrap_or(20);
@@ -2972,15 +2860,9 @@ impl MyceliumServer {
                        Returns { components, component_count, total_symbols } or { error }."
     )]
     async fn mycelium_get_wcc(&self, Parameters(req): Parameters<GetWccRequest>) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let min_size = req.min_size.unwrap_or(1).max(1);
         let components: Vec<Vec<String>> = {
@@ -3010,15 +2892,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<FindCycleMembersRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let members = {
             let store = self.store.read().await;
@@ -3038,15 +2914,9 @@ impl MyceliumServer {
                        count, k } or { error } for unknown edge_kind."
     )]
     async fn mycelium_get_k_core(&self, Parameters(req): Parameters<GetKCoreRequest>) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let k = req.k.unwrap_or(2);
         let core = {
@@ -3112,15 +2982,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetMostConnectedRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let limit = req.limit.unwrap_or(10);
         let entries = self.store.read().await.most_connected(limit, kind);
@@ -3144,15 +3008,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetLeafSymbolsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let limit = req.limit.unwrap_or(10);
         let symbols = self.store.read().await.leaf_symbols(kind, limit);
@@ -3170,15 +3028,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetShortestPathRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         // Two lookups then shortest_path — hold read guard for the whole block.
         #[allow(clippy::significant_drop_tightening)]
@@ -3233,15 +3085,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetCommonCallersRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         if req.paths.is_empty() {
             return serde_json::json!({ "callers": [], "count": 0 }).to_string();
@@ -3275,15 +3121,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetCommonCalleesRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         if req.paths.is_empty() {
             return serde_json::json!({ "callees": [], "count": 0 }).to_string();
@@ -3317,15 +3157,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetFanOutRankRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let limit = req.limit.unwrap_or(10);
         let entries = self.store.read().await.fan_out_rank(kind, limit);
@@ -3349,15 +3183,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetFanInRankRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge_kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let limit = req.limit.unwrap_or(10);
         let entries = self.store.read().await.fan_in_rank(kind, limit);
@@ -3693,15 +3521,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<ClosenessCentralityRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let top_n = req.top_n.unwrap_or(10);
         let store = self.store.read().await;
@@ -3728,15 +3550,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<DependencyDepthRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
@@ -3768,15 +3584,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<DegreeCentralityRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let sort_by = req.sort_by.as_deref().unwrap_or("in");
         if sort_by != "in" && sort_by != "out" {
@@ -3834,15 +3644,9 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<StronglyConnectedComponentsRequest>,
     ) -> String {
-        let kind = match req.edge_kind.as_str() {
-            "calls" => EdgeKind::Calls,
-            "imports" => EdgeKind::Imports,
-            "extends" => EdgeKind::Extends,
-            "implements" => EdgeKind::Implements,
-            other => {
-                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
-                    .to_string();
-            }
+        let kind = match parse_edge_kind(&req.edge_kind) {
+            Ok(k) => k,
+            Err(e) => return serde_json::json!({ "error": e }).to_string(),
         };
         let min_size = req.min_size.unwrap_or(1);
         let store = self.store.read().await;
@@ -7369,7 +7173,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0068: mycelium_get_wcc ─────────────────────────────────────────
@@ -7429,7 +7233,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0069: mycelium_topological_sort ───────────────────────────────
@@ -7494,7 +7298,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0070: mycelium_find_articulation_points ───────────────────────
@@ -7557,7 +7361,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0071: mycelium_find_bridge_edges ──────────────────────────────
@@ -7623,7 +7427,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0072: mycelium_get_biconnected_components ─────────────────────
@@ -7676,7 +7480,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0073: mycelium_get_degree_histogram ───────────────────────────
@@ -7726,7 +7530,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0074: mycelium_get_graph_metrics ──────────────────────────────
@@ -7774,7 +7578,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0075: mycelium_get_neighbor_similarity ────────────────────────
@@ -7842,7 +7646,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0076: mycelium_get_clustering_coefficient ─────────────────────
@@ -7896,7 +7700,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0077: mycelium_get_eccentricity ──────────────────────────────────
@@ -7946,7 +7750,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0078: mycelium_get_harmonic_centrality ────────────────────────
@@ -8000,7 +7804,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0079: mycelium_get_mutual_reachability ────────────────────────
@@ -8054,7 +7858,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0080: mycelium_get_reachable_set ──────────────────────────────
@@ -8111,7 +7915,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0081: mycelium_get_reaches_into ───────────────────────────────
@@ -8168,7 +7972,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0082: mycelium_page_rank ──────────────────────────────────────
@@ -8210,7 +8014,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0083: mycelium_get_common_reachable ───────────────────────────
@@ -8266,7 +8070,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0084: mycelium_get_k_hop_neighbors ────────────────────────────
@@ -8323,7 +8127,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0085: mycelium_get_betweenness_centrality ─────────────────────
@@ -8361,7 +8165,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0086: mycelium_get_strongly_connected_components ─────────────
@@ -8406,7 +8210,7 @@ mod tests {
             ))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0087: mycelium_get_degree_centrality ──────────────────────────
@@ -8451,7 +8255,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     #[tokio::test]
@@ -8506,7 +8310,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0089: mycelium_get_dependency_depth ─────────────────────────────────
@@ -8578,7 +8382,7 @@ mod tests {
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+        assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────

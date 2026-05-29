@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-05-30
+
+### Fixed
+
+- **#150 — `mycelium serve --mcp` stdout pollution.** Tracing now goes
+  to stderr with ANSI disabled, so the stdout stream contains only
+  valid newline-delimited JSON-RPC frames. Strict MCP clients work
+  without a custom filter. Regression test:
+  `crates/mycelium-cli/tests/mcp_stdout_purity.rs`.
+- **#152 — `edge_kind` parameter is now case-insensitive.** Tools
+  accept `"Calls"`, `"calls"`, `"CALLS"` interchangeably. Unknown
+  values produce a helpful error that lists all four canonical
+  forms. Single source of truth: `parse_edge_kind()` in
+  `crates/mycelium-mcp/src/lib.rs`.
+- **#154 — `mycelium init` and `mycelium query` hidden from `--help`**
+  until implemented. The subcommands still exist (so test setup and
+  documentation links keep working) but no longer surface in
+  discoverability output. `query` is fully wired in v0.1.3 per
+  RFC-0090 Phase 2.
+
+### Added
+
+- **Charter §5.13 — the Three-Surface Rule** (colloquially "1:1:1 rule"):
+  CLI ↔ MCP is **1:1 strict** (byte-identical name, description, args,
+  JSON output); (CLI, MCP) ↔ Skill is **N:1 covered** (every pair must
+  appear in ≥ 1 category Skill's `allowed-tools`; orphans fail CI). See
+  [RFC-0090](rfcs/0090-cli-mcp-skill-parity.md) and
+  [ADR-0007](docs/adr/0007-cli-mcp-skill-parity.md).
+- `skills/` directory at the repo root with `README.md`, an `INDEX.md`
+  coverage matrix (seeded with 8 planned categories covering 72 of the
+  88 MCP capabilities), and a category-style `_template/` scaffold.
+- PR template grew a "Three-Surface Self-Check" section split into
+  CLI ↔ MCP parity (6 items), Skill coverage (4 items), and exception
+  path (3 items).
+
 ### Changed
 
 - **crates.io publish prefix**: Renamed all five workspace crates from
@@ -31,7 +66,7 @@ First public release of **Mycelium** — the reactive, AI-native symbol graph th
 
 **Core engine:** Trunk (Materialized Path Radix Trie) + Synapse (per-`EdgeKind` adjacency lists) + Cortex (Salsa 3 incremental reactive layer). In-memory graph with MessagePack snapshot persistence (`.mycelium/index.rmp`). Full tree-sitter extraction pipeline for 10 languages.
 
-**AI interface:** Hyphae DSL — a CSS-selector-inspired query language that replaces multi-round-trip JSON MCP calls with a single compact query (≤ 30% of JSON token count — Charter §2 SLA). Plus 90+ specialized MCP graph-intelligence tools.
+**AI interface:** Hyphae DSL — a CSS-selector-inspired query language that replaces multi-round-trip JSON MCP calls with a single compact query (≤ 30% of JSON token count — Charter §2 SLA). Plus 88 specialized MCP graph-intelligence tools.
 
 **All Charter §2 SLAs satisfied:**
 - Cold symbol lookup: ~8 ns (target: < 5 ms)
