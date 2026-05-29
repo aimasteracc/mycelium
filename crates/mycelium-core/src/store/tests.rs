@@ -2867,3 +2867,66 @@ fn store_fan_in_rank_sorted_desc_then_alpha() {
     assert_eq!(ranked[0].0, "src/a.rs>a_tgt"); // ties broken alphabetically
     assert_eq!(ranked[1].0, "src/z.rs>z_tgt");
 }
+
+// ── RFC-0055: Store::common_callees ──────────────────────────────────────────
+
+#[test]
+fn store_common_callees_intersection() {
+    let mut store = Store::new();
+    let shared = store.upsert_node(path("src/shared.rs>shared"));
+    let exclusive_a = store.upsert_node(path("src/ex_a.rs>ex_a"));
+    let exclusive_b = store.upsert_node(path("src/ex_b.rs>ex_b"));
+    let src_a = store.upsert_node(path("src/a.rs>a"));
+    let src_b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, src_a, shared);
+    store.upsert_edge(EdgeKind::Calls, src_a, exclusive_a);
+    store.upsert_edge(EdgeKind::Calls, src_b, shared);
+    store.upsert_edge(EdgeKind::Calls, src_b, exclusive_b);
+    let common = store.common_callees(&[src_a, src_b], EdgeKind::Calls);
+    assert_eq!(common, vec!["src/shared.rs>shared"]);
+}
+
+#[test]
+fn store_common_callees_single_source() {
+    let mut store = Store::new();
+    let tgt = store.upsert_node(path("src/t.rs>tgt"));
+    let src = store.upsert_node(path("src/s.rs>src_sym"));
+    store.upsert_edge(EdgeKind::Calls, src, tgt);
+    let common = store.common_callees(&[src], EdgeKind::Calls);
+    assert_eq!(common, vec!["src/t.rs>tgt"]);
+}
+
+#[test]
+fn store_common_callees_empty_sources_returns_empty() {
+    let store = Store::new();
+    assert!(store.common_callees(&[], EdgeKind::Calls).is_empty());
+}
+
+#[test]
+fn store_common_callees_no_intersection_returns_empty() {
+    let mut store = Store::new();
+    let tgt_a = store.upsert_node(path("src/ta.rs>tgt_a"));
+    let tgt_b = store.upsert_node(path("src/tb.rs>tgt_b"));
+    let src_a = store.upsert_node(path("src/a.rs>a"));
+    let src_b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, src_a, tgt_a);
+    store.upsert_edge(EdgeKind::Calls, src_b, tgt_b);
+    let common = store.common_callees(&[src_a, src_b], EdgeKind::Calls);
+    assert!(common.is_empty());
+}
+
+#[test]
+fn store_common_callees_sorted_alphabetically() {
+    let mut store = Store::new();
+    let z_tgt = store.upsert_node(path("src/z.rs>z_tgt"));
+    let a_tgt = store.upsert_node(path("src/a.rs>a_tgt"));
+    let src_a = store.upsert_node(path("src/src_a.rs>src_a"));
+    let src_b = store.upsert_node(path("src/src_b.rs>src_b"));
+    store.upsert_edge(EdgeKind::Calls, src_a, z_tgt);
+    store.upsert_edge(EdgeKind::Calls, src_a, a_tgt);
+    store.upsert_edge(EdgeKind::Calls, src_b, z_tgt);
+    store.upsert_edge(EdgeKind::Calls, src_b, a_tgt);
+    let common = store.common_callees(&[src_a, src_b], EdgeKind::Calls);
+    assert_eq!(common[0], "src/a.rs>a_tgt");
+    assert_eq!(common[1], "src/z.rs>z_tgt");
+}
