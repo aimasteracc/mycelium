@@ -506,6 +506,13 @@ pub struct BatchNodeDegreeRequest {
     pub paths: Vec<String>,
 }
 
+/// Input parameters for `mycelium_find_cycle_members`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FindCycleMembersRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+}
+
 /// Input parameters for `mycelium_get_k_core`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetKCoreRequest {
@@ -2021,6 +2028,37 @@ impl MyceliumServer {
         let count = degrees.len();
         drop(store);
         serde_json::json!({ "degrees": degrees, "count": count }).to_string()
+    }
+
+    #[tool(
+        description = "Return all symbol nodes that participate in at least one directed cycle for \
+                       a given EdgeKind. Uses Kosaraju's SCC algorithm: any node in a strongly- \
+                       connected component of size ≥ 2 is a cycle member. Useful for detecting \
+                       circular imports, mutually-recursive functions, or inheritance cycles. \
+                       Returns { members, count } or { error } for unknown edge_kind."
+    )]
+    async fn mycelium_find_cycle_members(
+        &self,
+        Parameters(req): Parameters<FindCycleMembersRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let members = {
+            let store = self.store.read().await;
+            let m = store.cycle_members(kind);
+            drop(store);
+            m
+        };
+        let count = members.len();
+        serde_json::json!({ "members": members, "count": count }).to_string()
     }
 
     #[tool(
@@ -5921,6 +5959,66 @@ mod tests {
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["degrees"].as_array().unwrap().is_empty());
+    }
+
+    // ── RFC-0067: mycelium_find_cycle_members ─────────────────────────────
+
+    #[tokio::test]
+    async fn find_cycle_members_returns_cycle_symbols() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, a);
+        }
+        let raw = server
+            .mycelium_find_cycle_members(Parameters(FindCycleMembersRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 2);
+        let members: Vec<&str> = val["members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(members.contains(&"src/a.rs>a"));
+        assert!(members.contains(&"src/b.rs>b"));
+    }
+
+    #[tokio::test]
+    async fn find_cycle_members_no_cycle_returns_empty() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>b").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+        }
+        let raw = server
+            .mycelium_find_cycle_members(Parameters(FindCycleMembersRequest {
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["count"].as_u64().unwrap(), 0);
+        assert!(val["members"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_cycle_members_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_find_cycle_members(Parameters(FindCycleMembersRequest {
+                edge_kind: "unknown_kind".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
     }
 
     // ── RFC-0041: mycelium_get_outgoing_refs ──────────────────────────────

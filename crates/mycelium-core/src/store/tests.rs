@@ -3707,3 +3707,83 @@ fn store_batch_node_degree_isolated_node_returns_zeros() {
     let degrees = store.batch_node_degree(&[lone]);
     assert_eq!(degrees[0], NodeDegree::default());
 }
+
+// RFC-0067: cycle_members
+#[test]
+fn store_cycle_members_simple_mutual_cycle() {
+    // a → b → a (mutual cycle via Calls)
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    let members = store.cycle_members(EdgeKind::Calls);
+    let mut expected = vec!["src/a.rs>a".to_owned(), "src/b.rs>b".to_owned()];
+    expected.sort_unstable();
+    assert_eq!(members, expected);
+}
+
+#[test]
+fn store_cycle_members_no_cycle_returns_empty() {
+    // a → b → c (acyclic)
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    let members = store.cycle_members(EdgeKind::Calls);
+    assert!(members.is_empty());
+}
+
+#[test]
+fn store_cycle_members_excludes_file_nodes() {
+    // file nodes should never appear even if they share a NodeId structure
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let _file = store.upsert_node(path("src/a.rs")); // file node (no `>`)
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    let members = store.cycle_members(EdgeKind::Calls);
+    for m in &members {
+        assert!(m.contains('>'), "file node leaked into cycle_members: {m}");
+    }
+}
+
+#[test]
+fn store_cycle_members_three_node_cycle() {
+    // a → b → c → a
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let members = store.cycle_members(EdgeKind::Calls);
+    let mut expected = vec![
+        "src/a.rs>a".to_owned(),
+        "src/b.rs>b".to_owned(),
+        "src/c.rs>c".to_owned(),
+    ];
+    expected.sort_unstable();
+    assert_eq!(members, expected);
+}
+
+#[test]
+fn store_cycle_members_non_cycle_node_excluded() {
+    // a → b → a forms a cycle; c → a is a dangling caller (not in any cycle)
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    store.upsert_edge(EdgeKind::Calls, c, a); // c is not in a cycle
+    let members = store.cycle_members(EdgeKind::Calls);
+    let mut expected = vec!["src/a.rs>a".to_owned(), "src/b.rs>b".to_owned()];
+    expected.sort_unstable();
+    assert_eq!(members, expected);
+    assert!(!members.iter().any(|m: &String| m.contains("src/c.rs")));
+}
