@@ -79,6 +79,9 @@ const JAVASCRIPT_QUERIES: &str = include_str!("../../../packs/javascript/queries
 const PYTHON_QUERIES: &str = include_str!("../../../packs/python/queries.scm");
 const TYPESCRIPT_QUERIES: &str = include_str!("../../../packs/typescript/queries.scm");
 const RUST_QUERIES: &str = include_str!("../../../packs/rust/queries.scm");
+const GO_QUERIES: &str = include_str!("../../../packs/go/queries.scm");
+const CPP_QUERIES: &str = include_str!("../../../packs/cpp/queries.scm");
+const CSHARP_QUERIES: &str = include_str!("../../../packs/csharp/queries.scm");
 
 // ── request schemas ───────────────────────────────────────────────────────────
 
@@ -616,6 +619,15 @@ pub struct BetweennessCentralityRequest {
 pub struct SyncFileRequest {
     /// Relative path of the file to re-index (e.g. `"src/auth.rs"`).
     pub path: String,
+}
+
+/// Input parameters for `mycelium_get_dependency_depth`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DependencyDepthRequest {
+    /// Symbol path, e.g. `"src/a.rs>A"`.
+    pub path: String,
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
 }
 
 /// Input parameters for `mycelium_get_closeness_centrality`.
@@ -3677,6 +3689,41 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "Return the dependency depth of a symbol — the length of the longest                        path from any root (symbol with no incoming edges of the given kind)                        to this symbol, following incoming edges. Depth 0 = root; depth 1 =                        only predecessors are roots. Cycle-safe. File nodes excluded.                        Returns { path, depth, edge_kind } or { error }."
+    )]
+    async fn mycelium_get_dependency_depth(
+        &self,
+        Parameters(req): Parameters<DependencyDepthRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let store = self.store.read().await;
+        let Some(id) = store.lookup(&req.path) else {
+            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                .to_string();
+        };
+        let Some(depth) = store.dependency_depth(id, kind) else {
+            return serde_json::json!({ "error": format!("not a symbol node: {}", req.path) })
+                .to_string();
+        };
+        drop(store);
+        serde_json::json!({
+            "path": req.path,
+            "depth": depth,
+            "edge_kind": req.edge_kind,
+        })
+        .to_string()
+    }
+
+    #[tool(
         description = "Return normalized in-degree and out-degree centrality scores for all symbol \
                        nodes. In-degree centrality identifies widely-used dependencies (fan-in hubs); \
                        out-degree centrality identifies symbols with a wide surface area (fan-out hubs). \
@@ -4012,6 +4059,17 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
     let rs_ext =
         Extractor::new(rs_lang, RUST_QUERIES).context("failed to compile Rust extractor")?;
 
+    let go_lang: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
+    let go_ext = Extractor::new(go_lang, GO_QUERIES).context("failed to compile Go extractor")?;
+
+    let cpp_lang: tree_sitter::Language = tree_sitter_cpp::LANGUAGE.into();
+    let cpp_ext =
+        Extractor::new(cpp_lang, CPP_QUERIES).context("failed to compile C++ extractor")?;
+
+    let csharp_lang: tree_sitter::Language = tree_sitter_c_sharp::LANGUAGE.into();
+    let csharp_ext =
+        Extractor::new(csharp_lang, CSHARP_QUERIES).context("failed to compile C# extractor")?;
+
     let mut store = Store::new();
     let mut files = 0usize;
     let mut errors = 0usize;
@@ -4050,6 +4108,9 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
             "ts" => (&ts_ext, "typescript"),
             "tsx" => (&tsx_ext, "typescript"),
             "rs" => (&rs_ext, "rust"),
+            "go" => (&go_ext, "go"),
+            "cpp" | "cc" | "cxx" | "hpp" => (&cpp_ext, "cpp"),
+            "cs" => (&csharp_ext, "csharp"),
             _ => continue,
         };
         let rel = path
@@ -4102,6 +4163,9 @@ fn reindex_file(rel: &str, src: &[u8], ext: &str, store: &mut Store) {
             TYPESCRIPT_QUERIES,
         ),
         "rs" => make_ext(tree_sitter_rust::LANGUAGE.into(), RUST_QUERIES),
+        "go" => make_ext(tree_sitter_go::LANGUAGE.into(), GO_QUERIES),
+        "cpp" | "cc" | "cxx" | "hpp" => make_ext(tree_sitter_cpp::LANGUAGE.into(), CPP_QUERIES),
+        "cs" => make_ext(tree_sitter_c_sharp::LANGUAGE.into(), CSHARP_QUERIES),
         _ => return,
     };
 
@@ -8367,6 +8431,78 @@ mod tests {
             .mycelium_get_closeness_centrality(Parameters(ClosenessCentralityRequest {
                 edge_kind: "unknown".into(),
                 top_n: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0089: mycelium_get_dependency_depth ─────────────────────────────────
+
+    #[tokio::test]
+    async fn dep_depth_mcp_leaf_is_zero() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/dd_mcp.rs>mcp_dd_leaf").unwrap());
+        }
+        let raw = server
+            .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
+                path: "src/dd_mcp.rs>mcp_dd_leaf".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["depth"].as_u64().unwrap(), 0);
+        assert_eq!(val["path"].as_str().unwrap(), "src/dd_mcp.rs>mcp_dd_leaf");
+        assert_eq!(val["edge_kind"].as_str().unwrap(), "calls");
+    }
+
+    #[tokio::test]
+    async fn dep_depth_mcp_two_hop_chain() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/dd_mcp.rs>mcp_dd_a").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/dd_mcp.rs>mcp_dd_b").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/dd_mcp.rs>mcp_dd_c").unwrap());
+            store.upsert_edge(EdgeKind::Calls, a, b);
+            store.upsert_edge(EdgeKind::Calls, b, c);
+        }
+        let raw = server
+            .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
+                path: "src/dd_mcp.rs>mcp_dd_c".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["depth"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn dep_depth_mcp_unknown_path_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
+                path: "src/nonexistent.rs>ghost".into(),
+                edge_kind: "calls".into(),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("path not found"));
+    }
+
+    #[tokio::test]
+    async fn dep_depth_mcp_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/dd_mcp.rs>mcp_dd_kind_check").unwrap());
+        }
+        let raw = server
+            .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
+                path: "src/dd_mcp.rs>mcp_dd_kind_check".into(),
+                edge_kind: "unknown_kind".into(),
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
