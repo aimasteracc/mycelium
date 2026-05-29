@@ -1342,3 +1342,59 @@ fn store_find_extends_path_max_depth_limits_hops() {
     assert!(store.find_extends_path(a, b, 1).is_some());
     assert!(store.find_extends_path(a, c, 1).is_none());
 }
+
+// ── RFC-0031: Store::extends_tree ────────────────────────────────────
+
+#[test]
+fn store_extends_tree_leaf_at_max_depth_zero() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("src/a.rs>A"));
+    let tree = store.extends_tree(id, 0);
+    assert_eq!(tree.id, id);
+    assert!(tree.parents.is_empty());
+}
+
+#[test]
+fn store_extends_tree_single_parent() {
+    let mut store = Store::new();
+    let child = store.upsert_node(path("src/child.rs>Child"));
+    let parent = store.upsert_node(path("src/parent.rs>Parent"));
+    store.upsert_edge(EdgeKind::Extends, child, parent);
+    let tree = store.extends_tree(child, 4);
+    assert_eq!(tree.id, child);
+    assert_eq!(tree.parents.len(), 1);
+    assert_eq!(tree.parents[0].id, parent);
+    assert!(tree.parents[0].parents.is_empty());
+}
+
+#[test]
+fn store_extends_tree_transitive_chain() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    let c = store.upsert_node(path("c.rs>C"));
+    store.upsert_edge(EdgeKind::Extends, a, b);
+    store.upsert_edge(EdgeKind::Extends, b, c);
+    let tree = store.extends_tree(a, 4);
+    assert_eq!(tree.parents.len(), 1);
+    assert_eq!(tree.parents[0].id, b);
+    assert_eq!(tree.parents[0].parents.len(), 1);
+    assert_eq!(tree.parents[0].parents[0].id, c);
+}
+
+#[test]
+fn store_extends_tree_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("a.rs>A"));
+    let b = store.upsert_node(path("b.rs>B"));
+    store.upsert_edge(EdgeKind::Extends, a, b);
+    store.upsert_edge(EdgeKind::Extends, b, a); // cycle
+    let tree = store.extends_tree(a, 10);
+    // A → B → A(leaf) — second visit to A is cut as a leaf
+    assert_eq!(tree.parents.len(), 1);
+    assert_eq!(tree.parents[0].id, b);
+    // b's parent is a again, but a is already in the path so it becomes a leaf
+    assert_eq!(tree.parents[0].parents.len(), 1);
+    assert_eq!(tree.parents[0].parents[0].id, a);
+    assert!(tree.parents[0].parents[0].parents.is_empty()); // cycle cut here
+}
