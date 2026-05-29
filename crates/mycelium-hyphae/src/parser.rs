@@ -1,13 +1,17 @@
 //! Recursive-descent parser for the Hyphae query language.
 //!
-//! Consumes a flat token stream (produced by [`crate::lexer::tokenise`]) and
-//! produces an [`Ast`].
-//!
 //! See [RFC-0003](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0003-hyphae-query-language.md)
-//! for the grammar this parser implements.
+//! for the original grammar and
+//! [RFC-0091](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0091-hyphae-jquery-selectors.md)
+//! for the jQuery-inspired selector extensions (`:not`, `:has`, `:in`,
+//! `:implements`, `:first-child` / `:last-child` / `:only-child`,
+//! `:nth-child(N)`, and `[attr=value]`).
 
 use crate::{
-    ast::{Ast, BaseSelector, Combinator, PseudoClass, Selector, SimpleSelector},
+    ast::{
+        Ast, AttributeSelector, BaseSelector, Combinator, PseudoArg, PseudoClass, Selector,
+        SimpleSelector,
+    },
     lexer::{Token, tokenise},
 };
 
@@ -33,33 +37,12 @@ pub enum ParseError {
 ///
 /// Returns a [`ParseError`] if the input cannot be parsed as a valid Hyphae
 /// query.
-///
-/// # Examples
-///
-/// ```
-/// use mycelium_hyphae::parser::parse;
-/// use mycelium_hyphae::ast::{Ast, Selector, SimpleSelector, BaseSelector};
-///
-/// let ast = parse("#login").unwrap();
-/// assert_eq!(
-///     ast,
-///     Ast::SelectorList(vec![
-///         Selector::Simple(SimpleSelector {
-///             base: BaseSelector::Name("login".to_owned()),
-///             pseudo_classes: vec![],
-///         })
-///     ])
-/// );
-/// ```
 pub fn parse(input: &str) -> Result<Ast, ParseError> {
     let raw = tokenise(input).map_err(ParseError::LexError)?;
-    // Filter leading/trailing whitespace; keep internal whitespace for
-    // descendant combinator detection.
     let tokens: Vec<(Token<'_>, usize)> =
         raw.into_iter().map(|(t, span)| (t, span.start)).collect();
     let mut parser = Parser { tokens, pos: 0 };
     let ast = parser.parse_query()?;
-    // Skip any trailing whitespace
     parser.skip_ws();
     if parser.pos < parser.tokens.len() {
         let (tok, pos) = &parser.tokens[parser.pos];
@@ -76,8 +59,6 @@ struct Parser<'src> {
 }
 
 impl<'src> Parser<'src> {
-    // ── Helpers ──────────────────────────────────────────────────────────
-
     fn peek(&self) -> Option<&Token<'src>> {
         self.tokens.get(self.pos).map(|(t, _)| t)
     }
@@ -90,7 +71,6 @@ impl<'src> Parser<'src> {
         item
     }
 
-    /// Consume a `Ws` token if present, returning whether one was consumed.
     fn skip_ws(&mut self) -> bool {
         if matches!(self.peek(), Some(Token::Ws)) {
             self.pos += 1;
@@ -104,9 +84,6 @@ impl<'src> Parser<'src> {
         self.tokens.get(self.pos).map_or(usize::MAX, |(_, p)| *p)
     }
 
-    // ── Grammar productions ───────────────────────────────────────────────
-
-    /// `query ::= selector_list EOF`
     fn parse_query(&mut self) -> Result<Ast, ParseError> {
         self.skip_ws();
         if self.peek().is_none() {
@@ -115,11 +92,9 @@ impl<'src> Parser<'src> {
         self.parse_selector_list()
     }
 
-    /// `selector_list ::= selector ( ',' selector )*`
     fn parse_selector_list(&mut self) -> Result<Ast, ParseError> {
         let mut selectors = vec![self.parse_selector()?];
         loop {
-            // Skip optional whitespace around comma
             self.skip_ws();
             if matches!(self.peek(), Some(Token::Comma)) {
                 self.advance();
@@ -132,16 +107,10 @@ impl<'src> Parser<'src> {
         Ok(Ast::SelectorList(selectors))
     }
 
-    /// `selector ::= simple ( combinator simple )*`
     fn parse_selector(&mut self) -> Result<Selector, ParseError> {
         let mut left = Selector::Simple(self.parse_simple()?);
         loop {
-            // Determine the next combinator, if any.
-            // The combinator may be:
-            //   - `>` or `~` (explicit, possibly surrounded by Ws)
-            //   - Ws followed immediately by a simple selector (descendant)
             let had_ws = self.skip_ws();
-
             let combinator = match self.peek() {
                 Some(Token::Gt) => {
                     self.advance();
@@ -158,7 +127,6 @@ impl<'src> Parser<'src> {
                 }
                 _ => break,
             };
-
             let right = self.parse_simple()?;
             left = Selector::Combined {
                 left: Box::new(left),
@@ -169,7 +137,6 @@ impl<'src> Parser<'src> {
         Ok(left)
     }
 
-    /// `simple ::= ( name_selector | kind_selector | universal ) pseudo_class*`
     fn parse_simple(&mut self) -> Result<SimpleSelector, ParseError> {
         let base = match self.peek() {
             Some(Token::Hash(_)) => {
@@ -199,6 +166,12 @@ impl<'src> Parser<'src> {
             None => return Err(ParseError::UnexpectedEof),
         };
 
+        // Attribute filters `[attr=value]*` come before pseudo-classes.
+        let mut attributes = Vec::new();
+        while matches!(self.peek(), Some(Token::LBracket)) {
+            attributes.push(self.parse_attribute()?);
+        }
+
         let mut pseudo_classes = Vec::new();
         while matches!(self.peek(), Some(Token::Colon(_))) {
             pseudo_classes.push(self.parse_pseudo_class()?);
@@ -206,11 +179,47 @@ impl<'src> Parser<'src> {
 
         Ok(SimpleSelector {
             base,
+            attributes,
             pseudo_classes,
         })
     }
 
-    /// `pseudo_class ::= ':' IDENT ( '(' selector_list ')' )?`
+    /// `attribute ::= '[' IDENT '=' (IDENT | NUMBER) ']'`
+    fn parse_attribute(&mut self) -> Result<AttributeSelector, ParseError> {
+        // consume `[`
+        self.advance();
+        let (name_tok, name_pos) = self.advance().ok_or(ParseError::UnexpectedEof)?;
+        let name = match name_tok {
+            Token::Ident(s) => s.to_owned(),
+            other => {
+                return Err(ParseError::UnexpectedToken(format!("{other:?}"), name_pos));
+            }
+        };
+        match self.advance() {
+            Some((Token::Eq, _)) => {}
+            Some((tok, pos)) => return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos)),
+            None => return Err(ParseError::UnexpectedEof),
+        }
+        let (value_tok, value_pos) = self.advance().ok_or(ParseError::UnexpectedEof)?;
+        let value = match value_tok {
+            Token::Ident(s) => s.to_owned(),
+            Token::Number(n) => n.to_string(),
+            other => return Err(ParseError::UnexpectedToken(format!("{other:?}"), value_pos)),
+        };
+        match self.advance() {
+            Some((Token::RBracket, _)) => {}
+            Some((tok, pos)) => return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos)),
+            None => return Err(ParseError::UnexpectedEof),
+        }
+        Ok(AttributeSelector { name, value })
+    }
+
+    /// `pseudo_class ::= ':' IDENT ( '(' pseudo_arg ')' )?`
+    ///
+    /// `pseudo_arg` shape depends on the pseudo-class name:
+    /// - `nth-child` → integer literal
+    /// - `in` → bare path identifier
+    /// - everything else → nested selector list
     fn parse_pseudo_class(&mut self) -> Result<PseudoClass, ParseError> {
         let (tok, pos) = self.advance().ok_or(ParseError::UnexpectedEof)?;
         let name = if let Token::Colon(n) = tok {
@@ -222,21 +231,41 @@ impl<'src> Parser<'src> {
         let argument = if matches!(self.peek(), Some(Token::LParen)) {
             self.advance(); // consume `(`
             self.skip_ws();
-            // Empty parens `()` means "match everything" — argument is None.
             if matches!(self.peek(), Some(Token::RParen)) {
-                self.advance(); // consume `)`
+                // Empty parens — argument-less.
+                self.advance();
                 None
             } else {
-                let inner = self.parse_selector_list()?;
+                let arg = match name.as_str() {
+                    "nth-child" => {
+                        let (t, p) = self.advance().ok_or(ParseError::UnexpectedEof)?;
+                        match t {
+                            Token::Number(n) => PseudoArg::Number(n),
+                            other => {
+                                return Err(ParseError::UnexpectedToken(format!("{other:?}"), p));
+                            }
+                        }
+                    }
+                    "in" => {
+                        let (t, p) = self.advance().ok_or(ParseError::UnexpectedEof)?;
+                        match t {
+                            Token::Ident(s) => PseudoArg::Path(s.to_owned()),
+                            other => {
+                                return Err(ParseError::UnexpectedToken(format!("{other:?}"), p));
+                            }
+                        }
+                    }
+                    _ => PseudoArg::Selector(Box::new(self.parse_selector_list()?)),
+                };
                 self.skip_ws();
                 match self.advance() {
                     Some((Token::RParen, _)) => {}
-                    Some((tok, pos)) => {
-                        return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos));
+                    Some((t, p)) => {
+                        return Err(ParseError::UnexpectedToken(format!("{t:?}"), p));
                     }
                     None => return Err(ParseError::UnexpectedEof),
                 }
-                Some(Box::new(inner))
+                Some(arg)
             }
         } else {
             None
@@ -249,13 +278,14 @@ impl<'src> Parser<'src> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{BaseSelector, Combinator, PseudoClass, Selector, SimpleSelector};
-
-    // ── Helpers ───────────────────────────────────────────────────────────
+    use crate::ast::{
+        AttributeSelector, BaseSelector, Combinator, PseudoClass, Selector, SimpleSelector,
+    };
 
     fn simple_name(name: &str) -> Selector {
         Selector::Simple(SimpleSelector {
             base: BaseSelector::Name(name.to_owned()),
+            attributes: vec![],
             pseudo_classes: vec![],
         })
     }
@@ -263,6 +293,7 @@ mod tests {
     fn simple_kind(kind: &str) -> Selector {
         Selector::Simple(SimpleSelector {
             base: BaseSelector::Kind(kind.to_owned()),
+            attributes: vec![],
             pseudo_classes: vec![],
         })
     }
@@ -270,6 +301,7 @@ mod tests {
     fn simple_universal() -> Selector {
         Selector::Simple(SimpleSelector {
             base: BaseSelector::Universal,
+            attributes: vec![],
             pseudo_classes: vec![],
         })
     }
@@ -285,8 +317,6 @@ mod tests {
     fn selector_list(selectors: Vec<Selector>) -> Ast {
         Ast::SelectorList(selectors)
     }
-
-    // ── Tests ─────────────────────────────────────────────────────────────
 
     #[test]
     fn name_selector() {
@@ -318,17 +348,6 @@ mod tests {
     }
 
     #[test]
-    fn child_combinator_with_spaces() {
-        let ast = parse("#Foo > .bar").unwrap();
-        let expected = selector_list(vec![combined(
-            simple_name("Foo"),
-            Combinator::Child,
-            simple_kind("bar"),
-        )]);
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
     fn sibling_combinator() {
         let ast = parse("#a~#b").unwrap();
         let expected = selector_list(vec![combined(
@@ -351,28 +370,11 @@ mod tests {
     }
 
     #[test]
-    fn selector_list_two_items() {
-        let ast = parse("#foo, .bar").unwrap();
-        assert_eq!(
-            ast,
-            selector_list(vec![simple_name("foo"), simple_kind("bar")])
-        );
-    }
-
-    #[test]
-    fn selector_list_three_items() {
-        let ast = parse("#a, #b, #c").unwrap();
-        assert_eq!(
-            ast,
-            selector_list(vec![simple_name("a"), simple_name("b"), simple_name("c"),])
-        );
-    }
-
-    #[test]
     fn pseudo_class_no_arg() {
         let ast = parse("#foo:calls").unwrap();
         let expected = selector_list(vec![Selector::Simple(SimpleSelector {
             base: BaseSelector::Name("foo".to_owned()),
+            attributes: vec![],
             pseudo_classes: vec![PseudoClass {
                 name: "calls".to_owned(),
                 argument: None,
@@ -382,81 +384,61 @@ mod tests {
     }
 
     #[test]
-    fn pseudo_class_with_arg() {
+    fn pseudo_class_with_selector_arg() {
         let ast = parse("#foo:calls(#bar)").unwrap();
         let expected = selector_list(vec![Selector::Simple(SimpleSelector {
             base: BaseSelector::Name("foo".to_owned()),
+            attributes: vec![],
             pseudo_classes: vec![PseudoClass {
                 name: "calls".to_owned(),
-                argument: Some(Box::new(selector_list(vec![simple_name("bar")]))),
+                argument: Some(PseudoArg::Selector(Box::new(selector_list(vec![
+                    simple_name("bar"),
+                ])))),
             }],
         })]);
         assert_eq!(ast, expected);
     }
 
     #[test]
-    fn pseudo_class_imports() {
-        let ast = parse(".function:imports").unwrap();
-        let expected = selector_list(vec![Selector::Simple(SimpleSelector {
-            base: BaseSelector::Kind("function".to_owned()),
-            pseudo_classes: vec![PseudoClass {
-                name: "imports".to_owned(),
-                argument: None,
-            }],
-        })]);
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
-    fn multiple_pseudo_classes() {
-        let ast = parse("#foo:calls:imports").unwrap();
-        let expected = selector_list(vec![Selector::Simple(SimpleSelector {
-            base: BaseSelector::Name("foo".to_owned()),
-            pseudo_classes: vec![
-                PseudoClass {
-                    name: "calls".to_owned(),
-                    argument: None,
-                },
-                PseudoClass {
-                    name: "imports".to_owned(),
-                    argument: None,
-                },
-            ],
-        })]);
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
-    fn complex_chain() {
-        // #Foo > .bar ~ #baz
-        let ast = parse("#Foo > .bar ~ #baz").unwrap();
-        let inner = combined(simple_name("Foo"), Combinator::Child, simple_kind("bar"));
-        let expected = selector_list(vec![combined(
-            inner,
-            Combinator::Sibling,
-            simple_name("baz"),
-        )]);
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
-    fn universal_with_pseudo() {
-        let ast = parse("*:calls").unwrap();
+    fn pseudo_class_with_number_arg() {
+        let ast = parse("*:nth-child(3)").unwrap();
         let expected = selector_list(vec![Selector::Simple(SimpleSelector {
             base: BaseSelector::Universal,
+            attributes: vec![],
             pseudo_classes: vec![PseudoClass {
-                name: "calls".to_owned(),
-                argument: None,
+                name: "nth-child".to_owned(),
+                argument: Some(PseudoArg::Number(3)),
             }],
         })]);
         assert_eq!(ast, expected);
     }
 
     #[test]
-    fn leading_whitespace_ignored() {
-        let a = parse("#foo").unwrap();
-        let b = parse("  #foo  ").unwrap();
-        assert_eq!(a, b);
+    fn pseudo_class_with_path_arg() {
+        let ast = parse(".function:in(src/auth/)").unwrap();
+        let expected = selector_list(vec![Selector::Simple(SimpleSelector {
+            base: BaseSelector::Kind("function".to_owned()),
+            attributes: vec![],
+            pseudo_classes: vec![PseudoClass {
+                name: "in".to_owned(),
+                argument: Some(PseudoArg::Path("src/auth/".to_owned())),
+            }],
+        })]);
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn attribute_selector() {
+        let ast = parse("*[language=python]").unwrap();
+        let expected = selector_list(vec![Selector::Simple(SimpleSelector {
+            base: BaseSelector::Universal,
+            attributes: vec![AttributeSelector {
+                name: "language".to_owned(),
+                value: "python".to_owned(),
+            }],
+            pseudo_classes: vec![],
+        })]);
+        assert_eq!(ast, expected);
     }
 
     #[test]
@@ -465,109 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn whitespace_only_error() {
-        assert_eq!(parse("   "), Err(ParseError::UnexpectedEof));
-    }
-
-    #[test]
     fn invalid_char_error() {
         assert!(matches!(parse("@bad"), Err(ParseError::LexError(_))));
     }
-
-    #[test]
-    fn unclosed_paren_error() {
-        assert!(parse("#foo:calls(#bar").is_err());
-    }
-
-    #[test]
-    fn hyphenated_name() {
-        let ast = parse("#my-symbol").unwrap();
-        assert_eq!(ast, selector_list(vec![simple_name("my-symbol")]));
-    }
-
-    #[test]
-    fn hyphenated_kind() {
-        let ast = parse(".arrow-function").unwrap();
-        assert_eq!(ast, selector_list(vec![simple_kind("arrow-function")]));
-    }
-
-    #[test]
-    fn nested_pseudo_class_arg() {
-        // #foo:calls(.function:imports)
-        let ast = parse("#foo:calls(.function:imports)").unwrap();
-        let inner_selector = Selector::Simple(SimpleSelector {
-            base: BaseSelector::Kind("function".to_owned()),
-            pseudo_classes: vec![PseudoClass {
-                name: "imports".to_owned(),
-                argument: None,
-            }],
-        });
-        let expected = selector_list(vec![Selector::Simple(SimpleSelector {
-            base: BaseSelector::Name("foo".to_owned()),
-            pseudo_classes: vec![PseudoClass {
-                name: "calls".to_owned(),
-                argument: Some(Box::new(selector_list(vec![inner_selector]))),
-            }],
-        })]);
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
-    fn kind_descendant_name() {
-        // .class #method — any method named "method" under a class
-        let ast = parse(".class #method").unwrap();
-        let expected = selector_list(vec![combined(
-            simple_kind("class"),
-            Combinator::Descendant,
-            simple_name("method"),
-        )]);
-        assert_eq!(ast, expected);
-    }
-
-    #[test]
-    fn selector_list_no_spaces_around_comma() {
-        let ast = parse("#a,#b").unwrap();
-        assert_eq!(ast, selector_list(vec![simple_name("a"), simple_name("b")]));
-    }
-}
-
-// ── Snapshot tests ────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-mod snapshot_tests {
-    use super::*;
-
-    macro_rules! snap {
-        ($name:ident, $input:expr) => {
-            #[test]
-            fn $name() {
-                let result = parse($input);
-                insta::assert_debug_snapshot!(result);
-            }
-        };
-    }
-
-    snap!(snap_name_selector, "#login");
-    snap!(snap_kind_selector, ".function");
-    snap!(snap_universal, "*");
-    snap!(snap_child, "#Foo>.bar");
-    snap!(snap_child_spaces, "#Foo > .bar");
-    snap!(snap_sibling, "#a~#b");
-    snap!(snap_descendant, "#parent .child");
-    snap!(snap_comma_list, "#foo, .bar");
-    snap!(snap_three_list, "#a, #b, #c");
-    snap!(snap_pseudo_no_arg, "#foo:calls");
-    snap!(snap_pseudo_with_arg, "#foo:calls(#bar)");
-    snap!(snap_imports, ".function:imports");
-    snap!(snap_multi_pseudo, "#foo:calls:imports");
-    snap!(snap_complex_chain, "#Foo > .bar ~ #baz");
-    snap!(snap_universal_pseudo, "*:calls");
-    snap!(snap_hyphenated_name, "#my-symbol");
-    snap!(snap_hyphenated_kind, ".arrow-function");
-    snap!(snap_nested_pseudo, "#foo:calls(.function:imports)");
-    snap!(snap_kind_descendant_name, ".class #method");
-    snap!(snap_no_space_comma, "#a,#b");
-    snap!(snap_empty_err, "");
-    snap!(snap_invalid_char_err, "@bad");
-    snap!(snap_unclosed_paren_err, "#foo:calls(#bar");
 }

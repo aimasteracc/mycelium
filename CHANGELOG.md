@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Hyphae jQuery-inspired selector extensions** (RFC-0091, v0.1.5).
+  Closes the gap between Hyphae v1's CSS-selector core and full
+  jQuery expressiveness. Eight new selector forms, all parse-compatible
+  with existing queries:
+  - `:not(X)` — set difference.
+  - `:has(X)` — containment check.
+  - `:in(path-prefix)` — path-scoped filter (heavily requested in agent prompts).
+  - `:implements(X)` — outgoing `Implements` edge (mirror of `:extends`).
+  - `:first-child` / `:last-child` / `:only-child` — positional within siblings.
+  - `:nth-child(N)` — 1-indexed positional.
+  - `[attr=value]` — exact-match attribute selector. Supported attributes: `language` (derived from file extension), `kind` (`NodeKind` wire string), `file` (file path).
+  Lexer gains `LBracket`, `RBracket`, `Eq`, `Number`, and a broadened
+  `Ident` token (now accepts `/` and `.` so `:in(src/lib.rs)` lexes as
+  a single bare path). AST gains `AttributeSelector` and `PseudoArg`
+  enum. Tests: 11 integration assertions in
+  `crates/mycelium-hyphae/tests/jquery_selectors.rs` plus parser unit
+  tests for each new form. The marketing-copy claim "CSS-selector-style
+  with relationship pseudo-classes" is now literal, not aspirational.
+
 - **CLI parity backfill batch 7** (v0.1.5): all 14 `centrality` capabilities
   get CLI subcommands. `centrality` category now 14/14 ✅ Three-Surface
   (incl. `rank-symbols`, `get-top-files`, `page-rank` — top-10 most useful).
