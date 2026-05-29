@@ -165,6 +165,27 @@ mod tests {
     }
 
     #[test]
+    fn pack_loader_reads_go_pack() {
+        let pack_dir = workspace_root().join("packs/go");
+        let pack = LanguagePack::load(&pack_dir).expect("go pack should load");
+
+        assert_eq!(pack.name(), "go");
+        assert!(
+            pack.extensions().contains(&".go".to_string()),
+            "go pack must list .go extension"
+        );
+        assert!(!pack.queries.is_empty(), "queries.scm must be non-empty");
+        assert!(
+            pack.queries.contains("@definition"),
+            "queries.scm must contain @definition captures"
+        );
+        assert!(
+            pack.queries.contains("@reference"),
+            "queries.scm must contain @reference captures"
+        );
+    }
+
+    #[test]
     fn pack_loader_errors_on_missing_dir() {
         let result = LanguagePack::load(Path::new("/nonexistent/does/not/exist"));
         assert!(result.is_err());
