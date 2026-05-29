@@ -599,6 +599,15 @@ pub struct MutualReachabilityRequest {
     pub edge_kind: String,
 }
 
+/// Input parameters for `mycelium_get_betweenness_centrality`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BetweennessCentralityRequest {
+    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
+    pub edge_kind: String,
+    /// How many top entries to return; defaults to 10 if absent.
+    pub top_n: Option<usize>,
+}
+
 /// Input parameters for `mycelium_get_k_hop_neighbors`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct KHopNeighborsRequest {
@@ -2758,6 +2767,46 @@ impl MyceliumServer {
             "neighbors": neighbors,
             "count": count,
             "k": req.k,
+        })
+        .to_string()
+    }
+
+    #[tool(
+        description = "Compute normalized betweenness centrality for all symbol nodes using \
+                       Brandes' algorithm. Identifies bridge nodes that lie on many shortest \
+                       dependency paths — bottlenecks whose change ripples through many call \
+                       chains. Score ∈ [0.0, 1.0]; normalized by (n-1)*(n-2). \
+                       File nodes excluded. O(V*(V+E)). \
+                       Returns { nodes: [{path, score}], symbol_count, top_n } or { error }."
+    )]
+    async fn mycelium_get_betweenness_centrality(
+        &self,
+        Parameters(req): Parameters<BetweennessCentralityRequest>,
+    ) -> String {
+        let kind = match req.edge_kind.as_str() {
+            "calls" => EdgeKind::Calls,
+            "imports" => EdgeKind::Imports,
+            "extends" => EdgeKind::Extends,
+            "implements" => EdgeKind::Implements,
+            other => {
+                return serde_json::json!({ "error": format!("unknown edge kind: {other}") })
+                    .to_string();
+            }
+        };
+        let top_n = req.top_n.unwrap_or(10);
+        let store = self.store.read().await;
+        let entries = store.betweenness_centrality(kind);
+        let symbol_count = entries.len();
+        drop(store);
+        let nodes: Vec<serde_json::Value> = entries
+            .into_iter()
+            .take(top_n)
+            .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
+            .collect();
+        serde_json::json!({
+            "nodes": nodes,
+            "symbol_count": symbol_count,
+            "top_n": top_n,
         })
         .to_string()
     }
@@ -7776,6 +7825,44 @@ mod tests {
                 path: "src/any.rs>any_kh".into(),
                 edge_kind: "unknown".into(),
                 k: 1,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val["error"].as_str().unwrap().contains("unknown edge kind"));
+    }
+
+    // ── RFC-0085: mycelium_get_betweenness_centrality ─────────────────────
+
+    #[tokio::test]
+    async fn betweenness_chain_middle_ranks_first() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let head = store.upsert_node(TrunkPath::parse("src/bw.rs>bw_head").unwrap());
+            let mid = store.upsert_node(TrunkPath::parse("src/bw.rs>bw_mid").unwrap());
+            let tail = store.upsert_node(TrunkPath::parse("src/bw.rs>bw_tail").unwrap());
+            store.upsert_edge(EdgeKind::Calls, head, mid);
+            store.upsert_edge(EdgeKind::Calls, mid, tail);
+        }
+        let raw = server
+            .mycelium_get_betweenness_centrality(Parameters(BetweennessCentralityRequest {
+                edge_kind: "calls".into(),
+                top_n: Some(3),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
+        let first_path = val["nodes"][0]["path"].as_str().unwrap();
+        assert_eq!(first_path, "src/bw.rs>bw_mid");
+    }
+
+    #[tokio::test]
+    async fn betweenness_unknown_edge_kind_returns_error() {
+        let server = MyceliumServer::new();
+        let raw = server
+            .mycelium_get_betweenness_centrality(Parameters(BetweennessCentralityRequest {
+                edge_kind: "unknown".into(),
+                top_n: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();

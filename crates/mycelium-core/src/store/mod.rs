@@ -285,6 +285,15 @@ pub struct PageRankEntry {
     pub score: f64,
 }
 
+/// One entry in the result of [`Store::betweenness_centrality`].
+#[derive(Debug, Clone)]
+pub struct BetweennessEntry {
+    /// Materialized path of the symbol node.
+    pub path: String,
+    /// Normalized betweenness centrality score ∈ [0.0, 1.0].
+    pub score: f64,
+}
+
 /// Result of [`Store::mutual_reachability`]: forward/backward BFS distances
 /// and derived reachability flags for two symbol nodes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3440,5 +3449,102 @@ impl Store {
             }
         }
         Vec::new()
+    }
+
+    /// Compute normalized betweenness centrality for all symbol nodes using
+    /// Brandes' O(V×(V+E)) algorithm.
+    ///
+    /// BC(v) = Σ_{s≠t≠v} σ(s,t|v)/σ(s,t), normalized by (n-1)×(n-2).
+    /// `n < 2` → empty.  `n == 2` → all scores 0.0.
+    /// File nodes excluded.  Returns entries sorted descending by score.
+    #[must_use]
+    pub fn betweenness_centrality(&self, kind: EdgeKind) -> Vec<BetweennessEntry> {
+        // Collect symbol nodes in stable order.
+        let symbols: Vec<NodeId> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p))
+            .collect();
+        let n = symbols.len();
+        if n < 2 {
+            return Vec::new();
+        }
+
+        // Index map NodeId → usize for O(1) lookup.
+        let idx: HashMap<NodeId, usize> =
+            symbols.iter().enumerate().map(|(i, &id)| (id, i)).collect();
+
+        let mut bc = vec![0.0_f64; n];
+
+        // Brandes: one BFS per source.
+        for &src in &symbols {
+            let src_i = idx[&src];
+
+            // BFS state.
+            let mut sigma = vec![0.0_f64; n]; // #shortest paths from src
+            let mut dist = vec![-1_i64; n]; // BFS distance (-1 = unvisited)
+            let mut pred: Vec<Vec<usize>> = vec![Vec::new(); n]; // predecessors
+
+            sigma[src_i] = 1.0;
+            dist[src_i] = 0;
+
+            let mut queue: VecDeque<usize> = VecDeque::new();
+            queue.push_back(src_i);
+            let mut bfs_order: Vec<usize> = Vec::new();
+
+            while let Some(vi) = queue.pop_front() {
+                bfs_order.push(vi);
+                let v = symbols[vi];
+                for &w in self.synapse.outgoing(v, kind) {
+                    // Skip file nodes.
+                    if self.trunk.path_of(w).is_none_or(|p| !p.contains('>')) {
+                        continue;
+                    }
+                    let Some(&wi) = idx.get(&w) else { continue };
+                    if dist[wi] < 0 {
+                        dist[wi] = dist[vi] + 1;
+                        queue.push_back(wi);
+                    }
+                    if dist[wi] == dist[vi] + 1 {
+                        sigma[wi] += sigma[vi];
+                        pred[wi].push(vi);
+                    }
+                }
+            }
+
+            // Backward accumulation.
+            let mut delta = vec![0.0_f64; n];
+            for &wi in bfs_order.iter().rev() {
+                for &pi in &pred[wi] {
+                    if sigma[wi] > 0.0 {
+                        delta[pi] += (sigma[pi] / sigma[wi]) * (1.0 + delta[wi]);
+                    }
+                }
+                if wi != src_i {
+                    bc[wi] += delta[wi];
+                }
+            }
+        }
+
+        // Normalize by (n-1)*(n-2) for directed graph.
+        #[allow(clippy::cast_precision_loss)]
+        let norm = ((n - 1) * (n - 2)) as f64;
+        let mut entries: Vec<BetweennessEntry> = symbols
+            .into_iter()
+            .zip(bc)
+            .filter_map(|(nid, raw)| {
+                self.trunk.path_of(nid).map(|p| BetweennessEntry {
+                    path: p.to_owned(),
+                    score: if norm > 0.0 { raw / norm } else { 0.0 },
+                })
+            })
+            .collect();
+        entries.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        entries
     }
 }
