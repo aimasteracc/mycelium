@@ -245,6 +245,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0090: `mycelium_get_token_stats` MCP tool — sample-payload byte-count comparison; returns `{ sample_query, json_bytes, msgpack_bytes, ratio }` to let callers verify the Charter §2 AI token-efficiency SLA (raw MessagePack bytes vs JSON bytes).
 - RFC-0090: `mycelium_search_symbol` — when compact mode is enabled, serialises the result with `rmp_serde::to_vec_named` and returns `{ "fmt": "msgpack_hex", "data": "<hex>", "bytes": N }` instead of plain JSON, achieving significant token-count reduction for large result sets.
 - RFC-0090: `encode_msgpack_hex` private helper — encodes any `serde_json::Value` as MessagePack then hex; falls back to plain JSON on serialization error (logged via `tracing::warn`).
+- SPRINT-002: CI coverage job now gates on `--fail-under-branches 80` in addition to `--fail-under-lines 90`, enforcing Charter §2 / §5.4 branch coverage SLA. A second `--json --no-run` step captures per-crate branch percentages for Codecov upload.
 
 ### Fixed
 
