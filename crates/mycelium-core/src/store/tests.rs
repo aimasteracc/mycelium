@@ -2106,3 +2106,79 @@ fn store_reachable_from_sorted() {
     sorted.sort_unstable();
     assert_eq!(reachable, sorted);
 }
+// ──────────────────────────────────────────────────────────────────────
+// RFC-0044: Store::reachable_to
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_reachable_to_direct_callers() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    store.upsert_edge(EdgeKind::Calls, c, a);
+    let reachable = store.reachable_to(a, EdgeKind::Calls, 1);
+    assert_eq!(
+        reachable,
+        vec!["src/b.rs>b".to_owned(), "src/c.rs>c".to_owned()]
+    );
+}
+
+#[test]
+fn store_reachable_to_transitive() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    let c = store.upsert_node(path("src/c.rs>c"));
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    store.upsert_edge(EdgeKind::Calls, c, b);
+    let reachable = store.reachable_to(a, EdgeKind::Calls, 10);
+    assert!(reachable.contains(&"src/b.rs>b".to_owned()));
+    assert!(reachable.contains(&"src/c.rs>c".to_owned()));
+}
+
+#[test]
+fn store_reachable_to_excludes_start_node() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    let reachable = store.reachable_to(a, EdgeKind::Calls, 10);
+    assert!(!reachable.contains(&"src/a.rs>a".to_owned()));
+}
+
+#[test]
+fn store_reachable_to_cycle_safe() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    store.upsert_edge(EdgeKind::Calls, a, b); // cycle
+    let reachable = store.reachable_to(a, EdgeKind::Calls, 10);
+    assert_eq!(reachable, vec!["src/b.rs>b".to_owned()]);
+}
+
+#[test]
+fn store_reachable_to_max_depth_zero_empty() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let b = store.upsert_node(path("src/b.rs>b"));
+    store.upsert_edge(EdgeKind::Calls, b, a);
+    let reachable = store.reachable_to(a, EdgeKind::Calls, 0);
+    assert!(reachable.is_empty());
+}
+
+#[test]
+fn store_reachable_to_sorted() {
+    let mut store = Store::new();
+    let a = store.upsert_node(path("src/a.rs>a"));
+    let z = store.upsert_node(path("src/z.rs>z"));
+    let m = store.upsert_node(path("src/m.rs>m"));
+    store.upsert_edge(EdgeKind::Calls, z, a);
+    store.upsert_edge(EdgeKind::Calls, m, a);
+    let reachable = store.reachable_to(a, EdgeKind::Calls, 10);
+    let mut sorted = reachable.clone();
+    sorted.sort_unstable();
+    assert_eq!(reachable, sorted);
+}

@@ -1321,6 +1321,38 @@ impl Store {
         result
     }
 
+    /// Return all paths that can reach `id` via incoming `kind` edges, BFS up
+    /// to `max_depth` hops.  The starting node is excluded.  Each node is
+    /// visited at most once (cycle-safe).  `max_depth` is capped at 20.
+    /// Results sorted lexicographically.
+    #[must_use]
+    pub fn reachable_to(&self, id: NodeId, kind: EdgeKind, max_depth: usize) -> Vec<String> {
+        let max_depth = max_depth.min(20);
+        let mut visited: HashSet<NodeId> = HashSet::new();
+        visited.insert(id);
+        let mut frontier: Vec<NodeId> = vec![id];
+        let mut result: Vec<String> = Vec::new();
+        for _ in 0..max_depth {
+            if frontier.is_empty() {
+                break;
+            }
+            let mut next_frontier: Vec<NodeId> = Vec::new();
+            for node in frontier {
+                for &neighbor in self.synapse.incoming(node, kind) {
+                    if visited.insert(neighbor) {
+                        if let Some(p) = self.path_of(neighbor) {
+                            result.push(p.to_owned());
+                        }
+                        next_frontier.push(neighbor);
+                    }
+                }
+            }
+            frontier = next_frontier;
+        }
+        result.sort_unstable();
+        result
+    }
+
     /// Return all targets of edges of `kind` outgoing from `id`.
     #[must_use]
     pub fn outgoing(&self, id: NodeId, kind: EdgeKind) -> &[NodeId] {
