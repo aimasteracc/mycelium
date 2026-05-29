@@ -40,3 +40,8 @@ tree-sitter-rust        = { workspace = true }
 name    = "trunk_lookup"
 harness = false
 required-features = []
+
+[[bench]]
+name    = "synapse_traversal"
+harness = false
+required-features = []

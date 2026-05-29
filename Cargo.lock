@@ -950,6 +950,7 @@ dependencies = [
  "mycelium-core",
  "notify",
  "rmcp",
+ "rmp-serde",
  "schemars",
  "serde",
  "serde_json",
