@@ -497,6 +497,165 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Rank symbols by caller count.
+    RankSymbols {
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N source files by direct symbol count.
+    GetTopFiles {
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N symbols by total degree for an edge kind.
+    GetMostConnected {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Hub symbols: high in-degree AND high out-degree.
+    GetHubSymbols {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 1)]
+        min_in: usize,
+        #[arg(long, default_value_t = 1)]
+        min_out: usize,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N by out-degree.
+    GetFanOutRank {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N by in-degree.
+    GetFanInRank {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Brandes' betweenness centrality.
+    BetweennessCentrality {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Wasserman-Faust closeness centrality.
+    ClosenessCentrality {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Normalized in- and out-degree centrality.
+    DegreeCentrality {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = "in")]
+        sort_by: String,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Local clustering coefficient for a single symbol.
+    ClusteringCoefficient {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Eccentricity of a single symbol.
+    Eccentricity {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// `PageRank` with damping + iterations.
+    PageRank {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 0.85)]
+        damping: f64,
+        #[arg(long, default_value_t = 20)]
+        iterations: usize,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Harmonic centrality for a single symbol.
+    HarmonicCentrality {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Jaccard similarity of two symbols' neighbour sets.
+    NeighborSimilarity {
+        #[arg(long)]
+        path1: String,
+        #[arg(long)]
+        path2: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -863,6 +1022,156 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_singly_referenced(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::RankSymbols {
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_rank_symbols(&canonical, limit, format.into())?;
+        }
+        Cmd::GetTopFiles {
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_top_files(&canonical, limit, format.into())?;
+        }
+        Cmd::GetMostConnected {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_most_connected(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::GetHubSymbols {
+            edge_kind,
+            min_in,
+            min_out,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_hub_symbols(
+                &canonical,
+                &edge_kind,
+                min_in,
+                min_out,
+                limit,
+                format.into(),
+            )?;
+        }
+        Cmd::GetFanOutRank {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_fan_out_rank(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::GetFanInRank {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_fan_in_rank(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::BetweennessCentrality {
+            edge_kind,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_betweenness_centrality(&canonical, &edge_kind, top_n, format.into())?;
+        }
+        Cmd::ClosenessCentrality {
+            edge_kind,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_closeness_centrality(&canonical, &edge_kind, top_n, format.into())?;
+        }
+        Cmd::DegreeCentrality {
+            edge_kind,
+            sort_by,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_degree_centrality(&canonical, &edge_kind, &sort_by, top_n, format.into())?;
+        }
+        Cmd::ClusteringCoefficient {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_clustering_coefficient(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::Eccentricity {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_eccentricity(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::PageRank {
+            edge_kind,
+            damping,
+            iterations,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_page_rank(
+                &canonical,
+                &edge_kind,
+                damping,
+                iterations,
+                top_n,
+                format.into(),
+            )?;
+        }
+        Cmd::HarmonicCentrality {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_harmonic_centrality(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::NeighborSimilarity {
+            path1,
+            path2,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_neighbor_similarity(
+                &canonical,
+                &path1,
+                &path2,
+                &edge_kind,
+                format.into(),
+            )?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

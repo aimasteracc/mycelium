@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 7** (v0.1.5): all 14 `centrality` capabilities
+  get CLI subcommands. `centrality` category now 14/14 ✅ Three-Surface
+  (incl. `rank-symbols`, `get-top-files`, `page-rank` — top-10 most useful).
+  Three-Surface compliant: 41 → 55 / 89 (62%) — **above the 50% threshold
+  for flipping parity.yml from informational to required.**
+
 - **CLI parity backfill batch 6** (v0.1.5): all 12 `reachability`
   capabilities get CLI subcommands. `reachability` category is now
   12/12 ✅ Three-Surface (incl. `get-shortest-path` — top-3 most useful

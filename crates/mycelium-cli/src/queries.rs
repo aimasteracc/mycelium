@@ -965,6 +965,313 @@ pub(crate) fn run_get_singly_referenced(
     print_tree_value(&value, format)
 }
 
+// ── centrality: 14 ranking/scoring tools ──────────────────────────────────────
+
+pub(crate) fn run_rank_symbols(root: &Path, limit: usize, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let ranked = store.top_callee_symbols(limit.min(100));
+    let symbols: Vec<serde_json::Value> = ranked
+        .into_iter()
+        .map(|(p, c)| serde_json::json!({ "path": p, "caller_count": c }))
+        .collect();
+    print_tree_value(&serde_json::json!({ "symbols": symbols }), format)
+}
+
+pub(crate) fn run_get_top_files(root: &Path, limit: usize, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let entries = store.top_files(limit);
+    let count = entries.len();
+    let files: Vec<serde_json::Value> = entries
+        .into_iter()
+        .map(|(p, c)| serde_json::json!({ "path": p, "symbol_count": c }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "files": files, "count": count }),
+        format,
+    )
+}
+
+pub(crate) fn run_get_most_connected(
+    root: &Path,
+    edge_kind: &str,
+    limit: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let entries = store.most_connected(limit, kind);
+    let count = entries.len();
+    let symbols: Vec<serde_json::Value> = entries
+        .into_iter()
+        .map(|(p, d)| serde_json::json!({ "path": p, "degree": d }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "symbols": symbols, "count": count }),
+        format,
+    )
+}
+
+pub(crate) fn run_get_hub_symbols(
+    root: &Path,
+    edge_kind: &str,
+    min_in: usize,
+    min_out: usize,
+    limit: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let hubs = store.hub_symbols(kind, min_in, min_out, limit);
+    let count = hubs.len();
+    let hubs_json: Vec<serde_json::Value> = hubs
+        .into_iter()
+        .map(|(p, inn, out)| serde_json::json!({ "path": p, "in_degree": inn, "out_degree": out }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "hubs": hubs_json, "count": count }),
+        format,
+    )
+}
+
+pub(crate) fn run_get_fan_out_rank(
+    root: &Path,
+    edge_kind: &str,
+    limit: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let entries = store.fan_out_rank(kind, limit);
+    let count = entries.len();
+    let symbols: Vec<serde_json::Value> = entries
+        .into_iter()
+        .map(|(p, d)| serde_json::json!({ "path": p, "out_degree": d }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "symbols": symbols, "count": count }),
+        format,
+    )
+}
+
+pub(crate) fn run_get_fan_in_rank(
+    root: &Path,
+    edge_kind: &str,
+    limit: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let entries = store.fan_in_rank(kind, limit);
+    let count = entries.len();
+    let symbols: Vec<serde_json::Value> = entries
+        .into_iter()
+        .map(|(p, d)| serde_json::json!({ "path": p, "in_degree": d }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "symbols": symbols, "count": count }),
+        format,
+    )
+}
+
+pub(crate) fn run_betweenness_centrality(
+    root: &Path,
+    edge_kind: &str,
+    top_n: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let entries = store.betweenness_centrality(kind);
+    let symbol_count = entries.len();
+    let nodes: Vec<serde_json::Value> = entries
+        .into_iter()
+        .take(top_n)
+        .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "nodes": nodes, "symbol_count": symbol_count, "top_n": top_n }),
+        format,
+    )
+}
+
+pub(crate) fn run_closeness_centrality(
+    root: &Path,
+    edge_kind: &str,
+    top_n: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let entries = store.closeness_centrality(kind);
+    let symbol_count = entries.len();
+    let nodes: Vec<serde_json::Value> = entries
+        .into_iter()
+        .take(top_n)
+        .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "nodes": nodes, "symbol_count": symbol_count, "top_n": top_n }),
+        format,
+    )
+}
+
+pub(crate) fn run_degree_centrality(
+    root: &Path,
+    edge_kind: &str,
+    sort_by: &str,
+    top_n: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    if sort_by != "in" && sort_by != "out" {
+        return Err(anyhow!(
+            "unknown sort_by: {sort_by}; expected 'in' or 'out'"
+        ));
+    }
+    let mut entries = store.degree_centrality(kind);
+    let symbol_count = entries.len();
+    if sort_by == "out" {
+        entries.sort_by(|a, b| {
+            b.out_centrality
+                .partial_cmp(&a.out_centrality)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.path.cmp(&b.path))
+        });
+    }
+    let nodes: Vec<serde_json::Value> = entries
+        .into_iter()
+        .take(top_n)
+        .map(|e| {
+            serde_json::json!({
+                "path": e.path,
+                "in_degree":     e.in_degree,
+                "out_degree":    e.out_degree,
+                "in_centrality": e.in_centrality,
+                "out_centrality":e.out_centrality,
+            })
+        })
+        .collect();
+    print_tree_value(
+        &serde_json::json!({
+            "nodes": nodes, "symbol_count": symbol_count, "top_n": top_n, "sort_by": sort_by,
+        }),
+        format,
+    )
+}
+
+pub(crate) fn run_clustering_coefficient(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let (coefficient, neighbor_count, neighbor_edge_count) =
+        store.clustering_coefficient_stats(id, kind);
+    print_tree_value(
+        &serde_json::json!({
+            "coefficient": coefficient,
+            "neighbor_count": neighbor_count,
+            "neighbor_edge_count": neighbor_edge_count,
+        }),
+        format,
+    )
+}
+
+pub(crate) fn run_eccentricity(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let (eccentricity, reachable_count) = store.eccentricity_stats(id, kind);
+    print_tree_value(
+        &serde_json::json!({
+            "eccentricity": eccentricity,
+            "reachable_count": reachable_count,
+        }),
+        format,
+    )
+}
+
+pub(crate) fn run_page_rank(
+    root: &Path,
+    edge_kind: &str,
+    damping: f64,
+    iterations: usize,
+    top_n: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let entries = store.page_rank(kind, damping, iterations);
+    let symbol_count = entries.len();
+    let nodes: Vec<serde_json::Value> = entries
+        .into_iter()
+        .take(top_n)
+        .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
+        .collect();
+    print_tree_value(
+        &serde_json::json!({ "nodes": nodes, "symbol_count": symbol_count, "top_n": top_n }),
+        format,
+    )
+}
+
+pub(crate) fn run_harmonic_centrality(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let (harmonic_centrality, reachable_count, symbol_count) =
+        store.harmonic_centrality_stats(id, kind);
+    print_tree_value(
+        &serde_json::json!({
+            "harmonic_centrality": harmonic_centrality,
+            "reachable_count": reachable_count,
+            "symbol_count": symbol_count,
+        }),
+        format,
+    )
+}
+
+pub(crate) fn run_neighbor_similarity(
+    root: &Path,
+    path1: &str,
+    path2: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id1 = store
+        .lookup(path1)
+        .ok_or_else(|| anyhow!("path not found: {path1}"))?;
+    let id2 = store
+        .lookup(path2)
+        .ok_or_else(|| anyhow!("path not found: {path2}"))?;
+    let (similarity, shared, total) = store.neighbor_similarity_stats(id1, id2, kind);
+    print_tree_value(
+        &serde_json::json!({ "similarity": similarity, "shared": shared, "total": total }),
+        format,
+    )
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {
