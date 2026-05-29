@@ -199,6 +199,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC-0073: `DegreeHistogram { in_degrees, out_degrees }` struct — frequency distribution of in- and out-degrees as `(degree, count)` pairs sorted ascending.
 - RFC-0073: `Store::degree_histogram(kind)` — O(V) in- and out-degree frequency histograms over all symbol nodes for a given EdgeKind; degree 0 included; file nodes excluded.
 - RFC-0073: `mycelium_get_degree_histogram` MCP tool — graph shape analysis; accepts `{ edge_kind }` and returns `{ in_degrees: [{degree, count}], out_degrees: [{degree, count}], total_symbols }` or `{ error }`. Power-law shape = hub-spoke architecture; uniform = balanced modular design.
+- RFC-0074: `EdgeKindMetrics { symbol_count, directed_edge_count, density, avg_degree, max_in_degree, max_out_degree }` struct — structural summary for one EdgeKind.
+- RFC-0074: `Store::graph_metrics(kind)` — O(V+E) structural summary: directed graph density (`E / V(V-1)`), average degree, and maximum in/out degree across all symbol nodes; file nodes excluded.
+- RFC-0074: `mycelium_get_graph_metrics` MCP tool — instant architectural health check; accepts `{ edge_kind }` and returns `{ symbol_count, directed_edge_count, density, avg_degree, max_in_degree, max_out_degree }` or `{ error }`. Density near 0 = sparse/modular; near 1 = tightly coupled.
 
 ### Fixed
 
