@@ -197,6 +197,12 @@ enum Cmd {
         /// Optional kind wire string to filter.
         #[arg(long)]
         kind: Option<String>,
+        /// Maximum number of symbols to return. 0 means no limit (default).
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+        /// Number of symbols to skip before returning results.
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -1105,6 +1111,8 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         Cmd::GetAllSymbols {
             prefix,
             kind,
+            limit,
+            offset,
             root,
             format,
         } => {
@@ -1113,6 +1121,8 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 &canonical,
                 prefix.as_deref(),
                 kind.as_deref(),
+                limit,
+                offset,
                 format.into(),
             )?;
         }

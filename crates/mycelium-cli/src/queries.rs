@@ -269,6 +269,8 @@ pub(crate) fn run_get_all_symbols(
     root: &Path,
     prefix: Option<&str>,
     kind_str: Option<&str>,
+    limit: usize,
+    offset: usize,
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
@@ -279,8 +281,13 @@ pub(crate) fn run_get_all_symbols(
                 .ok_or_else(|| anyhow!("unknown kind: {k}"))?,
         ),
     };
-    let symbols = store.all_symbols(prefix, kind);
-    print_string_list(&symbols, format)
+    let all_symbols = store.all_symbols(prefix, kind);
+    let page: Vec<String> = all_symbols
+        .into_iter()
+        .skip(offset)
+        .take(if limit == 0 { usize::MAX } else { limit })
+        .collect();
+    print_string_list(&page, format)
 }
 
 // ── server-status ─────────────────────────────────────────────────────────────

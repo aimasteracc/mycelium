@@ -1143,6 +1143,12 @@ pub struct GetAllSymbolsRequest {
     pub path_prefix: Option<String>,
     /// Optional kind filter: `"function"`, `"class"`, `"method"`, etc.
     pub kind: Option<String>,
+    /// Maximum number of symbols to return. `0` or omitted means no limit.
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Number of symbols to skip before returning results. Defaults to 0.
+    #[serde(default)]
+    pub offset: Option<usize>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -2443,13 +2449,25 @@ impl MyceliumServer {
             .kind
             .as_deref()
             .and_then(mycelium_core::types::NodeKind::try_from_wire);
-        let symbols = self
+        let all_symbols = self
             .store
             .read()
             .await
             .all_symbols(req.path_prefix.as_deref(), kind);
-        let count = symbols.len();
-        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        let total_count = all_symbols.len();
+        let offset = req.offset.unwrap_or(0);
+        let limit = req.limit.unwrap_or(0);
+        let page: Vec<String> = all_symbols
+            .into_iter()
+            .skip(offset)
+            .take(if limit == 0 { usize::MAX } else { limit })
+            .collect();
+        let count = page.len();
+        let value = serde_json::json!({
+            "symbols": page,
+            "count": count,
+            "total_count": total_count,
+        });
         ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -9689,6 +9707,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: None,
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9714,6 +9734,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: Some("src/".to_owned()),
                 kind: None,
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9737,6 +9759,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: Some("function".to_owned()),
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9753,6 +9777,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: Some("bogus_kind".to_owned()),
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9773,11 +9799,67 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: None,
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_limit_caps_result_count() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/x.rs>a").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>b").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>c").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>d").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>e").unwrap());
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: None,
+                limit: Some(3),
+                offset: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+        assert_eq!(val["symbols"].as_array().unwrap().len(), 3);
+        assert_eq!(val["count"].as_u64().unwrap(), 3);
+        assert_eq!(val["total_count"].as_u64().unwrap(), 5);
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_offset_skips_results() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/x.rs>a").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>b").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>c").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>d").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>e").unwrap());
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: None,
+                limit: None,
+                offset: Some(2),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+        // 5 symbols sorted: a, b, c, d, e → skip 2 → c, d, e
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms.len(), 3);
+        assert_eq!(syms[0].as_str().unwrap(), "src/x.rs>c");
+        assert_eq!(val["total_count"].as_u64().unwrap(), 5);
     }
 
     // ── RFC-0043: mycelium_get_reachable ─────────────────────────────────────

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Issue #292 — `get-all-symbols` pagination (`--limit` / `--offset`)** — On large projects
+  (`vscode`: 194K nodes, `django`: 66K nodes) `get-all-symbols` could emit 14MB+ of output,
+  making it unusable without external truncation. Both CLI and MCP now accept `limit` and
+  `offset` parameters. `limit = 0` (default) preserves the original no-limit behaviour for
+  backward compatibility; `limit > 0` caps the sorted result list and returns a `total_count`
+  field alongside `count` so callers can detect truncation and paginate. MCP response envelope:
+  `{ "symbols": [...], "count": N, "total_count": T }`. CLI flag: `--limit N --offset K`.
+  2 TDD tests (`limit_caps_result_count`, `offset_skips_results`). (Issue #292)
+
 ### Fixed
 
 - **Issue #297 — `--edge-kind` flag added to `get-callers`, `get-callees`, `rank-symbols`,

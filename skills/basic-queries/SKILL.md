@@ -159,6 +159,8 @@ Each capability has a matching `mycelium <cap>` subcommand with identical name, 
 mycelium search-symbol login --limit 20
 mycelium get-symbol-info "src/auth/session.rs>AuthService>login"
 mycelium get-descendants "src/a.rs>App" --format=json
+mycelium get-all-symbols --prefix src/auth/ --limit 1000 --format=json
+mycelium get-all-symbols --prefix src/ --limit 500 --offset 1000 --format=json
 ```
 
 ## Parity contract
