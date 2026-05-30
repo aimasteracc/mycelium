@@ -419,6 +419,43 @@ def bar():
     );
 }
 
+// ── nested-attribute call regression (post-RFC-0092 fallthrough) ─────────────
+
+#[test]
+fn nested_attribute_call_still_creates_calls_edge() {
+    // Regression: RFC-0092 added a `@call.receiver` capture to method calls
+    // that REQUIRES `object: (identifier)`. For nested attribute access like
+    // `self.history.append(x)` the object is `(attribute ...)`, not a single
+    // identifier — so the new query stopped matching and the Calls edge was
+    // silently dropped. Real-world impact: every call through a chain like
+    // `self.x.y()` lost its outgoing edge.
+    //
+    // Fix: a second @reference.call pattern matches all nested-attribute
+    // method calls without the receiver constraint, falling back to the
+    // existing bare-name resolution.
+    let source = "\
+class App:
+    def bar(self):
+        self.history.append(1)
+";
+    let store = extract_at("pkg/app.py", source);
+    let bar_id = store
+        .lookup("pkg/app.py>App>bar")
+        .expect("caller method must be indexed");
+    // We don't know what `self.history.append` resolves to without type info,
+    // but the bare `append` node must exist and have an incoming edge from
+    // bar. Otherwise the Calls graph silently loses the relationship.
+    let append_id = store
+        .lookup("append")
+        .expect("bare `append` node must exist (callsite produces it as fallback)");
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&append_id),
+        "self.history.append() must still create some Calls edge from bar — \
+         regression from RFC-0092 dropped it because the receiver query \
+         required (identifier), not nested (attribute)"
+    );
+}
+
 // ── idempotence ──────────────────────────────────────────────────────────────
 
 #[test]
