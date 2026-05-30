@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Issue #298 — batch commands accept repeated `--paths` flags** — `batch-symbol-info`,
+  `batch-node-degree`, `batch-reachable-from`, `batch-reachable-to`, `get-common-callers`, and
+  `get-common-callees` previously accepted only a single `--paths` string value; passing
+  `--paths a --paths b` failed with "cannot be used multiple times". The argument is now
+  `Vec<String>` with `value_delimiter = ','`, so both the old comma-separated form
+  (`--paths a,b,c`) and the standard repeated-flag form (`--paths a --paths b`) work.
+  2 TDD tests. (Issue #298, PR #303)
+
+- **Issue #299 — `get-files` accepts `--prefix` as an alias for `--path-prefix`** — The
+  `get-files` command used `--path-prefix` while `get-all-symbols` used `--prefix` for the
+  same concept. Added `alias = "prefix"` so `--prefix` is accepted as a shorter alternative;
+  `--path-prefix` continues to work unchanged. 1 TDD test. (Issue #299, PR #303)
+
 - **`release.yml` finalize job robustness** — Decoupled tag creation and GitHub Release page
   from the main-branch merge step. Tag is now created on the release branch first (branch
   protection doesn't apply to tags; `GITHUB_TOKEN` is sufficient). The GitHub Release action

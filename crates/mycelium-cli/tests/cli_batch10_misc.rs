@@ -64,6 +64,23 @@ fn get_files_smoke() {
     assert!(v["files"].is_array());
 }
 
+// Issue #299: get-files should accept --prefix as an alias for --path-prefix.
+#[test]
+fn get_files_prefix_alias() {
+    let p = prepare_diamond();
+    let v = json_out(
+        &["get-files", "--prefix", "src/", "--format", "json"],
+        p.path(),
+    );
+    let files = v["files"].as_array().unwrap();
+    assert!(!files.is_empty(), "prefix=src/ should match src/lib.rs");
+    assert!(
+        files
+            .iter()
+            .all(|f| f.as_str().unwrap_or("").starts_with("src/"))
+    );
+}
+
 #[test]
 fn get_symbol_count_by_kind_smoke() {
     let p = prepare_diamond();
