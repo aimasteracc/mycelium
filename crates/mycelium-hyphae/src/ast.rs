@@ -1,6 +1,7 @@
 //! Abstract Syntax Tree types for Hyphae queries.
 //!
 //! See [RFC-0003](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0003-hyphae-query-language.md)
+//! and [RFC-0091](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0091-hyphae-jquery-selectors.md)
 //! for the full grammar specification.
 
 /// A complete Hyphae query: a comma-separated list of selectors.
@@ -12,6 +13,7 @@
 /// let ast = Ast::SelectorList(vec![
 ///     Selector::Simple(SimpleSelector {
 ///         base: BaseSelector::Name("login".to_owned()),
+///         attributes: vec![],
 ///         pseudo_classes: vec![],
 ///     }),
 /// ]);
@@ -53,11 +55,14 @@ pub enum Combinator {
     Descendant,
 }
 
-/// A simple (non-combined) selector with an optional list of pseudo-classes.
+/// A simple (non-combined) selector with optional attribute filters and
+/// pseudo-classes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SimpleSelector {
     /// The base selector shape.
     pub base: BaseSelector,
+    /// Attribute filters such as `[language=python]`. Empty when none.
+    pub attributes: Vec<AttributeSelector>,
     /// Pseudo-classes applied to the base, in order.
     pub pseudo_classes: Vec<PseudoClass>,
 }
@@ -73,11 +78,38 @@ pub enum BaseSelector {
     Universal,
 }
 
-/// A pseudo-class filter such as `:calls()` or `:imports(#Foo)`.
+/// `[attr=value]` — matches nodes whose attribute equals the given value.
+///
+/// Supported attribute names (RFC-0091):
+///
+/// - `language` — node's source language (e.g. `rust`, `python`).
+/// - `kind` — node kind wire string (e.g. `function`, `class`).
+/// - `file` — file path component (e.g. `src/lib.rs`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AttributeSelector {
+    /// Attribute name (left of `=`).
+    pub name: String,
+    /// Attribute value (right of `=`).
+    pub value: String,
+}
+
+/// A pseudo-class filter such as `:calls()`, `:not(#x)`, or `:nth-child(2)`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PseudoClass {
-    /// The pseudo-class name, e.g. `"calls"` or `"imports"`.
+    /// The pseudo-class name, e.g. `"calls"`, `"not"`, `"in"`, `"nth-child"`.
     pub name: String,
-    /// An optional nested selector list argument, e.g. `#Foo` in `:calls(#Foo)`.
-    pub argument: Option<Box<Ast>>,
+    /// An optional argument. Pseudo-classes that take no argument
+    /// (`first-child`, `last-child`, `only-child`) leave this `None`.
+    pub argument: Option<PseudoArg>,
+}
+
+/// The kinds of arguments a [`PseudoClass`] may carry.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PseudoArg {
+    /// A nested selector list — `:not(.kind)`, `:has(#name)`, `:calls(X)`.
+    Selector(Box<Ast>),
+    /// A non-negative integer — `:nth-child(2)`.
+    Number(usize),
+    /// A bare path-shaped string — `:in(src/auth/)`.
+    Path(String),
 }

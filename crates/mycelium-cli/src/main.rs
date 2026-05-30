@@ -197,6 +197,751 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Return the direct callees of a symbol (outgoing `Calls` edges).
+    GetCallees {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the direct callers of a symbol (incoming `Calls` edges).
+    GetCallers {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive callee tree rooted at a symbol.
+    GetCalleeTree {
+        path: String,
+        #[arg(long, default_value_t = 3)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive caller tree rooted at a symbol.
+    GetCallerTree {
+        path: String,
+        #[arg(long, default_value_t = 3)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with no incoming `Calls` edges (call-graph roots).
+    GetEntryPoints {
+        #[arg(long)]
+        prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with no incoming or outgoing `Calls` edges.
+    GetDeadSymbols {
+        #[arg(long)]
+        prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with no edges of any kind.
+    GetIsolatedSymbols {
+        #[arg(long)]
+        prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return `imports` + `imported_by` for a file/module.
+    GetImports {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive import tree rooted at a file/module.
+    GetImportTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive "who imports me" tree rooted at a file/module.
+    GetImportersTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return direct `extends` + `extended_by` for a class symbol.
+    GetExtends {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive superclass tree (parents-of-parents).
+    ExtendsTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive subclasses tree (children of children).
+    SubclassesTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Find the inheritance chain between two class symbols.
+    FindExtendsPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long, default_value_t = 8)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return direct `implements` + `implemented_by` for a class/trait symbol.
+    GetImplements {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive interface tree (interfaces of interfaces).
+    ImplementsTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the recursive implementors tree.
+    ImplementorsTree {
+        path: String,
+        #[arg(long, default_value_t = 4)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Find the implementation chain between two class/trait symbols.
+    FindImplementsPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long, default_value_t = 8)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return all symbols reachable from a starting path via outgoing
+    /// `edge_kind` edges.
+    GetReachable {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Reverse reachability: symbols that can reach the given path.
+    GetReachableTo {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols at exactly k hops from the given path.
+    GetKHopNeighbors {
+        path: String,
+        #[arg(long)]
+        k: usize,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Convenience for k=2.
+    GetTwoHopNeighbors {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Find the shortest path between two symbols via the given edge kind.
+    GetShortestPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the ego-graph of a symbol for a given edge kind.
+    GetSymbolNeighborhood {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return ALL incoming references grouped by edge kind.
+    GetCrossRefs {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return ALL outgoing references grouped by edge kind.
+    GetOutgoingRefs {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return the longest path from the symbol to a leaf (no outgoing edges).
+    GetDependencyDepth {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Transitive forward reachability (no max-depth bound).
+    GetReachableSet {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Transitive reverse reachability (no max-depth bound).
+    GetReachesInto {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return symbols with exactly one incoming edge of the given kind.
+    GetSinglyReferenced {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Rank symbols by caller count.
+    RankSymbols {
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N source files by direct symbol count.
+    GetTopFiles {
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N symbols by total degree for an edge kind.
+    GetMostConnected {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Hub symbols: high in-degree AND high out-degree.
+    GetHubSymbols {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 1)]
+        min_in: usize,
+        #[arg(long, default_value_t = 1)]
+        min_out: usize,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N by out-degree.
+    GetFanOutRank {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Top-N by in-degree.
+    GetFanInRank {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Brandes' betweenness centrality.
+    BetweennessCentrality {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Wasserman-Faust closeness centrality.
+    ClosenessCentrality {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Normalized in- and out-degree centrality.
+    DegreeCentrality {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = "in")]
+        sort_by: String,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Local clustering coefficient for a single symbol.
+    ClusteringCoefficient {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Eccentricity of a single symbol.
+    Eccentricity {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// `PageRank` with damping + iterations.
+    PageRank {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 0.85)]
+        damping: f64,
+        #[arg(long, default_value_t = 20)]
+        iterations: usize,
+        #[arg(long, default_value_t = 10)]
+        top_n: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Harmonic centrality for a single symbol.
+    HarmonicCentrality {
+        path: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Jaccard similarity of two symbols' neighbour sets.
+    NeighborSimilarity {
+        #[arg(long)]
+        path1: String,
+        #[arg(long)]
+        path2: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Whole-graph node/edge counts and per-kind breakdown.
+    GetStats {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Density / avg-degree / max-degree summary for an edge kind.
+    GetGraphMetrics {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Symbols that participate in at least one directed cycle.
+    DetectCycles {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long)]
+        path_prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Tarjan SCC groups (size ≥ 2) as `groups: [[...]]`.
+    GetSccGroups {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Kahn topological order; nodes in cycles reported separately.
+    TopologicalSort {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Articulation points (cut vertices) in the undirected graph.
+    FindArticulationPoints {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Bridge edges (cut edges) in the undirected graph.
+    FindBridgeEdges {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Biconnected components.
+    GetBiconnectedComponents {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Maximal k-core subgraph for an edge kind.
+    GetKCore {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 2)]
+        k: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Kahn BFS dependency layers.
+    GetDependencyLayers {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Strongly connected components (raw entries with size).
+    GetScc {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 1)]
+        min_size: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Weakly connected components.
+    GetWcc {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 1)]
+        min_size: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// In/out degree frequency distribution.
+    GetDegreeHistogram {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// All symbols participating in at least one directed cycle.
+    FindCycleMembers {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Batch get-symbol-info for up to 50 paths.
+    BatchSymbolInfo {
+        /// Comma-separated list of symbol paths.
+        #[arg(long)]
+        paths: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Batch node-degree breakdown for up to 50 paths.
+    BatchNodeDegree {
+        #[arg(long)]
+        paths: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Batch forward reachability from up to 20 seeds.
+    BatchReachableFrom {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Batch reverse reachability into up to 20 targets.
+    BatchReachableTo {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Return full per-edge-kind degree breakdown for a symbol.
+    GetNodeDegree {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// List indexed file paths, optionally filtered by prefix.
+    GetFiles {
+        #[arg(long)]
+        path_prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Per-kind symbol counts across the index.
+    GetSymbolCountByKind {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Symbols with out-degree 0 for the edge kind (leaf nodes).
+    GetLeafSymbols {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Common callers across a set of target paths.
+    GetCommonCallers {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Common callees across a set of source paths.
+    GetCommonCallees {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Intersection of two symbols' transitive reachable sets.
+    GetCommonReachable {
+        #[arg(long)]
+        path1: String,
+        #[arg(long)]
+        path2: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Forward/backward reachability flags + BFS distances between two symbols.
+    GetMutualReachability {
+        #[arg(long)]
+        path1: String,
+        #[arg(long)]
+        path2: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// BFS call-path between two symbols.
+    FindCallPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// BFS import-dependency path between two file/module paths.
+    FindImportPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long, default_value_t = 8)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -325,6 +1070,684 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         Cmd::ServerStatus { root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_server_status(&canonical, format.into())?;
+        }
+        Cmd::GetCallees { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_callees(&canonical, &path, format.into())?;
+        }
+        Cmd::GetCallers { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_callers(&canonical, &path, format.into())?;
+        }
+        Cmd::GetCalleeTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_callee_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetCallerTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_caller_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetEntryPoints {
+            prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_entry_points(&canonical, prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetDeadSymbols {
+            prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_dead_symbols(&canonical, prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetIsolatedSymbols {
+            prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_isolated_symbols(&canonical, prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetImports { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_imports(&canonical, &path, format.into())?;
+        }
+        Cmd::GetImportTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_import_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetImportersTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_importers_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::GetExtends { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_extends(&canonical, &path, format.into())?;
+        }
+        Cmd::ExtendsTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_extends_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::SubclassesTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_subclasses_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::FindExtendsPath {
+            from,
+            to,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_extends_path(&canonical, &from, &to, max_depth, format.into())?;
+        }
+        Cmd::GetImplements { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_implements(&canonical, &path, format.into())?;
+        }
+        Cmd::ImplementsTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_implements_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::ImplementorsTree {
+            path,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_implementors_tree(&canonical, &path, max_depth, format.into())?;
+        }
+        Cmd::FindImplementsPath {
+            from,
+            to,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_implements_path(&canonical, &from, &to, max_depth, format.into())?;
+        }
+        Cmd::GetReachable {
+            path,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reachable(&canonical, &path, &edge_kind, max_depth, format.into())?;
+        }
+        Cmd::GetReachableTo {
+            path,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reachable_to(&canonical, &path, &edge_kind, max_depth, format.into())?;
+        }
+        Cmd::GetKHopNeighbors {
+            path,
+            k,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_k_hop_neighbors(&canonical, &path, k, &edge_kind, format.into())?;
+        }
+        Cmd::GetTwoHopNeighbors {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_two_hop_neighbors(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetShortestPath {
+            from,
+            to,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_shortest_path(&canonical, &from, &to, &edge_kind, format.into())?;
+        }
+        Cmd::GetSymbolNeighborhood {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_symbol_neighborhood(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetCrossRefs { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_cross_refs(&canonical, &path, format.into())?;
+        }
+        Cmd::GetOutgoingRefs { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_outgoing_refs(&canonical, &path, format.into())?;
+        }
+        Cmd::GetDependencyDepth {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_dependency_depth(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetReachableSet {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reachable_set(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetReachesInto {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_reaches_into(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::GetSinglyReferenced {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_singly_referenced(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::RankSymbols {
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_rank_symbols(&canonical, limit, format.into())?;
+        }
+        Cmd::GetTopFiles {
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_top_files(&canonical, limit, format.into())?;
+        }
+        Cmd::GetMostConnected {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_most_connected(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::GetHubSymbols {
+            edge_kind,
+            min_in,
+            min_out,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_hub_symbols(
+                &canonical,
+                &edge_kind,
+                min_in,
+                min_out,
+                limit,
+                format.into(),
+            )?;
+        }
+        Cmd::GetFanOutRank {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_fan_out_rank(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::GetFanInRank {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_fan_in_rank(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::BetweennessCentrality {
+            edge_kind,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_betweenness_centrality(&canonical, &edge_kind, top_n, format.into())?;
+        }
+        Cmd::ClosenessCentrality {
+            edge_kind,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_closeness_centrality(&canonical, &edge_kind, top_n, format.into())?;
+        }
+        Cmd::DegreeCentrality {
+            edge_kind,
+            sort_by,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_degree_centrality(&canonical, &edge_kind, &sort_by, top_n, format.into())?;
+        }
+        Cmd::ClusteringCoefficient {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_clustering_coefficient(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::Eccentricity {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_eccentricity(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::PageRank {
+            edge_kind,
+            damping,
+            iterations,
+            top_n,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_page_rank(
+                &canonical,
+                &edge_kind,
+                damping,
+                iterations,
+                top_n,
+                format.into(),
+            )?;
+        }
+        Cmd::HarmonicCentrality {
+            path,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_harmonic_centrality(&canonical, &path, &edge_kind, format.into())?;
+        }
+        Cmd::NeighborSimilarity {
+            path1,
+            path2,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_neighbor_similarity(
+                &canonical,
+                &path1,
+                &path2,
+                &edge_kind,
+                format.into(),
+            )?;
+        }
+        Cmd::GetStats { root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_stats(&canonical, format.into())?;
+        }
+        Cmd::GetGraphMetrics {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_graph_metrics(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::DetectCycles {
+            edge_kind,
+            path_prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_detect_cycles(
+                &canonical,
+                &edge_kind,
+                path_prefix.as_deref(),
+                format.into(),
+            )?;
+        }
+        Cmd::GetSccGroups {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_scc_groups(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::TopologicalSort {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_topological_sort(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::FindArticulationPoints {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_articulation_points(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::FindBridgeEdges {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_bridge_edges(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::GetBiconnectedComponents {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_biconnected_components(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::GetKCore {
+            edge_kind,
+            k,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_k_core(&canonical, &edge_kind, k, format.into())?;
+        }
+        Cmd::GetDependencyLayers {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_dependency_layers(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::GetScc {
+            edge_kind,
+            min_size,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_scc(&canonical, &edge_kind, min_size, format.into())?;
+        }
+        Cmd::GetWcc {
+            edge_kind,
+            min_size,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_wcc(&canonical, &edge_kind, min_size, format.into())?;
+        }
+        Cmd::GetDegreeHistogram {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_degree_histogram(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::FindCycleMembers {
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_cycle_members(&canonical, &edge_kind, format.into())?;
+        }
+        Cmd::BatchSymbolInfo {
+            paths,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_symbol_info(&canonical, &paths, format.into())?;
+        }
+        Cmd::BatchNodeDegree {
+            paths,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_node_degree(&canonical, &paths, format.into())?;
+        }
+        Cmd::BatchReachableFrom {
+            paths,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_reachable_from(
+                &canonical,
+                &paths,
+                &edge_kind,
+                max_depth,
+                format.into(),
+            )?;
+        }
+        Cmd::BatchReachableTo {
+            paths,
+            edge_kind,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_batch_reachable_to(
+                &canonical,
+                &paths,
+                &edge_kind,
+                max_depth,
+                format.into(),
+            )?;
+        }
+        Cmd::GetNodeDegree { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_node_degree(&canonical, &path, format.into())?;
+        }
+        Cmd::GetFiles {
+            path_prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_files(&canonical, path_prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetSymbolCountByKind { root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_symbol_count_by_kind(&canonical, format.into())?;
+        }
+        Cmd::GetLeafSymbols {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_leaf_symbols(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::GetCommonCallers {
+            paths,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_get_common_callers(&canonical, &paths, &edge_kind, format.into())?;
+        }
+        Cmd::GetCommonCallees {
+            paths,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_get_common_callees(&canonical, &paths, &edge_kind, format.into())?;
+        }
+        Cmd::GetCommonReachable {
+            path1,
+            path2,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_common_reachable(
+                &canonical,
+                &path1,
+                &path2,
+                &edge_kind,
+                format.into(),
+            )?;
+        }
+        Cmd::GetMutualReachability {
+            path1,
+            path2,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_mutual_reachability(
+                &canonical,
+                &path1,
+                &path2,
+                &edge_kind,
+                format.into(),
+            )?;
+        }
+        Cmd::FindCallPath {
+            from,
+            to,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_call_path(&canonical, &from, &to, max_depth, format.into())?;
+        }
+        Cmd::FindImportPath {
+            from,
+            to,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_import_path(&canonical, &from, &to, max_depth, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));
