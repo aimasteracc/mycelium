@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 PM dispatch — PRs #317/#318/#319 processed; RFC-0096 TypeImports + SKILL doc backfill landing; v0.1.12 sprint has real content |
-| Current sprint | **v0.1.12 — in progress** |
-| Active release branch | none — cut release/v0.1.12 when sprint exits |
-| Next release target | **v0.1.12** — RFC-0096 TypeImports + SKILL backfill + Issues #292-#301 fixes |
+| Last updated | 2026-05-30 PM dispatch — release/v0.1.12 cut (PR #321 open → main); 0 open issues; 0 open P0/P1 |
+| Current sprint | **v0.1.12 — COMPLETE ✅ (release/v0.1.12 → main PR #321 awaiting CI + founder merge)** |
+| Active release branch | **release/v0.1.12** — PR #321 open targeting main |
+| Next release target | **v0.1.12** — RFC-0092 TS/JS alias, RFC-0095 runtime packs, RFC-0096 TypeImports, RFC-0097 FS boundary, Java inheritance, pagination, edge-kind flags |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.11 — Python cross-file Extends, MCP is_error, token-efficient output** (tag v0.1.11, crates.io / npm / PyPI published 2026-05-31) |
 
@@ -45,8 +45,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **Cut release/v0.1.12** — develop has: Issues #292–#301 (9 fixes), RFC-0096 TypeImports (PR #318), SKILL doc backfill (PR #319). Sprint content complete; ready to cut when founder confirms scope done.
-2. **RFC-0096 TypeScript phase** — `import type { Foo } from 'mod'` tracking deferred. Low priority; Python phase landed and is the high-value use case.
+1. **PR #321 (release/v0.1.12 → main)** — CI running. Founder must merge + tag + authorize crates.io publish once CI is green. Charter §5.12 gate: **do NOT admin-merge if CI is red**.
+2. **Post-v0.1.12 back-merge** — After PR #321 merges to main, open back-merge PR (release/v0.1.12 → develop) and admin-merge to complete the ceremony (Charter §5.12 step 4).
+3. **RFC-0096 TypeScript phase** — `import type { Foo } from 'mod'` tracking deferred. Low priority; Python phase is the high-value use case.
 
 **P2 (v0.1.12 scope — develop ready):**
 3. **Issue #206** — CLOSED ✅. All sub-issues resolved.
@@ -76,25 +77,24 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-30, PM dispatch — PRs #317/#318/#319)
+## Dispatch state (2026-05-30, PM dispatch — release/v0.1.12 cut)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **NEXT UP** | Cut release/v0.1.12 — develop has RFC-0096, SKILL backfill, Issues #292-#301. Sprint content ready. |
+| release | **WAITING CI** | PR #321 (release/v0.1.12 → main) open. Monitor CI; notify founder to merge once green. |
 | rust-implementer | **IDLE** | Zero open issues. RFC-0096 TypeScript phase next if founder files issue. |
 | pack-author | **IDLE** | No pending pack work. RFC-0096 Python phase done. TypeScript phase deferred. |
 | architect | idle | No pending RFC scope work. |
-| tech-writer | idle | SKILL doc backfill complete (PRs #319/#273). Asciinema deferred to founder. |
+| tech-writer | idle | SKILL doc backfill complete (PR #319). Asciinema deferred to founder. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | **IDLE** | Post-v0.1.11 scan CLEAN ✅ (PR #317 merged this run). Next: post-v0.1.12. |
+| security-reviewer | **NEXT UP** | Post-v0.1.12 routine scan after release merges. |
 | e2e-runner | idle | No pending regression tests. |
 
-### Open PRs (2026-05-30 PM dispatch)
+### Open PRs (2026-05-30 PM dispatch — release cut)
 
-- **PR #318** (feature/v0.1.12-next) — RFC-0096 TypeImports edge kind. CI running, all checks ✅ so far.
-- **PR #319** (docs/v0.1.12-skill-changelog-rfc-updates) — SKILL.md params + RFC status. Pending conflict resolution after #318 merges.
+- **PR #321** (release/v0.1.12 → main) — Release PR. CI running. Awaiting founder merge + crates.io publish.
 
-### Open Issues (2026-05-30)
+### Open Issues
 
 **None.** All issues closed.
 
@@ -126,6 +126,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-30 PM dispatch — release/v0.1.12 cut (PR #321)
+
+- Pre-flight: CHARTER.md ✅, _orchestrator.md ✅, PM state ✅, decisions.jsonl tail-20 ✅, anti-patterns scanned ✅.
+- **Assessment**: 0 open PRs, 0 open issues. v0.1.11 fully shipped (4/4 ceremony steps: PR #275 → main, tag v0.1.11, crates.io/npm/PyPI, PR #315 back-merge). PM state stale on local filesystem (still showed v0.1.11 era); GitHub develop HEAD at `077cfd4` (PM dispatch for PRs #317/#318/#319). Fast-forwarded local filesystem to develop HEAD.
+- **v0.1.12 content on develop** (from commit log + CHANGELOG Unreleased): RFC-0092 TS/JS alias resolution, RFC-0095 runtime packs, RFC-0096 TypeImports, RFC-0097 FS boundary, Issues #292–#301 (9 fixes), Java Extends/Implements (#295), RFC-0094 formatter bench, Skill marketplace metadata (#284). Confirmed stale feature branches (`feature/v0.1.12-next`, `docs/v0.1.12-skill-changelog-rfc-updates`) are squash-merge artifacts — no unmerged code.
+- **Executed**: cut `release/v0.1.12` from develop HEAD; bumped version 0.1.11→0.1.12 in Cargo.toml; fixed internal dep pin in mycelium-cli/Cargo.toml (0.1.10→0.1.12); sealed CHANGELOG [Unreleased]→[0.1.12] - 2026-05-30; pushed branch; opened **PR #321** targeting main.
+- Anti-pattern: None this run.
+- Next: CI green on PR #321 → founder merges + tags + crates.io publish → back-merge PR to develop.
 
 ### 2026-05-30 PM dispatch — PRs #317/#318/#319 (RFC-0096 TypeImports + SKILL backfill)
 
