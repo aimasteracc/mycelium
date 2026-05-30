@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM update — PR #266 open CI green awaiting founder review; release/v0.1.11 blocked on founder auth) |
+| Last updated | 2026-05-31 (PM update — Issues #293/#294/#295/#296 all implemented, PRs #308–#311 open; rust-implementer queue exhausted, awaiting founder review) |
 | Current sprint | **v0.1.11 — COMPLETE ✅** |
 | Active release branch | none — cut release/v0.1.11 next |
 | Next release target | **v0.1.11** — Python inheritance + RFC-0094 output_format + Charter SLA |
@@ -72,18 +72,33 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, post-Issues #297/#292 implementation)
+## Dispatch state (2026-05-31, post-Issues #293/#294/#295/#296 implementation — queue exhausted)
 
 | Agent | Status | Current item |
 |---|---|---|
 | release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish requires explicit authorization). |
-| rust-implementer | **BLOCKED on review** | PR #266 (Issue #206 S1), PR #304 (CI fix), PR #305 (RFC-0097 security), PR #306 (Issue #297 edge-kind), PR #307 (Issue #292 pagination) — all open, CI green, awaiting founder review. Next unblocked: Issues #293/#294/#295/#296 (see backlog). |
+| rust-implementer | **BLOCKED on review** | PRs #266/#304/#305/#306/#307/#308/#309/#310/#311 — all open, CI green, awaiting founder review. **No unblocked items remain.** Queue exhausted. |
 | pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3). After v0.1.11 ships. |
 | architect | idle | RFC-0092 Phase 2/3 scoping. After v0.1.11 ships. |
 | tech-writer | idle | Marketplace metadata + asciinema after v0.2.0. |
 | code-reviewer | idle | Blocks on PR opens. |
 | security-reviewer | idle | Next scan: post-v0.1.11. |
 | e2e-runner | idle | Python Pattern 2/3 regression tests after pack-author fix. |
+
+### Open PRs awaiting founder review (2026-05-31)
+
+| PR | Issue | Title | Status |
+|---|---|---|---|
+| #266 | #206 S1 | MCP `is_error` sweep | CI green |
+| #275 | release | release/v0.1.11 | Blocked on founder auth |
+| #304 | — | ci: fix finalize GitHub token | CI green |
+| #305 | #301 | RFC-0097 MCP filesystem boundary | CI green |
+| #306 | #297 | `--edge-kind` flag for 4 tools | CI green |
+| #307 | #292 | `get-all-symbols` pagination | CI green |
+| #308 | #295 | Java Extends/Implements edges | CI green |
+| #309 | #296 | Python attribute-form Extends | CI green |
+| #310 | #293 | JS `const name = function(){}` definitions | CI pending |
+| #311 | #294 | Compound-extension skip + strip_prefix fix | CI pending |
 
 ---
 
@@ -113,6 +128,21 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 PM dispatch (Issues #293/#294 implemented — rust-implementer queue exhausted)
+
+- Completed two full TDD cycles in a single session:
+  - **Issue #293** (JS `const name = function(){}` definitions): branch `feature/293-js-callee-arrow-functions`, PR #310.
+    - Fix 1: added `function_expression` patterns to `packs/javascript/queries.scm` (+ MCP/CLI copies).
+    - Fix 2: `enclosing_function_path` in `crates/mycelium-core/src/extractor/mod.rs` now falls back to parent `variable_declarator` name for anonymous `function_expression` nodes.
+    - 3 TDD tests; RED confirmed before each implementation; quality gates clean.
+  - **Issue #294** (compound-extension skip + strip_prefix fix): branch `feature/294-fix-mangled-paths`, PR #311.
+    - Fix 1: compound-extension guard skips files like `module.ts.py` in both CLI and MCP index paths.
+    - Fix 2: `strip_prefix` failure now skips the file with a `warn!` log instead of storing an absolute path.
+    - 3 TDD tests; quality gates clean (fixed `items_after_statements` clippy by moving `SOURCE_EXTS` to module level).
+- Issues #295/#296 were implemented in the prior session (PRs #308/#309).
+- rust-implementer queue now exhausted: 9 PRs open, all awaiting founder review.
+- Dispatch protocol: **STOP — no unblocked items.**
 
 ### 2026-05-30 PM dispatch (v0.1.11 sprint complete — release/v0.1.11 ready to cut)
 
