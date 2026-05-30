@@ -24,8 +24,8 @@ jobs:
       - name: Welcome first-time contributors
         uses: actions/first-interaction@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          issue-message: |
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_message: |
             Hi! 👋 Thanks for opening your first issue in Mycelium.
 
             A maintainer (or the Triage agent) will respond within 48 hours.
@@ -36,7 +36,7 @@ jobs:
             - Read the [Code of Conduct](https://github.com/aimasteracc/mycelium/blob/develop/CODE_OF_CONDUCT.md)
 
             Welcome to the network. 🍄
-          pr-message: |
+          pr_message: |
             Hi! 👋 Thanks for your first PR to Mycelium.
 
             Per [CONTRIBUTING.md](https://github.com/aimasteracc/mycelium/blob/develop/CONTRIBUTING.md):
