@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows stack overflow** in `mycelium index` (regression-prevention
+  for v0.1.5+ Windows users). Initialising the 11 tree-sitter parsers
+  exceeded the Windows 1 MiB default thread stack, terminating with
+  `STATUS_STACK_OVERFLOW` (0xC00000FD = exit -1073741571). Added
+  `[target.x86_64-pc-windows-{msvc,gnu}]` `link-arg=/STACK:8388608` in
+  `.cargo/config.toml` so the binary links with an 8 MiB stack on
+  Windows — matching Linux and macOS defaults. Surfaced by PR #191
+  Windows CI panic at `cli_basic_queries.rs:38`. Linux/macOS unchanged.
+
 ### Added
 
 - **CLI parity backfill batch 10 — FINAL** (v0.1.5, PR #187): 10 new
