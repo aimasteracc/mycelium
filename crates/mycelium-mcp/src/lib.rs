@@ -1265,6 +1265,12 @@ pub struct MyceliumServer {
     /// Wraps file content as [`Cortex`] inputs; the watch loop updates these
     /// on every file-system change so Salsa handles memoisation automatically.
     cortex: Arc<tokio::sync::Mutex<Cortex>>,
+    /// RFC-0097: filesystem access boundary.
+    ///
+    /// When non-empty, every path-based MCP call canonicalizes the input and
+    /// verifies it is prefixed by at least one of these roots. Empty = unrestricted
+    /// (used only in unit tests; CLI always sets this to `[CWD]` by default).
+    allowed_roots: Arc<Vec<PathBuf>>,
 }
 
 impl Default for MyceliumServer {
@@ -1274,7 +1280,10 @@ impl Default for MyceliumServer {
 }
 
 impl MyceliumServer {
-    /// Create a fresh server with an empty in-memory store.
+    /// Create a fresh server with an empty in-memory store and no path restrictions.
+    ///
+    /// **For unit tests only.** Production code should use [`new_with_allowed_roots`]
+    /// or [`with_root_and_allowed_roots`] so the server enforces RFC-0097 boundaries.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -1284,6 +1293,29 @@ impl MyceliumServer {
             watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
             compact_mode: Arc::new(AtomicBool::new(false)),
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
+            allowed_roots: Arc::new(vec![]),
+        }
+    }
+
+    /// Create a fresh server restricted to the given filesystem roots (RFC-0097).
+    ///
+    /// Any `mycelium_index_workspace` or `mycelium_load_index` call whose
+    /// canonicalized path does not fall under one of `roots` is rejected with
+    /// `is_error: true` before touching the filesystem.
+    #[must_use]
+    pub fn new_with_allowed_roots(roots: Vec<PathBuf>) -> Self {
+        let canonical_roots: Vec<PathBuf> = roots
+            .into_iter()
+            .filter_map(|r| std::fs::canonicalize(&r).ok().or(Some(r)))
+            .collect();
+        Self {
+            store: Arc::new(RwLock::new(Store::new())),
+            indexed_root: Arc::new(RwLock::new(None)),
+            watch_state: Arc::new(WatchState::default()),
+            watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
+            compact_mode: Arc::new(AtomicBool::new(false)),
+            cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
+            allowed_roots: Arc::new(canonical_roots),
         }
     }
 
@@ -1291,6 +1323,7 @@ impl MyceliumServer {
     ///
     /// If `<root>/.mycelium/index.rmp` exists, loads the snapshot.
     /// Otherwise runs a full live index and saves the snapshot.
+    /// Sets `root` as the sole allowed root (RFC-0097).
     ///
     /// # Errors
     ///
@@ -1298,8 +1331,21 @@ impl MyceliumServer {
     /// `root` is inaccessible). Snapshot load failures fall back to live
     /// indexing silently.
     pub async fn with_root(root: PathBuf) -> anyhow::Result<Self> {
+        let allowed = vec![root.clone()];
+        Self::with_root_and_allowed_roots(root, allowed).await
+    }
+
+    /// Create a server pre-loaded from `root`, restricted to `allowed_roots` (RFC-0097).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only if the live index cannot be initiated.
+    pub async fn with_root_and_allowed_roots(
+        root: PathBuf,
+        allowed_roots: Vec<PathBuf>,
+    ) -> anyhow::Result<Self> {
         let snap = root.join(".mycelium").join("index.rmp");
-        let server = Self::new();
+        let server = Self::new_with_allowed_roots(allowed_roots);
 
         if snap.exists() {
             match Store::load(&snap) {
@@ -1502,6 +1548,30 @@ impl MyceliumServer {
     }
 }
 
+/// RFC-0097: verify `raw_path` is under one of the `allowed_roots` after canonicalization.
+///
+/// Returns the canonicalized path on success, or an error string on rejection.
+/// When `allowed_roots` is empty, all paths are permitted (unit-test mode).
+fn check_path_in_allowed_roots(
+    raw_path: &str,
+    allowed_roots: &[PathBuf],
+) -> Result<PathBuf, String> {
+    if allowed_roots.is_empty() {
+        return Ok(PathBuf::from(raw_path));
+    }
+    let canonical =
+        std::fs::canonicalize(raw_path).map_err(|e| format!("path not accessible: {e}"))?;
+    if allowed_roots.iter().any(|root| canonical.starts_with(root)) {
+        Ok(canonical)
+    } else {
+        Err(format!(
+            "path '{}' is outside allowed roots: {:?}",
+            canonical.display(),
+            allowed_roots
+        ))
+    }
+}
+
 #[tool_router]
 impl MyceliumServer {
     #[tool(
@@ -1513,7 +1583,12 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<IndexWorkspaceRequest>,
     ) -> CallToolResult {
-        let root = PathBuf::from(&req.path);
+        // RFC-0097: enforce filesystem access boundary before touching disk.
+        let root = match check_path_in_allowed_roots(&req.path, &self.allowed_roots) {
+            Ok(p) => p,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
+        let root_save = root.clone();
         let result = tokio::task::spawn_blocking(move || run_index(&root)).await;
         match result {
             Err(e) => {
@@ -1521,13 +1596,13 @@ impl MyceliumServer {
             }
             Ok(Err(e)) => application_error(&serde_json::json!({ "error": e.to_string() })),
             Ok(Ok((new_store, files, errors, languages, stubs_resolved))) => {
-                // RFC-0006: auto-save snapshot alongside the workspace
-                let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
+                // RFC-0006: auto-save snapshot. Path derives from already-validated root.
+                let snap = root_save.join(".mycelium").join("index.rmp");
                 if let Err(e) = new_store.save(&snap) {
                     warn!("could not save index snapshot: {e}");
                 }
                 *self.store.write().await = new_store;
-                *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
+                *self.indexed_root.write().await = Some(root_save);
                 ok_str(
                     serde_json::json!({
                         "files": files,
@@ -1627,13 +1702,18 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<LoadIndexRequest>,
     ) -> CallToolResult {
-        let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
+        // RFC-0097: validate path before reading from disk.
+        let root = match check_path_in_allowed_roots(&req.path, &self.allowed_roots) {
+            Ok(p) => p,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
+        let snap = root.join(".mycelium").join("index.rmp");
         match Store::load(&snap) {
             Err(e) => application_error(&serde_json::json!({ "error": e.to_string() })),
             Ok(loaded) => {
                 let nodes = loaded.node_count();
                 *self.store.write().await = loaded;
-                *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
+                *self.indexed_root.write().await = Some(root);
                 ok_str(
                     serde_json::json!({
                         "nodes": nodes,
@@ -4853,10 +4933,31 @@ fn encode_msgpack_hex(value: &serde_json::Value) -> String {
 ///
 /// Returns an error if pre-loading the index fails, the MCP handshake fails,
 /// or the transport encounters an I/O error.
-pub async fn serve_stdio(root: Option<PathBuf>) -> anyhow::Result<()> {
+/// Start the MCP server over stdio.
+///
+/// `allowed_roots` restricts which filesystem paths `mycelium_index_workspace`
+/// and `mycelium_load_index` may access (RFC-0097). When empty, all paths are
+/// permitted — **do not pass an empty vec from production CLI code**; use
+/// `[CWD]` as the minimum safe default.
+pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> anyhow::Result<()> {
     let server = match root {
-        Some(r) => MyceliumServer::with_root(r).await?,
-        None => MyceliumServer::new(),
+        Some(r) => {
+            MyceliumServer::with_root_and_allowed_roots(r.clone(), {
+                let mut roots = allowed_roots;
+                if roots.is_empty() {
+                    roots.push(r);
+                }
+                roots
+            })
+            .await?
+        }
+        None => {
+            if allowed_roots.is_empty() {
+                MyceliumServer::new()
+            } else {
+                MyceliumServer::new_with_allowed_roots(allowed_roots)
+            }
+        }
     };
     let transport = rmcp::transport::stdio();
     let running = server.serve(transport).await?;
@@ -11103,5 +11204,78 @@ mod tests {
             .await;
         let _: serde_json::Value = serde_json::from_str(result_str(&raw))
             .expect("None output_format must yield valid JSON");
+    }
+
+    // ── RFC-0097: filesystem access boundary ──────────────────────────────────
+
+    #[test]
+    fn check_path_allows_empty_roots() {
+        let result = check_path_in_allowed_roots("/etc", &[]);
+        assert!(result.is_ok(), "empty allowlist must permit all paths");
+    }
+
+    #[test]
+    fn check_path_rejects_nonexistent_with_populated_roots() {
+        let dir = tempfile::tempdir().unwrap();
+        let roots = vec![dir.path().to_path_buf()];
+        let result = check_path_in_allowed_roots("/nonexistent_path_xyz", &roots);
+        assert!(
+            result.is_err(),
+            "nonexistent path must be rejected when roots are set"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_rejects_path_outside_allowed_roots() {
+        let allowed = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let server = MyceliumServer::new_with_allowed_roots(vec![allowed.path().to_path_buf()]);
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: outside.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        assert!(
+            raw.is_error.unwrap_or(false),
+            "must reject path outside allowed roots"
+        );
+        let msg = result_str(&raw);
+        assert!(
+            msg.contains("outside allowed"),
+            "error message should mention allowed roots"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_rejects_path_traversal() {
+        let allowed = tempfile::tempdir().unwrap();
+        let server = MyceliumServer::new_with_allowed_roots(vec![allowed.path().to_path_buf()]);
+        // Construct a traversal path: <allowed>/subdir/../../etc
+        let traversal = format!("{}/subdir/../../etc", allowed.path().to_string_lossy());
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest { path: traversal }))
+            .await;
+        assert!(
+            raw.is_error.unwrap_or(false),
+            "path traversal must be rejected"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_accepts_path_inside_allowed_roots() {
+        let allowed = tempfile::tempdir().unwrap();
+        let server = MyceliumServer::new_with_allowed_roots(vec![allowed.path().to_path_buf()]);
+        // Indexing the allowed root itself must not be rejected for boundary reasons
+        // (it may fail to index any files, but it must not be a security rejection)
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: allowed.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        let msg = result_str(&raw);
+        assert!(
+            !msg.contains("outside allowed"),
+            "allowed path must not be rejected: {msg}"
+        );
     }
 }
