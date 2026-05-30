@@ -95,6 +95,16 @@
   module_name: (relative_import) @alias.source
   name: (dotted_name) @alias.local) @reference.alias_binding
 
+; Issue #229: attribute-assignment alias.
+; `local = module_alias.fn` — binds `local` to `module_alias>fn`.
+; If `module_alias` is itself a local alias (from any import-alias above),
+; the extractor chain-resolves at call time.
+(assignment
+  left: (identifier) @alias.local
+  right: (attribute
+    object: (identifier) @alias.source
+    attribute: (identifier) @alias.original_name)) @reference.alias_binding
+
 ; ── Call expressions (Synapse Calls edges) ──────────────────────────
 
 ; Simple function calls: foo()
