@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Charter §5.10 dogfood test** (`crates/mycelium-core/tests/e2e_dogfood.rs`).
+  Walks the Mycelium workspace, runs the bundled Rust extractor over every
+  `.rs` file we own (~145), and asserts zero extraction errors plus that
+  load-bearing symbols (`mycelium-core/src/lib.rs`, `store/mod.rs`) resolve.
+  Unblocks the `dogfood` job in `.github/workflows/e2e.yml`, which had
+  previously been a no-op pending this test. Honours Charter §5.10:
+  *"Mycelium indexes itself; CI runs Hyphae queries against the Mycelium
+  codebase as part of e2e."*
+
 - **CLI parity backfill batch 10 — FINAL** (v0.1.5, PR #187): 10 new
   cross-category CLI subcommands + INDEX cleanup. **Three-Surface
   compliance now 100% (0 🟡 rows in `skills/INDEX.md`).**
