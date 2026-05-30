@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0097 — MCP server filesystem boundary (`--allowed-roots` / `allowed_roots`)** —
+  `mycelium serve --mcp` previously accepted arbitrary filesystem paths via
+  `mycelium_index_workspace` and `mycelium_load_index` with no validation, allowing any path
+  (e.g. `/etc`, `../../etc`) to be indexed and its index written back to disk.
+  Fix: `MyceliumServer` gains an `allowed_roots: Arc<Vec<PathBuf>>` field. When non-empty, every
+  path-based MCP call canonicalises the input and verifies it is under at least one allowed root;
+  paths outside the allowlist (including traversal attempts) are rejected with `is_error: true`
+  without touching the filesystem. When launched via `mycelium serve --mcp`, the allowlist
+  defaults to `[CWD]`. An empty allowlist (unit-test mode) is unrestricted and preserves
+  backward compatibility. CLI flag: `mycelium serve --mcp [--allowed-roots <dir>]...`.
+  3 TDD tests: `index_workspace_rejects_path_outside_allowed_roots`,
+  `index_workspace_rejects_path_traversal`, `index_workspace_accepts_path_inside_allowed_roots`.
+  (Issue #301, RFC-0097)
+
 - **Issue #292 — `get-all-symbols` pagination (`--limit` / `--offset`)** — On large projects
   (`vscode`: 194K nodes, `django`: 66K nodes) `get-all-symbols` could emit 14MB+ of output,
   making it unusable without external truncation. Both CLI and MCP now accept `limit` and
