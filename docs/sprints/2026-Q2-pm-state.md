@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #280 RFC-0095 --packs-dir CLI flag; RFC-0095 fully complete; v0.1.11 awaiting founder auth) |
+| Last updated | 2026-05-30 (PM dispatch — PR #283 Issue #214 Pattern 2 fixed; v0.1.11 awaiting founder auth) |
 | Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
 | Active release branch | `release/v0.1.11` — PR #275 open targeting main |
-| Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed); RFC-0095 remaining (CLI --packs-dir flag) |
+| Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -43,7 +43,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (v0.1.12 sprint — next up after release ceremony):**
 1. ✅ **RFC-0092 Phase 2 — TypeScript import alias resolution** — DONE (PR #277 TS, PR #278 JS).
    6 TDD tests. Embedded packs synced.
-2. **Issue #214 Pattern 3 — re-verify** — `HealthHistory.append` 1472→~36 callers: founder
+2. ✅ **Issue #214 Pattern 2 — `from .submod import Symbol` alias resolution** — DONE (PR #283).
+   Fixed `build_alias_target` `(true,None)` arm: discriminates bare `.` (module file) from
+   non-bare `.models` (symbol in submodule). 2 TDD tests GREEN. All 18 CI checks pass.
+3. **Issue #214 Pattern 3 — re-verify** — `HealthHistory.append` 1472→~36 callers: founder
    must re-run v0.1.11 against tree-sitter-analyzer to confirm Pattern 3 is fixed by PR #270.
    BLOCKED on founder action.
 
