@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version       = "0.1.7"
+version       = "0.1.8"
 edition       = "2024"
 rust-version  = "1.85"
 license       = "MIT"
@@ -99,9 +99,9 @@ uuid               = { version = "1", features = ["v4", "serde"] }
 # Published on crates.io under `mycelium-rcig-*` namespace (mycelium-{core,cli} are
 # taken by unrelated projects). Dep-name stays `mycelium-X` so source `use mycelium_X::*`
 # is unchanged; `package = "..."` redirects to the published name.
-mycelium-core      = { path = "crates/mycelium-core",   version = "0.1.7", package = "mycelium-rcig-core" }
-mycelium-hyphae    = { path = "crates/mycelium-hyphae", version = "0.1.7", package = "mycelium-rcig-hyphae" }
-mycelium-pack      = { path = "crates/mycelium-pack",   version = "0.1.7", package = "mycelium-rcig-pack" }
+mycelium-core      = { path = "crates/mycelium-core",   version = "0.1.8", package = "mycelium-rcig-core" }
+mycelium-hyphae    = { path = "crates/mycelium-hyphae", version = "0.1.8", package = "mycelium-rcig-hyphae" }
+mycelium-pack      = { path = "crates/mycelium-pack",   version = "0.1.8", package = "mycelium-rcig-pack" }
 
 [profile.release]
 lto           = "fat"
