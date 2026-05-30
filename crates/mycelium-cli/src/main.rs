@@ -71,6 +71,12 @@ enum Cmd {
         /// Root directory to index (defaults to current directory).
         #[arg(default_value = ".")]
         path: PathBuf,
+        /// Load additional language packs from this directory at runtime.
+        /// Each sub-directory must contain `pack.toml` and `queries.scm`.
+        /// Overrides the `MYCELIUM_PACKS_DIR` environment variable for
+        /// the `index` command.
+        #[arg(long, value_name = "DIR")]
+        packs_dir: Option<PathBuf>,
     },
     /// Execute a Hyphae DSL selector against the project's index.
     Query {
@@ -999,10 +1005,11 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 "`mycelium init` is not implemented yet — tracked under RFC-0001 follow-up"
             );
         }
-        Cmd::Index { path } => {
+        Cmd::Index { path, packs_dir } => {
             let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
             println!("Indexing {} …", canonical.display());
-            let (store, stats) = index::index_path(&canonical)?;
+            let packs_dir_canonical = packs_dir.as_deref();
+            let (store, stats) = index::index_path(&canonical, packs_dir_canonical)?;
             println!(
                 "Done.  {} file(s) indexed, {} error(s).",
                 stats.files, stats.errors

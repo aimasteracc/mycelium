@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0095: `mycelium index --packs-dir <dir>`** — the CLI `index` subcommand now accepts
+  an optional `--packs-dir <dir>` flag. When provided, language packs are loaded from the
+  given directory via `PackRegistry`; file extensions not covered by the 10 built-in grammars
+  are dispatched to the registry. Packs whose grammar string does not match a compiled-in
+  tree-sitter grammar are silently skipped with a tracing warning. 2 new TDD tests in
+  `mycelium-cli/src/index.rs`. (Issue #212, RFC-0095 remaining item)
+
 - **RFC-0095: Runtime pack registry (`PackRegistry`)** — `crates/mycelium-pack` now exposes
   `PackRegistry::load(packs_dir)` which discovers all `packs/<lang>/pack.toml` + `queries.scm`
   pairs at runtime. `PackRegistry::lookup_by_ext(".py")` returns the matching `LanguagePack`.
