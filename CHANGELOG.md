@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-05-30
+
+Patch release: ships the `self.method()` / `cls.method()` resolution
+fix that addresses the dominant pattern behind 533 false positives in
+`get-isolated-symbols` from the tree-sitter-analyzer dogfood (#214).
+
 ### Fixed
 
 - **`self.method()` and `cls.method()` inside a class now resolve to
