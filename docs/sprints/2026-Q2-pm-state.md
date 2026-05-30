@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — #267/#268 fixed via PR #272; #269 docs PR #273; RFC-0094 MCP README PR #274; release/v0.1.11 branch cut, PR #275 open targeting main) |
+| Last updated | 2026-05-30 (PM dispatch — PR #278 RFC-0092 Phase 2 JS aliases; PR #279 RFC-0095 PackRegistry; v0.1.11 awaiting founder auth) |
 | Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
 | Active release branch | `release/v0.1.11` — PR #275 open targeting main |
-| Next release target | **v0.1.12** — issue #214 Pattern 2 (destructured imports), RFC-0092 Phase 2/3 |
+| Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed); RFC-0095 remaining (CLI --packs-dir flag) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -41,18 +41,16 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
   ⚠️ `release.yml` finalize job has failed on v0.1.6 and v0.1.10. Recommend manual verify.
 
 **P1 (v0.1.12 sprint — next up after release ceremony):**
-1. **RFC-0092 Phase 2 — TypeScript import alias resolution** — `import { foo as bar }`,
-   `import * as ns`, `import Foo from './mod'` patterns need `@reference.alias_binding`
-   captures in `packs/typescript/queries.scm` + TS relative-path resolver in extractor.
-   Pack-author + rust-implementer. Medium effort (~1 PR). RFC-0092 is the governing doc.
-2. **Issue #214 Pattern 3 — re-verify** — `HealthHistory.append` 1472→~36 callers: user
+1. ✅ **RFC-0092 Phase 2 — TypeScript import alias resolution** — DONE (PR #277 TS, PR #278 JS).
+   6 TDD tests. Embedded packs synced.
+2. **Issue #214 Pattern 3 — re-verify** — `HealthHistory.append` 1472→~36 callers: founder
    must re-run v0.1.11 against tree-sitter-analyzer to confirm Pattern 3 is fixed by PR #270.
-   Posted re-verify comment on #214. Close issue once confirmed.
-   NOTE: Patterns 1+2 of #214 were already fixed in v0.1.6/v0.1.7 (PRs #207/#217).
-   The PM state was incorrectly listing Pattern 2 as open — it is not.
+   BLOCKED on founder action.
 
 **P2 (v0.1.12 scope):**
-3. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
+3. ✅ **Issue #212 / RFC-0095 MVP** — PackRegistry shipped (PR #279). MYCELIUM_PACKS_DIR env var
+   activates runtime pack loading; static embeds remain as fallback. Circular dep fixed.
+   **Remaining**: `--packs-dir` CLI flag (additive, small effort).
 4. **Issue #206 remaining** — RFC-0094 round-trip test + token-saving bench (deferred to v0.2.0).
 
 **P3 (v0.2.0 backlog):**
