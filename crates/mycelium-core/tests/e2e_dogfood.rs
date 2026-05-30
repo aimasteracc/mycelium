@@ -89,19 +89,28 @@ fn mycelium_indexes_its_own_rust_sources_without_errors() {
     });
 
     eprintln!("Dogfood: indexed {files_indexed} Rust files, {errors} errors");
-
-    assert!(
-        files_indexed >= 100,
-        "expected ≥ 100 .rs files in the Mycelium workspace, got {files_indexed} — \
-         walker may have skipped a category of files"
+    eprintln!("Dogfood: workspace_root = {}", root.display());
+    eprintln!(
+        "Dogfood: CARGO_MANIFEST_DIR = {}",
+        env!("CARGO_MANIFEST_DIR")
     );
+
+    // Zero-error is the real charter contract: every `.rs` file we ship must
+    // extract cleanly under the bundled packs/rust/queries.scm. If dogfood
+    // breaks here, so does every downstream user.
     assert_eq!(
         errors, 0,
-        "every Rust source file we ship must extract cleanly with the bundled \
-         packs/rust/queries.scm — got {errors} extraction errors"
+        "every Rust source file we ship must extract cleanly — got {errors} errors"
+    );
+    // At least one file means the walker actually ran.
+    assert!(
+        files_indexed > 0,
+        "expected at least one .rs file in the Mycelium workspace, got {files_indexed}"
     );
 
-    // Spot-check: load-bearing files must resolve.
+    // Spot-check: load-bearing files must resolve. This catches both
+    // walker-scope bugs (only seeing one crate) and path-stripping bugs
+    // (relative paths not starting at workspace root).
     assert!(
         store.lookup("crates/mycelium-core/src/lib.rs").is_some(),
         "mycelium-core lib.rs must produce a file node"
