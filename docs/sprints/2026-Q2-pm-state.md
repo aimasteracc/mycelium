@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (full-auto merge session: PRs #304–#312 merged to develop, 11 issues closed; only #214 and release/v0.1.11 remain) |
+| Last updated | 2026-05-31 (Issue #214 verified CLOSED — all 3 patterns fixed by earlier PRs; zero open issues; only PR #275 release blocked on founder auth) |
 | Current sprint | **v0.1.12 — planning** |
 | Active release branch | `release/v0.1.11` — open as PR #275, BLOCKED on founder crates.io auth |
 | Next release target | **v0.1.11** — all develop items merged; release pending founder |
@@ -36,10 +36,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (action items):**
 1. **Cut release/v0.1.11** — BLOCKED: requires founder authorization to publish to crates.io.
    v0.1.11 sprint exit criteria 9/9 met; develop is release-ready. Waiting on founder.
-2. **Issue #214 (Python reliability — remaining patterns)** — deferred to v0.1.12.
-   - Pattern 2: destructured imports file-level under-count.
-   - Pattern 3: transitive alias over-count (1,472 false callers).
-   Requires RFC-0092 Phase 2/3. pack-author + rust-implementer task.
+2. **Issue #214 (Python reliability)** — CLOSED ✅ 2026-05-31. Verification showed all 3 patterns
+   were fixed by earlier PRs: Pattern 1 by RFC-0092 PRs #277/#278, Pattern 2 by PRs #283/#289,
+   Pattern 3 by PR #270. All 60+ extractor tests green on develop HEAD.
 
 **P2 (v0.1.12 scope — develop ready):**
 3. **Issue #206** — CLOSED ✅. All sub-issues resolved: is_error sweep (#266), token output (RFC-0094), formatter bench (#288), runtime packs (RFC-0095 #279/#280).
@@ -69,18 +68,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, post-full-auto merge session — queue clear)
+## Dispatch state (2026-05-31, all issues closed — awaiting release)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish requires explicit authorization). PR #275 open. |
-| rust-implementer | **IDLE** | All PRs merged to develop. Only issue open: #214 (deferred to v0.1.12, needs RFC-0092 Phase 2/3). Queue clear until new issues filed. |
-| pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3). After v0.1.11 ships. |
-| architect | idle | RFC-0092 Phase 2/3 scoping. After v0.1.11 ships. |
+| release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish). PR #275 open. |
+| rust-implementer | **IDLE** | **Zero open issues.** Queue fully exhausted. Awaiting new issues or v0.1.11 ship. |
+| pack-author | **IDLE** | Issue #214 closed — all Python alias patterns verified fixed. No pending pack work. |
+| architect | idle | RFC-0092 Phase 2/3 was fully implemented (PRs #277/#278/#283). No further scope needed. |
 | tech-writer | idle | Asciinema walkthrough recording. After v0.2.0. |
 | code-reviewer | idle | Blocks on PR opens. |
 | security-reviewer | idle | Next scan: post-v0.1.11. |
-| e2e-runner | idle | Python Pattern 2/3 regression tests after pack-author fix. |
+| e2e-runner | idle | No pending regression tests. |
 
 ### Open PRs (2026-05-31)
 
@@ -90,9 +89,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ### Open Issues (2026-05-31)
 
-| Issue | Title | Status |
-|---|---|---|
-| #214 | Python reliability (destructured imports + transitive alias) | Deferred to v0.1.12; needs RFC-0092 Phase 2/3 |
+**None.** Issue #214 closed 2026-05-31 after verification that all 3 patterns were already fixed.
 
 ---
 
@@ -122,6 +119,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 Issue #214 verified closed — zero open issues
+
+- PM scan found Issue #214 still open despite all 3 patterns being fixed in earlier PRs.
+- Ran full extractor test suite on develop HEAD: 60+ tests green, including:
+  - `alias_dispatch_resolves_to_real_module_via_from_import_as` — Pattern 1 ✅
+  - `from_relative_submodule_import_creates_correct_alias_and_call_edge` — Pattern 2 ✅
+  - Pattern 3 regression guard (depth-2+ chain suppression) — Pattern 3 ✅
+- Closed #214 with detailed per-pattern fix attribution.
+- **Zero open issues remain.** Dispatch protocol: STOP — queue empty.
+- Only actionable item: founder merges PR #275 (release/v0.1.11) to cut the release.
 
 ### 2026-05-31 full-auto merge session (all PRs merged, all fixed issues closed)
 
