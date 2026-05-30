@@ -53,3 +53,7 @@ hex                     = "0.4"
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# Contract tests (tests/contract.rs) require the rmcp client feature to
+# spin up an in-process server+client pair via tokio::io::duplex.
+rmcp    = { workspace = true, features = ["client"] }
+anyhow  = { workspace = true }
