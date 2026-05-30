@@ -330,6 +330,59 @@ def bar():
     );
 }
 
+// ── self.method() resolution (issue #220) ────────────────────────────────────
+
+#[test]
+fn self_method_call_resolves_to_class_method() {
+    // `self.foo()` inside a class method must resolve to the method
+    // defined in the same class — not the bare name `foo` (which would
+    // make the method appear isolated when only called via `self`).
+    //
+    // Bug source: #214 reliability report — `get-isolated-symbols`
+    // returned 533 false positives, the dominant pattern being class
+    // methods called only via `self.X()` from sibling methods.
+    let source = "\
+class App:
+    def foo(self): pass
+
+    def bar(self):
+        self.foo()
+";
+    let store = extract_at("pkg/app.py", source);
+    let bar_id = store
+        .lookup("pkg/app.py>App>bar")
+        .expect("caller method must be indexed");
+    let foo_id = store
+        .lookup("pkg/app.py>App>foo")
+        .expect("callee method must be indexed");
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&foo_id),
+        "self.foo() must produce a Calls edge to App>foo, not bare `foo`"
+    );
+}
+
+#[test]
+fn cls_method_call_resolves_to_class_method() {
+    // Same rule for `cls.method()` — classmethod dispatch.
+    let source = "\
+class App:
+    @classmethod
+    def make(cls): return cls.build()
+
+    @classmethod
+    def build(cls): pass
+";
+    let store = extract_at("pkg/app.py", source);
+    let make_id = store.lookup("pkg/app.py>App>make").unwrap();
+    let build_id = store
+        .lookup("pkg/app.py>App>build")
+        .expect("classmethod callee must be indexed");
+    assert!(
+        store.outgoing(make_id, EdgeKind::Calls).contains(&build_id),
+        "cls.build() must produce a Calls edge to App>build"
+    );
+}
+
 // ── idempotence ──────────────────────────────────────────────────────────────
 
 #[test]
