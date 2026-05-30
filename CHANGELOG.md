@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- next release goes here -->
+
+## [0.1.11] - 2026-05-30
+
 ### Added
 
 - **RFC-0094 §206 S2: `crates/mycelium-mcp/README.md`** — documents the output format per
