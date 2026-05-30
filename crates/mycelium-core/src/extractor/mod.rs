@@ -217,11 +217,14 @@ impl Extractor {
                         None
                     }
                 });
-                let (Some(local), Some(src)) = (local, src) else {
+                // `from M import X` (no `as`): local=None, original=Some("X").
+                // Treat X as both the original name and the local binding.
+                let effective_local = local.or(original);
+                let (Some(effective_local), Some(src)) = (effective_local, src) else {
                     continue;
                 };
-                let resolved = build_alias_target(file_path, src, original, local);
-                alias_table.insert(local.to_string(), resolved);
+                let resolved = build_alias_target(file_path, src, original, effective_local);
+                alias_table.insert(effective_local.to_string(), resolved);
             }
         }
 
@@ -410,8 +413,23 @@ impl Extractor {
                         let base_id = {
                             let intra = format!("{file_path}>{base_name}");
                             if let Some(id) = store.lookup(&intra) {
+                                // Same-file base class: resolved immediately.
+                                id
+                            } else if let Some(id) = alias_table
+                                .get(base_name)
+                                .map(|t| alias_target_to_file_path(t))
+                                .and_then(|qualified| {
+                                    store.lookup(&qualified).or_else(|| {
+                                        TrunkPath::parse(&qualified)
+                                            .ok()
+                                            .map(|p| store.upsert_node(p))
+                                    })
+                                })
+                            {
+                                // Cross-file: alias table resolved the import to a file path.
                                 id
                             } else if let Ok(bare) = TrunkPath::parse(base_name) {
+                                // Fallback: bare stub (will be resolved post-extraction if unambiguous).
                                 store.upsert_node(bare)
                             } else {
                                 continue;
@@ -452,6 +470,28 @@ fn chain_resolve(table: &HashMap<String, String>, path: &str) -> String {
         }
     }
     current
+}
+
+/// Convert an alias-table target to a file-path-qualified symbol path.
+///
+/// Relative imports already produce file-path targets (e.g. `pkg/sub.py>Sym`).
+/// Absolute imports produce dotted targets (e.g. `pkg.sub>Sym`). This function
+/// converts the latter to file-path format so that `Store::lookup` can find
+/// the definition that was indexed under its on-disk path.
+///
+/// Only the module prefix (everything before the first `>`) is converted;
+/// the symbol suffix is kept as-is. A prefix that already contains `/` is
+/// assumed to be a file path and is returned unchanged.
+fn alias_target_to_file_path(alias_target: &str) -> String {
+    if let Some(sep) = alias_target.find('>') {
+        let mod_part = &alias_target[..sep];
+        let sym_part = &alias_target[sep..]; // includes '>'
+        if !mod_part.contains('/') {
+            // Dotted Python module path: `pkg.sub` → `pkg/sub.py`.
+            return format!("{}.py{}", mod_part.replace('.', "/"), sym_part);
+        }
+    }
+    alias_target.to_string()
 }
 
 /// Walk ancestors of `node` (a reference site, NOT a definition) and collect
