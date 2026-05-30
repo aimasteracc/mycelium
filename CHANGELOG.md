@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   step fails the job when manual action is required, preserving CI RED visibility. Addresses
   systemic failures on v0.1.6, v0.1.10, and v0.1.11 releases.
 
+- **Issue #286 — `get-dead-symbols` false positives for `from X import Y`** — Symbols
+  imported via Python `from X import Y` (no subsequent call in the importing file) were
+  incorrectly flagged as dead. The extractor's alias-binding pass (Pass 1) built the alias
+  table but never created symbol-level Imports edges; `dead_symbols()` only found file-level
+  edges and treated the symbols as unreachable. Fix: after `build_alias_target` resolves a
+  symbol-level path (contains `>`), immediately upsert the Trunk node and add an Imports
+  edge from the importing file. All three import forms are covered: relative with no alias,
+  relative with alias, absolute with or without alias. 3 TDD tests. (Issue #286, PR #289)
+
 - **Issue #214 Pattern 2 — `from .submod import Symbol` alias resolution** — When code uses
   `from .models import AnalysisResult` (a relative-submodule import without `as`), mycelium
   now correctly binds `AnalysisResult → pkg/sub/models.py>AnalysisResult` in the per-file
