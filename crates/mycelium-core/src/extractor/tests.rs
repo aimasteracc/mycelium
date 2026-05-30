@@ -947,3 +947,88 @@ fn extractor_cross_file_inherited_descendants_resolves_via_alias_table() {
         "method_a (overridden in Sub) must NOT appear in inherited descendants"
     );
 }
+
+// ── RFC-0092 Phase 2: TypeScript import alias resolution ─────────────────────
+
+/// `import { foo as bar } from './module'; bar()` must emit a Calls edge to
+/// `src/module.ts>foo`, not to a bare stub `bar`.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_ts_named_import_alias_resolves_direct_call() {
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/module.ts",
+        b"export function foo(): void {}",
+        &mut store,
+    )
+    .unwrap();
+    ext.extract(
+        "src/consumer.ts",
+        b"import { foo as bar } from './module';\nfunction run(): void { bar(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.ts>run").expect("run must exist");
+    let callee = store.lookup("src/module.ts>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "bar() must resolve via alias table to src/module.ts>foo, not a bare stub"
+    );
+}
+
+/// `import * as ns from './module'; ns.greet()` must emit a Calls edge to
+/// `src/module.ts>greet`.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_ts_namespace_import_alias_resolves_method_call() {
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/module.ts",
+        b"export function greet(): void {}",
+        &mut store,
+    )
+    .unwrap();
+    ext.extract(
+        "src/consumer.ts",
+        b"import * as ns from './module';\nfunction run(): void { ns.greet(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.ts>run").expect("run must exist");
+    let callee = store
+        .lookup("src/module.ts>greet")
+        .expect("greet must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "ns.greet() must resolve via namespace alias to src/module.ts>greet"
+    );
+}
+
+/// `import { foo } from './module'; foo()` (no `as`) must emit a Calls edge to
+/// `src/module.ts>foo` via implicit alias binding.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_ts_named_import_no_alias_resolves_direct_call() {
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/module.ts",
+        b"export function foo(): void {}",
+        &mut store,
+    )
+    .unwrap();
+    ext.extract(
+        "src/consumer.ts",
+        b"import { foo } from './module';\nfunction run(): void { foo(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.ts>run").expect("run must exist");
+    let callee = store.lookup("src/module.ts>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo() (imported from './module') must resolve to src/module.ts>foo"
+    );
+}
