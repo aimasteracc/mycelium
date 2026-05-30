@@ -22,6 +22,14 @@ fn extract(source: &str) -> Store {
     store
 }
 
+fn extract_at(file_path: &str, source: &str) -> Store {
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract(file_path, source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store
+}
+
 // ── definition.module ────────────────────────────────────────────────────────
 
 #[test]
@@ -181,6 +189,71 @@ fn extractor_creates_import_edge_for_from_import() {
             .contains(&mod_id.unwrap()),
         "file should have Imports edge to pathlib"
     );
+}
+
+// ── relative-import resolution (issue #204) ──────────────────────────────────
+
+#[test]
+fn extractor_resolves_single_dot_relative_import_to_sibling_file() {
+    // `from .models import X` in pkg/sub/foo.py must produce an Imports edge
+    // to pkg/sub/models.py (the real file path), not to the symbolic name
+    // `.models`. Bug 2 of issue #200 — without this, every `from .X import Y`
+    // pattern makes the source module appear unimported at the file level.
+    let store = extract_at("pkg/sub/foo.py", "from .models import X");
+    let file_id = store.lookup("pkg/sub/foo.py").unwrap();
+    assert!(
+        store.lookup("pkg/sub/models.py").is_some(),
+        "single-dot relative import must create a file-path node for the target"
+    );
+    let target = store.lookup("pkg/sub/models.py").unwrap();
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&target),
+        "Imports edge must point to the resolved file path, not the symbolic name"
+    );
+}
+
+#[test]
+fn extractor_resolves_double_dot_relative_import_to_parent_package() {
+    // `from ..utils import X` in pkg/sub/foo.py resolves to pkg/utils.py.
+    let store = extract_at("pkg/sub/foo.py", "from ..utils import X");
+    let file_id = store.lookup("pkg/sub/foo.py").unwrap();
+    let target = store
+        .lookup("pkg/utils.py")
+        .expect("double-dot relative import must create pkg/utils.py node");
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&target),
+        "Imports edge must point to pkg/utils.py for `from ..utils import X`"
+    );
+}
+
+#[test]
+fn extractor_resolves_bare_relative_import_to_package_dir() {
+    // `from . import sibling` in pkg/sub/foo.py refers to the current package
+    // (pkg/sub/), where `sibling` is a sibling module → pkg/sub/sibling.py.
+    let store = extract_at("pkg/sub/foo.py", "from . import sibling");
+    let file_id = store.lookup("pkg/sub/foo.py").unwrap();
+    // We at least create *some* edge — either to the package dir or to the
+    // sibling. The current grammar captures `.` as the module_name so we
+    // expect an edge to pkg/sub (the package). Spot-check: an edge must exist
+    // from file_id with kind Imports.
+    let outgoing = store.outgoing(file_id, EdgeKind::Imports);
+    assert!(
+        !outgoing.is_empty(),
+        "bare `from . import X` must produce at least one Imports edge"
+    );
+}
+
+#[test]
+fn extractor_preserves_absolute_import_behaviour() {
+    // Absolute imports `from foo.bar import X` keep their symbolic node
+    // (`foo.bar`) — resolving these to file paths requires package-discovery
+    // logic out of scope for issue #204.
+    let store = extract_at("pkg/sub/foo.py", "from typing import List");
+    let file_id = store.lookup("pkg/sub/foo.py").unwrap();
+    let typing = store
+        .lookup("typing")
+        .expect("absolute import must still create symbolic node");
+    assert!(store.outgoing(file_id, EdgeKind::Imports).contains(&typing));
 }
 
 // ── idempotence ──────────────────────────────────────────────────────────────

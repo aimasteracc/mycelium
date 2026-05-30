@@ -202,7 +202,14 @@ impl Extractor {
                 match cap_name {
                     "reference.import" | "reference.import_from" => {
                         let mod_name = name_text.unwrap_or("_unknown");
-                        if let Ok(mod_path) = TrunkPath::parse(mod_name) {
+                        // Issue #204: Python relative imports (`.X` / `..X`)
+                        // resolve to actual file paths relative to the
+                        // importing file. Absolute imports keep the symbolic
+                        // node (resolution requires package discovery, out of
+                        // scope for #204; tracked in #205 alias-table work).
+                        let resolved = resolve_python_relative_import(file_path, mod_name);
+                        let edge_target = resolved.as_deref().unwrap_or(mod_name);
+                        if let Ok(mod_path) = TrunkPath::parse(edge_target) {
                             let mod_id = store.upsert_node(mod_path);
                             store.upsert_edge(EdgeKind::Imports, file_id, mod_id);
                         }
@@ -234,6 +241,48 @@ impl Extractor {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+/// Resolve a Python relative import (`.X` or `..X.Y`) to the importing file's
+/// sibling/ancestor file path. Returns `None` for absolute imports (no leading
+/// dots) — those keep the existing symbolic-node behaviour because resolving
+/// them requires package-discovery logic out of scope for issue #204.
+///
+/// Examples (importing file = `pkg/sub/foo.py`):
+/// - `.models`  → `pkg/sub/models.py`
+/// - `..utils`  → `pkg/utils.py`
+/// - `typing`   → `None` (absolute import)
+///
+/// Note: this purely computes the file-path string from syntax. It does NOT
+/// check whether the target file exists on disk — the Trunk node is created
+/// upserted whether the file is present or not, matching the existing
+/// behaviour for absolute-import symbolic nodes.
+fn resolve_python_relative_import(importing_file: &str, mod_name: &str) -> Option<String> {
+    let dot_count = mod_name.chars().take_while(|&c| c == '.').count();
+    if dot_count == 0 {
+        // Absolute import — bail out, let the caller use the symbolic name.
+        return None;
+    }
+    let rest = &mod_name[dot_count..];
+
+    // Importing file's directory is the "current package". One dot = stay
+    // here; each additional dot pops one parent.
+    let mut current = std::path::Path::new(importing_file).parent()?.to_path_buf();
+    for _ in 1..dot_count {
+        current = current.parent()?.to_path_buf();
+    }
+
+    if rest.is_empty() {
+        // Bare `from . import X` — Trunk node is the package dir itself.
+        // Convert backslashes (Windows path semantics never appear in our
+        // virtual TrunkPath; we always emit forward slashes).
+        return Some(current.to_string_lossy().replace('\\', "/"));
+    }
+
+    // `.models` → models.py;  `..pkg.mod` → pkg/mod.py (dotted suffix).
+    let suffix = rest.replace('.', "/");
+    let target = current.join(format!("{suffix}.py"));
+    Some(target.to_string_lossy().replace('\\', "/"))
+}
 
 /// Walk ancestors of `node` looking for the nearest enclosing function-like
 /// definition. Returns a path suffix like `"fn_name"` or `"ClassName>method_name"`
