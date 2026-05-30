@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 — **v0.1.11 SHIPPED** ✅ full ceremony complete (tag pushed, crates.io/npm/PyPI published, back-merged to develop) |
+| Last updated | 2026-05-31 — **post-v0.1.11 security scan CLEAN** ✅; v0.1.12 kickoff — queue empty, awaiting founder issue triage |
 | Current sprint | **v0.1.12 — kickoff** |
 | Active release branch | none |
 | Next release target | **v0.1.12** — planning in progress |
@@ -45,7 +45,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **v0.1.12 sprint kickoff** — develop already has 9 fixes (Issues #292–#297, #293–#294, #301) ready. Post-v0.1.11 security scan needed.
+1. **v0.1.12 sprint kickoff** — develop has 9 fixes ready (Issues #292–#297, #293–#294, #301). Post-v0.1.11 security scan: **CLEAN ✅ (2026-05-31)**. Awaiting founder issue triage to define v0.1.12 exit criteria.
 2. **Issue #214 (Python reliability)** — CLOSED ✅ 2026-05-31. All 3 patterns verified fixed.
 
 **P2 (v0.1.12 scope — develop ready):**
@@ -86,7 +86,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | architect | idle | RFC-0092 Phase 2/3 was fully implemented (PRs #277/#278/#283). No further scope needed. |
 | tech-writer | idle | Asciinema walkthrough recording. After v0.2.0. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | **NEXT UP** | Post-v0.1.11 security scan due. |
+| security-reviewer | **IDLE** | Post-v0.1.11 scan complete ✅ CLEAN — 2026-05-31. Next: post-v0.1.12. |
 | e2e-runner | idle | No pending regression tests. |
 
 ### Open PRs (2026-05-31)
