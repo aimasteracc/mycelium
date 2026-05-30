@@ -1170,3 +1170,75 @@ fn extractor_js_named_import_no_alias_resolves_direct_call() {
         "foo() (imported from './module') must resolve to src/module.js>foo"
     );
 }
+
+#[test]
+fn from_relative_import_creates_symbol_level_imports_edge_for_dead_symbol_check() {
+    // Issue #286: `from .models import AnalysisResult` must create an Imports
+    // edge from consumer.py to models.py>AnalysisResult so that dead_symbols
+    // does NOT flag AnalysisResult as dead when it has no direct Calls edges.
+    let source = "from .models import AnalysisResult\n";
+    let store = extract_at("pkg/sub/consumer.py", source);
+
+    let consumer_id = store
+        .lookup("pkg/sub/consumer.py")
+        .expect("consumer file node must exist");
+    let symbol_id = store
+        .lookup("pkg/sub/models.py>AnalysisResult")
+        .expect("symbol node must be created via alias binding");
+
+    assert!(
+        store
+            .outgoing(consumer_id, EdgeKind::Imports)
+            .contains(&symbol_id)
+            || store
+                .incoming(symbol_id, EdgeKind::Imports)
+                .contains(&consumer_id),
+        "Imports edge consumer.py → models.py>AnalysisResult must exist (Issue #286)"
+    );
+
+    // Verify dead_symbols does not flag AnalysisResult.
+    let dead = store.dead_symbols(None);
+    assert!(
+        !dead.contains(&"pkg/sub/models.py>AnalysisResult".to_owned()),
+        "AnalysisResult must not appear in dead_symbols — it is imported by consumer.py"
+    );
+}
+
+#[test]
+fn from_absolute_import_creates_symbol_level_imports_edge() {
+    // Issue #286 (absolute case): `from output_manager import output_data`
+    // must create an Imports edge to output_manager>output_data so the symbol
+    // is excluded from get-dead-symbols output.
+    let source = "from output_manager import output_data\n";
+    let store = extract_at("pkg/cli.py", source);
+
+    let symbol_id = store
+        .lookup("output_manager>output_data")
+        .expect("symbol node must be created via alias binding");
+
+    let dead = store.dead_symbols(None);
+    assert!(
+        !dead.contains(&"output_manager>output_data".to_owned()),
+        "output_data must not appear in dead_symbols — it is imported by cli.py"
+    );
+    let _ = symbol_id; // silence unused warning
+}
+
+#[test]
+fn from_import_with_alias_creates_symbol_level_imports_edge() {
+    // Issue #286 (aliased case): `from ._ast_cache_schema import apply_migration_v3 as _apply`
+    // must create an Imports edge to _ast_cache_schema.py>apply_migration_v3.
+    let source = "from ._ast_cache_schema import apply_migration_v3 as _apply\n";
+    let store = extract_at("pkg/ast_cache.py", source);
+
+    let symbol_id = store
+        .lookup("pkg/_ast_cache_schema.py>apply_migration_v3")
+        .expect("symbol node must be created via alias binding");
+
+    let dead = store.dead_symbols(None);
+    assert!(
+        !dead.contains(&"pkg/_ast_cache_schema.py>apply_migration_v3".to_owned()),
+        "apply_migration_v3 must not appear in dead_symbols — it is imported by ast_cache.py"
+    );
+    let _ = symbol_id;
+}

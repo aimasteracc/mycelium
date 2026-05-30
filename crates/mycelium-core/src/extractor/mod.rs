@@ -248,6 +248,16 @@ impl Extractor {
                     continue;
                 };
                 let resolved = build_alias_target(file_path, src, original, effective_local);
+                // Issue #286: when the resolved target is a symbol-level path
+                // (contains '>'), create both the Trunk node and an Imports edge
+                // from the importing file so that get-dead-symbols does not flag
+                // the imported symbol as dead just because it has no Calls edges.
+                if resolved.contains('>') {
+                    if let Ok(sym_path) = TrunkPath::parse(&resolved) {
+                        let sym_id = store.upsert_node(sym_path);
+                        store.upsert_edge(EdgeKind::Imports, file_id, sym_id);
+                    }
+                }
                 alias_table.insert(effective_local.to_string(), resolved);
             }
         }
