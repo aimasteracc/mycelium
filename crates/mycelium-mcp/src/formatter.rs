@@ -613,4 +613,42 @@ tags:
              (json={json_punct}, text={text_punct})"
         );
     }
+
+    #[test]
+    fn text_format_byte_count_under_80_percent_of_json_for_50_node_tree() {
+        // Companion to the Criterion bench in benches/formatter.rs.
+        // Guards the RFC-0094 byte savings floor: text output must be < 80%
+        // of JSON byte count for a realistic 50-node callee tree.
+        // NOTE: RFC-0094's headline is ~73% *token* savings, not byte savings.
+        // Byte savings are smaller (~25%) because LLM tokenisers split JSON
+        // structural punctuation ({, ", :, ,) into individual tokens while
+        // grouping plain-text runs. The < 80% byte bound is the correct guard.
+        let mut nodes = Vec::new();
+        for i in 0..50_usize {
+            nodes.push(json!({
+                "path": format!("src/module_{i}.rs>Type_{i}>method_{i}"),
+                "kind": "function",
+                "callees": [
+                    format!("src/dep_{i}.rs>helper_a"),
+                    format!("src/dep_{i}.rs>helper_b"),
+                ]
+            }));
+        }
+        let fixture = json!({
+            "root": "src/auth.rs>AuthService>login",
+            "depth": 3,
+            "total_nodes": 50_u32,
+            "nodes": nodes
+        });
+
+        let json_bytes = JsonFormatter.format(&fixture).len();
+        let text_bytes = TextFormatter::default().format(&fixture).len();
+
+        // Cross-multiplication: text/json < 0.80 iff text * 100 < json * 80.
+        assert!(
+            text_bytes.saturating_mul(100) < json_bytes.saturating_mul(80),
+            "text format ({text_bytes} B) must be < 80% of JSON ({json_bytes} B) \
+             for the 50-node callee-tree fixture — RFC-0094 byte savings floor"
+        );
+    }
 }

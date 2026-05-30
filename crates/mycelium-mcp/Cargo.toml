@@ -52,8 +52,13 @@ rmp-serde               = { workspace = true }
 hex                     = "0.4"
 
 [dev-dependencies]
-tempfile = { workspace = true }
+tempfile  = { workspace = true }
 # Contract tests (tests/contract.rs) require the rmcp client feature to
 # spin up an in-process server+client pair via tokio::io::duplex.
-rmcp    = { workspace = true, features = ["client"] }
-anyhow  = { workspace = true }
+rmcp      = { workspace = true, features = ["client"] }
+anyhow    = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name    = "formatter"
+harness = false
