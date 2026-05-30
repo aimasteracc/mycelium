@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — v0.1.11 sprint COMPLETE; ready to cut release) |
-| Current sprint | **v0.1.11 — COMPLETE ✅** |
-| Active release branch | none — cut release/v0.1.11 next |
-| Next release target | **v0.1.11** — Python inheritance + RFC-0094 output_format + Charter SLA |
+| Last updated | 2026-05-30 (PM dispatch — PR #266 + #270 merged; #267/#268 triaged P1; release/v0.1.11 ready to cut) |
+| Current sprint | **v0.1.11 — COMPLETE ✅ (release/v0.1.11 to cut)** |
+| Active release branch | none — release agent should cut release/v0.1.11 now |
+| Next release target | **v0.1.11** — Python inheritance + RFC-0094 + MCP is_error + Pattern 3 fix |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -31,27 +31,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0: none** — no blocking issues. Sprint complete; action = cut release/v0.1.11.
+**P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **Cut release/v0.1.11** — sprint exit criteria 8/9 met + issue #221 closed = 9/9 effective.
-   v0.1.11 is release-ready. See sprint exit criteria below.
-2. **Issue #214 (Python reliability — remaining patterns)** — deferred to v0.1.12.
-   - Pattern 2: destructured imports file-level under-count.
-   - Pattern 3: transitive alias over-count (1,472 false callers).
-   Requires RFC-0092 Phase 2/3. pack-author + rust-implementer task.
+1. **Cut release/v0.1.11** — all sprint exit criteria met + bonus PRs #266 and #270 landed.
+   Release agent task: `git checkout -b release/v0.1.11 develop`, bump version, seal CHANGELOG.
+2. **Issue #267** — `subclasses-tree` full-path only finds same-file subclasses. Root cause:
+   `resolve_bare_call_stubs()` stores Extends edge targets as bare names; reverse lookup expects
+   full-path nodes. rust-implementer TDD task for v0.1.12. Governs by RFC-0092.
+3. **Issue #268** — `get-descendants --include-inherited` returns 0 for cross-file base classes.
+   Same root cause as #267 (Extends edge target resolution). Same fix, same sprint. TDD task.
+4. **Issue #214 (Python reliability — Pattern 2)** — destructured imports file-level under-count.
+   Still open after Pattern 3 fixed by PR #270. Requires RFC-0092 Phase 2/3. v0.1.12 scope.
 
 **P2 (v0.1.12 scope):**
-3. **Issue #206 S1 (MCP `is_error` sweep)** — Set `is_error: Some(true)` on all ~89
-   application-error returns. rmcp 1.7 `CallToolResult::structured_error` via
-   `IntoCallToolResult`. No RFC needed. rust-implementer task.
-4. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
-5. **Issue #206 S2** — Token-efficient text output. RFC-0094 already landed Phase 1+3; this is
-   per-transport default configuration. Low effort remaining.
+5. **Issue #206 S1 (MCP `is_error` sweep) — DONE** ✅ PR #266 merged this run. All 90 tools
+   now return `is_error: Some(true)` on error paths.
+6. **Issue #206 S2** — Token-efficient text output. RFC-0094 Phase 1+3 landed; per-transport
+   default config is the remaining work. Low effort.
+7. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
+8. **Issue #269** — Document autouse conftest fixture limitation in README / help text.
+   Low effort, high user-facing value.
 
 **P3 (v0.2.0 backlog):**
-6. Skill marketplace submission metadata: icon, screenshots, category examples.
-7. End-to-end “first 5 minutes” walkthrough / asciinema recording.
+9. Skill marketplace submission metadata: icon, screenshots, category examples.
+10. End-to-end “first 5 minutes” walkthrough / asciinema recording.
 
 ---
 
@@ -72,18 +76,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-30, post-v0.1.11 sprint complete)
+## Dispatch state (2026-05-30, PM run — v0.1.11 + #266 + #270 all on develop)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **P0 NEXT** | Cut release/v0.1.11 (sprint complete; develop ready). |
-| rust-implementer | **next-up** | Issue #206 S1: MCP `is_error` sweep (~89 tools). After v0.1.11 ships. |
-| pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3). After v0.1.11 ships. |
-| architect | idle | RFC-0092 Phase 2/3 scoping. After v0.1.11 ships. |
-| tech-writer | idle | Marketplace metadata + asciinema after v0.2.0. |
+| release | **P0 NOW** | Cut release/v0.1.11 (develop has 9 sprint items + MCP is_error + Pattern 3). |
+| rust-implementer | **next-up** | Issues #267 + #268: cross-file Extends reverse lookup (bare-name → full-path upgrade in resolve_bare_call_stubs). After v0.1.11 ships. |
+| pack-author | **next-up** | Issue #214 Pattern 2: destructured imports file-level under-count (RFC-0092 Phase 2). After v0.1.11 ships. |
+| architect | idle | RFC-0092 Phase 2 scoping for #267/#268 root cause (edge target canonicalization). |
+| tech-writer | idle | Issue #269: document autouse conftest limitation. Low effort, after v0.1.11 ships. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | idle | Next scan: post-v0.1.11. |
-| e2e-runner | idle | Python Pattern 2/3 regression tests after pack-author fix. |
+| security-reviewer | idle | Routine scan: post-v0.1.11. |
+| e2e-runner | idle | Regression tests for #267/#268 after rust-implementer fix. |
 
 ---
 
@@ -113,6 +117,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-30 PM dispatch (this run — #266 + #270 merged; #267/#268 triaged; release/v0.1.11 unblocked)
+
+- Pre-flight: read CHARTER.md, _orchestrator.md, PM state, decisions.jsonl tail, anti-patterns.
+- Found PM state stale (local filesystem showed v0.1.6; develop HEAD is v0.1.11 complete).
+  Recovered by checking out develop HEAD. **Anti-pattern confirmed**: always `git fetch` + checkout
+  before reading files, not relying on initial clone state.
+- Assessed 2 open PRs (#266 all-green, #270 CI in-progress), 5 open issues (#267 #268 P1,
+  #214 P1, #206 P2, #269 P3).
+- **Merged PR #266** — MCP `is_error` sweep (all 90 tools). Closes #206 S1. Quality Gate: 20/20 ✅.
+- **Subscribed to PR #270** — nested-chain false callers fix (issue #214 Pattern 3). No review
+  comments. 2 remaining CI checks (Windows + integration) in-progress; all others ✅.
+- **PR #270 auto-merged** via webhook notification — all CI green. Closes #214 Pattern 3.
+- **Triaged new P1 issues #267 + #268** — cross-file Extends reverse lookup. Root cause:
+  `resolve_bare_call_stubs()` updates edge sources to full-path but leaves edge *targets* as bare
+  names. `subclasses-tree` and `get-descendants --include-inherited` reverse-walk Extends edges
+  and find only same-file subclasses because bare-name stub ≠ full-path definition node.
+  Dispatched to rust-implementer for v0.1.12.
+- **develop now has** v0.1.11 sprint (9 items) + MCP is_error (#266) + Pattern 3 (#270).
+  release/v0.1.11 is unblocked.
+- Updated PM state, dispatched release agent as P0.
+- Decisions.jsonl: appended this run's summary.
 
 ### 2026-05-30 PM dispatch (v0.1.11 sprint complete — release/v0.1.11 ready to cut)
 
