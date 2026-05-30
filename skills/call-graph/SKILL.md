@@ -87,6 +87,29 @@ mcp__mycelium__get_dead_symbols({ "exclude_paths": ["tests/"], "limit": 200 })
 
 **When**: similar to `get_dead_symbols` but stricter — symbols with zero edges of any kind. Often signals unused utility functions or generated code.
 
+## Known limitation: autouse conftest fixtures inflate caller counts
+
+In pytest projects, `conftest.py` fixtures decorated with `autouse=True` run around every
+test and commonly import and call methods across many modules (resetting singletons, clearing
+caches, etc.). Mycelium records all of these as static call edges, so **every test file
+appears to call every method touched by an autouse fixture** — even if that test file has
+nothing to do with those methods.
+
+Practical impact:
+- `get_callers` caller counts are inflated for any symbol touched by autouse fixtures.
+- `get_dead_symbols` / `get_isolated_symbols` may report code as "live" only because an
+  autouse fixture reaches it, making dead-code detection unreliable.
+- `get_callers "conftest.py>reset_singletons"` may show hundreds of test-file callers,
+  obscuring actual direct callers.
+
+**Workaround**: use `--exclude-paths "tests/"` (CLI) or `exclude_paths: ["tests/"]` (MCP)
+to restrict analysis to production code. For true test-coverage measurement (which tests
+actually exercise which code paths), use a runtime tool such as `pytest-cov` — mycelium's
+static call graph cannot distinguish "transitively reachable through autouse fixtures" from
+"directly exercised by this test".
+
+This is a static analysis limitation, not a mycelium bug (issue #269).
+
 ## Common chains
 
 - **"Where is this code reached from?"** → `get_callers` → `get_caller_tree --max-depth 5`.
