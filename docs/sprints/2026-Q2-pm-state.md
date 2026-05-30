@@ -5,20 +5,23 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch run — v0.1.5 COMPLETE, awaiting founder release of v0.1.4) |
-| Current sprint | **v0.1.5 COMPLETE on develop** |
-| Active release branch | `release/v0.1.4` — PR #176 → `main`, **awaiting founder admin merge** |
-| Next release target | v0.1.4 (founder merge needed), then v0.1.5, then v0.2.0 |
+| Last updated | 2026-05-30 (post-v0.1.4 ship) |
+| Current sprint | **v0.1.5 COMPLETE on develop, awaiting cut** |
+| Active release branch | none — PR #195 (release/v0.1.4 → develop back-merge) open |
+| Next release target | **v0.1.5** (cut after PR #195 back-merge), then v0.2.0 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.3 — Hyphae lands + first Skills** |
+| Last shipped | **v0.1.4 — Perf + CLI parity batches 1-2 + Three-Surface CI scaffold** (tag v0.1.4, crates.io published 2026-05-30) |
 
 ---
 
-## 🚨 Escalation: PR #176 needs founder merge
+## ✅ v0.1.4 SHIPPED — 2026-05-30
 
-**PR #176** (`release/v0.1.4` → `main`) has been open since 2026-05-29T22:36.  
-Charter §5.12: any operation touching `main` requires GPG-signed founder approval.  
-After merge: tag v0.1.4, publish 5 crates to crates.io, then cut release/v0.1.5.
+- PR #176 merged to main (commit 279834b)
+- Tag `v0.1.4` pushed
+- 5 crates published to crates.io: `mycelium-rcig-{core,hyphae,pack,mcp,cli}@0.1.4`
+- GitHub Release: https://github.com/aimasteracc/mycelium/releases/tag/v0.1.4
+- PR #195 (back-merge release/v0.1.4 → develop) **open and awaiting founder admin merge**
+- After back-merge: cut release/v0.1.5 with bump 0.1.4 → 0.1.5, ship all v0.1.5 sprint work in one release
 
 ---
 
