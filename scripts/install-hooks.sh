@@ -86,7 +86,7 @@ if [ -n "$IMPL_FILES" ]; then
     # Check if any staged .rs file (including the impl files) contains #[test]
     HAS_TESTS=""
     for f in $STAGED_RS; do
-        if git show ":$f" 2>/dev/null | grep -q '#\[test\]' 2>/dev/null; then
+        if (set +o pipefail; git show ":$f" 2>/dev/null | grep -q '#\[test\]' 2>/dev/null); then
             HAS_TESTS="yes"
             break
         fi

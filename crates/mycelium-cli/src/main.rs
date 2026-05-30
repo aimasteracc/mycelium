@@ -974,6 +974,13 @@ enum Cmd {
         /// and saves the snapshot before the server accepts connections.
         #[arg(long)]
         root: Option<PathBuf>,
+        /// Restrict MCP filesystem access to these directories (RFC-0097).
+        ///
+        /// `mycelium_index_workspace` and `mycelium_load_index` will reject any
+        /// path not under one of these roots. May be repeated.
+        /// Defaults to the current working directory when not specified.
+        #[arg(long = "allowed-roots", value_name = "DIR")]
+        allowed_roots: Vec<PathBuf>,
     },
 }
 
@@ -1751,10 +1758,20 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_find_import_path(&canonical, &from, &to, max_depth, format.into())?;
         }
-        Cmd::Serve { mcp: true, root } => {
+        Cmd::Serve {
+            mcp: true,
+            root,
+            allowed_roots,
+        } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));
+            // RFC-0097: default allowed roots to CWD when none specified.
+            let allowed = if allowed_roots.is_empty() {
+                vec![std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))]
+            } else {
+                allowed_roots
+            };
             let rt = Runtime::new()?;
-            rt.block_on(mycelium_mcp::serve_stdio(root))?;
+            rt.block_on(mycelium_mcp::serve_stdio(root, allowed))?;
         }
         Cmd::Serve { mcp: false, .. } => {
             tracing::warn!("`mycelium serve` requires `--mcp` flag (other transports are v0.2)");
