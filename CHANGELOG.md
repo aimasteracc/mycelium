@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- next release goes here -->
+
+## [0.1.12] - 2026-05-30
+
 ### Added
 
 - **RFC-0096 — `EdgeKind::TypeImports` (Python phase)** — Imports inside
@@ -185,8 +189,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bare stubs. Relative specifiers (`./module`, `../lib/util`) are resolved to file paths
   using the importing file's own extension (`.ts` → `.ts`, `.js` → `.js`); package imports
   remain symbolic. Covered by 6 TDD tests (3 TypeScript + 3 JavaScript) in `extractor::tests`.
-
-<!-- next release goes here -->
 
 ## [0.1.11] - 2026-05-30
 
