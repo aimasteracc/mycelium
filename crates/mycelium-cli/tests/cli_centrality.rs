@@ -24,11 +24,18 @@ fn prepare_diamond() -> tempfile::TempDir {
         "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
     )
     .unwrap();
-    let status = Command::new(mycelium_bin())
+    let out = Command::new(mycelium_bin())
         .args(["index", root.to_str().unwrap()])
-        .status()
+        .output()
         .unwrap();
-    assert!(status.success());
+    assert!(
+        out.status.success(),
+        "mycelium index failed (exit={:?})\nroot: {}\nstdout: {}\nstderr: {}",
+        out.status.code(),
+        root.display(),
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr),
+    );
     dir
 }
 

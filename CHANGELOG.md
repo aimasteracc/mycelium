@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.cargo/config.toml` so the binary links with an 8 MiB stack on
   Windows — matching Linux and macOS defaults. Surfaced by PR #191
   Windows CI panic at `cli_basic_queries.rs:38`. Linux/macOS unchanged.
+- **Windows CI diagnostics** — upgraded all 11 integration-test
+  `prepare_*` fixture helpers from `.status()` to `.output()` so that
+  Windows test failures print exit code, stdout, and stderr instead of a
+  bare assertion. Also bumped `Swatinem/rust-cache` `prefix-key` in the
+  `test-matrix` job to bust a potential stale-binary cache that could
+  serve an unbumped-stack binary despite `.cargo/config.toml` changing.
 
 ### Added
 

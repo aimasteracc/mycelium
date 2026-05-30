@@ -24,11 +24,18 @@ fn prepare_import_chain() -> tempfile::TempDir {
         "from .middle import middle_fn\n\ndef entry_fn():\n    return middle_fn() * 2\n",
     )
     .unwrap();
-    let status = Command::new(mycelium_bin())
+    let out = Command::new(mycelium_bin())
         .args(["index", root.to_str().unwrap()])
-        .status()
+        .output()
         .unwrap();
-    assert!(status.success());
+    assert!(
+        out.status.success(),
+        "mycelium index failed (exit={:?})\nroot: {}\nstdout: {}\nstderr: {}",
+        out.status.code(),
+        root.display(),
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr),
+    );
     dir
 }
 

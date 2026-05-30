@@ -35,11 +35,18 @@ fn prepare_indexed_project() -> tempfile::TempDir {
     .unwrap();
 
     // Build the index so `serve --mcp` has a snapshot to load.
-    let status = Command::new(mycelium_bin())
+    let out = Command::new(mycelium_bin())
         .args(["index", root.to_str().unwrap()])
-        .status()
+        .output()
         .expect("spawn mycelium index");
-    assert!(status.success(), "mycelium index failed");
+    assert!(
+        out.status.success(),
+        "mycelium index failed (exit={:?})\nroot: {}\nstdout: {}\nstderr: {}",
+        out.status.code(),
+        root.display(),
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr),
+    );
 
     dir
 }
