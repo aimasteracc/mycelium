@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #284 Skill marketplace metadata; P3.1 DONE; starting P3.2 walkthrough) |
+| Last updated | 2026-05-30 (PM dispatch — fix/release-finalize-robustness in progress; all P3 DONE; investigating systemic CI/CD issue) |
 | Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
 | Active release branch | `release/v0.1.11` — PR #275 open targeting main |
 | Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed) |
@@ -61,8 +61,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 5. ✅ **Skill marketplace submission metadata** — DONE (PR #284). All 10 SKILL.md files
    enriched with `category`, `icon`, `marketplace_examples` frontmatter + `## Quick examples`
    tables. Template updated.
-6. **End-to-end “first 5 minutes” walkthrough** — Script written in `docs/walkthrough.md`
-   (in progress). Asciinema recording requires a running indexer — deferred to founder.
+6. ✅ **End-to-end “first 5 minutes” walkthrough** — DONE (PR #285). `docs/walkthrough.md`
+   (226 lines, 5 steps: install → index → search → call-graph → MCP setup). Asciinema
+   recording deferred to founder (requires a live running indexer).
 
 **Closed this session (2026-05-30):**
 - ✅ #267 — cross-file `subclasses-tree` (PR #272)
