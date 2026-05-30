@@ -5,98 +5,88 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 PM dispatch — release/v0.1.12 cut (PR #321 open → main); 0 open issues; 0 open P0/P1 |
-| Current sprint | **v0.1.12 — COMPLETE ✅ (release/v0.1.12 → main PR #321 awaiting CI + founder merge)** |
-| Active release branch | **release/v0.1.12** — PR #321 open targeting main |
-| Next release target | **v0.1.12** — RFC-0092 TS/JS alias, RFC-0095 runtime packs, RFC-0096 TypeImports, RFC-0097 FS boundary, Java inheritance, pagination, edge-kind flags |
+| Last updated | 2026-05-30 (PM dispatch — v0.1.12 ceremony PRs #323/#324 opened; v0.1.13 sprint kickoff) |
+| Current sprint | **v0.1.13 — KICKOFF 🚀** |
+| Active release branch | `release/v0.1.12` (recreated from tag; PRs #323/#324 open) |
+| Next release target | **v0.1.13** — ADR gaps + RFC-0093 Phase 2 + security scan |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.11 — Python cross-file Extends, MCP is_error, token-efficient output** (tag v0.1.11, crates.io / npm / PyPI published 2026-05-31) |
+| Last shipped | **v0.1.12 — RFC-0092/0095/0096/0097, Java inheritance, 9 accuracy fixes** (tag v0.1.12, GitHub Release published 2026-05-30) |
 
 ---
 
-## 🚀 v0.1.11 — SHIPPED ✅
+## 🚀 v0.1.12 — SHIPPED (ceremony in progress ⚠️)
 
 **What shipped:**
-- [x] Python class inheritance (Extends edges, cross-file, attribute-form base classes)
-- [x] `get-callers --include-virtual`, `get-descendants --include-inherited`
-- [x] MCP `is_error` sweep — all 90 tool handlers (Issue #206 S1)
-- [x] Token-efficient `output_format: text/json` per transport — RFC-0094 Phase 2+3
-- [x] RFC-0092 alias resolution — TypeScript, JavaScript, Python
-- [x] RFC-0095 runtime pack loading via `MYCELIUM_PACKS_DIR`
-- [x] Charter §2 SLA 100K-node in <30s
-- [x] Issue #214 Pattern 3 (false callers eliminated); Issue #286 (dead-symbol false positives)
+- [x] RFC-0092 Phase 2: TypeScript/JavaScript alias resolution (6 TDD tests)
+- [x] RFC-0095: Runtime language pack registry (`PackRegistry`, `--packs-dir`, `docs/packs.md`)
+- [x] RFC-0096: `EdgeKind::TypeImports` — Python `if TYPE_CHECKING:` imports are now queryable
+- [x] RFC-0097: MCP filesystem access boundary (`--allowed-roots`)
+- [x] Issue #295: Java `Extends` + `Implements` edges
+- [x] Issues #292–#301: 9 accuracy/ergonomics fixes (pagination, edge-kind flags, compound extensions, batch paths, etc.)
+- [x] Skill marketplace metadata: `category`, `icon`, `marketplace_examples` on all 10 SKILL.md files
+- [x] RFC-0094 Criterion formatter benchmark + byte-savings unit test
+- [x] `release.yml` finalize decoupled (PR #287 — tag/Release now independent of merge step)
 
-**Post-v0.1.11 ceremony:**
-- [x] Tag v0.1.11 pushed (commit 6eb4a5c on main)
-- [x] crates.io / npm / PyPI published (CI confirmed green)
-- [x] GitHub Release page: https://github.com/aimasteracc/mycelium/releases/tag/v0.1.11
-- [x] PR #315 (release/v0.1.11 → develop back-merge) merged — **ceremony complete ✅**
+**Post-v0.1.12 ceremony status:**
+- [~] **Step 1**: `release/v0.1.12` → `main` — PR #324 open. **⚠️ REQUIRES FOUNDER AUTHORIZATION** (Charter §5.12 hard rule). Original PR #321 was closed (branch auto-deleted after close). Branch recreated from `v0.1.12` tag in this PM run.
+- [x] **Step 2**: Tag `v0.1.12` pushed ✅
+- [x] **Step 3**: GitHub Release published ✅
+- [~] **Step 4**: Back-merge `release/v0.1.12` → `develop` — PR #323 open. CI must be green before merge. Expect minor conflicts in `decisions.jsonl` (keep both) and `docs/sprints/` (keep develop's version).
 
----
-
-## 🚀 v0.1.10 — SHIPPED ✅ (archived)
-
-- [x] `if TYPE_CHECKING:` guard, nested-attribute fallback, Charter §5.12 governance.
+**⚠️ Systemic escalation**: The `release.yml` finalize job continues to close PRs without merging. PR #287 fixed tag+Release creation but the merge-to-main step still fails. PR #321 was closed instead of merged. **Founder must audit `RELEASE_BOT_TOKEN` and finalize merge logic before v0.2.0.**
 
 ---
 
 ## Live priorities (ordered)
 
-**P0: none** — no blocking issues.
+**P0: Ceremony completion**
+1. **PR #324** (`release/v0.1.12` → `main`) — founder must authorize merge after CI green.
+2. **PR #323** (`release/v0.1.12` → `develop` back-merge) — merge after CI green; resolve conflicts per PR description.
 
-**P1 (action items):**
-1. **PR #321 (release/v0.1.12 → main)** — CI running. Founder must merge + tag + authorize crates.io publish once CI is green. Charter §5.12 gate: **do NOT admin-merge if CI is red**.
-2. **Post-v0.1.12 back-merge** — After PR #321 merges to main, open back-merge PR (release/v0.1.12 → develop) and admin-merge to complete the ceremony (Charter §5.12 step 4).
-3. **RFC-0096 TypeScript phase** — `import type { Foo } from 'mod'` tracking deferred. Low priority; Python phase is the high-value use case.
+**P1 (v0.1.13 sprint — kick off after ceremony):**
+3. **ADR-0004**: Patricia Trie for Trunk (`docs/adr/0004-patricia-trie-trunk.md`) — ADR gap from CLAUDE.md; pure docs, no code change.
+4. **ADR-0005**: MessagePack as wire format (`docs/adr/0005-messagepack-wire-format.md`) — ADR gap; pure docs.
+5. **ADR-0006**: Hyphae CSS-selector grammar style (`docs/adr/0006-hyphae-grammar.md`) — ADR gap; pure docs.
+6. **RFC-0093 Phase 2**: Migrate all 89 MCP tools to return `success_json`/`application_error` helpers (Phase 1 helpers shipped in v0.1.11). Medium effort, high quality gain.
+7. **Post-v0.1.12 security scan** — routine Charter §5 obligation post each release.
 
-**P2 (v0.1.12 scope — develop ready):**
-3. **Issue #206** — CLOSED ✅. All sub-issues resolved.
-4. **Issue #212** — CLOSED ✅. Runtime pack loading via RFC-0095.
-5. **Issues #292–#301** — CLOSED ✅. All merged to develop 2026-05-31.
+**P2 (v0.1.13 or v0.2.0 scope):**
+8. **Hyphae CLI end-to-end**: `mycelium query "<selector>"` works (v0.2 PRD headline feature). Check if RFC-0091 covers CLI wiring.
+9. **E2E dogfood pass rate**: bring 8/8 CLI commands to full green (v0.2 PRD metric).
+10. **`mycelium init`**: implement or keep hidden (Issue #154, v0.2 PRD).
 
 **P3 (v0.2.0 backlog):**
-6. Skill marketplace metadata: icon, screenshots. ✅ Done (PR #284).
-7. Asciinema walkthrough recording: code-complete (PR #285); recording deferred to founder.
+11. Skill marketplace submission (metadata done in v0.1.12; submit to Claude Code marketplace).
+12. End-to-end "first 5 minutes" walkthrough validation (PR #285 wrote docs; validate still works).
 
 ---
 
-## v0.1.11 Sprint — Exit criteria — COMPLETE ✅
+## v0.1.13 Sprint — Exit criteria (DRAFT)
 
-- [x] **Issue #245**: Python Extends edges live (PR #250). `@reference.extends` query + extractor handler.
-- [x] **Issue #247**: `get-isolated-symbols` callback false positives fixed (PR #250). `@reference.arg_callback`.
-- [x] **Issue #248**: `get-descendants --include-inherited` landed (PR #254 merged).
-- [x] **Issue #246**: `get-callers --include-virtual` landed (PR #255 merged).
-- [x] **RFC-0094 Phase 2+3**: `output_format` wired into all 89 tools (PR #259 merged). Mutation/control tools excluded by design. Formatter trait (Phase 1) already in PR #241.
-- [x] **Security scan clean** — post-v0.1.10 scan: no secrets, no unsafe blocks, all CI secret refs use `${{ secrets.* }}`.
-- [x] **Charter §2 SLA 100K-node row** — PR #262 merged. 6 SLA tests pass in <1s; limit 30s.
-- [x] **Issue #221 get-dependency-depth**: CLOSED 06:47 (completed — method dispatch improved enough to remove this as a separate issue).
-- [x] **Packs-sync CI gate** — PR #263 syncs stale embedded Python packs + adds `check_pack_parity.sh` + `pack-parity` CI job. PR #264 adds cross-file Extends regression guard.
-- [x] **Issue #214**: All 3 Python reliability patterns verified fixed — CLOSED ✅ 2026-05-31. Pattern 1 (RFC-0092 #277/#278), Pattern 2 (#283/#289), Pattern 3 (#270).
+- [ ] **ADR-0004**: Patricia Trie for Trunk documented.
+- [ ] **ADR-0005**: MessagePack wire format documented.
+- [ ] **ADR-0006**: Hyphae grammar style documented.
+- [ ] **RFC-0093 Phase 2**: All 89 MCP query tools use `success_json`/`application_error` helpers.
+- [ ] **Security scan clean** — post-v0.1.12.
+- [ ] **Ceremony complete**: PR #323 merged (back-merge ✅) and PR #324 authorized+merged (main).
 
-**Judgment**: 10 of 10 criteria met. Issue #214 closed post-release after verification that all 3 patterns were already fixed by earlier PRs — sprint actually over-delivered.
+**Stretch (if time allows):**
+- [ ] **Hyphae CLI PoC**: `mycelium query "<hyphae-selector>"` returns results end-to-end.
 
 ---
 
-## Dispatch state (2026-05-30, PM dispatch — release/v0.1.12 cut)
+## Dispatch state (2026-05-30, PM dispatch — v0.1.12 ceremony PRs open)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **WAITING CI** | PR #321 (release/v0.1.12 → main) open. Monitor CI; notify founder to merge once green. |
-| rust-implementer | **IDLE** | Zero open issues. RFC-0096 TypeScript phase next if founder files issue. |
-| pack-author | **IDLE** | No pending pack work. RFC-0096 Python phase done. TypeScript phase deferred. |
-| architect | idle | No pending RFC scope work. |
-| tech-writer | idle | SKILL doc backfill complete (PR #319). Asciinema deferred to founder. |
+| founder | **ACTION REQUIRED** | PR #324: authorize merge of `release/v0.1.12` → `main`. Also: investigate `release.yml` finalize merge failure (systemic). |
+| release | **watching** | PR #323 CI green → admin-merge (back-merge). PR #324 founder authorization → admin-merge. |
+| tech-writer | **P1 NOW** | ADR-0004, ADR-0005, ADR-0006 — three ADR gap files (pure docs, high value, low risk). After ceremony lands. |
+| rust-implementer | **next-up** | RFC-0093 Phase 2: migrate 89 tools to error model helpers. After ceremony (PR #323) merges. |
+| security-reviewer | **next-up** | Post-v0.1.12 scan. After ceremony complete. |
+| architect | idle | RFC review for Hyphae CLI end-to-end (check RFC-0091 scope). |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | **NEXT UP** | Post-v0.1.12 routine scan after release merges. |
-| e2e-runner | idle | No pending regression tests. |
-
-### Open PRs (2026-05-30 PM dispatch — release cut)
-
-- **PR #321** (release/v0.1.12 → main) — Release PR. CI running. Awaiting founder merge + crates.io publish.
-
-### Open Issues
-
-**None.** All issues closed.
+| e2e-runner | idle | Dogfood pass rate after v0.1.13 content lands. |
 
 ---
 
@@ -107,12 +97,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- Merging any `release/*` branch to `main` if `RELEASE_BOT_TOKEN` is unavailable.
-- **⚠️ Investigate `release.yml` finalize job** — `merge to main, tag, GitHub Release` step has
-  failed on multiple releases (v0.1.6, v0.1.10 confirmed; possibly others). Each time the release
-  was manually recovered but this is a systemic CI/CD failure. The release workflow's auto-merge
-  to main and GitHub Release creation are not working reliably. Recommend founder audit the
-  `RELEASE_BOT_TOKEN` secret and the finalize job logic before v0.2.0.
+- **⚠️ PR #324**: Merge `release/v0.1.12` → `main` (Charter §5.12 — GPG-signed founder approval required).
+- **⚠️ Systemic**: `release.yml` finalize merge step fails on every release. `RELEASE_BOT_TOKEN` or merge logic needs founder audit before v0.2.0.
 
 ---
 
@@ -127,134 +113,55 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-30 PM dispatch — release/v0.1.12 cut (PR #321)
+### 2026-05-30 PM dispatch (this run — v0.1.12 ceremony + v0.1.13 kickoff)
 
-- Pre-flight: CHARTER.md ✅, _orchestrator.md ✅, PM state ✅, decisions.jsonl tail-20 ✅, anti-patterns scanned ✅.
-- **Assessment**: 0 open PRs, 0 open issues. v0.1.11 fully shipped (4/4 ceremony steps: PR #275 → main, tag v0.1.11, crates.io/npm/PyPI, PR #315 back-merge). PM state stale on local filesystem (still showed v0.1.11 era); GitHub develop HEAD at `077cfd4` (PM dispatch for PRs #317/#318/#319). Fast-forwarded local filesystem to develop HEAD.
-- **v0.1.12 content on develop** (from commit log + CHANGELOG Unreleased): RFC-0092 TS/JS alias resolution, RFC-0095 runtime packs, RFC-0096 TypeImports, RFC-0097 FS boundary, Issues #292–#301 (9 fixes), Java Extends/Implements (#295), RFC-0094 formatter bench, Skill marketplace metadata (#284). Confirmed stale feature branches (`feature/v0.1.12-next`, `docs/v0.1.12-skill-changelog-rfc-updates`) are squash-merge artifacts — no unmerged code.
-- **Executed**: cut `release/v0.1.12` from develop HEAD; bumped version 0.1.11→0.1.12 in Cargo.toml; fixed internal dep pin in mycelium-cli/Cargo.toml (0.1.10→0.1.12); sealed CHANGELOG [Unreleased]→[0.1.12] - 2026-05-30; pushed branch; opened **PR #321** targeting main.
-- Anti-pattern: None this run.
-- Next: CI green on PR #321 → founder merges + tags + crates.io publish → back-merge PR to develop.
+**Pre-flight:** Read CHARTER.md, _orchestrator.md, decisions.jsonl tail-20, anti-patterns.jsonl, PM state, v0.2 PRD.
 
-### 2026-05-30 PM dispatch — PRs #317/#318/#319 (RFC-0096 TypeImports + SKILL backfill)
+**Assessment:** v0.1.12 released (tag + GitHub Release ✅) but ceremony incomplete:
+- PR #321 (`release/v0.1.12` → `main`) was CLOSED/unmerged; branch auto-deleted.
+- No back-merge PR to develop. develop still at version 0.1.11.
+- main is at v0.1.11 (PR #315 merged properly). GitHub state: 0 open PRs, 0 open issues.
 
-- Pre-flight: CHARTER.md, _orchestrator.md, PM state, decisions.jsonl tail-20, anti-patterns scanned.
-- Assessed: 3 open PRs (#317/#318/#319), 0 open issues. All PRs had 20/20 green CI on original commits.
-- Merged PR #317 (chore: post-v0.1.11 security scan CLEAN — zero open issues).
-- Resolved decisions.jsonl conflict: both #317 and #318 appended entries; kept all three (append-only).
-- Merged PR #318 (feat: RFC-0096 TypeImports edge kind — Python TYPE_CHECKING imports now emit TypeImports edges instead of being dropped; 3 TDD tests RED→GREEN; SKILL + RFC + CHANGELOG updated).
-- Resolved CHANGELOG conflict in PR #319: develop had RFC-0096+RFC-0097, branch had RFC-0097 only; accepted develop's version.
-- Merged PR #319 (docs: SKILL.md params for v0.1.11/v0.1.12 features + RFC-0091/0096/0097 status Implemented).
-- v0.1.12 develop now has: Issues #292-#301 (9 fixes) + RFC-0096 TypeImports + comprehensive SKILL docs.
-- Anti-pattern: None this run.
-- Next: release agent cuts release/v0.1.12.
+**Actions taken:**
+- Recreated `release/v0.1.12` branch from `v0.1.12` tag (`a3eef272`), pushed to origin.
+- Created PR #323 (`release/v0.1.12` → `develop`) — ceremony step 4 back-merge.
+- Created PR #324 (`release/v0.1.12` → `main`) — ceremony step 1, FOUNDER AUTHORIZATION REQUIRED.
+- Declared v0.1.13 sprint kickoff: 6 exit criteria (3 ADRs + RFC-0093 Ph2 + security scan + ceremony).
+- Updated PM state, decisions.jsonl, lessons.jsonl (new lesson: protect release branch from auto-delete).
 
-### 2026-05-31 Issue #214 verified closed — zero open issues
+**Anti-pattern surfaced:** `release/v0.1.12` branch was deleted by GitHub's auto-delete-on-PR-close. Back-merge PR attempt got 422 "head Code:invalid". Release branches must be protected or recreated from tag if deleted. Appended to lessons.jsonl.
 
-- PM scan found Issue #214 still open despite all 3 patterns being fixed in earlier PRs.
-- Ran full extractor test suite on develop HEAD: 60+ tests green, including:
-  - `alias_dispatch_resolves_to_real_module_via_from_import_as` — Pattern 1 ✅
-  - `from_relative_submodule_import_creates_correct_alias_and_call_edge` — Pattern 2 ✅
-  - Pattern 3 regression guard (depth-2+ chain suppression) — Pattern 3 ✅
-- Closed #214 with detailed per-pattern fix attribution.
-- **Zero open issues remain.** Dispatch protocol: STOP — queue empty.
-- Only actionable item: founder merges PR #275 (release/v0.1.11) to cut the release.
+**Escalations:** Founder must (a) authorize PR #324; (b) audit `release.yml` finalize merge step.
 
-### 2026-05-31 full-auto merge session (all PRs merged, all fixed issues closed)
+### 2026-05-30 PM dispatch (previous — PRs #317/#318/#319 merged; v0.1.12 cut)
 
-- User authorized full-auto mode: "使用我们的智能体团队全自动修改PR和Issues".
-- Spawned two parallel agents: (1) issue-closer, (2) PR-merger.
-- **PRs merged to develop** (9 total, squash+delete-branch):
-  - #304 — ci: GitHub token fallback
-  - #305 — RFC-0097 MCP filesystem boundary (Issue #301)
-  - #306 — --edge-kind flag for 4 tools (Issue #297)
-  - #307 — get-all-symbols pagination (Issue #292)
-  - #308 — Java Extends/Implements (Issue #295)
-  - #309 — Python attribute-form Extends (Issue #296)
-  - #310 — JS const-assigned function expressions (Issue #293)
-  - #311 — compound-extension skip + strip_prefix fix (Issue #294)
-  - #312 — PM state chore
-  - (PR #266 confirmed already merged 2026-05-30)
-- **Issues closed** (11 total): #206, #286, #292, #293, #294, #295, #296, #297, #298, #299, #301.
-- **Remaining**: #214 (deferred), #275 (release — blocked on founder auth).
-- Develop HEAD: 614d7c3 — all v0.1.12-ready fixes land in develop before release/v0.1.11 cuts.
-- Note: only `welcome + initial labels` CI job failed on each PR (first-interaction welcome bot, not a quality gate). All real quality gates (tests/clippy/coverage/security/DCO) passed.
+- PRs #317 (security scan chore), #318 (RFC-0096 TypeImports), #319 (SKILL docs backfill) merged.
+- release/v0.1.12 branch cut from develop HEAD (077cfd4), version bumped 0.1.11 → 0.1.12, PR #321 opened.
 
-### 2026-05-31 PM dispatch (Issues #293/#294 implemented — rust-implementer queue exhausted)
+### 2026-05-30 PM dispatch (v0.1.11 ceremony + v0.1.12 kickoff — PRs #266 + #270)
 
-- Completed two full TDD cycles in a single session:
-  - **Issue #293** (JS `const name = function(){}` definitions): branch `feature/293-js-callee-arrow-functions`, PR #310.
-    - Fix 1: added `function_expression` patterns to `packs/javascript/queries.scm` (+ MCP/CLI copies).
-    - Fix 2: `enclosing_function_path` in `crates/mycelium-core/src/extractor/mod.rs` now falls back to parent `variable_declarator` name for anonymous `function_expression` nodes.
-    - 3 TDD tests; RED confirmed before each implementation; quality gates clean.
-  - **Issue #294** (compound-extension skip + strip_prefix fix): branch `feature/294-fix-mangled-paths`, PR #311.
-    - Fix 1: compound-extension guard skips files like `module.ts.py` in both CLI and MCP index paths.
-    - Fix 2: `strip_prefix` failure now skips the file with a `warn!` log instead of storing an absolute path.
-    - 3 TDD tests; quality gates clean (fixed `items_after_statements` clippy by moving `SOURCE_EXTS` to module level).
-- Issues #295/#296 were implemented in the prior session (PRs #308/#309).
-- rust-implementer queue now exhausted: 9 PRs open, all awaiting founder review.
-- Dispatch protocol: **STOP — no unblocked items.**
+- PR #266 merged (MCP is_error sweep). PR #270 merged (Pattern 3 false callers).
+- Issues #267/#268 triaged P1. v0.1.11 ceremony complete (tag, crates.io, back-merge PR #315).
 
-### 2026-05-30 PM dispatch (v0.1.11 sprint complete — release/v0.1.11 ready to cut)
+### 2026-05-30 PM dispatch (v0.1.11 sprint complete — 9/9 exit criteria)
 
-- PM state was stale: dispatch table showed RFC-0094 Phase 2 and security scan as “next-up” but both already done.
-- Confirmed 9/9 v0.1.11 exit criteria met:
-  - Python inheritance (Extends + callback + include-inherited + include-virtual): PRs #250/#254/#255
-  - RFC-0094 Phase 3: output_format in all 89 tools: PR #259
-  - Charter §2 SLA 100K-node: PR #262
-  - Packs-sync CI gate: PRs #263/#264
-  - Security scan: CLEAN (logged 07:45)
-  - Issue #221: CLOSED (06:47)
-- Issue #214 Pattern 2/3 deferred to v0.1.12 by PM judgment (significant RFC work needed).
-- Open issues: #214 (P1), #206 (P2). No P0.
-- Anti-pattern this run: created duplicate branch `fix/260-packs-divergence` before reading
-  `decisions.jsonl` to the end — issues #260/#261 were already fixed by PRs #263/#264. Rule:
-  always `tail decisions.jsonl` before creating any fix branch. Appended to anti-patterns.jsonl.
-- Stale branch `fix/260-packs-divergence` (created this run, points to develop HEAD, no extra commits) — harmless, will be cleaned up by GH stale-branch sweep.
-- Next action: release agent cuts `release/v0.1.11`.
+- 9/9 v0.1.11 criteria met. Issue #214 Pattern 2/3 deferred to v0.1.12.
+- Anti-pattern: created duplicate branch before reading decisions.jsonl to end.
 
-### 2026-05-30 PM correction (post-PR #250/#254/#255 — all Python inheritance issues closed)
+### 2026-05-30 PM run (earlier — v0.1.11 kickoff + issue #206 re-triage)
 
-- PM state was stale after PR #252 merged: still showed #245-248 as open P1 items and PR #251 as in-flight.
-- Actual state: founder shipped PRs #250 (Extends + callback), #254 (include-inherited), #255 (include-virtual) — all 4 Python inheritance issues closed before PM state was updated.
-- PR #251 (orchestrator duplicate) was closed by founder as superseded by #250.
-- PR #252 (PM state chore) merged by founder.
-- Closed issues #246 and #248 via GitHub API (they were fixed but not yet closed).
-- v0.1.11 sprint exit criteria: 4/9 criteria now green (all Python inheritance items done).
-- Anti-pattern confirmed: concurrent session opened duplicate PR #251 because founder’s in-flight PR #250 was not visible at PM-run start. Recorded in decisions.jsonl.
-- Next: RFC-0094 Phase 2 full wire-up (PoC landed at 4089e94) + issue #214 Pattern 2/3.
-
-### 2026-05-30 PM run (current — v0.1.11 kickoff + issue #206 re-triage)
-
-- Scanned 0 open PRs; 2 open issues (#214 P1 python, #206 P2 enhancement). Labels applied via GitHub API.
-- Confirmed #211 (contract tests) closed (PR #249), #209 (is_error) superseded by #206.
-- Added issue #206 S1 (MCP `is_error`) to P2 priorities with rmcp 1.7 implementation guidance.
-- Anti-pattern note: concurrent PM runs may overwrite PM state with stale data.
+- 0 open PRs; 2 open issues labeled. Issue #206 S1 added to P2 queue.
 
 ### 2026-05-30 PM run (post-v0.1.10 — RFC-0094 Phase 1 + back-merge)
 
-- PM state was stale at v0.1.6; fast-forwarded to v0.1.10.
-- v0.1.7–v0.1.10 shipped between sessions (Python accuracy patches).
-- PR #240 (release/v0.1.10 back-merge): Quality Gate ✅ green → merged. Ceremony complete.
-- PR #241 (RFC-0094 Phase 1 Formatter trait): All CI checks ✅ green → merged.
-- Escalation: `release.yml` finalize job failing repeatedly (merge to main + GitHub Release creation).
-- Next: v0.1.11 sprint — RFC-0094 Phase 2 + remaining #214 Python patterns.
-
-### 2026-05-30 PM run (post-v0.1.6 — RFC-0092 + alias fix kickoff)
-
-- v0.1.6 confirmed fully shipped: tag v0.1.6 exists, crates/npm/PyPI published.
-- Triaged new issues: #214 (P1 Python reliability), #209 (P2 MCP error), #210 (P2 token output), #211 (P3 contract tests), #212 (P3 runtime packs).
-- Escalation: verify v0.1.6 GitHub Release page (finalize job showed failure for back-merge PR).
+- PM state fast-forwarded v0.1.6 → v0.1.10. PRs #240 + #241 merged.
+- Escalation: release.yml finalize job failing repeatedly.
 
 ### 2026-05-29 PM run (v0.1.4 close)
 
-v0.1.4 sprint declared complete. All 7 exit criteria met:
-- PR #168 — perf hardening + heavy-graph SLA + Criterion benches
-- PR #170 — parity.yml + check_skill_parity.py + 12 naming fixes; 89/89 coverage
-- PR #172 — CLI batch 1 (search-symbol, get-symbol-info, get-ancestors + 8 integration tests)
+v0.1.4 sprint declared complete. All 7 exit criteria met.
 
 ### 2026-05-30 PM call (v0.1.2 era — superseded)
 
-1. v0.1.0 + v0.1.1 shipped and on crates.io. Three-Surface Rule is law.
-2. Sprint v0.1.2 kicked off on issue #150.
-4. PRD for v0.2 at [`docs/prd/v0.2-the-three-surface-release.md`](../prd/v0.2-the-three-surface-release.md).
+1. v0.1.0 + v0.1.1 shipped. Three-Surface Rule is law.
+2. PRD for v0.2 at [`docs/prd/v0.2-the-three-surface-release.md`](../prd/v0.2-the-three-surface-release.md).
