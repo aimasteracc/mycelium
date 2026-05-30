@@ -5,27 +5,38 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — v0.1.6 shipped; RFC-0092 merged; PR #217 in CI) |
-| Current sprint | **v0.1.7 planning** |
-| Active release branch | none — v0.1.6 shipped |
-| Next release target | **v0.1.7** — Python accuracy + MCP error model |
+| Last updated | 2026-05-30 (PM dispatch — v0.1.10 shipped; PR #240 back-merge merged; PR #241 RFC-0094 Phase 1 merged) |
+| Current sprint | **v0.1.11 planning** |
+| Active release branch | none — v0.1.10 shipped |
+| Next release target | **v0.1.11** — RFC-0094 Phase 2 (output_format wiring) + remaining Python patterns from #214 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.6 — Python relative imports + parity strict** (tag v0.1.6, crates.io / npm / PyPI published 2026-05-30) |
+| Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
 ---
 
-## 🚀 v0.1.6 — SHIPPED ✅
+## 🚀 v0.1.10 — SHIPPED ✅
 
 **What shipped:**
-- [x] `parity.yml` promoted from informational → `--strict` (PR #208). CLI parity is now a required CI gate.
-- [x] Python relative imports resolve to actual file paths (PR #207, closes #204).
-- [x] 8 CI anti-patterns + 3 lessons recorded in memory (PR #202).
-- [x] Version bumped 0.1.5 → 0.1.6; CHANGELOG sealed (PR #213, release/v0.1.6 → develop).
+- [x] `if TYPE_CHECKING:` imports no longer create `Imports` edges (PR closes #227). 2 TDD tests.
+- [x] Nested attribute call regression restored (`self.history.append(x)` and similar). 1 TDD test.
+- [x] Charter §5.12 release-gate rule codified in CHARTER.md, CLAUDE.md, GITFLOW.md (v0.1.9 governance).
 
-**Known post-release gap**: GitHub Release notes for v0.1.6 may not have been created (the
-`merge to main, tag, GitHub Release` job in the release workflow failed for the back-merge PR #215,
-though the tag and crates were published). The tag `v0.1.6` exists on remote. **Escalation
-to founder** to verify GitHub Release page and create it if missing.
+**Post-v0.1.10 ceremony:**
+- [x] Tag v0.1.10 pushed, crates.io / npm / PyPI published.
+- [x] PR #240 (release/v0.1.10 → develop back-merge) merged — **ceremony complete**.
+- [x] PR #241 (RFC-0094 Phase 1 Formatter trait) merged to develop.
+- [~] `merge to main, tag, GitHub Release` finalize job failed again (same pattern as v0.1.6). The release was manually recovered. **Escalation to founder**: review `release.yml` finalize job for systemic failure (GitHub Release page creation / auto-merge to main) — happens repeatedly.
+
+---
+
+## Shipped since last PM state (v0.1.6 → v0.1.10)
+
+| Version | Headline | Key PRs |
+|---|---|---|
+| v0.1.7 | Python alias-table dispatch (RFC-0092 Phase 1) — closes #205 (Bug 1 of #200). 73 false dead-code findings eliminated. | #217 |
+| v0.1.8 | `self.method()` / `cls.method()` resolve to sibling method nodes — closes #220 (dominant pattern behind 533 `get-isolated-symbols` false positives). | — |
+| v0.1.9 | Attribute-assignment alias pattern (`_alias = _h.fn; _alias()`) — closes #229. Charter §5.12 release-gate + post-release-sync rules codified. RFC-0096 drafted. | — |
+| v0.1.10 | `if TYPE_CHECKING:` guard + nested-attribute call fallback — closes #227. | — |
 
 ---
 
@@ -34,69 +45,53 @@ to founder** to verify GitHub Release page and create it if missing.
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **PR #217 (fix/205-python-alias-resolution)** — CI running (nearly green: 18/19 checks ✅,
-   Windows tests in_progress). Closes issue #205 (alias-table dispatch, Bug 1 of #200).
-   Governing RFC: RFC-0092 (merged PR #216). **Merge when Quality Gate passes.**
-2. **PR #218 (fix/decisions-jsonl-conflict)** — CI starting. Resolves memory corruption (conflict
-   markers in `.hive/memory/decisions.jsonl`). **Merge when CI green.**
-3. **Issue #214** — Comprehensive Python reliability report (3 additional accuracy bugs beyond
-   #205): Pattern 2 (destructured imports file-level under-count), Pattern 3 (transitive alias
-   over-count causing 1,472 false callers), `get-isolated-symbols` 533 false positives (intra-file
-   calls not tracked), `get-dependency-depth` returns 0 for method chains. **Needs RFC-0092 Phase
-   2 scoping.** Pack-author + rust-implementer task for v0.1.7.
-4. **Issue #200 (parent)** — Bug 2 (destructured imports) + Bug 3 (caller count consistency) still
-   open after #205 closes Bug 1. Bug 2 is lower severity; Bug 3 may self-resolve after Bug 1 fix.
+1. **Issue #214 (Python reliability — remaining patterns)** — after v0.1.7/v0.1.8/v0.1.9/v0.1.10,
+   the self.method() false positives and TYPE_CHECKING false cycles are fixed. Still open:
+   - Pattern 2: destructured imports file-level under-count (`from .models import X` → models.py shows 0 callers at file level).
+   - Pattern 3: transitive alias over-count (1,472 false callers for `HealthHistory.append` — root cause likely still present, needs re-verification after v0.1.7/v0.1.9).
+   - `get-dependency-depth` returning 0 for method chains (see also #221).
+   **Needs RFC-0092 Phase 2 or 3 scoping.** Pack-author + rust-implementer task for v0.1.11.
 
-**P2 (v0.1.7 scope):**
-5. **Issue #209** — MCP error model: use `is_error: Some(true)` for application errors.
-   Low-effort sweep of ~89 tools. No RFC needed (matches MCP spec). rust-implementer task.
-6. **Issue #210** — Token-efficient text output format for LLM callers. Medium effort (Formatter
-   trait). RFC needed. v0.2.0 scope.
-7. **Security scan** — routine post-v0.1.6 window. security-reviewer task.
-8. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
+**P2 (v0.1.11 scope):**
+2. **Issue #210 / RFC-0094 Phase 2** — Wire `output_format: Option<OutputFormat>` into all 89 tool
+   request shapes (now that Phase 1 Formatter trait landed in PR #241). Per-transport defaults:
+   stdio → `Text`, CLI → `Json`. Medium effort. rust-implementer task.
+3. **Issue #221** — `get-dependency-depth` returns 0 for complex methods (from #214).
+   May partially self-resolve after Phase 2 alias work; re-verify after Pattern 3 fix.
+4. **Security scan** — routine post-v0.1.10 window. security-reviewer task.
+5. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. Deferred from v0.1.6. architect task.
 
 **P3 (v0.2.0 backlog):**
-9. **Issue #211** — Cross-tool response contract tests. Low effort, high stability value.
-10. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
-11. Skill marketplace submission metadata: icon, screenshots, category examples.
-12. End-to-end "first 5 minutes" walkthrough / asciinema recording.
+6. **Issue #211** — Cross-tool response contract tests. Low effort. Depends on #209 (MCP error
+   model) — check if #209 was closed during v0.1.7–v0.1.10 window.
+7. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
+8. Skill marketplace submission metadata: icon, screenshots, category examples.
+9. End-to-end "first 5 minutes" walkthrough / asciinema recording.
 
 ---
 
-## Dispatch state (2026-05-30, PM run post-v0.1.6)
+## Dispatch state (2026-05-30, PM run post-v0.1.10)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **idle** | v0.1.6 shipped. Next: v0.1.7 after sprint exit criteria met. |
-| pack-author | **in-flight** | PR #217 (Python alias dispatch) — CI running, merge when gate passes. |
-| rust-implementer | **next-up** | Issue #209 MCP error model (P2, no RFC needed, sweep task). |
-| architect | idle | RFC-0092 Phase 2 scoping (issue #214 patterns) + Charter §2 100K-node row. |
-| tech-writer | idle | Marketplace metadata + asciinema. RFC-0092 Phase 2 doc updates when #217 merges. |
+| release | **idle** | v0.1.10 shipped, back-merge done. Next: v0.1.11 after sprint exit criteria met. |
+| rust-implementer | **next-up** | RFC-0094 Phase 2: wire `output_format` into 89 tool shapes (#210). |
+| pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3 scope). |
+| architect | idle | RFC-0092 Phase 2/3 scoping + Charter §2 100K-node SLA row. |
+| tech-writer | idle | RFC-0094 Phase 2 doc updates when Phase 2 lands. Marketplace metadata. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | **next-up** | Routine post-v0.1.6 scan. |
-| e2e-runner | idle | Python alias dispatch fixture tests (after PR #217 merges). |
+| security-reviewer | **next-up** | Routine post-v0.1.10 scan. |
+| e2e-runner | idle | Python alias Pattern 3 regression test (after pack-author fix). |
 
 ---
 
-## v0.1.6 Sprint exit criteria — COMPLETE ✅
+## v0.1.11 Sprint — Draft exit criteria
 
-- [x] Python relative import resolution (PR #207, closes #204).
-- [x] parity.yml promoted to --strict (PR #208).
-- [x] 8 anti-patterns + 3 lessons recorded (PR #202).
-- [ ] Python alias dispatch (Bug 1 of #200) — **moved to v0.1.7** (PR #217 in review).
-- [ ] Charter §2 SLA 100K-node benchmark row — **deferred to v0.1.7**.
-- [ ] Security scan clean — **deferred to v0.1.7**.
-
----
-
-## v0.1.7 Sprint — Draft exit criteria
-
-- [ ] PR #217 merged: Python alias-table dispatch closes issue #205 (Bug 1 of #200).
-- [ ] RFC-0092 Phase 2: issue #214 patterns (intra-file calls, destructured imports, alias
-  over-count) — scoped, at least one landed.
-- [ ] Issue #209: MCP `is_error` sweep (all ~89 tool error paths).
-- [ ] Security scan clean (no high-severity findings post-v0.1.6).
-- [ ] Charter §2 SLA 100K-node benchmark row.
+- [ ] RFC-0094 Phase 2: `output_format` wired into ≥ 89 tools; per-transport defaults set.
+- [ ] Issue #214 Pattern 2 or Pattern 3 fixed (at least one Python accuracy regression addressed).
+- [ ] Issue #221 re-verified or fixed.
+- [ ] Security scan clean (no high-severity findings post-v0.1.10).
+- [ ] Charter §2 SLA 100K-node benchmark row landed.
 
 ---
 
@@ -116,14 +111,26 @@ to founder** to verify GitHub Release page and create it if missing.
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- Merging any `release/*` branch to `main` if `RELEASE_BOT_TOKEN` is unavailable
-  (normally handled by the `finalize` workflow job automatically).
-- **⚠️ Verify / create GitHub Release for v0.1.6** (tag exists; release notes page may be
-  missing — `release.yml` finalize job reported failure on the back-merge PR).
+- Merging any `release/*` branch to `main` if `RELEASE_BOT_TOKEN` is unavailable.
+- **⚠️ Investigate `release.yml` finalize job** — `merge to main, tag, GitHub Release` step has
+  failed on multiple releases (v0.1.6, v0.1.10 confirmed; possibly others). Each time the release
+  was manually recovered but this is a systemic CI/CD failure. The release workflow's auto-merge
+  to main and GitHub Release creation are not working reliably. Recommend founder audit the
+  `RELEASE_BOT_TOKEN` secret and the finalize job logic before v0.2.0.
 
 ---
 
 ## Archive
+
+### 2026-05-30 PM run (post-v0.1.10 — RFC-0094 Phase 1 + back-merge)
+
+- PM state was stale at v0.1.6; fast-forwarded to v0.1.10.
+- v0.1.7–v0.1.10 shipped between sessions (Python accuracy patches).
+- PR #240 (release/v0.1.10 back-merge): Quality Gate ✅ green → merged. Ceremony complete.
+- PR #241 (RFC-0094 Phase 1 Formatter trait): All CI checks ✅ green → merged after CHANGELOG
+  conflict resolved (RFC-0094 Unreleased entry + [0.1.10] section from develop both preserved).
+- Escalation: `release.yml` finalize job failing repeatedly (merge to main + GitHub Release creation).
+- Next: v0.1.11 sprint — RFC-0094 Phase 2 + remaining #214 Python patterns.
 
 ### 2026-05-30 PM run (post-v0.1.6 — RFC-0092 + alias fix kickoff)
 
