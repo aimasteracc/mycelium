@@ -1311,3 +1311,64 @@ fn extractor_java_interface_extends_creates_extends_edge() {
         "Sub interface must have an Extends edge to Base"
     );
 }
+
+// ── Issue #296: Python Extends edges for attribute-form base classes ───────────
+
+#[test]
+fn extractor_python_extends_dotted_base_creates_extends_edge() {
+    // `class SimpleTestCase(unittest.TestCase):` — attribute-form base class.
+    // Must create an Extends edge and a stub node for "unittest.TestCase".
+    let store = extract("class SimpleTestCase(unittest.TestCase):\n    pass");
+    let sub = store
+        .lookup("test.py>SimpleTestCase")
+        .expect("SimpleTestCase must exist");
+    let base = store
+        .lookup("unittest.TestCase")
+        .expect("unittest.TestCase stub must be created");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "SimpleTestCase must have an Extends edge to unittest.TestCase"
+    );
+}
+
+#[test]
+fn extractor_python_extends_dotted_and_simple_mixed_inheritance() {
+    // `class Foo(bar.Base, LocalBase):` — mix of attribute and identifier forms.
+    // Both base classes must produce Extends edges.
+    let store = extract("class LocalBase:\n    pass\n\nclass Foo(bar.Base, LocalBase):\n    pass");
+    let foo = store.lookup("test.py>Foo").expect("Foo must exist");
+    let dotted = store
+        .lookup("bar.Base")
+        .expect("bar.Base stub must be created");
+    let local = store
+        .lookup("test.py>LocalBase")
+        .expect("LocalBase must exist");
+    assert!(
+        store.outgoing(foo, EdgeKind::Extends).contains(&dotted),
+        "Foo must extend bar.Base"
+    );
+    assert!(
+        store.outgoing(foo, EdgeKind::Extends).contains(&local),
+        "Foo must extend LocalBase"
+    );
+}
+
+#[test]
+fn extractor_python_extends_metaclass_kwarg_not_captured_as_base() {
+    // `class Foo(Base, metaclass=Meta):` — metaclass keyword argument must NOT
+    // produce an Extends edge (it is NOT a base class).
+    let store = extract("class Foo(Base, metaclass=Meta):\n    pass");
+    let foo = store.lookup("test.py>Foo").expect("Foo must exist");
+    let base = store.lookup("Base").expect("Base stub must exist");
+    assert!(
+        store.outgoing(foo, EdgeKind::Extends).contains(&base),
+        "Foo must extend Base"
+    );
+    // metaclass=Meta must NOT create an Extends edge
+    let meta = store.lookup("Meta");
+    let meta_extends = meta.is_some_and(|m| store.outgoing(foo, EdgeKind::Extends).contains(&m));
+    assert!(
+        !meta_extends,
+        "metaclass keyword argument must not produce an Extends edge"
+    );
+}
