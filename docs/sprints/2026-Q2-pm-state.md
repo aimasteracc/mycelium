@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — v0.1.12 ceremony PRs #323/#324 opened; v0.1.13 sprint kickoff) |
+| Last updated | 2026-05-30 (PM dispatch — PR #323 merged ceremony step 4/4; PR #326 RFC-0093 Phase 2; security CLEAN) |
 | Current sprint | **v0.1.13 — KICKOFF 🚀** |
 | Active release branch | `release/v0.1.12` (recreated from tag; PRs #323/#324 open) |
 | Next release target | **v0.1.13** — ADR gaps + RFC-0093 Phase 2 + security scan |
@@ -28,10 +28,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] `release.yml` finalize decoupled (PR #287 — tag/Release now independent of merge step)
 
 **Post-v0.1.12 ceremony status:**
-- [~] **Step 1**: `release/v0.1.12` → `main` — PR #324 open. **⚠️ REQUIRES FOUNDER AUTHORIZATION** (Charter §5.12 hard rule). Original PR #321 was closed (branch auto-deleted after close). Branch recreated from `v0.1.12` tag in this PM run.
+- [~] **Step 1**: `release/v0.1.12` → `main` — PR #324 open. **⚠️ REQUIRES FOUNDER AUTHORIZATION** (Charter §5.12 hard rule). Original PR #321 was closed (branch auto-deleted after close). Branch recreated from `v0.1.12` tag.
 - [x] **Step 2**: Tag `v0.1.12` pushed ✅
 - [x] **Step 3**: GitHub Release published ✅
-- [~] **Step 4**: Back-merge `release/v0.1.12` → `develop` — PR #323 open. CI must be green before merge. Expect minor conflicts in `decisions.jsonl` (keep both) and `docs/sprints/` (keep develop's version).
+- [x] **Step 4**: Back-merge `release/v0.1.12` → `develop` — **PR #323 MERGED** ✅ (2026-05-30 PM dispatch).
 
 **⚠️ Systemic escalation**: The `release.yml` finalize job continues to close PRs without merging. PR #287 fixed tag+Release creation but the merge-to-main step still fails. PR #321 was closed instead of merged. **Founder must audit `RELEASE_BOT_TOKEN` and finalize merge logic before v0.2.0.**
 
@@ -63,29 +63,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## v0.1.13 Sprint — Exit criteria (DRAFT)
 
-- [ ] **ADR-0004**: Patricia Trie for Trunk documented.
-- [ ] **ADR-0005**: MessagePack wire format documented.
-- [ ] **ADR-0006**: Hyphae grammar style documented.
-- [ ] **RFC-0093 Phase 2**: All 89 MCP query tools use `success_json`/`application_error` helpers.
-- [ ] **Security scan clean** — post-v0.1.12.
-- [ ] **Ceremony complete**: PR #323 merged (back-merge ✅) and PR #324 authorized+merged (main).
+- [x] **ADR-0004**: Patricia Trie for Trunk documented ✅ (written in prior session).
+- [x] **ADR-0005**: MessagePack wire format documented ✅ (written in prior session).
+- [x] **ADR-0006**: Hyphae grammar style documented ✅ (written in prior session).
+- [~] **RFC-0093 Phase 2**: `success_str` exported from error module; all 101 sites migrated. PR #326 open (CI pending). ← **this run**
+- [x] **Security scan clean** — post-v0.1.12: CLEAN ✅ (no secrets, no unsafe). ← **this run**
+- [~] **Ceremony complete**: PR #323 merged ✅; PR #324 blocked on founder auth.
 
 **Stretch (if time allows):**
 - [ ] **Hyphae CLI PoC**: `mycelium query "<hyphae-selector>"` returns results end-to-end.
 
 ---
 
-## Dispatch state (2026-05-30, PM dispatch — v0.1.12 ceremony PRs open)
+## Dispatch state (2026-05-30, PM dispatch — v0.1.13 in progress)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **ACTION REQUIRED** | PR #324: authorize merge of `release/v0.1.12` → `main`. Also: investigate `release.yml` finalize merge failure (systemic). |
-| release | **watching** | PR #323 CI green → admin-merge (back-merge). PR #324 founder authorization → admin-merge. |
-| tech-writer | **P1 NOW** | ADR-0004, ADR-0005, ADR-0006 — three ADR gap files (pure docs, high value, low risk). After ceremony lands. |
-| rust-implementer | **next-up** | RFC-0093 Phase 2: migrate 89 tools to error model helpers. After ceremony (PR #323) merges. |
-| security-reviewer | **next-up** | Post-v0.1.12 scan. After ceremony complete. |
+| release | **watching** | PR #326 CI → admin-merge. PR #324 founder authorization → admin-merge to main. |
+| rust-implementer | **done this run** | RFC-0093 Phase 2 (PR #326 — success_str export, 101 sites migrated). |
+| security-reviewer | **done this run** | Post-v0.1.12 scan CLEAN. |
+| tech-writer | **done (prior)** | ADR-0004/0005/0006 all complete. |
 | architect | idle | RFC review for Hyphae CLI end-to-end (check RFC-0091 scope). |
-| code-reviewer | idle | Blocks on PR opens. |
+| code-reviewer | idle | Blocks on PR #326 review. |
 | e2e-runner | idle | Dogfood pass rate after v0.1.13 content lands. |
 
 ---
@@ -113,7 +113,25 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-30 PM dispatch (this run — v0.1.12 ceremony + v0.1.13 kickoff)
+### 2026-05-30 PM dispatch (this run — PR #323 merged; RFC-0093 Phase 2; security CLEAN)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
+
+**Assessment:**
+- develop synced to origin (git pull).
+- 2 open PRs: #324 (release→main, founder auth required), #323 (back-merge→develop).
+- 0 open issues. CI on #323: Quality Gate SUCCESS ✅; only failures are systemic finalize job (release.yml) + triage workflow — not gating. Merge test: no conflicts.
+- ADR-0004/0005/0006 already exist and are complete (written in prior session) — sprint criteria satisfied without new work.
+
+**Actions taken:**
+1. **Merged PR #323** (release/v0.1.12 → develop back-merge). Ceremony step 4/4 ✅.
+2. **Security scan post-v0.1.12**: CLEAN — no hardcoded secrets, no unsafe production blocks.
+3. **RFC-0093 Phase 2** (TDD): wrote 2 RED tests for `success_str`, confirmed E0425, added `success_str` to error.rs → 333 GREEN. Bulk-replaced 101 `ok_str(` → `success_str(` in lib.rs. Removed unused `Content` import. Clippy + fmt clean. PR #326 opened.
+4. Updated PM state + decisions.jsonl.
+
+**Escalations:** Founder must (a) authorize PR #324 (release→main); (b) audit `release.yml` finalize merge step (systemic failure on every release).
+
+### 2026-05-30 PM dispatch (previous — v0.1.12 ceremony + v0.1.13 kickoff)
 
 **Pre-flight:** Read CHARTER.md, _orchestrator.md, decisions.jsonl tail-20, anti-patterns.jsonl, PM state, v0.2 PRD.
 
