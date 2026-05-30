@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tree-sitter grammar are silently skipped with a tracing warning. 2 new TDD tests in
   `mycelium-cli/src/index.rs`. (Issue #212, RFC-0095 remaining item)
 
+- **RFC-0095: Language pack documentation** — `docs/packs.md` documents the full pack
+  system: bundled-pack table, `MYCELIUM_PACKS_DIR` env var, `--packs-dir` CLI flag,
+  `pack.toml` field reference (including `primary_extensions` / `secondary_extensions`),
+  grammar string format, `queries.scm` capture naming conventions, and an end-to-end
+  example for creating a custom pack. RFC-0095 status updated to **Implemented**. (RFC-0095)
+
 - **RFC-0095: Runtime pack registry (`PackRegistry`)** — `crates/mycelium-pack` now exposes
   `PackRegistry::load(packs_dir)` which discovers all `packs/<lang>/pack.toml` + `queries.scm`
   pairs at runtime. `PackRegistry::lookup_by_ext(".py")` returns the matching `LanguagePack`.
