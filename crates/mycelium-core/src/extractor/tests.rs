@@ -474,37 +474,62 @@ def bar():
 // ── nested-attribute call regression (post-RFC-0092 fallthrough) ─────────────
 
 #[test]
-fn nested_attribute_call_still_creates_calls_edge() {
-    // Regression: RFC-0092 added a `@call.receiver` capture to method calls
-    // that REQUIRES `object: (identifier)`. For nested attribute access like
-    // `self.history.append(x)` the object is `(attribute ...)`, not a single
-    // identifier — so the new query stopped matching and the Calls edge was
-    // silently dropped. Real-world impact: every call through a chain like
-    // `self.x.y()` lost its outgoing edge.
+fn direct_method_call_creates_edge_depth_one_chain_works() {
+    // `self.method()` (depth-1 chain, object = identifier) is handled by the
+    // `@call.receiver` pattern and still creates a Calls edge.  This test
+    // guards that the issue #214 Pattern 3 fix did NOT regress the common case.
+    let source = "\
+class App:
+    def method(self):
+        pass
+    def bar(self):
+        self.method()
+";
+    let store = extract_at("pkg/app.py", source);
+    let bar_id = store
+        .lookup("pkg/app.py>App>bar")
+        .expect("caller method must be indexed");
+    let method_id = store
+        .lookup("pkg/app.py>App>method")
+        .expect("callee method must be indexed");
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&method_id),
+        "self.method() (depth-1 chain) must still create a Calls edge from bar"
+    );
+}
+
+// ── issue #214 Pattern 3: nested-chain false-caller suppression ───────────────
+
+#[test]
+fn nested_attribute_chain_does_not_create_global_bare_stub() {
+    // Issue #214 Pattern 3: `self.history.append(x)` caused the bare node
+    // "append" to be created globally and linked as a callee of any method
+    // that contained such a chain call.  Because Python's `list.append` and
+    // user-defined `HealthHistory.append` share the same bare name, every
+    // chain call across an entire codebase was spuriously attributed to the
+    // user-defined symbol, producing 1,472 false callers.
     //
-    // Fix: a second @reference.call pattern matches all nested-attribute
-    // method calls without the receiver constraint, falling back to the
-    // existing bare-name resolution.
+    // Correct behaviour: when the receiver chain depth > 1 (object is not a
+    // single identifier), the call target is unresolvable without type info.
+    // Emit NO edge rather than a global bare stub that collides with real
+    // symbols.  `self.method()` (depth 1) continues to work via the existing
+    // `@call.receiver` pattern.
     let source = "\
 class App:
     def bar(self):
         self.history.append(1)
 ";
     let store = extract_at("pkg/app.py", source);
-    let bar_id = store
-        .lookup("pkg/app.py>App>bar")
-        .expect("caller method must be indexed");
-    // We don't know what `self.history.append` resolves to without type info,
-    // but the bare `append` node must exist and have an incoming edge from
-    // bar. Otherwise the Calls graph silently loses the relationship.
-    let append_id = store
-        .lookup("append")
-        .expect("bare `append` node must exist (callsite produces it as fallback)");
+    // The bare global node must NOT exist: the fallback query is removed.
     assert!(
-        store.outgoing(bar_id, EdgeKind::Calls).contains(&append_id),
-        "self.history.append() must still create some Calls edge from bar — \
-         regression from RFC-0092 dropped it because the receiver query \
-         required (identifier), not nested (attribute)"
+        store.lookup("append").is_none(),
+        "depth-2+ chain call must NOT create a global bare `append` stub \
+         (issue #214 Pattern 3)"
+    );
+    // The bar method itself is still indexed.
+    assert!(
+        store.lookup("pkg/app.py>App>bar").is_some(),
+        "caller method must still be indexed"
     );
 }
 
@@ -711,5 +736,214 @@ fn extractor_forward_reference_rust() {
     assert!(
         store.outgoing(caller, EdgeKind::Calls).contains(&callee),
         "foo->bar Calls edge must use definition node for forward reference"
+    );
+}
+
+// ── issue #247 diagnostics: import-alias and callback false positives ────────
+
+/// Pattern 1 (issue #247): import alias resolution.
+/// Calling the aliased name must create a Calls edge to the original definition.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_import_alias_call_resolves_to_original() {
+    let ext = python_extractor();
+    let mut store = Store::new();
+    // Index the utility module first (definition side).
+    ext.extract("pkg/_utils.py", b"def helper(): pass", &mut store)
+        .unwrap();
+    // Then index the importer (alias + call site).
+    ext.extract(
+        "pkg/main.py",
+        b"from ._utils import helper as _helper\ndef do_work():\n    _helper()",
+        &mut store,
+    )
+    .unwrap();
+
+    let caller = store
+        .lookup("pkg/main.py>do_work")
+        .expect("do_work must exist");
+    let callee = store
+        .lookup("pkg/_utils.py>helper")
+        .expect("helper must exist in _utils.py");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "import alias `_helper` should resolve to pkg/_utils.py>helper"
+    );
+}
+
+/// Pattern 2: `run_with_cb(callback)` — callback passed as positional arg
+/// must produce a Calls edge so `callback` is NOT isolated.
+#[test]
+fn extractor_callback_arg_not_isolated() {
+    let source = "def callback(): pass\ndef caller():\n    run_with_cb(callback)";
+    let store = extract(source);
+    let cb = store
+        .lookup("test.py>callback")
+        .expect("callback must exist");
+    let degree = store.node_degree(cb);
+    assert!(
+        degree.in_calls > 0 || degree.out_calls > 0,
+        "callback passed as argument should have at least one Calls edge to avoid dead-code false positive"
+    );
+}
+
+// ── reference.extends (issue #245) ───────────────────────────────────────────
+
+#[test]
+fn extractor_python_extends_same_file_base() {
+    let source = "class Base:\n    pass\n\nclass Sub(Base):\n    pass";
+    let store = extract(source);
+    let sub = store.lookup("test.py>Sub").expect("Sub must exist");
+    let base = store.lookup("test.py>Base").expect("Base must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "Sub should have an Extends edge to same-file Base"
+    );
+}
+
+#[test]
+fn extractor_python_extends_external_base() {
+    let source = "class Sub(ExternalBase):\n    pass";
+    let store = extract(source);
+    let sub = store.lookup("test.py>Sub").expect("Sub must exist");
+    let base = store.lookup("ExternalBase");
+    assert!(base.is_some(), "ExternalBase stub node must be created");
+    assert!(
+        store
+            .outgoing(sub, EdgeKind::Extends)
+            .contains(&base.unwrap()),
+        "Sub should have an Extends edge to ExternalBase stub"
+    );
+}
+
+#[test]
+fn extractor_python_extends_multiple_inheritance() {
+    let source = "class Sub(Base1, Base2):\n    pass";
+    let store = extract(source);
+    let sub = store.lookup("test.py>Sub").expect("Sub must exist");
+    let base1 = store.lookup("Base1").expect("Base1 stub must exist");
+    let base2 = store.lookup("Base2").expect("Base2 stub must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base1),
+        "Sub should extend Base1"
+    );
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base2),
+        "Sub should extend Base2"
+    );
+}
+
+// ── issue #261: cross-file Extends resolution ─────────────────────────────────
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_python_extends_cross_file_resolves_to_definition() {
+    // Sub(Base): Base defined in base.py, Sub in sub.py.
+    // After resolve_bare_call_stubs, the Extends edge must point to
+    // base.py>Base (the definition), not the bare "Base" stub.
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("base.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract("sub.py", b"class Sub(Base):\n    pass", &mut store)
+        .unwrap();
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 1, "exactly one stub (Base) should be resolved");
+    let sub = store.lookup("sub.py>Sub").expect("sub.py>Sub must exist");
+    let base = store
+        .lookup("base.py>Base")
+        .expect("base.py>Base must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "sub.py>Sub must have an Extends edge to base.py>Base after stub resolution"
+    );
+    assert!(
+        store.lookup("Base").is_none(),
+        "bare stub 'Base' must be removed after resolution"
+    );
+}
+
+// ── issues #267/#268: cross-file Extends with multiple candidates ───────────
+
+/// When multiple files define a class with the same name (real def + test mocks),
+/// `resolve_bare_call_stubs()` cannot disambiguate (`matches.len() > 1`) and leaves
+/// the Extends edge pointing to the bare stub. The fix: use the alias table at
+/// extraction time to pick the correct file-path definition.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_cross_file_extends_alias_table_wins_over_bare_stub_ambiguity() {
+    // Two mock files also define "Base" — this would make resolve_bare_call_stubs
+    // give up (3 candidates). With alias table fix, the extractor creates the
+    // Extends edge pointing to base.py>Base directly at extraction time.
+    let ext = python_extractor();
+    let mut store = Store::new();
+
+    ext.extract("mock1.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract("mock2.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract("base.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    // sub.py explicitly imports Base from base — the alias table knows the source.
+    ext.extract(
+        "sub.py",
+        b"from base import Base\nclass Sub(Base):\n    pass",
+        &mut store,
+    )
+    .unwrap();
+
+    store.resolve_bare_call_stubs();
+
+    let sub = store.lookup("sub.py>Sub").expect("sub.py>Sub must exist");
+    let base = store
+        .lookup("base.py>Base")
+        .expect("base.py>Base must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "sub.py>Sub must extend base.py>Base (the explicitly imported definition, not a mock)"
+    );
+}
+
+/// Issue #268: `get-descendants --include-inherited` returns 0 inherited methods
+/// when the base class is in a different file with multiple same-name candidates.
+/// After the alias table fix, the `inherited_descendants_of_path()` call must find
+/// the base class methods.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_cross_file_inherited_descendants_resolves_via_alias_table() {
+    let ext = python_extractor();
+    let mut store = Store::new();
+
+    // Two extra "Base" classes to create ambiguity for resolve_bare_call_stubs.
+    ext.extract("mock.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract(
+        "base.py",
+        b"class Base:\n    def method_a(self): pass\n    def method_b(self): pass",
+        &mut store,
+    )
+    .unwrap();
+    // sub.py imports Base explicitly and overrides only method_a.
+    ext.extract(
+        "sub.py",
+        b"from base import Base\nclass Sub(Base):\n    def method_a(self): pass",
+        &mut store,
+    )
+    .unwrap();
+
+    store.resolve_bare_call_stubs();
+
+    let inherited = store
+        .inherited_descendants_of_path("sub.py>Sub")
+        .unwrap_or_default();
+    assert!(
+        inherited.iter().any(|(p, _)| p.ends_with(">method_b")),
+        "method_b (not overridden) must appear in inherited descendants"
+    );
+    assert!(
+        !inherited.iter().any(|(p, _)| p.ends_with(">method_a")),
+        "method_a (overridden in Sub) must NOT appear in inherited descendants"
     );
 }

@@ -44,6 +44,7 @@ it does not ship. CI gates them.
 | Full-lane CI duration | < 20 min |
 | Heavy-graph tools (leaf_symbols, degree_histogram, graph_metrics, page_rank, wcc, find_call_path) on 1 K-node graph | < 2 s |
 | Heavy-graph tools (same six) on 10 K-node graph | < 10 s |
+| Heavy-graph tools (same six) on 100 K-node graph | < 30 s |
 
 ## 3. Tech Stack (locked)
 

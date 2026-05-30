@@ -7,6 +7,183 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- next release goes here -->
+
+## [0.1.11] - 2026-05-30
+
+### Added
+
+- **RFC-0094 §206 S2: `crates/mycelium-mcp/README.md`** — documents the output format per
+  transport (stdio default = `text`, CLI default = `json`), the text-format grammar, and the
+  parity contract. Satisfies RFC-0094 acceptance criterion "Default-format logic per transport
+  documented in `crates/mycelium-mcp/README.md`".
+
+### Changed
+
+- **Issue #206 S1: MCP `is_error` sweep — all 90 tool handlers now set `is_error` flag**.
+  Every MCP tool handler return type changed from `String` to `CallToolResult`. Success
+  paths set `is_error: Some(false)` via `ok_str()` helper; error paths (`not_found`,
+  `application_error`, `invalid_path`) set `is_error: Some(true)`. MCP clients can now
+  branch on `is_error` without parsing JSON bodies. The `not_found()` payload includes
+  a backward-compatible `"error"` key alongside the new structured `"found"/"reason"/"path"`
+  keys. Two new contract tests verify the is_error contract end-to-end (PR #266).
+
+### Fixed
+
+- **Issues #267/#268: cross-file Extends edges now resolve correctly when multiple files define
+  a class with the same name**. Previously, `subclasses-tree` with a full symbol path returned
+  only same-file subclasses, and `get-descendants --include-inherited` returned 0 inherited
+  methods for cross-file base classes. Root cause: the `reference.extends` extractor handler
+  fell back to a bare stub (e.g. `LanguagePlugin`) when the base class was cross-file; with
+  test mocks also named `LanguagePlugin`, `resolve_bare_call_stubs()` found multiple candidates
+  and gave up. Fix: a new `from M import X` (absolute, no `as`) alias-binding query feeds the
+  per-file alias table, and the extends handler resolves the base class via the alias table
+  (dotted module path converted to file path) before falling back to a bare stub. 2 new TDD
+  tests. Pack change synced to embedded MCP and CLI copies.
+
+- **Issue #214 Pattern 3: depth-2+ attribute chain calls no longer create global bare stubs**.
+  `self.history.append(x)` (and any call through a chain of depth > 1) previously emitted a
+  global bare-name node (`append`) that absorbed every same-named call across the entire
+  codebase. On `tree-sitter-analyzer`, `HealthHistory.append` collected 1,472 spurious callers
+  from this mechanism. Root cause: a fallback tree-sitter pattern matched `(call (attribute
+  attribute: @name))` without a receiver constraint, bypassing the alias table entirely.
+  Fix: remove the fallback. Direct `obj.method()` calls (depth-1 chain, receiver is an
+  identifier) continue to resolve correctly via the `@call.receiver` pattern. Unresolvable
+  deep chains emit no edge rather than a misleading global stub. 2 new TDD tests; 1 updated
+  test (RFC-0092). Pack change synced to embedded MCP and CLI copies.
+
+### Added
+
+- **Issue #246: `get-callers --include-virtual` / MCP `include_virtual` flag for virtual dispatch**.
+  New `Store::virtual_dispatch_callers_of_path` follows `EdgeKind::Extends` edges from the
+  target symbol's class to each base class, then collects callers of `BaseClass>method_name`.
+  When typed variables (e.g. `plugin: AbstractBase`) invoke a method via virtual dispatch,
+  the Calls edge points to the base class method — this flag surfaces those callers for the
+  concrete override. MCP `mycelium_get_callers` gains `include_virtual: Option<bool>`;
+  CLI `get-callers` gains `--include-virtual`. Three-Surface Rule (RFC-0090) satisfied:
+  `Store` method → MCP param → CLI flag. Default `false` is backward-compatible.
+  2 TDD tests.
+
+- **Issue #248: `get-descendants --include-inherited` / MCP `include_inherited` flag**.
+  `Store::inherited_descendants_of_path` follows `EdgeKind::Extends` edges from the
+  requested class to each declared base class and returns methods that exist on the
+  base but are not overridden in the subclass. The MCP handler for
+  `mycelium_get_descendants` accepts `include_inherited: true` and appends an
+  `inherited_descendants` array to the response, where each entry carries the method
+  path and the `from` (declaring class path). The CLI command `get-descendants` gains
+  `--include-inherited` boolean flag with identical output in `--format text` mode.
+  Three-Surface Rule (RFC-0090) satisfied: Store method → MCP param → CLI flag.
+  2 new MCP TDD tests; clippy `significant_drop_tightening` and
+  `double_ended_iterator_last` lints fixed as part of this work.
+
+
+- **Issue #247: Python callback / higher-order function false positives fixed**.
+  `packs/python/queries.scm` now captures identifiers passed as positional
+  or keyword-value arguments (`reference.arg_callback`). The extractor's
+  Pass 2 creates a `Calls` edge from the enclosing function to the argument
+  identifier, so `get-isolated-symbols` no longer reports callback functions
+  as dead code when they are only ever passed (not directly called). 525
+  false positives eliminated in the `tree-sitter-analyzer` dogfood project.
+  Also confirmed that Pattern 1 (import aliases: `from .mod import fn as
+  alias`) was already correctly resolved via the RFC-0092 alias table; a
+  regression-guard test is added. 2 TDD tests.
+
+- **Issue #245: Python class inheritance (Extends) edges extracted**.
+  `packs/python/queries.scm` now captures `class Sub(Base):` superclass
+  identifiers as `@reference.extends` matches. The extractor's Pass 2
+  match block gains a `"reference.extends"` arm that reads the subclass
+  name from the `class_definition` anchor, resolves the base class
+  (intra-file definition first, bare-symbol stub fallback), and emits an
+  `EdgeKind::Extends` edge. Multiple-inheritance (`class Sub(A, B):`)
+  produces one Extends edge per superclass via tree-sitter's per-identifier
+  match semantics. 3 TDD tests cover same-file, external, and multiple-
+  inheritance cases.
+
+- **Issue #211: Cross-tool MCP response contract tests**.
+  New `crates/mycelium-mcp/tests/contract.rs` spins up an in-process
+  `MyceliumServer` + rmcp client over `tokio::io::duplex` and verifies
+  three invariants for all 89 registered tools: (1) tool count equals the
+  expected constant (`EXPECTED_TOOL_COUNT = 89`), (2) every tool returns
+  non-empty content when called with catch-all arguments, (3) every tool
+  manifest carries a non-empty description string. Tests use the rmcp
+  `client` feature; `Cargo.toml` dev-deps updated accordingly.
+
+- **RFC-0094 Phase 3: `output_format` wired into all remaining 83 MCP query tools**.
+  Every query tool now accepts `output_format: "json" | "text" | "msgpack"` in its
+  request payload. Mutation/control tools (`index_workspace`, `load_index`,
+  `sync_file`, `set_compact_mode`, `server_status`, `watch_status`,
+  `get_token_stats`) are unchanged. Handler success paths use
+  `req.output_format.map_or_else(|| value.to_string(), |fmt| formatter_for(fmt).format(&value))`
+  (Pattern B, no compact_mode dependency). Complex multi-branch handlers
+  (`get_shortest_path`, `find_call_path`, `find_import_path`,
+  `find_extends_path`, `find_implements_path`) capture `let fmt =
+  req.output_format` before early-return guard clauses so every branch honours
+  the caller's requested format. 12 new TDD tests written RED-first per
+  Charter §5.1 before any implementation. All 319 MCP tests pass.
+
+- **fix(packs): sync stale embedded Python pack queries — issue #260**.
+  `crates/mycelium-mcp/packs/python/queries.scm` and
+  `crates/mycelium-cli/packs/python/queries.scm` were 80 lines behind
+  canonical `packs/python/queries.scm` after PR #250 (Python Extends edges).
+  Both copies synced. The compiled binary now correctly emits Python Extends
+  edges. Adds `scripts/check_pack_parity.sh` + `pack-parity` CI job to
+  `parity.yml` to prevent future drift.
+
+- **fix(extractor): regression test for cross-file Extends resolution — issue #261**.
+  Confirmed that `resolve_bare_call_stubs()` correctly redirects `EdgeKind::Extends`
+  edges (not just `Calls`) after multi-file extraction: when `Sub(Base)` in `sub.py`
+  references `Base` from `base.py`, the bare stub is resolved to `base.py>Base` and
+  removed. Issue #261 was a symptom of issue #260 (stale embedded pack emitted no
+  `@reference.extends` captures); PR #263 (pack sync) already fixed the root cause.
+  New TDD test `extractor_python_extends_cross_file_resolves_to_definition` guards
+  against regression.
+
+- **Charter §2 SLA: 100 K-node heavy-graph benchmark row**.
+  New `crates/mycelium-core/tests/sla_heavy_graph.rs` contains 6 CI-gated SLA
+  assertions (leaf_symbols, degree_histogram, graph_metrics, page_rank with 5
+  iterations, weakly_connected_components, find_call_path) on a deterministic
+  100 000-node / ~300 000-edge sparse graph. All 6 pass in < 1 s on a
+  development machine (SLA limit is 30 s). Charter §2 table gains the
+  100 K-node row: < 30 s for the same six heavy-graph tools.
+
+- **RFC-0094 Phase 2 PoC: `output_format` per-request for basic-query tools** (#210).
+  Three tools (`mycelium_search_symbol`, `mycelium_get_ancestors`,
+  `mycelium_get_descendants`) now accept an optional `output_format`
+  parameter (`"json"`, `"text"`, or `"msgpack"`). When absent the
+  response is JSON (backward-compatible). `"text"` emits TOON-style
+  `key: value` indented text (~73% fewer structural punctuation tokens
+  than JSON on tree-shaped payloads). Server-wide `compact_mode` toggle
+  continues to work as before when no per-request format is specified.
+  `OutputFormat` derives `schemars::JsonSchema` so the schema is
+  auto-generated in the MCP tool manifest. 5 new TDD tests.
+  Phase 3 (remaining 86 tools) follows in separate PRs.
+- **RFC-0093: MCP application-level error model foundation** (#209).
+  New `crates/mycelium-mcp/src/error.rs` module provides `success_json`,
+  `application_error`, `not_found`, `not_indexed`, and `invalid_path`
+  helpers that wrap `rmcp::model::CallToolResult` with the correct
+  `is_error` flag per the MCP spec. MCP clients can now branch on
+  `is_error: true` for application errors (symbol not found, index not
+  loaded, invalid path) without string-parsing the response body.
+  13 TDD tests written before implementation per Charter §5.1.
+  Phase 2 (migrate all 89 tools to use these helpers) lands in v0.2.0.
+
+- **RFC-0094 Phase 1: token-efficient output formatter foundation** (#210).
+  New `crates/mycelium-mcp/src/formatter.rs` module ships the
+  `Formatter` trait plus three implementations: `JsonFormatter`
+  (pretty-printed JSON), `TextFormatter` (TOON-inspired indented
+  `key: value` layout per RFC-0094 §"Format grammar"), and
+  `MsgpackHexFormatter` (`hex::encode(rmp_serde::to_vec(...))`).
+  `OutputFormat` enum defaults to `Text`. `formatter_for(...)` factory
+  returns a boxed trait object. Reserved-character escaping for
+  TextFormatter (leading `[`, `{`, `-`, `"`, whitespace; embedded
+  `: `, `\n`, `\r`, `\t`; reserved literals `null` / `true` / `false`
+  / `[]` / `{}`) goes through `serde_json::to_string` so the
+  reference parser only needs one escape convention. Enables
+  `serde_json/preserve_order` in `mycelium-mcp` so TOON output keeps
+  source-key order instead of alphabetising. 17 TDD tests written
+  before implementation per Charter §5.1. Phase 2 (migrate the 89
+  existing tools to accept `output_format`) lands in a follow-up.
+
 ## [0.1.10] — 2026-05-30
 
 Patch release: two Python correctness fixes (TYPE_CHECKING cycle

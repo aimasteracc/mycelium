@@ -95,6 +95,14 @@
   module_name: (relative_import) @alias.source
   name: (dotted_name) @alias.local) @reference.alias_binding
 
+; `from M import X` (absolute, no `as`) — implicit alias: X binds to M>X.
+; issues #267/#268: feeds the per-file alias table so that `class Sub(X):` can
+; resolve the Extends edge to M>X at extraction time, bypassing the ambiguous
+; bare-stub path that fails when multiple files define a class named X.
+(import_from_statement
+  module_name: (dotted_name) @alias.source
+  name: (dotted_name) @alias.original_name) @reference.alias_binding
+
 ; Issue #229: attribute-assignment alias.
 ; `local = module_alias.fn` — binds `local` to `module_alias>fn`.
 ; If `module_alias` is itself a local alias (from any import-alias above),
@@ -104,6 +112,39 @@
   right: (attribute
     object: (identifier) @alias.source
     attribute: (identifier) @alias.original_name)) @reference.alias_binding
+
+; ── Callback / higher-order function arguments (issue #247) ─────────
+;
+; When an identifier is passed as a positional argument to a call
+; (e.g. `run(callback)` or `sorted(items, key=fn)`), the function object
+; is "reached" even though it is never called directly. Without this query
+; `get-isolated-symbols` reports such identifiers as dead code.
+;
+; We emit a Calls edge from the enclosing function to the argument
+; identifier, representing "the caller reaches this function object".
+; Keyword-argument values are matched by the `@name` capture on the
+; `keyword_argument value: (identifier)` branch.
+;
+; Note: `(_)` in `@name` position here is intentional — we want only the
+; *function-valued* arguments. We can't distinguish function from non-function
+; at parse time, so we capture all identifier arguments and rely on the
+; extractor to limit the blast-radius (only creates edges, never deletes).
+(call
+  arguments: (argument_list
+    (identifier) @name)) @reference.arg_callback
+
+(call
+  arguments: (argument_list
+    (keyword_argument
+      value: (identifier) @name))) @reference.arg_callback
+
+; ── Class inheritance (Extends edges) ────────────────────────────────
+; `class Sub(Base1, Base2):` — one match per superclass identifier.
+; The class_definition node is the anchor; @name captures the base class.
+; The extractor reads the subclass name from anchor.child_by_field_name("name").
+(class_definition
+  superclasses: (argument_list
+    (identifier) @name)) @reference.extends
 
 ; ── Call expressions (Synapse Calls edges) ──────────────────────────
 
@@ -118,11 +159,10 @@
     object: (identifier) @call.receiver
     attribute: (identifier) @name)) @reference.call
 
-; Fallback for nested attribute access: `self.history.append(x)` etc.
-; The pattern above requires `object: (identifier)`; this one matches
-; any attribute-access call to preserve the Calls edge (without
-; receiver-based alias rewriting). Without this fallback the edge
-; would be silently dropped — regression introduced by RFC-0092.
-(call
-  function: (attribute
-    attribute: (identifier) @name)) @reference.call
+; NOTE (issue #214 Pattern 3): the original fallback here matched
+; `self.history.append(x)` (depth-2+ attribute chains) and created a
+; global bare stub `append`, causing 1,472 false callers when any
+; user-defined method happened to share the bare name.  Removed.
+; Depth-2+ chains are unresolvable without type inference — no edge is
+; emitted rather than a misleading global stub.  Direct `obj.method()`
+; calls (depth 1) continue via the `@call.receiver` pattern above.

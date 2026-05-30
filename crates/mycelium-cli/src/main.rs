@@ -137,6 +137,12 @@ enum Cmd {
         path: String,
         #[arg(long, default_value = ".")]
         root: PathBuf,
+        /// Include methods inherited from base classes via Extends edges.
+        /// Inherited methods not overridden by the class are listed under
+        /// `inherited_descendants` in JSON output, annotated with their
+        /// declaring class.
+        #[arg(long, default_value_t = false)]
+        include_inherited: bool,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
@@ -212,6 +218,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Also include callers that reach this symbol via virtual dispatch
+        /// (i.e., callers of a base-class method of the same name).
+        #[arg(long, default_value_t = false)]
+        include_virtual: bool,
     },
     /// Return the recursive callee tree rooted at a symbol.
     GetCalleeTree {
@@ -1023,9 +1033,14 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_ancestors(&canonical, &path, format.into())?;
         }
-        Cmd::GetDescendants { path, root, format } => {
+        Cmd::GetDescendants {
+            path,
+            root,
+            include_inherited,
+            format,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_descendants(&canonical, &path, format.into())?;
+            queries::run_get_descendants(&canonical, &path, include_inherited, format.into())?;
         }
         Cmd::GetNodeKind { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
@@ -1075,9 +1090,14 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_callees(&canonical, &path, format.into())?;
         }
-        Cmd::GetCallers { path, root, format } => {
+        Cmd::GetCallers {
+            path,
+            root,
+            format,
+            include_virtual,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callers(&canonical, &path, format.into())?;
+            queries::run_get_callers(&canonical, &path, include_virtual, format.into())?;
         }
         Cmd::GetCalleeTree {
             path,
