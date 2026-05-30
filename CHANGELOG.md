@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0094 Phase 1: token-efficient output formatter foundation** (#210).
+  New `crates/mycelium-mcp/src/formatter.rs` module ships the
+  `Formatter` trait plus three implementations: `JsonFormatter`
+  (pretty-printed JSON), `TextFormatter` (TOON-inspired indented
+  `key: value` layout per RFC-0094 §"Format grammar"), and
+  `MsgpackHexFormatter` (`hex::encode(rmp_serde::to_vec(...))`).
+  `OutputFormat` enum defaults to `Text`. `formatter_for(...)` factory
+  returns a boxed trait object. Reserved-character escaping for
+  TextFormatter (leading `[`, `{`, `-`, `"`, whitespace; embedded
+  `: `, `\n`, `\r`, `\t`; reserved literals `null` / `true` / `false`
+  / `[]` / `{}`) goes through `serde_json::to_string` so the
+  reference parser only needs one escape convention. Enables
+  `serde_json/preserve_order` in `mycelium-mcp` so TOON output keeps
+  source-key order instead of alphabetising. 17 TDD tests written
+  before implementation per Charter §5.1. Phase 2 (migrate the 89
+  existing tools to accept `output_format`) lands in a follow-up.
+
 ## [0.1.10] — 2026-05-30
 
 Patch release: two Python correctness fixes (TYPE_CHECKING cycle
