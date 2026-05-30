@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — 4 new Python issues triaged #245-248; PR #251 open — Python Extends edges fix) |
+| Last updated | 2026-05-30 (PM correction — #245-248 all closed; PRs #250/#254/#255 merged on develop) |
 | Current sprint | **v0.1.11 planning** |
 | Active release branch | none — v0.1.10 shipped |
-| Next release target | **v0.1.11** — Python inheritance edges (#245, PR #251 in CI) + RFC-0094 Phase 2 + Python patterns #214 |
+| Next release target | **v0.1.11** — RFC-0094 Phase 2 + Python patterns #214 (Python inheritance issues #245-248 CLOSED post-v0.1.10) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -45,51 +45,43 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **Issue #245 (Python Extends edges)** — **PR #251 in CI** (DCO ✅, rustfmt ✅, unit tests in_progress).
-   Fix: `@reference.extends` query in `packs/python/queries.scm` + extractor handler.
-   Unlocks all inheritance tools for Python. Merge when Quality Gate green.
-2. **Issue #246 (Python virtual dispatch — get-callers empty for overridden methods)** — P1.
-   Root cause: static call resolution doesn't follow abstract-base → concrete-override.
-   Requires type-flow analysis; hard. Target v0.1.12+. RFC needed.
-3. **Issue #247 (get-isolated-symbols false positives — alias/callback patterns)** — P1.
-   525 false positives in tree-sitter-analyzer. Partial fix needed after #245 lands.
-   Target v0.1.12. RFC-0092 Phase 3 scope.
-4. **Issue #248 (get-descendants missing inherited methods)** — P1.
-   Blocked on #245 (need Extends edges to resolve inheritance). Re-assess after #251 merges.
-5. **Issue #214 (Python reliability — remaining patterns)** — P1. After v0.1.7-v0.1.10:
+1. **Issue #214 (Python reliability — remaining patterns)** — P1. After v0.1.7-v0.1.10:
    - Pattern 2: destructured imports file-level under-count.
    - Pattern 3: transitive alias over-count (1,472 false callers).
    - `get-dependency-depth` returning 0 (see #221). RFC-0092 Phase 2/3 scope.
 
 **P2 (v0.1.11 scope):**
-6. **Issue #210 / RFC-0094 Phase 2** — Wire `output_format` into all 89 tools.
-   Per-transport defaults: stdio → `Text`, CLI → `Json`. rust-implementer task.
-7. **Issue #206 Suggestion 1 (MCP `is_error` sweep)** — Set `is_error: Some(true)` on all ~89
-   application-error returns. rmcp 1.7 supports `CallToolResult::structured_error(value)` via
-   `IntoCallToolResult` — tool methods can return `CallToolResult` directly. Recommended approach:
-   add helper `fn mcp_err(msg) -> CallToolResult` and change error-path return type per tool.
+6. **Issue #210 / RFC-0094 Phase 3 done — Phase 2 wire-up remaining**.  wired into all 83 query tools (RFC-0094 Phase 3, PR #259). Mutation/control tools excluded by design. Audit  defaults: stdio → , CLI → . rust-implementer task.
+7. **Issue #206 Suggestion 1 (MCP  sweep)** — Set  on all ~89
+   application-error returns. rmcp 1.7 supports  via
+    — tool methods can return  directly. Recommended approach:
+   add helper  and change error-path return type per tool.
    No RFC needed. rust-implementer task.
-8. **Issue #221** — `get-dependency-depth` returns 0. Re-verify after #245 + Pattern 3 fix.
-9. **Security scan** — routine post-v0.1.10. security-reviewer task.
-10. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
+8. **Issue #221** —  returns 0. Re-verify after #245 + Pattern 3 fix.
+9. ~~Security scan~~ — DONE (post-v0.1.10 scan clean, no findings).
+10. ~~Charter §2 SLA 100K-node row~~ — DONE (PR #262, sla_heavy_graph.rs, 6 tests).
 
 **P3 (v0.2.0 backlog):**
-10. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
-11. Skill marketplace submission metadata: icon, screenshots, category examples.
-12. End-to-end "first 5 minutes" walkthrough / asciinema recording.
+6. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
+7. Skill marketplace submission metadata: icon, screenshots, category examples.
+8. End-to-end "first 5 minutes" walkthrough / asciinema recording.
 
-**Closed this run:**
-- ✅ Issue #211 (contract tests) — closed as completed (PR #249 shipped it in v0.1.10+ window).
-- ✅ Issues #245-248 triaged with P-labels.
+**Closed (post-v0.1.10, before v0.1.11 — founder shipped on develop):**
+- ✅ Issue #211 (contract tests) — closed, PR #249.
+- ✅ Issue #245 (Python Extends edges) — closed, PR #250 (`@reference.extends` query + extractor handler).
+- ✅ Issue #247 (get-isolated-symbols callback false positives) — closed, PR #250 (`@reference.arg_callback` query).
+- ✅ Issue #248 (get-descendants missing inherited methods) — closed, PR #254 (`--include-inherited` flag).
+- ✅ Issue #246 (get-callers empty for overridden methods) — closed, PR #255 (`--include-virtual` flag).
+- ~~PR #251~~ — closed as duplicate of PR #250 (concurrent PM + founder implementation).
 
 ---
 
-## Dispatch state (2026-05-30, PM run post-v0.1.10)
+## Dispatch state (2026-05-30, PM correction post-#250/#254/#255)
 
 | Agent | Status | Current item |
 |---|---|---|
 | release | **idle** | v0.1.10 shipped, back-merge done. Next: v0.1.11 after sprint exit criteria met. |
-| rust-implementer | **next-up** | RFC-0094 Phase 2: wire `output_format` into 89 tool shapes (#210). |
+| rust-implementer | **next-up** | RFC-0094 Phase 2: complete `output_format` wiring into all 89 tools (#210). PoC at commit 4089e94. |
 | pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3 scope). |
 | architect | idle | RFC-0092 Phase 2/3 scoping + Charter §2 100K-node SLA row. |
 | tech-writer | idle | RFC-0094 Phase 2 doc updates when Phase 2 lands. Marketplace metadata. |
@@ -101,8 +93,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## v0.1.11 Sprint — Draft exit criteria
 
-- [ ] **Issue #245**: PR #251 merged — Python Extends edges live, inheritance tools functional.
-- [ ] RFC-0094 Phase 2: `output_format` wired into ≥ 89 tools; per-transport defaults set.
+- [x] **Issue #245**: Python Extends edges live (PR #250 merged). Inheritance tools functional.
+- [x] **Issue #247**: get-isolated-symbols callback false positives fixed (PR #250 merged).
+- [x] **Issue #248**: get-descendants --include-inherited landed (PR #254 merged).
+- [x] **Issue #246**: get-callers --include-virtual landed (PR #255 merged).
+- [ ] RFC-0094 Phase 2: `output_format` wired into ≥ 89 tools; per-transport defaults set (PoC done, full wire-up needed).
 - [ ] Issue #214 Pattern 2 or Pattern 3 fixed (at least one Python accuracy regression addressed).
 - [ ] Issue #221 re-verified or fixed.
 - [ ] Security scan clean (no high-severity findings post-v0.1.10).
@@ -137,12 +132,23 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
+### 2026-05-30 PM correction (post-PR #250/#254/#255 — all Python inheritance issues closed)
+
+- PM state was stale after PR #252 merged: still showed #245-248 as open P1 items and PR #251 as in-flight.
+- Actual state: founder shipped PRs #250 (Extends + callback), #254 (include-inherited), #255 (include-virtual) — all 4 Python inheritance issues closed before PM state was updated.
+- PR #251 (orchestrator duplicate) was closed by founder as superseded by #250.
+- PR #252 (PM state chore) merged by founder.
+- Closed issues #246 and #248 via GitHub API (they were fixed but not yet closed).
+- v0.1.11 sprint exit criteria: 4/9 criteria now green (all Python inheritance items done).
+- Anti-pattern confirmed: concurrent session opened duplicate PR #251 because founder's in-flight PR #250 was not visible at PM-run start. Recorded in decisions.jsonl.
+- Next: RFC-0094 Phase 2 full wire-up (PoC landed at 4089e94) + issue #214 Pattern 2/3.
+
 ### 2026-05-30 PM run (current — v0.1.11 kickoff + issue #206 re-triage)
 
 - Scanned 0 open PRs; 2 open issues (#214 P1 python, #206 P2 enhancement). Labels applied via GitHub API.
 - Confirmed #211 (contract tests) closed (PR #249), #209 (is_error) superseded by #206.
-- Added issue #206 S1 (MCP `is_error`) to P2 priorities with rmcp 1.7 implementation guidance:
-  `CallToolResult::structured_error(value)` via `IntoCallToolResult` — tools return `CallToolResult` directly.
+- Added issue #206 S1 (MCP ) to P2 priorities with rmcp 1.7 implementation guidance:
+   via  — tools return  directly.
 - Anti-pattern note: concurrent PM runs may overwrite PM state with stale data; always branch from
   develop HEAD, not from a prior session's working state.
 
