@@ -1224,6 +1224,69 @@ fn from_absolute_import_creates_symbol_level_imports_edge() {
     let _ = symbol_id; // silence unused warning
 }
 
+// ── Issue #293: JS function-expression definitions ───────────────────────────
+
+#[test]
+fn extractor_js_const_function_expression_creates_definition() {
+    // `const localize = function(key) { return key; }` must create a definition
+    // node for `localize` so callee-tree and call edges work.
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/nls.js",
+        b"const localize = function(key) { return key; };",
+        &mut store,
+    )
+    .unwrap();
+    assert!(
+        store.lookup("src/nls.js>localize").is_some(),
+        "const-assigned function expression must create a definition node"
+    );
+}
+
+#[test]
+fn extractor_js_const_function_expression_calls_edge() {
+    // A function defined via `const name = function(...) {...}` must emit Calls
+    // edges for calls made inside its body, just like arrow functions do.
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/nls.js",
+        b"function _format(k) {}\nconst localize = function(key) { return _format(key); };",
+        &mut store,
+    )
+    .unwrap();
+    let localize_id = store
+        .lookup("src/nls.js>localize")
+        .expect("localize must exist as a definition");
+    let format_id = store
+        .lookup("src/nls.js>_format")
+        .expect("_format must exist");
+    assert!(
+        store
+            .outgoing(localize_id, EdgeKind::Calls)
+            .contains(&format_id),
+        "localize must have a Calls edge to _format"
+    );
+}
+
+#[test]
+fn extractor_js_exported_function_expression_creates_definition() {
+    // `export const localize = function(...) {...}` must also create a definition.
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/nls.js",
+        b"export const localize = function(key) { return key; };",
+        &mut store,
+    )
+    .unwrap();
+    assert!(
+        store.lookup("src/nls.js>localize").is_some(),
+        "exported const-assigned function expression must create a definition node"
+    );
+}
+
 #[test]
 fn from_import_with_alias_creates_symbol_level_imports_edge() {
     // Issue #286 (aliased case): `from ._ast_cache_schema import apply_migration_v3 as _apply`

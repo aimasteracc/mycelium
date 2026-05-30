@@ -42,6 +42,23 @@
         name: (identifier) @name
         value: (arrow_function))))) @definition.function
 
+; ── Top-level function expressions (const name = function(...) {...}) ─
+; Issue #293: `const localize = function(key) {...}` — CommonJS/UMD pattern.
+; Mirrors the arrow_function patterns above but matches function_expression.
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier) @name
+      value: (function_expression)))) @definition.function
+
+(program
+  (export_statement
+    declaration: (lexical_declaration
+      (variable_declarator
+        name: (identifier) @name
+        value: (function_expression))))) @definition.function
+
 ; ── Class declarations ───────────────────────────────────────────────
 
 (program

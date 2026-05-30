@@ -43,6 +43,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plain `attribute`/`identifier` nodes). Syncs embedded packs. 3 TDD tests
   (2 RED verified). (Issue #296)
 
+- **Issue #293 — `get-callee-tree` empty for JS `const name = function(...) {}` definitions** —
+  JavaScript functions defined via `const name = function(...) {...}` (function expressions
+  assigned to a `const` binding) were not captured as definition nodes. As a result, 4 000+
+  call sites in projects like VS Code that use this CommonJS/UMD pattern produced bare stubs
+  with no outgoing Calls edges, leaving `get-callee-tree` empty. Fix: added two new
+  `@definition.function` patterns to `packs/javascript/queries.scm` for `const`-assigned and
+  `export const`-assigned function expressions, mirroring the existing arrow-function patterns.
+  Also fixed `enclosing_function_path` in the extractor: anonymous `function_expression` nodes
+  have no `name` field, so the scope-tracking logic now falls back to the enclosing
+  `variable_declarator`'s name, ensuring Calls edges inside the body are attributed to the
+  correct definition. 3 TDD tests. (Issue #293, PR #310)
+
 - **Issue #298 — batch commands accept repeated `--paths` flags** — `batch-symbol-info`,
   `batch-node-degree`, `batch-reachable-from`, `batch-reachable-to`, `get-common-callers`, and
   `get-common-callees` previously accepted only a single `--paths` string value; passing

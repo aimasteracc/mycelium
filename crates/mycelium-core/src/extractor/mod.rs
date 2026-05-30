@@ -756,8 +756,19 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
             let fn_name = parent
                 .child_by_field_name("name")
                 .and_then(|n| n.utf8_text(source).ok())
-                .unwrap_or("_unknown")
-                .to_owned();
+                .map(str::to_owned)
+                .or_else(|| {
+                    // Anonymous function_expression assigned to a variable:
+                    // `const localize = function(...) {...}` — name lives in
+                    // the enclosing variable_declarator, not the function node.
+                    parent
+                        .parent()
+                        .filter(|p| p.kind() == "variable_declarator")
+                        .and_then(|p| p.child_by_field_name("name"))
+                        .and_then(|n| n.utf8_text(source).ok())
+                        .map(str::to_owned)
+                })
+                .unwrap_or_else(|| "_unknown".to_owned());
 
             // Collect enclosing class/impl containers (outermost first).
             let mut containers: Vec<String> = Vec::new();
