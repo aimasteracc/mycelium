@@ -178,6 +178,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed `get_scc` name in INDEX.md to correct `get_strongly_connected_components`.
   - `skills/INDEX.md` updated to 89/89 coverage (100% of all MCP tools have Skill umbrella).
 
+## [0.1.3] — 2026-05-30
+
+### Added
+
 - **Third wave of category Skills** (RFC-0090 Phase 2 closing, v0.1.3):
   - [`skills/inheritance/`](skills/inheritance/) — 8 capabilities for
     `Extends` and `Implements` edge navigation
@@ -585,5 +589,5 @@ First public release of **Mycelium** — the reactive, AI-native symbol graph th
 
 ---
 
-[Unreleased]: https://github.com/aimasteracc/mycelium/compare/...HEAD
+[Unreleased]: https://github.com/aimasteracc/mycelium/compare/v0.1.3...HEAD
 
