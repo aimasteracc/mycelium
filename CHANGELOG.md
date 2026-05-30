@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`parity.yml` promoted from informational to strict** (Charter §5.13 /
+  RFC-0090 Phase 3). The Three-Surface parity checker now runs with
+  `--strict` and exits non-zero on any I1 (Skill coverage) or I2 (no
+  Skill orphans) violation. Promoted after v0.1.5 hit 89/89 (100%)
+  coverage with zero 🟡 rows in `skills/INDEX.md`. Branch-protection
+  side of the promotion (marking the check as required on main) is a
+  founder-only repo-settings change, tracked separately.
+
 ### Fixed
 
 - **Python relative imports now resolve to actual file paths** (#204,
