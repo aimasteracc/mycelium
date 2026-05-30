@@ -154,6 +154,94 @@ impl LanguagePack {
     }
 }
 
+// ── registry ─────────────────────────────────────────────────────────────────
+
+/// A collection of language packs indexed by file extension for fast dispatch.
+///
+/// Call [`PackRegistry::load`] once at startup, then use
+/// [`PackRegistry::lookup_by_ext`] in the hot path.
+pub struct PackRegistry {
+    packs: Vec<LanguagePack>,
+    /// Maps each extension (e.g. `".py"`) to an index into `packs`.
+    by_ext: std::collections::HashMap<String, usize>,
+}
+
+impl PackRegistry {
+    /// Load all language packs from `packs_dir`.
+    ///
+    /// Scans `packs_dir` for sub-directories that contain a `pack.toml`
+    /// and loads each one.  Directories without `pack.toml` are silently
+    /// skipped (allows plain files or future non-pack sub-dirs).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `packs_dir` cannot be read (e.g. does not exist).
+    pub fn load(packs_dir: &std::path::Path) -> Result<Self, PackError> {
+        let mut packs: Vec<LanguagePack> = Vec::new();
+        let mut by_ext: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+
+        let entries = std::fs::read_dir(packs_dir).map_err(|source| PackError::Io {
+            path: packs_dir.to_path_buf(),
+            source,
+        })?;
+
+        for entry in entries {
+            let entry = entry.map_err(|source| PackError::Io {
+                path: packs_dir.to_path_buf(),
+                source,
+            })?;
+            let sub = entry.path();
+            if !sub.is_dir() {
+                continue;
+            }
+            if !sub.join("pack.toml").exists() {
+                continue;
+            }
+            match LanguagePack::load(&sub) {
+                Ok(pack) => {
+                    let idx = packs.len();
+                    let exts: Vec<String> = pack.manifest.meta.dispatch_extensions().to_vec();
+                    packs.push(pack);
+                    for ext in exts {
+                        by_ext.entry(ext).or_insert(idx);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(path = %sub.display(), error = %e, "skipping malformed pack");
+                }
+            }
+        }
+
+        Ok(Self { packs, by_ext })
+    }
+
+    /// Look up a pack by file extension (e.g. `".py"`, `".ts"`).
+    ///
+    /// Returns `None` if no loaded pack handles this extension.
+    #[must_use]
+    pub fn lookup_by_ext(&self, ext: &str) -> Option<&LanguagePack> {
+        self.by_ext.get(ext).map(|&idx| &self.packs[idx])
+    }
+
+    /// All loaded packs in load order.
+    #[must_use]
+    pub fn packs(&self) -> &[LanguagePack] {
+        &self.packs
+    }
+
+    /// Number of loaded packs.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.packs.len()
+    }
+
+    /// Returns `true` if no packs are loaded.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.packs.is_empty()
+    }
+}
+
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -376,5 +464,57 @@ mod tests {
             pack.queries.contains("@reference"),
             "queries.scm must contain @reference"
         );
+    }
+
+    // ── PackRegistry tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn registry_loads_all_bundled_packs() {
+        let packs_dir = workspace_root().join("packs");
+        let registry = PackRegistry::load(&packs_dir).expect("registry should load");
+        let names: Vec<&str> = registry.packs().iter().map(LanguagePack::name).collect();
+        for expected in &["python", "javascript", "typescript", "rust", "go"] {
+            assert!(
+                names.contains(expected),
+                "registry must contain pack '{expected}'"
+            );
+        }
+    }
+
+    #[test]
+    fn registry_lookup_by_ext_returns_correct_pack() {
+        let packs_dir = workspace_root().join("packs");
+        let registry = PackRegistry::load(&packs_dir).expect("registry should load");
+
+        let py = registry
+            .lookup_by_ext(".py")
+            .expect(".py must map to python pack");
+        assert_eq!(py.name(), "python");
+
+        let js = registry
+            .lookup_by_ext(".js")
+            .expect(".js must map to javascript pack");
+        assert_eq!(js.name(), "javascript");
+
+        let ts = registry
+            .lookup_by_ext(".ts")
+            .expect(".ts must map to typescript pack");
+        assert_eq!(ts.name(), "typescript");
+    }
+
+    #[test]
+    fn registry_lookup_unknown_ext_returns_none() {
+        let packs_dir = workspace_root().join("packs");
+        let registry = PackRegistry::load(&packs_dir).expect("registry should load");
+        assert!(
+            registry.lookup_by_ext(".brainfuck").is_none(),
+            "unknown extension must return None"
+        );
+    }
+
+    #[test]
+    fn registry_errors_on_missing_dir() {
+        let result = PackRegistry::load(Path::new("/nonexistent/packs/dir"));
+        assert!(result.is_err(), "loading from a missing dir must fail");
     }
 }

@@ -1051,6 +1051,7 @@ dependencies = [
  "criterion",
  "hashbrown 0.17.1",
  "insta",
+ "mycelium-rcig-pack",
  "proptest",
  "rmp-serde",
  "salsa",
@@ -1117,10 +1118,10 @@ dependencies = [
 name = "mycelium-rcig-pack"
 version = "0.1.10"
 dependencies = [
- "mycelium-rcig-core",
  "serde",
  "thiserror",
  "toml",
+ "tracing",
 ]
 
 [[package]]

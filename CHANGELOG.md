@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0095: Runtime pack registry (`PackRegistry`)** — `crates/mycelium-pack` now exposes
+  `PackRegistry::load(packs_dir)` which discovers all `packs/<lang>/pack.toml` + `queries.scm`
+  pairs at runtime. `PackRegistry::lookup_by_ext(".py")` returns the matching `LanguagePack`.
+  The cortex (`mycelium-core`) uses the registry when `MYCELIUM_PACKS_DIR` env var is set,
+  falling back to compile-time embedded queries otherwise. Circular dep eliminated:
+  `mycelium-pack` no longer depends on `mycelium-core`; `mycelium-core` depends on
+  `mycelium-pack`. 4 TDD tests in `mycelium-pack` + 2 in `mycelium-core`. (Issue #212)
+
 - **RFC-0092 Phase 2: TypeScript/JavaScript alias resolution** — `import { foo as bar }`,
   `import * as ns`, `import { foo }`, and `import Foo` statements now build per-file alias
   tables. Call edges such as `bar()` and `ns.greet()` are rewritten through the alias table
