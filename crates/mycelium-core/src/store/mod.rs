@@ -801,6 +801,46 @@ impl Store {
         )
     }
 
+    /// Return methods inherited from base classes via `Extends` edges.
+    ///
+    /// For each base class reachable through Extends, collect the descendants
+    /// of the base that have a **method name** (last `>` segment) NOT already
+    /// present among the direct descendants of `id` (i.e., overridden methods
+    /// are excluded). Returns `None` if `path` is not found.
+    ///
+    /// Each entry in the returned vec is `(path, declaring_class_path)`.
+    pub fn inherited_descendants_of_path(&self, path: &str) -> Option<Vec<(String, String)>> {
+        let id = self.trunk.lookup_path(path)?;
+        // Collect the last-segment names of directly-defined children.
+        let direct_names: std::collections::HashSet<String> = self
+            .trunk
+            .descendants(id)
+            .filter_map(|did| self.trunk.path_of(did))
+            .filter(|p| p.contains('>'))
+            .filter_map(|p| p.split('>').next_back().map(str::to_owned))
+            .collect();
+
+        let mut result: Vec<(String, String)> = Vec::new();
+        for &base_id in self.outgoing(id, EdgeKind::Extends) {
+            let Some(base_path) = self.trunk.path_of(base_id).map(str::to_owned) else {
+                continue;
+            };
+            for did in self.trunk.descendants(base_id) {
+                let Some(p) = self.trunk.path_of(did) else {
+                    continue;
+                };
+                if !p.contains('>') {
+                    continue;
+                }
+                let method_name = p.split('>').next_back().unwrap_or("");
+                if !direct_names.contains(method_name) {
+                    result.push((p.to_owned(), base_path.clone()));
+                }
+            }
+        }
+        Some(result)
+    }
+
     /// Iterate all materialized ancestors of `id` in child-to-root order.
     pub fn ancestors(&self, id: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         self.trunk.ancestors(id)

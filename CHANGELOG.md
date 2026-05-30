@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue #248: `get-descendants --include-inherited` / MCP `include_inherited` flag**.
+  `Store::inherited_descendants_of_path` follows `EdgeKind::Extends` edges from the
+  requested class to each declared base class and returns methods that exist on the
+  base but are not overridden in the subclass. The MCP handler for
+  `mycelium_get_descendants` accepts `include_inherited: true` and appends an
+  `inherited_descendants` array to the response, where each entry carries the method
+  path and the `from` (declaring class path). The CLI command `get-descendants` gains
+  `--include-inherited` boolean flag with identical output in `--format text` mode.
+  Three-Surface Rule (RFC-0090) satisfied: Store method → MCP param → CLI flag.
+  2 new MCP TDD tests; clippy `significant_drop_tightening` and
+  `double_ended_iterator_last` lints fixed as part of this work.
+
+
 - **Issue #247: Python callback / higher-order function false positives fixed**.
   `packs/python/queries.scm` now captures identifiers passed as positional
   or keyword-value arguments (`reference.arg_callback`). The extractor's
