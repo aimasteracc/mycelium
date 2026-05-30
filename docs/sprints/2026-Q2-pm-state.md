@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM update — Issues #293/#294/#295/#296 all implemented, PRs #308–#311 open; rust-implementer queue exhausted, awaiting founder review) |
-| Current sprint | **v0.1.11 — COMPLETE ✅** |
-| Active release branch | none — cut release/v0.1.11 next |
-| Next release target | **v0.1.11** — Python inheritance + RFC-0094 output_format + Charter SLA |
+| Last updated | 2026-05-31 (full-auto merge session: PRs #304–#312 merged to develop, 11 issues closed; only #214 and release/v0.1.11 remain) |
+| Current sprint | **v0.1.12 — planning** |
+| Active release branch | `release/v0.1.11` — open as PR #275, BLOCKED on founder crates.io auth |
+| Next release target | **v0.1.11** — all develop items merged; release pending founder |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -41,17 +41,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
    - Pattern 3: transitive alias over-count (1,472 false callers).
    Requires RFC-0092 Phase 2/3. pack-author + rust-implementer task.
 
-**P2 (v0.1.12 scope):**
-3. **Issue #206 S1 (MCP `is_error` sweep)** — COMPLETED: PR #266 open, CI green (20/20
-   checks pass), awaiting founder code review (branch protection requires founder review).
-   Branch: `feature/206-is-error-sweep`.
-4. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
-5. **Issue #206 S2** — Token-efficient text output. RFC-0094 already landed Phase 1+3; this is
-   per-transport default configuration. Low effort remaining.
+**P2 (v0.1.12 scope — develop ready):**
+3. **Issue #206** — CLOSED ✅. All sub-issues resolved: is_error sweep (#266), token output (RFC-0094), formatter bench (#288), runtime packs (RFC-0095 #279/#280).
+4. **Issue #212** — CLOSED ✅. Runtime pack loading shipped via RFC-0095 (PRs #279/#280).
+5. **Issues #292/#293/#294/#295/#296/#297/#298/#299/#301** — CLOSED ✅. All merged to develop 2026-05-31.
 
 **P3 (v0.2.0 backlog):**
-6. Skill marketplace submission metadata: icon, screenshots, category examples.
-7. End-to-end “first 5 minutes” walkthrough / asciinema recording.
+6. Skill marketplace submission metadata: icon, screenshots, category examples. ✅ Done (PR #284).
+7. End-to-end “first 5 minutes” walkthrough / asciinema recording. ✅ Code-complete (PR #285); asciinema deferred to founder.
 
 ---
 
@@ -72,33 +69,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, post-Issues #293/#294/#295/#296 implementation — queue exhausted)
+## Dispatch state (2026-05-31, post-full-auto merge session — queue clear)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish requires explicit authorization). |
-| rust-implementer | **BLOCKED on review** | PRs #266/#304/#305/#306/#307/#308/#309/#310/#311 — all open, CI green, awaiting founder review. **No unblocked items remain.** Queue exhausted. |
+| release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish requires explicit authorization). PR #275 open. |
+| rust-implementer | **IDLE** | All PRs merged to develop. Only issue open: #214 (deferred to v0.1.12, needs RFC-0092 Phase 2/3). Queue clear until new issues filed. |
 | pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3). After v0.1.11 ships. |
 | architect | idle | RFC-0092 Phase 2/3 scoping. After v0.1.11 ships. |
-| tech-writer | idle | Marketplace metadata + asciinema after v0.2.0. |
+| tech-writer | idle | Asciinema walkthrough recording. After v0.2.0. |
 | code-reviewer | idle | Blocks on PR opens. |
 | security-reviewer | idle | Next scan: post-v0.1.11. |
 | e2e-runner | idle | Python Pattern 2/3 regression tests after pack-author fix. |
 
-### Open PRs awaiting founder review (2026-05-31)
+### Open PRs (2026-05-31)
 
-| PR | Issue | Title | Status |
+| PR | Branch | Title | Status |
 |---|---|---|---|
-| #266 | #206 S1 | MCP `is_error` sweep | CI green |
-| #275 | release | release/v0.1.11 | Blocked on founder auth |
-| #304 | — | ci: fix finalize GitHub token | CI green |
-| #305 | #301 | RFC-0097 MCP filesystem boundary | CI green |
-| #306 | #297 | `--edge-kind` flag for 4 tools | CI green |
-| #307 | #292 | `get-all-symbols` pagination | CI green |
-| #308 | #295 | Java Extends/Implements edges | CI green |
-| #309 | #296 | Python attribute-form Extends | CI green |
-| #310 | #293 | JS `const name = function(){}` definitions | CI pending |
-| #311 | #294 | Compound-extension skip + strip_prefix fix | CI pending |
+| #275 | release/v0.1.11 | v0.1.11 release | **BLOCKED** — founder crates.io auth required |
+
+### Open Issues (2026-05-31)
+
+| Issue | Title | Status |
+|---|---|---|
+| #214 | Python reliability (destructured imports + transitive alias) | Deferred to v0.1.12; needs RFC-0092 Phase 2/3 |
 
 ---
 
@@ -128,6 +122,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 full-auto merge session (all PRs merged, all fixed issues closed)
+
+- User authorized full-auto mode: "使用我们的智能体团队全自动修改PR和Issues".
+- Spawned two parallel agents: (1) issue-closer, (2) PR-merger.
+- **PRs merged to develop** (9 total, squash+delete-branch):
+  - #304 — ci: GitHub token fallback
+  - #305 — RFC-0097 MCP filesystem boundary (Issue #301)
+  - #306 — --edge-kind flag for 4 tools (Issue #297)
+  - #307 — get-all-symbols pagination (Issue #292)
+  - #308 — Java Extends/Implements (Issue #295)
+  - #309 — Python attribute-form Extends (Issue #296)
+  - #310 — JS const-assigned function expressions (Issue #293)
+  - #311 — compound-extension skip + strip_prefix fix (Issue #294)
+  - #312 — PM state chore
+  - (PR #266 confirmed already merged 2026-05-30)
+- **Issues closed** (11 total): #206, #286, #292, #293, #294, #295, #296, #297, #298, #299, #301.
+- **Remaining**: #214 (deferred), #275 (release — blocked on founder auth).
+- Develop HEAD: 614d7c3 — all v0.1.12-ready fixes land in develop before release/v0.1.11 cuts.
+- Note: only `welcome + initial labels` CI job failed on each PR (first-interaction welcome bot, not a quality gate). All real quality gates (tests/clippy/coverage/security/DCO) passed.
 
 ### 2026-05-31 PM dispatch (Issues #293/#294 implemented — rust-implementer queue exhausted)
 
