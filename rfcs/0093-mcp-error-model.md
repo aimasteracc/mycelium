@@ -199,10 +199,10 @@ where `mycelium get-symbol-info unknown_path` exits 1.
 
 - [ ] All 89 tools return `Result<CallToolResult, rmcp::Error>` (or
   rmcp's typed equivalent)
-- [ ] Every error path uses `is_error: Some(true)` instead of in-band
-  JSON `"error"` strings
-- [ ] `success_json` / `application_error` helpers live in
-  `crates/mycelium-mcp/src/error.rs`
+- [x] Every error path uses `is_error: Some(true)` instead of in-band
+  JSON `"error"` strings (PR #266 — v0.1.11)
+- [x] `success_json` / `application_error` / `success_str` helpers live in
+  `crates/mycelium-mcp/src/error.rs` (Phase 1 v0.1.11; `success_str` v0.1.13)
 - [ ] `tests/error_model.rs` contract test: every tool reachable via
   `list_tools()` returns `is_error: Some(true)` for a deliberately
   missing path

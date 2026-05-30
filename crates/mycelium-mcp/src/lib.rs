@@ -62,22 +62,16 @@ use mycelium_core::{
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
     ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::CallToolResult,
-    model::Content, model::Implementation, model::ServerCapabilities, model::ServerInfo, tool,
-    tool_handler, tool_router,
+    model::Implementation, model::ServerCapabilities, model::ServerInfo, tool, tool_handler,
+    tool_router,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
-use crate::error::{application_error, not_found};
+use crate::error::{application_error, not_found, success_str};
 use crate::formatter::{OutputFormat, formatter_for};
-
-/// Wrap a success string in a `CallToolResult` with `is_error: Some(false)`.
-#[inline]
-fn ok_str(s: String) -> CallToolResult {
-    CallToolResult::success(vec![Content::text(s)])
-}
 
 /// Shared state for the background watch loop.
 #[derive(Debug, Default)]
@@ -1624,7 +1618,7 @@ impl MyceliumServer {
                 }
                 *self.store.write().await = new_store;
                 *self.indexed_root.write().await = Some(root_save);
-                ok_str(
+                success_str(
                     serde_json::json!({
                         "files": files,
                         "errors": errors,
@@ -1653,9 +1647,11 @@ impl MyceliumServer {
         let matches = self.store.read().await.search_symbol(&req.query, limit);
         let value = serde_json::json!({ "matches": matches });
         match req.output_format {
-            Some(fmt) => ok_str(formatter_for(fmt).format(&value)),
-            None if self.compact_mode.load(Ordering::Relaxed) => ok_str(encode_msgpack_hex(&value)),
-            None => ok_str(value.to_string()),
+            Some(fmt) => success_str(formatter_for(fmt).format(&value)),
+            None if self.compact_mode.load(Ordering::Relaxed) => {
+                success_str(encode_msgpack_hex(&value))
+            }
+            None => success_str(value.to_string()),
         }
     }
 
@@ -1674,7 +1670,7 @@ impl MyceliumServer {
             .ancestors_of_path(&req.path)
             .unwrap_or_default();
         let value = serde_json::json!({ "ancestors": ancestors });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -1708,7 +1704,7 @@ impl MyceliumServer {
                 .collect::<Vec<_>>();
             value["inherited_descendants"] = serde_json::Value::Array(inherited);
         }
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -1735,7 +1731,7 @@ impl MyceliumServer {
                 let nodes = loaded.node_count();
                 *self.store.write().await = loaded;
                 *self.indexed_root.write().await = Some(root);
-                ok_str(
+                success_str(
                     serde_json::json!({
                         "nodes": nodes,
                         "loaded_from": ".mycelium/index.rmp"
@@ -1763,7 +1759,7 @@ impl MyceliumServer {
             .unwrap_or_default();
         let is_loaded = root_guard.is_some();
         drop(root_guard);
-        ok_str(
+        success_str(
             serde_json::json!({
                 "node_count": node_count,
                 "edge_count": edge_count,
@@ -1787,7 +1783,7 @@ impl MyceliumServer {
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_default();
         drop(root_guard);
-        ok_str(
+        success_str(
             serde_json::json!({
                 "watching": watching,
                 "root": root,
@@ -1825,7 +1821,7 @@ impl MyceliumServer {
         paths.sort();
         paths.dedup();
         let value = serde_json::json!({ "callee_paths": paths });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -1876,7 +1872,7 @@ impl MyceliumServer {
         paths.sort();
         paths.dedup();
         let value = serde_json::json!({ "caller_paths": paths });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -1934,7 +1930,7 @@ impl MyceliumServer {
             "callers": callers,
             "callees": callees,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -1999,7 +1995,7 @@ impl MyceliumServer {
             .collect();
         drop(store_guard);
         let value = serde_json::json!({ "symbols": symbols });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2024,7 +2020,7 @@ impl MyceliumServer {
         let json_tree = callee_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2050,7 +2046,7 @@ impl MyceliumServer {
         let json_tree = caller_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2073,7 +2069,7 @@ impl MyceliumServer {
         let imported_by = store_guard.imported_by(id);
         drop(store_guard);
         let value = serde_json::json!({ "imports": imports, "imported_by": imported_by });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2099,7 +2095,7 @@ impl MyceliumServer {
         let json_tree = import_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2127,7 +2123,7 @@ impl MyceliumServer {
             });
         drop(store_guard);
         let value = serde_json::json!({ "path": req.path, "kind": kind_str });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2155,7 +2151,7 @@ impl MyceliumServer {
             .await
             .symbols_of_kind(kind, req.path_prefix.as_deref());
         let value = serde_json::json!({ "symbols": symbols });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2190,11 +2186,11 @@ impl MyceliumServer {
                 "start_byte": span.start_byte,
                 "end_byte": span.end_byte,
             });
-            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         } else {
             drop(store_guard);
             let value = serde_json::json!({ "path": req.path, "span": serde_json::Value::Null });
-            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         }
     }
 
@@ -2227,7 +2223,7 @@ impl MyceliumServer {
         extended_by.sort_unstable();
         drop(store_guard);
         let value = serde_json::json!({ "extends": extends, "extended_by": extended_by });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2264,7 +2260,7 @@ impl MyceliumServer {
         drop(store_guard);
         let value =
             serde_json::json!({ "implements": implements, "implemented_by": implemented_by });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2286,7 +2282,7 @@ impl MyceliumServer {
             .await
             .entry_points(req.path_prefix.as_deref());
         let value = serde_json::json!({ "entry_points": eps });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2313,7 +2309,7 @@ impl MyceliumServer {
         drop(store);
         let count = dead.len();
         let value = serde_json::json!({ "dead_symbols": dead, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2338,7 +2334,7 @@ impl MyceliumServer {
             .isolated_symbols(req.path_prefix.as_deref());
         let count = isolated.len();
         let value = serde_json::json!({ "isolated_symbols": isolated, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2362,7 +2358,7 @@ impl MyceliumServer {
             "nodes_by_kind": stats.nodes_by_kind,
             "edges_by_kind": stats.edges_by_kind,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2392,7 +2388,7 @@ impl MyceliumServer {
             "extended_by": refs.extended_by,
             "implemented_by": refs.implemented_by,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2422,7 +2418,7 @@ impl MyceliumServer {
             "extends": refs.extends,
             "implements": refs.implements,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2468,7 +2464,7 @@ impl MyceliumServer {
             "count": count,
             "total_count": total_count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2501,7 +2497,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2534,7 +2530,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2559,7 +2555,7 @@ impl MyceliumServer {
         };
         let count = siblings.len();
         let value = serde_json::json!({ "siblings": siblings, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2588,7 +2584,7 @@ impl MyceliumServer {
         drop(store);
         let count = matches.len();
         let value = serde_json::json!({ "matches": matches, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2622,7 +2618,7 @@ impl MyceliumServer {
             "in_implements": deg.in_implements,
             "out_implements": deg.out_implements,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2649,7 +2645,7 @@ impl MyceliumServer {
             .nodes_in_cycles(kind, req.path_prefix.as_deref());
         let count = nodes.len();
         let value = serde_json::json!({ "cycle_nodes": nodes, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2680,7 +2676,7 @@ impl MyceliumServer {
             "group_count": group_count,
             "total_symbols": total_symbols,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2719,7 +2715,7 @@ impl MyceliumServer {
             "total_symbols": total_symbols,
             "cycle_excluded_count": cycle_excluded_count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2745,13 +2741,13 @@ impl MyceliumServer {
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
             drop(store);
-            return ok_str(serde_json::json!({ "neighbors": [], "count": 0 }).to_string());
+            return success_str(serde_json::json!({ "neighbors": [], "count": 0 }).to_string());
         };
         let neighbors = store.two_hop_neighbors(id, kind);
         drop(store);
         let count = neighbors.len();
         let value = serde_json::json!({ "neighbors": neighbors, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2792,7 +2788,7 @@ impl MyceliumServer {
             "incoming_count": incoming_count,
             "outgoing_count": outgoing_count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2832,7 +2828,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "hubs": hubs_json, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2869,7 +2865,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2905,7 +2901,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2943,7 +2939,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -2989,7 +2985,7 @@ impl MyceliumServer {
         let count = degrees.len();
         drop(store);
         let value = serde_json::json!({ "degrees": degrees, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3028,7 +3024,7 @@ impl MyceliumServer {
             "ordered_count": ordered_count,
             "cycle_count": cycle_count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3058,7 +3054,7 @@ impl MyceliumServer {
         };
         let count = points.len();
         let value = serde_json::json!({ "points": points, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3092,7 +3088,7 @@ impl MyceliumServer {
             .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
             .collect();
         let value = serde_json::json!({ "bridges": bridge_list, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3128,7 +3124,7 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3171,7 +3167,7 @@ impl MyceliumServer {
             "out_degrees": out_list,
             "total_symbols": total_symbols
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3206,7 +3202,7 @@ impl MyceliumServer {
             "max_in_degree": m.max_in_degree,
             "max_out_degree": m.max_out_degree,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3246,7 +3242,7 @@ impl MyceliumServer {
             "shared": shared,
             "total": total,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3283,7 +3279,7 @@ impl MyceliumServer {
             "neighbor_count": neighbor_count,
             "neighbor_edge_count": neighbor_edge_count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3316,7 +3312,7 @@ impl MyceliumServer {
             "eccentricity": eccentricity,
             "reachable_count": reachable_count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3352,7 +3348,7 @@ impl MyceliumServer {
             "reachable_count": reachable_count,
             "symbol_count": symbol_count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3394,7 +3390,7 @@ impl MyceliumServer {
             "forward_distance": result.forward_distance,
             "backward_distance": result.backward_distance,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3428,7 +3424,7 @@ impl MyceliumServer {
             "reachable": reachable,
             "count": count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3462,7 +3458,7 @@ impl MyceliumServer {
             "callers": callers,
             "count": count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3502,7 +3498,7 @@ impl MyceliumServer {
             "common": common,
             "count": count,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3537,7 +3533,7 @@ impl MyceliumServer {
             "count": count,
             "k": req.k,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3574,7 +3570,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3613,7 +3609,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3646,7 +3642,7 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3675,7 +3671,7 @@ impl MyceliumServer {
         };
         let count = members.len();
         let value = serde_json::json!({ "members": members, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3705,7 +3701,7 @@ impl MyceliumServer {
         };
         let count = core.len();
         let value = serde_json::json!({ "core": core, "count": count, "k": k });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3738,7 +3734,7 @@ impl MyceliumServer {
             .map(|(path, count)| serde_json::json!({ "path": path, "caller_count": count }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3763,7 +3759,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "files": files, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3792,7 +3788,7 @@ impl MyceliumServer {
             .map(|(path, degree)| serde_json::json!({ "path": path, "degree": degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3818,7 +3814,7 @@ impl MyceliumServer {
         let symbols = self.store.read().await.leaf_symbols(kind, limit);
         let count = symbols.len();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3858,12 +3854,16 @@ impl MyceliumServer {
         path_opt.unwrap().map_or_else(
             || {
                 let value = serde_json::json!({ "path": null, "length": null });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
             |p| {
                 let length = p.len() - 1;
                 let value = serde_json::json!({ "path": p, "length": length });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
         )
     }
@@ -3884,7 +3884,7 @@ impl MyceliumServer {
             .map(|(kind, count)| serde_json::json!({ "kind": kind, "count": count }))
             .collect();
         let value = serde_json::json!({ "kinds": kinds, "total": total });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3907,7 +3907,7 @@ impl MyceliumServer {
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         if req.paths.is_empty() {
-            return ok_str(serde_json::json!({ "callers": [], "count": 0 }).to_string());
+            return success_str(serde_json::json!({ "callers": [], "count": 0 }).to_string());
         }
         let callers_opt: Result<Vec<String>, String> = {
             let store = self.store.read().await;
@@ -3925,7 +3925,7 @@ impl MyceliumServer {
         let callers = callers_opt.unwrap();
         let count = callers.len();
         let value = serde_json::json!({ "callers": callers, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3948,7 +3948,7 @@ impl MyceliumServer {
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         if req.paths.is_empty() {
-            return ok_str(serde_json::json!({ "callees": [], "count": 0 }).to_string());
+            return success_str(serde_json::json!({ "callees": [], "count": 0 }).to_string());
         }
         let callees_opt: Result<Vec<String>, String> = {
             let store = self.store.read().await;
@@ -3966,7 +3966,7 @@ impl MyceliumServer {
         let callees = callees_opt.unwrap();
         let count = callees.len();
         let value = serde_json::json!({ "callees": callees, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -3996,7 +3996,7 @@ impl MyceliumServer {
             .map(|(path, out_degree)| serde_json::json!({ "path": path, "out_degree": out_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4026,7 +4026,7 @@ impl MyceliumServer {
             .map(|(path, in_degree)| serde_json::json!({ "path": path, "in_degree": in_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4050,7 +4050,7 @@ impl MyceliumServer {
                 .collect(),
         };
         let value = serde_json::json!({ "files": files });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4096,12 +4096,16 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no call path found within depth {max_depth}"),
                 });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
         )
     }
@@ -4145,12 +4149,16 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no import path found within max_depth={max_depth}"),
                 });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
         )
     }
@@ -4195,12 +4203,16 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no extends path found within max_depth={max_depth}"),
                 });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+                success_str(
+                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
+                )
             },
         )
     }
@@ -4225,7 +4237,7 @@ impl MyceliumServer {
         let json = extends_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4251,7 +4263,7 @@ impl MyceliumServer {
         let json = subclass_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4290,7 +4302,7 @@ impl MyceliumServer {
             let hops = path.len() - 1;
             drop(store_guard);
             let value = serde_json::json!({ "path": path, "hops": hops });
-            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         } else {
             drop(store_guard);
             let value = serde_json::json!({
@@ -4298,7 +4310,7 @@ impl MyceliumServer {
                 "hops": null,
                 "message": format!("no implements path found within max_depth={max_depth}")
             });
-            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         }
     }
 
@@ -4323,7 +4335,7 @@ impl MyceliumServer {
         let json = implements_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4350,7 +4362,7 @@ impl MyceliumServer {
         let json = implementor_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4377,7 +4389,7 @@ impl MyceliumServer {
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4413,7 +4425,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4445,7 +4457,7 @@ impl MyceliumServer {
             "depth": depth,
             "edge_kind": req.edge_kind,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4510,7 +4522,7 @@ impl MyceliumServer {
             "top_n": top_n,
             "sort_by": sort_by,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4548,7 +4560,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "min_size": min_size,
         });
-        ok_str(req.output_format.map_or_else(
+        success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
         ))
@@ -4603,7 +4615,7 @@ impl MyceliumServer {
         drop(store_w);
         let elapsed_us = start.elapsed().as_micros();
 
-        ok_str(
+        success_str(
             serde_json::json!({
                 "path": req.path,
                 "symbols_before": symbols_before,
@@ -4634,7 +4646,7 @@ impl MyceliumServer {
         } else {
             "compact mode disabled; reverting to JSON output"
         };
-        ok_str(
+        success_str(
             serde_json::json!({
                 "compact_mode": req.enabled,
                 "message": msg,
@@ -4678,7 +4690,7 @@ impl MyceliumServer {
         let compact_chars = compact.to_string().len();
         #[allow(clippy::cast_precision_loss)]
         let token_ratio = compact_chars as f64 / json_bytes as f64;
-        ok_str(
+        success_str(
             serde_json::json!({
                 "sample_query": "top 3 symbols",
                 "json_bytes": json_bytes,
