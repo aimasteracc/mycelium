@@ -277,13 +277,38 @@ impl Extractor {
                             });
                         let caller_id = caller_path.map_or(file_id, |p| store.upsert_node(p));
 
+                        // Issue #220: self.method() / cls.method() inside a
+                        // class must resolve to the sibling method in the same
+                        // class. Otherwise every method called only via `self`
+                        // appears isolated (533 false positives reported in
+                        // the tree-sitter-analyzer dogfood). Note: anchor here
+                        // is the call site, not a container — we need a walker
+                        // that only collects enclosing class-like ancestors,
+                        // not build_class_chain which assumes anchor IS a
+                        // container.
+                        let self_method_target = receiver
+                            .filter(|r| matches!(*r, "self" | "cls"))
+                            .and_then(|_| {
+                                let class_chain = enclosing_class_chain(anchor, source);
+                                if class_chain.is_empty() {
+                                    None
+                                } else {
+                                    Some(format!(
+                                        "{file_path}>{}>{callee_name}",
+                                        class_chain.join(">")
+                                    ))
+                                }
+                            });
+
                         // RFC-0092: alias-aware dispatch for receiver.method() calls.
                         // If the receiver is in the alias table, rewrite to the
                         // resolved path. Otherwise fall back to intra-file lookup
                         // then bare-symbol upsert.
-                        let resolved_target = receiver
-                            .and_then(|r| alias_table.get(r))
-                            .map(|prefix| format!("{prefix}>{callee_name}"));
+                        let resolved_target = self_method_target.or_else(|| {
+                            receiver
+                                .and_then(|r| alias_table.get(r))
+                                .map(|prefix| format!("{prefix}>{callee_name}"))
+                        });
 
                         let callee_id = if let Some(qualified) = resolved_target {
                             if let Some(id) = store.lookup(&qualified) {
@@ -315,6 +340,27 @@ impl Extractor {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+/// Walk ancestors of `node` (a reference site, NOT a definition) and collect
+/// the names of enclosing class-like containers, outermost first. Used by
+/// `self.method()` / `cls.method()` resolution (issue #220) to qualify the
+/// call target with the class chain.
+///
+/// Returns `vec!["App"]` for a call inside `class App: def m(self): self.f()`.
+/// Returns `vec![]` for a free function call.
+fn enclosing_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> {
+    let mut chain: Vec<String> = Vec::new();
+    let mut cur = node;
+    while let Some(parent) = cur.parent() {
+        let kind = parent.kind();
+        if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item" {
+            chain.push(container_name(parent, source).to_owned());
+        }
+        cur = parent;
+    }
+    chain.reverse();
+    chain
+}
 
 /// Build the resolved target path that an alias binding points to
 /// (RFC-0092). Handles four import shapes:

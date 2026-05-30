@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-05-30
+
+Patch release: ships the `self.method()` / `cls.method()` resolution
+fix that addresses the dominant pattern behind 533 false positives in
+`get-isolated-symbols` from the tree-sitter-analyzer dogfood (#214).
+
+### Fixed
+
+- **`self.method()` and `cls.method()` inside a class now resolve to
+  the sibling method node** (#220, from #214 reliability report). The
+  reference pass previously fell through to bare-symbol upsert for
+  `self.X()`, so methods called only via `self` looked isolated. This
+  was the dominant pattern behind the 533 false positives in
+  `get-isolated-symbols` reported by the tree-sitter-analyzer dogfood.
+  Fix: when the call receiver is `self` or `cls`, walk ancestors to
+  the enclosing class chain and qualify the target as
+  `<file>>ClassName>method`. New `enclosing_class_chain` helper. Tests:
+  2 new assertions covering `self.foo()` and `@classmethod`+`cls.X()`
+  in `crates/mycelium-core/src/extractor/tests.rs`.
+
 ## [0.1.7] — 2026-05-30
 
 Patch release: closes the headline Python static-analysis blind spot from
