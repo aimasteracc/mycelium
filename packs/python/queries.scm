@@ -69,13 +69,41 @@
 (import_from_statement
   module_name: (relative_import) @name) @reference.import_from
 
+; ── Alias bindings (RFC-0092 — feeds the per-file alias table) ──────
+;
+; `import json as j`         → binds `j` to module `json`
+; `from . import m as n`     → binds `n` to (resolved) sibling module
+; `from M import X as Y`     → binds `Y` to `M>X`
+;
+; The @alias.local capture is the local identifier; @alias.source is the
+; module or symbol it points to. The extractor combines them with bug
+; #204's relative-import resolver to produce the final binding target.
+
+(import_statement
+  name: (aliased_import
+    name: (dotted_name) @alias.source
+    alias: (identifier) @alias.local)) @reference.alias_binding
+
+(import_from_statement
+  module_name: (_) @alias.source
+  name: (aliased_import
+    name: (_) @alias.original_name
+    alias: (identifier) @alias.local)) @reference.alias_binding
+
+; `from . import M` (no `as`) — binds `M` to the resolved sibling module.
+(import_from_statement
+  module_name: (relative_import) @alias.source
+  name: (dotted_name) @alias.local) @reference.alias_binding
+
 ; ── Call expressions (Synapse Calls edges) ──────────────────────────
 
 ; Simple function calls: foo()
 (call
   function: (identifier) @name) @reference.call
 
-; Method calls: obj.method() — capture the method name only
+; Method calls: obj.method() — capture both the receiver and the method
+; so the extractor can rewrite obj via the alias table (RFC-0092).
 (call
   function: (attribute
+    object: (identifier) @call.receiver
     attribute: (identifier) @name)) @reference.call
