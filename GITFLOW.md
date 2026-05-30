@@ -89,6 +89,16 @@ PRs to `develop` require:
 
 ### 2. Release Process (Registry-First)
 
+> **Release-gate rule (Charter §5.12, added 2026-05-30):** a `release/*`
+> branch **MUST NOT** be admin-merged to `main` unless every CI check
+> on the PR is `SUCCESS` or `SKIPPED`. No exceptions — not even with
+> founder authorization in chat. If CI is red, **diagnose, fix, push,
+> re-run; only then merge**. `gh pr merge --admin --merge` is **not**
+> a substitute for green CI on release branches. This rule was added
+> after the v0.1.4 saga where red-CI admin-merges shipped broken
+> Windows binaries; the founder flagged it with "CI 错误".
+
+
 ```bash
 git fetch origin
 git checkout -b release/v0.1.0 origin/develop

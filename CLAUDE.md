@@ -39,6 +39,7 @@ If any of the above fails or is impossible, **stop and report**, do not improvis
 - ❌ **Never reduce test coverage** without a `// coverage:skip <reason>` annotation and reviewer sign-off.
 - ❌ **Never add a new language by modifying core code.** Hard constraint: 3 files max under `packs/<lang>/`.
 - ❌ **Never ship a capability on only one surface.** [Charter §5.13 / RFC-0090](rfcs/0090-cli-mcp-skill-parity.md) — the **Three-Surface Rule** (colloquially "1:1:1"): **CLI ↔ MCP is 1:1 strict** (byte-identical name, description, args, JSON output); **(CLI, MCP) ↔ Skill is N:1 covered** — every CLI+MCP pair MUST appear in ≥ 1 `skills/<category>/SKILL.md`'s `allowed-tools`. No orphans. No Skill-only. Exceptions need an `EXCEPTION:` line in the governing RFC.
+- ❌ **Never admin-merge a `release/*` → `main` PR with red CI.** Charter §5.12 release gate: **green CI is a prerequisite, not a nice-to-have**. The reason: red-CI admin-merges shipped broken Windows binaries during the v0.1.4 saga; the founder caught it with "CI 错误". The rule is now codified — diagnose, fix, push, re-run CI; only then merge. `gh pr merge --admin` is not a substitute for green Quality Gate.
 - ✅ **Always sign commits** with `Signed-off-by:` (DCO).
 - ✅ **Always use Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`, `perf:`, `ci:`, `build:`, `meta:`).
 - ✅ **Always update `CHANGELOG.md` "Unreleased" section** when shipping a user-visible change.

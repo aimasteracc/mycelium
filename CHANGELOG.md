@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] — 2026-05-30
+
+Patch release: ships the attribute-assignment alias fix that closes
+the gap remaining after v0.1.7. Also bundles two governance + spec
+artefacts that arrived in the same window.
+
+### Fixed
+
+- **Python attribute-assignment alias pattern** (#229, follow-up to
+  RFC-0092 Phase 1). `_alias = _h.fn; _alias()` now resolves via the
+  alias table + new `chain_resolve` multi-hop walker. Closes the gap
+  that remained after v0.1.7's direct `_h.fn()` fix. Tests: 1 new
+  assertion in `crates/mycelium-core/src/extractor/tests.rs`.
+
+### Added
+
+- **Charter §5.12 release-gate rule** — a `release/*` branch MUST NOT
+  be admin-merged to `main` unless every CI check is `SUCCESS` or
+  `SKIPPED`. Codified in CHARTER.md, CLAUDE.md, and GITFLOW.md after
+  the v0.1.4 saga where red-CI admin-merges shipped broken Windows
+  binaries. The rule is now enforced by self-discipline + this
+  changelog entry.
+- **RFC-0096** drafted (type-only import edge kind) — adds
+  `EdgeKind::TypeImports` to model Python `if TYPE_CHECKING:` and
+  TypeScript `import type` patterns separately from runtime imports.
+  Closes #227's false-positive cycles when implemented (target v0.2.0).
+
 ## [0.1.8] — 2026-05-30
 
 Patch release: ships the `self.method()` / `cls.method()` resolution

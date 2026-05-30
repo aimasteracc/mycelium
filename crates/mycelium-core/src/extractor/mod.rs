@@ -304,11 +304,28 @@ impl Extractor {
                         // If the receiver is in the alias table, rewrite to the
                         // resolved path. Otherwise fall back to intra-file lookup
                         // then bare-symbol upsert.
-                        let resolved_target = self_method_target.or_else(|| {
-                            receiver
-                                .and_then(|r| alias_table.get(r))
-                                .map(|prefix| format!("{prefix}>{callee_name}"))
-                        });
+                        let receiver_target = receiver
+                            .and_then(|r| alias_table.get(r))
+                            .map(|prefix| chain_resolve(&alias_table, prefix))
+                            .map(|prefix| format!("{prefix}>{callee_name}"));
+
+                        // Issue #229: when the call is a bare identifier
+                        // (no receiver) and that identifier is in the alias
+                        // table, the callsite is `local()` where earlier we
+                        // saw `local = mod.fn`. Walk the chain so multi-hop
+                        // aliases (e.g. `local = _h.fn` and `_h` was bound
+                        // by `from . import helpers as _h`) resolve to the
+                        // real path.
+                        let bare_alias_target = if receiver.is_none() {
+                            alias_table
+                                .get(callee_name)
+                                .map(|prefix| chain_resolve(&alias_table, prefix))
+                        } else {
+                            None
+                        };
+
+                        let resolved_target =
+                            self_method_target.or(receiver_target).or(bare_alias_target);
 
                         let callee_id = if let Some(qualified) = resolved_target {
                             if let Some(id) = store.lookup(&qualified) {
@@ -340,6 +357,30 @@ impl Extractor {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+/// Chain-resolve a path through the alias table. If the leading segment of
+/// `path` (everything before the first `>`) is itself a key in the table,
+/// substitute and repeat — up to 8 hops to guard against pathological
+/// self-referencing patterns. Required for issue #229's
+/// `local = _h.fn; local()` chain where `_h` itself was bound by an earlier
+/// `from . import helpers as _h`.
+fn chain_resolve(table: &HashMap<String, String>, path: &str) -> String {
+    let mut current = path.to_string();
+    for _ in 0..8 {
+        let head = current.split('>').next().unwrap_or("");
+        if head.is_empty() || head == current {
+            break;
+        }
+        match table.get(head) {
+            Some(deeper) if deeper != head => {
+                let rest = &current[head.len()..];
+                current = format!("{deeper}{rest}");
+            }
+            _ => break,
+        }
+    }
+    current
+}
 
 /// Walk ancestors of `node` (a reference site, NOT a definition) and collect
 /// the names of enclosing class-like containers, outermost first. Used by
