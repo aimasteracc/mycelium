@@ -23,6 +23,7 @@ workspace = true
 anyhow        = { workspace = true }
 blake3        = { workspace = true }
 hashbrown     = { workspace = true }
+mycelium-pack = { workspace = true }
 rmp-serde     = { workspace = true }
 salsa                   = { workspace = true }
 serde         = { workspace = true }
