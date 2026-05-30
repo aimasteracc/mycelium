@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-05-30
+
+Patch release focused on Python correctness + Three-Surface enforcement.
+
+### Changed
+
+- **`parity.yml` promoted from informational to strict** (Charter §5.13 /
+  RFC-0090 Phase 3). The Three-Surface parity checker now runs with
+  `--strict` and exits non-zero on any I1 (Skill coverage) or I2 (no
+  Skill orphans) violation. Promoted after v0.1.5 hit 89/89 (100%)
+  coverage with zero 🟡 rows in `skills/INDEX.md`. Branch-protection
+  side of the promotion (marking the check as required on main) is a
+  founder-only repo-settings change, tracked separately.
+
+### Fixed
+
+- **Python relative imports now resolve to actual file paths** (#204,
+  bug 2 of #200). `from .models import X` in `pkg/sub/foo.py` previously
+  created an `Imports` edge to the symbolic node `.models`, so
+  `mycelium get-symbol-info pkg/sub/models.py` showed `callers: []` even
+  when there were 100+ import sites. Resolver now walks the dot prefix
+  against the importing file's directory: `.X → sibling.py`,
+  `..X → parent package's X.py`. Absolute imports keep the symbolic-node
+  behaviour pending the alias-table work in #205. Tests: 4 new
+  assertions in `crates/mycelium-core/src/extractor/tests.rs`.
+
 ## [0.1.5] — 2026-05-30
 
 The "100% Three-Surface" release. Every MCP tool now has a 1:1 CLI twin,

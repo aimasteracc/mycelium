@@ -4,8 +4,11 @@ name: Three-Surface Parity (RFC-0090)
 # (Invariant I1) and that every Skill reference resolves to a real MCP
 # tool (Invariant I2).
 #
-# Phase 1 (current): informational — reports coverage, never blocks merge.
-# Phase 3 (v0.2.0):  --strict flag added; gate is required on main.
+# Phase 3 (v0.1.6+): --strict — exits non-zero on any I1/I2 violation.
+# Promoted from informational after v0.1.5 hit 89/89 (100%) coverage.
+# Branch protection should mark this check as required on main; until
+# that flips, the job's red status is still actionable to PR authors
+# via the standard check display.
 
 on:
   push:
@@ -29,7 +32,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Three-Surface parity checker
-        run: python3 scripts/check_skill_parity.py
-        # Phase 1: exits 0 always (informational).
-        # Promote to `--strict` in v0.2.0 to make this gate blocking.
+      - name: Run Three-Surface parity checker (strict)
+        run: python3 scripts/check_skill_parity.py --strict
