@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0093: MCP application-level error model foundation** (#209).
+  New `crates/mycelium-mcp/src/error.rs` module provides `success_json`,
+  `application_error`, `not_found`, `not_indexed`, and `invalid_path`
+  helpers that wrap `rmcp::model::CallToolResult` with the correct
+  `is_error` flag per the MCP spec. MCP clients can now branch on
+  `is_error: true` for application errors (symbol not found, index not
+  loaded, invalid path) without string-parsing the response body.
+  13 TDD tests written before implementation per Charter §5.1.
+  Phase 2 (migrate all 89 tools to use these helpers) lands in v0.2.0.
+
 - **RFC-0094 Phase 1: token-efficient output formatter foundation** (#210).
   New `crates/mycelium-mcp/src/formatter.rs` module ships the
   `Formatter` trait plus three implementations: `JsonFormatter`
