@@ -171,6 +171,9 @@ pub enum EdgeKind {
     Calls,
     /// File imports from another file/module.
     Imports,
+    /// Type-annotation-only import (`if TYPE_CHECKING:` / `import type`).
+    /// Never executed at runtime; kept separate so cycle detection stays clean.
+    TypeImports,
     /// File exports a symbol.
     Exports,
     /// Class/interface inheritance.
@@ -205,6 +208,7 @@ impl EdgeKind {
             Self::Contains => "contains",
             Self::Calls => "calls",
             Self::Imports => "imports",
+            Self::TypeImports => "type_imports",
             Self::Exports => "exports",
             Self::Extends => "extends",
             Self::Implements => "implements",
@@ -474,6 +478,7 @@ mod tests {
             (EdgeKind::Contains, "contains"),
             (EdgeKind::Calls, "calls"),
             (EdgeKind::Imports, "imports"),
+            (EdgeKind::TypeImports, "type_imports"),
             (EdgeKind::Exports, "exports"),
             (EdgeKind::Extends, "extends"),
             (EdgeKind::Implements, "implements"),
@@ -498,6 +503,7 @@ mod tests {
             EdgeKind::Contains,
             EdgeKind::Calls,
             EdgeKind::Imports,
+            EdgeKind::TypeImports,
             EdgeKind::Exports,
             EdgeKind::Extends,
             EdgeKind::Implements,
