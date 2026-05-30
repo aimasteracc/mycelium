@@ -864,3 +864,86 @@ fn extractor_python_extends_cross_file_resolves_to_definition() {
         "bare stub 'Base' must be removed after resolution"
     );
 }
+
+// ── issues #267/#268: cross-file Extends with multiple candidates ───────────
+
+/// When multiple files define a class with the same name (real def + test mocks),
+/// `resolve_bare_call_stubs()` cannot disambiguate (`matches.len() > 1`) and leaves
+/// the Extends edge pointing to the bare stub. The fix: use the alias table at
+/// extraction time to pick the correct file-path definition.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_cross_file_extends_alias_table_wins_over_bare_stub_ambiguity() {
+    // Two mock files also define "Base" — this would make resolve_bare_call_stubs
+    // give up (3 candidates). With alias table fix, the extractor creates the
+    // Extends edge pointing to base.py>Base directly at extraction time.
+    let ext = python_extractor();
+    let mut store = Store::new();
+
+    ext.extract("mock1.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract("mock2.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract("base.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    // sub.py explicitly imports Base from base — the alias table knows the source.
+    ext.extract(
+        "sub.py",
+        b"from base import Base\nclass Sub(Base):\n    pass",
+        &mut store,
+    )
+    .unwrap();
+
+    store.resolve_bare_call_stubs();
+
+    let sub = store.lookup("sub.py>Sub").expect("sub.py>Sub must exist");
+    let base = store
+        .lookup("base.py>Base")
+        .expect("base.py>Base must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "sub.py>Sub must extend base.py>Base (the explicitly imported definition, not a mock)"
+    );
+}
+
+/// Issue #268: `get-descendants --include-inherited` returns 0 inherited methods
+/// when the base class is in a different file with multiple same-name candidates.
+/// After the alias table fix, the `inherited_descendants_of_path()` call must find
+/// the base class methods.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_cross_file_inherited_descendants_resolves_via_alias_table() {
+    let ext = python_extractor();
+    let mut store = Store::new();
+
+    // Two extra "Base" classes to create ambiguity for resolve_bare_call_stubs.
+    ext.extract("mock.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract(
+        "base.py",
+        b"class Base:\n    def method_a(self): pass\n    def method_b(self): pass",
+        &mut store,
+    )
+    .unwrap();
+    // sub.py imports Base explicitly and overrides only method_a.
+    ext.extract(
+        "sub.py",
+        b"from base import Base\nclass Sub(Base):\n    def method_a(self): pass",
+        &mut store,
+    )
+    .unwrap();
+
+    store.resolve_bare_call_stubs();
+
+    let inherited = store
+        .inherited_descendants_of_path("sub.py>Sub")
+        .unwrap_or_default();
+    assert!(
+        inherited.iter().any(|(p, _)| p.ends_with(">method_b")),
+        "method_b (not overridden) must appear in inherited descendants"
+    );
+    assert!(
+        !inherited.iter().any(|(p, _)| p.ends_with(">method_a")),
+        "method_a (overridden in Sub) must NOT appear in inherited descendants"
+    );
+}

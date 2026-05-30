@@ -95,6 +95,14 @@
   module_name: (relative_import) @alias.source
   name: (dotted_name) @alias.local) @reference.alias_binding
 
+; `from M import X` (absolute, no `as`) — implicit alias: X binds to M>X.
+; issues #267/#268: feeds the per-file alias table so that `class Sub(X):` can
+; resolve the Extends edge to M>X at extraction time, bypassing the ambiguous
+; bare-stub path that fails when multiple files define a class named X.
+(import_from_statement
+  module_name: (dotted_name) @alias.source
+  name: (dotted_name) @alias.original_name) @reference.alias_binding
+
 ; Issue #229: attribute-assignment alias.
 ; `local = module_alias.fn` — binds `local` to `module_alias>fn`.
 ; If `module_alias` is itself a local alias (from any import-alias above),

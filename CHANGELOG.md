@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Issues #267/#268: cross-file Extends edges now resolve correctly when multiple files define
+  a class with the same name**. Previously, `subclasses-tree` with a full symbol path returned
+  only same-file subclasses, and `get-descendants --include-inherited` returned 0 inherited
+  methods for cross-file base classes. Root cause: the `reference.extends` extractor handler
+  fell back to a bare stub (e.g. `LanguagePlugin`) when the base class was cross-file; with
+  test mocks also named `LanguagePlugin`, `resolve_bare_call_stubs()` found multiple candidates
+  and gave up. Fix: a new `from M import X` (absolute, no `as`) alias-binding query feeds the
+  per-file alias table, and the extends handler resolves the base class via the alias table
+  (dotted module path converted to file path) before falling back to a bare stub. 2 new TDD
+  tests. Pack change synced to embedded MCP and CLI copies.
+
 - **Issue #214 Pattern 3: depth-2+ attribute chain calls no longer create global bare stubs**.
   `self.history.append(x)` (and any call through a chain of depth > 1) previously emitted a
   global bare-name node (`append`) that absorbed every same-named call across the entire
