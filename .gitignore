@@ -94,3 +94,4 @@ tmp/
 
 # Phantom files (intermediate artefacts from pack-parity check)
 crates/mycelium-mcp/phantom/
+tests/e2e/fixtures/
