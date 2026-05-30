@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI parity backfill batch 10 — FINAL** (v0.1.5, PR #187): 10 new
+  cross-category CLI subcommands + INDEX cleanup. **Three-Surface
+  compliance now 100% (0 🟡 rows in `skills/INDEX.md`).**
+  - New CLI: `mycelium get-node-degree`, `get-files`,
+    `get-symbol-count-by-kind`, `get-leaf-symbols`,
+    `get-common-callers`, `get-common-callees`, `get-common-reachable`,
+    `get-mutual-reachability`, `find-call-path`, `find-import-path`.
+  - Status flips for capabilities whose CLI was already shipped under
+    a different batch: `betweenness_centrality`, `page_rank`,
+    `get_graph_metrics`, `get_wcc`, `get_degree_histogram`,
+    `index_workspace` (alias of `mycelium index`).
+  - 4 capabilities marked `EXCEPTION: MCP-only` per RFC-0090 — they
+    have no meaningful CLI surface: `load_index` (CLI loads per
+    invocation), `watch_status`, `set_compact_mode`, `get_token_stats`.
+
 - **CLI parity backfill batch 9** (v0.1.5): all 4 `batch-ops`
   capabilities. Three-Surface compliant: 69 → 73 / 89 (82%).
 
