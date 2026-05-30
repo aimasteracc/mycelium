@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue #211: Cross-tool MCP response contract tests**.
+  New `crates/mycelium-mcp/tests/contract.rs` spins up an in-process
+  `MyceliumServer` + rmcp client over `tokio::io::duplex` and verifies
+  three invariants for all 89 registered tools: (1) tool count equals the
+  expected constant (`EXPECTED_TOOL_COUNT = 89`), (2) every tool returns
+  non-empty content when called with catch-all arguments, (3) every tool
+  manifest carries a non-empty description string. Tests use the rmcp
+  `client` feature; `Cargo.toml` dev-deps updated accordingly.
+
 - **RFC-0094 Phase 2 PoC: `output_format` per-request for basic-query tools** (#210).
   Three tools (`mycelium_search_symbol`, `mycelium_get_ancestors`,
   `mycelium_get_descendants`) now accept an optional `output_format`
