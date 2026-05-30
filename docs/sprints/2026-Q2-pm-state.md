@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #266 + #270 merged; #267/#268 triaged P1; release/v0.1.11 ready to cut) |
-| Current sprint | **v0.1.11 — COMPLETE ✅ (release/v0.1.11 to cut)** |
-| Active release branch | none — release agent should cut release/v0.1.11 now |
-| Next release target | **v0.1.11** — Python inheritance + RFC-0094 + MCP is_error + Pattern 3 fix |
+| Last updated | 2026-05-30 (PM dispatch — #267/#268 fixed via PR #272; #269 docs PR #273; RFC-0094 MCP README PR #274; release/v0.1.11 branch cut, PR #275 open targeting main) |
+| Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
+| Active release branch | `release/v0.1.11` — PR #275 open targeting main |
+| Next release target | **v0.1.12** — issue #214 Pattern 2 (destructured imports), RFC-0092 Phase 2/3 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -31,31 +31,39 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0: none** — no blocking issues.
+**P0: Founder authorization** — PR #275 (release/v0.1.11 → main) is open. Requires founder to:
+  1. Verify CI green on PR #275
+  2. Admin-merge PR #275 to main
+  3. Push tag v0.1.11
+  4. Trigger crates.io publish (requires `RELEASE_BOT_TOKEN`)
+  5. Open back-merge PR: main → develop
 
-**P1 (action items):**
-1. **Cut release/v0.1.11** — all sprint exit criteria met + bonus PRs #266 and #270 landed.
-   Release agent task: `git checkout -b release/v0.1.11 develop`, bump version, seal CHANGELOG.
-2. **Issue #267** — `subclasses-tree` full-path only finds same-file subclasses. Root cause:
-   `resolve_bare_call_stubs()` stores Extends edge targets as bare names; reverse lookup expects
-   full-path nodes. rust-implementer TDD task for v0.1.12. Governs by RFC-0092.
-3. **Issue #268** — `get-descendants --include-inherited` returns 0 for cross-file base classes.
-   Same root cause as #267 (Extends edge target resolution). Same fix, same sprint. TDD task.
-4. **Issue #214 (Python reliability — Pattern 2)** — destructured imports file-level under-count.
-   Still open after Pattern 3 fixed by PR #270. Requires RFC-0092 Phase 2/3. v0.1.12 scope.
+  ⚠️ `release.yml` finalize job has failed on v0.1.6 and v0.1.10. Recommend manual verify.
+
+**P1 (v0.1.12 sprint — next up after release ceremony):**
+1. **RFC-0092 Phase 2 — TypeScript import alias resolution** — `import { foo as bar }`,
+   `import * as ns`, `import Foo from './mod'` patterns need `@reference.alias_binding`
+   captures in `packs/typescript/queries.scm` + TS relative-path resolver in extractor.
+   Pack-author + rust-implementer. Medium effort (~1 PR). RFC-0092 is the governing doc.
+2. **Issue #214 Pattern 3 — re-verify** — `HealthHistory.append` 1472→~36 callers: user
+   must re-run v0.1.11 against tree-sitter-analyzer to confirm Pattern 3 is fixed by PR #270.
+   Posted re-verify comment on #214. Close issue once confirmed.
+   NOTE: Patterns 1+2 of #214 were already fixed in v0.1.6/v0.1.7 (PRs #207/#217).
+   The PM state was incorrectly listing Pattern 2 as open — it is not.
 
 **P2 (v0.1.12 scope):**
-5. **Issue #206 S1 (MCP `is_error` sweep) — DONE** ✅ PR #266 merged this run. All 90 tools
-   now return `is_error: Some(true)` on error paths.
-6. **Issue #206 S2** — Token-efficient text output. RFC-0094 Phase 1+3 landed; per-transport
-   default config is the remaining work. Low effort.
-7. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
-8. **Issue #269** — Document autouse conftest fixture limitation in README / help text.
-   Low effort, high user-facing value.
+3. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
+4. **Issue #206 remaining** — RFC-0094 round-trip test + token-saving bench (deferred to v0.2.0).
 
 **P3 (v0.2.0 backlog):**
-9. Skill marketplace submission metadata: icon, screenshots, category examples.
-10. End-to-end “first 5 minutes” walkthrough / asciinema recording.
+5. Skill marketplace submission metadata: icon, screenshots, category examples.
+6. End-to-end “first 5 minutes” walkthrough / asciinema recording.
+
+**Closed this session (2026-05-30):**
+- ✅ #267 — cross-file `subclasses-tree` (PR #272)
+- ✅ #268 — cross-file `get-descendants --include-inherited` (PR #272)
+- ✅ #269 — autouse conftest fixture limitation docs (PR #273)
+- ✅ #206 S2 — MCP README output_format docs (PR #274)
 
 ---
 
@@ -76,18 +84,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-30, PM run — v0.1.11 + #266 + #270 all on develop)
+## Dispatch state (2026-05-30, PM run — release/v0.1.11 PR #275 open, awaiting founder)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **P0 NOW** | Cut release/v0.1.11 (develop has 9 sprint items + MCP is_error + Pattern 3). |
-| rust-implementer | **next-up** | Issues #267 + #268: cross-file Extends reverse lookup (bare-name → full-path upgrade in resolve_bare_call_stubs). After v0.1.11 ships. |
-| pack-author | **next-up** | Issue #214 Pattern 2: destructured imports file-level under-count (RFC-0092 Phase 2). After v0.1.11 ships. |
-| architect | idle | RFC-0092 Phase 2 scoping for #267/#268 root cause (edge target canonicalization). |
-| tech-writer | idle | Issue #269: document autouse conftest limitation. Low effort, after v0.1.11 ships. |
+| release | **BLOCKED (decision gate)** | PR #275 (release/v0.1.11 → main): needs founder to merge + publish. |
+| pack-author | **active** | RFC-0092 Phase 2: TypeScript import alias resolution. Branch: feature/rfc0092-ts-aliases. |
+| rust-implementer | **next-up** | RFC-0092 Phase 2: TS resolver in extractor/mod.rs after pack-author finishes queries.scm. |
+| tech-writer | **done** | #269 documented (PR #273 merged). #214 re-verify comment posted. |
 | code-reviewer | idle | Blocks on PR opens. |
 | security-reviewer | idle | Routine scan: post-v0.1.11. |
-| e2e-runner | idle | Regression tests for #267/#268 after rust-implementer fix. |
+| e2e-runner | idle | v0.1.12 regression tests after TS alias PR lands. |
 
 ---
 
