@@ -1303,8 +1303,8 @@ impl Default for MyceliumServer {
 impl MyceliumServer {
     /// Create a fresh server with an empty in-memory store and no path restrictions.
     ///
-    /// **For unit tests only.** Production code should use [`new_with_allowed_roots`]
-    /// or [`with_root_and_allowed_roots`] so the server enforces RFC-0097 boundaries.
+    /// **For unit tests only.** Production code should use [`Self::new_with_allowed_roots`]
+    /// or [`Self::with_root_and_allowed_roots`] so the server enforces RFC-0097 boundaries.
     #[must_use]
     pub fn new() -> Self {
         Self {
