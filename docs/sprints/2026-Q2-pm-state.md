@@ -5,27 +5,38 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (Issue #214 verified CLOSED — all 3 patterns fixed by earlier PRs; zero open issues; only PR #275 release blocked on founder auth) |
-| Current sprint | **v0.1.12 — planning** |
-| Active release branch | `release/v0.1.11` — open as PR #275, BLOCKED on founder crates.io auth |
-| Next release target | **v0.1.11** — all develop items merged; release pending founder |
+| Last updated | 2026-05-31 — **v0.1.11 SHIPPED** ✅ full ceremony complete (tag pushed, crates.io/npm/PyPI published, back-merged to develop) |
+| Current sprint | **v0.1.12 — kickoff** |
+| Active release branch | none |
+| Next release target | **v0.1.12** — planning in progress |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
+| Last shipped | **v0.1.11 — Python cross-file Extends, MCP is_error, token-efficient output** (tag v0.1.11, crates.io / npm / PyPI published 2026-05-31) |
 
 ---
 
-## 🚀 v0.1.10 — SHIPPED ✅
+## 🚀 v0.1.11 — SHIPPED ✅
 
 **What shipped:**
-- [x] `if TYPE_CHECKING:` imports no longer create `Imports` edges (PR closes #227). 2 TDD tests.
-- [x] Nested attribute call regression restored (`self.history.append(x)` and similar). 1 TDD test.
-- [x] Charter §5.12 release-gate rule codified in CHARTER.md, CLAUDE.md, GITFLOW.md (v0.1.9 governance).
+- [x] Python class inheritance (Extends edges, cross-file, attribute-form base classes)
+- [x] `get-callers --include-virtual`, `get-descendants --include-inherited`
+- [x] MCP `is_error` sweep — all 90 tool handlers (Issue #206 S1)
+- [x] Token-efficient `output_format: text/json` per transport — RFC-0094 Phase 2+3
+- [x] RFC-0092 alias resolution — TypeScript, JavaScript, Python
+- [x] RFC-0095 runtime pack loading via `MYCELIUM_PACKS_DIR`
+- [x] Charter §2 SLA 100K-node in <30s
+- [x] Issue #214 Pattern 3 (false callers eliminated); Issue #286 (dead-symbol false positives)
 
-**Post-v0.1.10 ceremony:**
-- [x] Tag v0.1.10 pushed, crates.io / npm / PyPI published.
-- [x] PR #240 (release/v0.1.10 → develop back-merge) merged — **ceremony complete**.
-- [x] PR #241 (RFC-0094 Phase 1 Formatter trait) merged to develop.
-- [~] `merge to main, tag, GitHub Release` finalize job failed again (same pattern as v0.1.6). The release was manually recovered. **Escalation to founder**: review `release.yml` finalize job for systemic failure (GitHub Release page creation / auto-merge to main) — happens repeatedly.
+**Post-v0.1.11 ceremony:**
+- [x] Tag v0.1.11 pushed (commit 6eb4a5c on main)
+- [x] crates.io / npm / PyPI published (CI confirmed green)
+- [x] GitHub Release page: https://github.com/aimasteracc/mycelium/releases/tag/v0.1.11
+- [x] PR #315 (release/v0.1.11 → develop back-merge) merged — **ceremony complete ✅**
+
+---
+
+## 🚀 v0.1.10 — SHIPPED ✅ (archived)
+
+- [x] `if TYPE_CHECKING:` guard, nested-attribute fallback, Charter §5.12 governance.
 
 ---
 
@@ -34,11 +45,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **Cut release/v0.1.11** — BLOCKED: requires founder authorization to publish to crates.io.
-   v0.1.11 sprint exit criteria 9/9 met; develop is release-ready. Waiting on founder.
-2. **Issue #214 (Python reliability)** — CLOSED ✅ 2026-05-31. Verification showed all 3 patterns
-   were fixed by earlier PRs: Pattern 1 by RFC-0092 PRs #277/#278, Pattern 2 by PRs #283/#289,
-   Pattern 3 by PR #270. All 60+ extractor tests green on develop HEAD.
+1. **v0.1.12 sprint kickoff** — develop already has 9 fixes (Issues #292–#297, #293–#294, #301) ready. Post-v0.1.11 security scan needed.
+2. **Issue #214 (Python reliability)** — CLOSED ✅ 2026-05-31. All 3 patterns verified fixed.
 
 **P2 (v0.1.12 scope — develop ready):**
 3. **Issue #206** — CLOSED ✅. All sub-issues resolved: is_error sweep (#266), token output (RFC-0094), formatter bench (#288), runtime packs (RFC-0095 #279/#280).
@@ -62,34 +70,32 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **Charter §2 SLA 100K-node row** — PR #262 merged. 6 SLA tests pass in <1s; limit 30s.
 - [x] **Issue #221 get-dependency-depth**: CLOSED 06:47 (completed — method dispatch improved enough to remove this as a separate issue).
 - [x] **Packs-sync CI gate** — PR #263 syncs stale embedded Python packs + adds `check_pack_parity.sh` + `pack-parity` CI job. PR #264 adds cross-file Extends regression guard.
-- [~] **Issue #214 Pattern 2 or 3**: Deferred to v0.1.12 (requires RFC-0092 Phase 2/3, significant effort). **Not blocking release.**
+- [x] **Issue #214**: All 3 Python reliability patterns verified fixed — CLOSED ✅ 2026-05-31. Pattern 1 (RFC-0092 #277/#278), Pattern 2 (#283/#289), Pattern 3 (#270).
 
-**Judgment**: 9 of 9 criteria met (counting issue #221 closure). Issue #214 is explicitly deferred — the sprint over-delivered on Python inheritance (Extends edges, virtual dispatch, `include-inherited`, `include-virtual`) which addresses the root of #214.
+**Judgment**: 10 of 10 criteria met. Issue #214 closed post-release after verification that all 3 patterns were already fixed by earlier PRs — sprint actually over-delivered.
 
 ---
 
-## Dispatch state (2026-05-31, all issues closed — awaiting release)
+## Dispatch state (2026-05-31, v0.1.11 shipped — v0.1.12 kickoff)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish). PR #275 open. |
-| rust-implementer | **IDLE** | **Zero open issues.** Queue fully exhausted. Awaiting new issues or v0.1.11 ship. |
+| release | **IDLE** | v0.1.11 ceremony complete ✅ (tag v0.1.11, crates.io/npm/PyPI, PR #315 back-merge). Next: cut release/v0.1.12 when sprint exits. |
+| rust-implementer | **IDLE** | **Zero open issues.** Awaiting new v0.1.12 sprint issues. |
 | pack-author | **IDLE** | Issue #214 closed — all Python alias patterns verified fixed. No pending pack work. |
 | architect | idle | RFC-0092 Phase 2/3 was fully implemented (PRs #277/#278/#283). No further scope needed. |
 | tech-writer | idle | Asciinema walkthrough recording. After v0.2.0. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | idle | Next scan: post-v0.1.11. |
+| security-reviewer | **NEXT UP** | Post-v0.1.11 security scan due. |
 | e2e-runner | idle | No pending regression tests. |
 
 ### Open PRs (2026-05-31)
 
-| PR | Branch | Title | Status |
-|---|---|---|---|
-| #275 | release/v0.1.11 | v0.1.11 release | **BLOCKED** — founder crates.io auth required |
+**None.** PR #275 merged to main 2026-05-31; PR #315 (back-merge) merged.
 
 ### Open Issues (2026-05-31)
 
-**None.** Issue #214 closed 2026-05-31 after verification that all 3 patterns were already fixed.
+**None.** All issues closed; Issue #214 closed 2026-05-31 after verification all 3 patterns fixed.
 
 ---
 
