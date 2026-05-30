@@ -189,6 +189,13 @@ pub struct GetAncestorsRequest {
 pub struct GetDescendantsRequest {
     /// Trunk path to look up, e.g. `"src/lib.rs"`.
     pub path: String,
+    /// When `true`, also return methods inherited from base classes via
+    /// Extends edges. Inherited methods appear in an `inherited_descendants`
+    /// array, each entry as `{"path": "...", "from": "..."}`. Methods
+    /// overridden by the class are excluded from the inherited list.
+    /// Defaults to `false` for backward compatibility.
+    #[serde(default)]
+    pub include_inherited: Option<bool>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -1255,13 +1262,26 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetDescendantsRequest>,
     ) -> String {
-        let descendants = self
-            .store
-            .read()
-            .await
-            .descendants_of_path(&req.path)
-            .unwrap_or_default();
-        let value = serde_json::json!({ "descendants": descendants });
+        let (descendants, inherited_opt) = {
+            let store = self.store.read().await;
+            let d = store.descendants_of_path(&req.path).unwrap_or_default();
+            let i = if req.include_inherited == Some(true) {
+                store
+                    .inherited_descendants_of_path(&req.path)
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            };
+            (d, i)
+        };
+        let mut value = serde_json::json!({ "descendants": descendants });
+        if req.include_inherited == Some(true) {
+            let inherited = inherited_opt
+                .into_iter()
+                .map(|(path, from)| serde_json::json!({ "path": path, "from": from }))
+                .collect::<Vec<_>>();
+            value["inherited_descendants"] = serde_json::Value::Array(inherited);
+        }
         req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -4346,6 +4366,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs".to_string(),
+                include_inherited: None,
                 output_format: None,
             }))
             .await;
@@ -4368,6 +4389,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs>greet".to_string(),
+                include_inherited: None,
                 output_format: None,
             }))
             .await;
@@ -4384,6 +4406,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "no/such>path".to_string(),
+                include_inherited: None,
                 output_format: None,
             }))
             .await;
@@ -4391,6 +4414,90 @@ mod tests {
         assert!(
             val["descendants"].as_array().unwrap().is_empty(),
             "unknown path should yield empty descendants list"
+        );
+    }
+
+    // ── issue #248: get-descendants with include_inherited ────────────────────
+
+    /// Helper: server with a base class and a subclass that has its own method.
+    async fn server_with_descendants_inheritance_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            // Base class: pkg/base.py>BaseClass with methods foo and shared
+            let base_file = store.upsert_node(TrunkPath::parse("pkg/base.py").unwrap());
+            let base_cls = store.upsert_node(TrunkPath::parse("pkg/base.py>BaseClass").unwrap());
+            let base_foo =
+                store.upsert_node(TrunkPath::parse("pkg/base.py>BaseClass>foo").unwrap());
+            let base_shared =
+                store.upsert_node(TrunkPath::parse("pkg/base.py>BaseClass>shared").unwrap());
+            store.upsert_edge(EdgeKind::Contains, base_file, base_cls);
+            store.upsert_edge(EdgeKind::Contains, base_cls, base_foo);
+            store.upsert_edge(EdgeKind::Contains, base_cls, base_shared);
+            // Sub class: pkg/sub.py>SubClass with its own bar + shared (override)
+            let sub_file = store.upsert_node(TrunkPath::parse("pkg/sub.py").unwrap());
+            let sub_cls = store.upsert_node(TrunkPath::parse("pkg/sub.py>SubClass").unwrap());
+            let sub_bar = store.upsert_node(TrunkPath::parse("pkg/sub.py>SubClass>bar").unwrap());
+            let sub_shared =
+                store.upsert_node(TrunkPath::parse("pkg/sub.py>SubClass>shared").unwrap());
+            store.upsert_edge(EdgeKind::Contains, sub_file, sub_cls);
+            store.upsert_edge(EdgeKind::Contains, sub_cls, sub_bar);
+            store.upsert_edge(EdgeKind::Contains, sub_cls, sub_shared);
+            // Inheritance: SubClass extends BaseClass
+            store.upsert_edge(EdgeKind::Extends, sub_cls, base_cls);
+        }
+        server
+    }
+
+    #[tokio::test]
+    async fn get_descendants_include_inherited_returns_base_methods() {
+        let server = server_with_descendants_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "pkg/sub.py>SubClass".to_string(),
+                include_inherited: Some(true),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let inherited = val["inherited_descendants"]
+            .as_array()
+            .expect("include_inherited=true must produce an inherited_descendants array");
+        // `foo` is inherited (not overridden in SubClass)
+        assert!(
+            inherited
+                .iter()
+                .any(|v| v["path"].as_str() == Some("pkg/base.py>BaseClass>foo")),
+            "inherited_descendants must include BaseClass>foo (not overridden)"
+        );
+        // `shared` is overridden in SubClass — must NOT appear in inherited
+        assert!(
+            !inherited
+                .iter()
+                .any(|v| v["path"].as_str() == Some("pkg/base.py>BaseClass>shared")),
+            "shared is overridden; must not appear in inherited_descendants"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_descendants_default_unchanged_without_include_inherited() {
+        let server = server_with_descendants_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "pkg/sub.py>SubClass".to_string(),
+                include_inherited: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // Without include_inherited, inherited_descendants must be absent or empty
+        let inherited_absent = val["inherited_descendants"].is_null()
+            || val["inherited_descendants"]
+                .as_array()
+                .is_none_or(Vec::is_empty);
+        assert!(
+            inherited_absent,
+            "without include_inherited, inherited_descendants must not appear"
         );
     }
 
@@ -9772,6 +9879,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs".to_string(),
+                include_inherited: None,
                 output_format: Some(OutputFormat::Text),
             }))
             .await;
