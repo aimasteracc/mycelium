@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Skill marketplace metadata** — All 10 category Skill files now include `category`,
+  `icon`, and `marketplace_examples` frontmatter fields plus a `## Quick examples` table.
+  Enables Skill marketplace submission for v0.2.0. Template updated for future Skill authors.
+  Categories: `navigation` (basic-queries 🔍, hyphae-query 🌿), `analysis` (call-graph 📞,
+  import-graph 📦, inheritance 🌳, reachability 🔗, centrality ⭐, graph-structure 🕸️),
+  `operations` (batch-ops ⚡, index-management 🗃️). (PR #284)
+
 - **RFC-0095: `mycelium index --packs-dir <dir>`** — the CLI `index` subcommand now accepts
   an optional `--packs-dir <dir>` flag. When provided, language packs are loaded from the
   given directory via `PackRegistry`; file extensions not covered by the 10 built-in grammars
