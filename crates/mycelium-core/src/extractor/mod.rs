@@ -249,6 +249,13 @@ impl Extractor {
 
                 match cap_name {
                     "reference.import" | "reference.import_from" => {
+                        // Issue #227: imports inside `if TYPE_CHECKING:` are
+                        // type-annotation-only (TYPE_CHECKING is always False
+                        // at runtime). Including them causes false-positive
+                        // cycle reports; skip them entirely.
+                        if is_inside_type_checking_block(anchor, source) {
+                            continue;
+                        }
                         let mod_name = name_text.unwrap_or("_unknown");
                         // Issue #204: Python relative imports (`.X` / `..X`)
                         // resolve to actual file paths relative to the
@@ -571,6 +578,36 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
         .unwrap_or("_Unknown");
     // Strip generic parameters (e.g. "Vec<T>" → "Vec").
     text.split('<').next().unwrap_or(text)
+}
+
+/// Return `true` if `node` is a direct child of an `if TYPE_CHECKING:` block.
+///
+/// Python's `TYPE_CHECKING` constant (from `typing`) is always `False` at
+/// runtime; imports guarded by it are annotation-only and must not contribute
+/// to the Imports graph (issue #227). We check immediate context only —
+/// nested `if TYPE_CHECKING:` inside a function is unusual and treated the
+/// same way.
+fn is_inside_type_checking_block(node: tree_sitter::Node<'_>, source: &[u8]) -> bool {
+    let mut cur = node;
+    while let Some(parent) = cur.parent() {
+        if parent.kind() == "if_statement" {
+            let cond_is_type_checking = parent
+                .child_by_field_name("condition")
+                .and_then(|cond| {
+                    if cond.kind() == "identifier" {
+                        cond.utf8_text(source).ok()
+                    } else {
+                        None
+                    }
+                })
+                .is_some_and(|text| text == "TYPE_CHECKING");
+            if cond_is_type_checking {
+                return true;
+            }
+        }
+        cur = parent;
+    }
+    false
 }
 
 /// Convert a tree-sitter node's position to a [`SourceSpan`].
