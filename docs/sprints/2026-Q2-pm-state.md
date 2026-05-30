@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #289 merged; Issue #286 fixed; P2 queue empty; only P0 founder gate + P1 Pattern 3 re-verify remain) |
+| Last updated | 2026-05-30 (PM dispatch — PR #291 merged; RFC-0092 status→Implemented, RFC-0094 status→Partially Implemented; autonomous queue exhausted; founder action required for PR #275) |
 | Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
 | Active release branch | `release/v0.1.11` — PR #275 open targeting main |
 | Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed) |
