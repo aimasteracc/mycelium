@@ -85,3 +85,12 @@ build/
 # Temporary
 tmp/
 .tmp/
+
+# Runtime index (written by mycelium watch/index)
+.mycelium/
+
+# Claude Code session artifacts
+.claude/scheduled_tasks.lock
+
+# Phantom files (intermediate artefacts from pack-parity check)
+crates/mycelium-mcp/phantom/
