@@ -5,27 +5,20 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — v0.1.6 shipped; RFC-0092 merged; PR #217 in CI) |
-| Current sprint | **v0.1.7 planning** |
-| Active release branch | none — v0.1.6 shipped |
-| Next release target | **v0.1.7** — Python accuracy + MCP error model |
+| Last updated | 2026-05-30 (PM dispatch — v0.1.8 latest; #229 attr-assignment alias fix in PR #231 CI; #227 TYPE_CHECKING fix pushed as `fix/227-type-checking-import-guard`) |
+| Current sprint | **v0.1.9 planning** |
+| Active release branch | none — v0.1.8 shipped |
+| Next release target | **v0.1.9** — Python accuracy (PRs #231 + #227 guard) + MCP error model (#209) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.6 — Python relative imports + parity strict** (tag v0.1.6, crates.io / npm / PyPI published 2026-05-30) |
+| Last shipped | **v0.1.8 — self/cls method resolution** (tag v0.1.8, crates.io published 2026-05-30) |
 
 ---
 
-## 🚀 v0.1.6 — SHIPPED ✅
+## 🚀 v0.1.8 — SHIPPED ✅
 
 **What shipped:**
-- [x] `parity.yml` promoted from informational → `--strict` (PR #208). CLI parity is now a required CI gate.
-- [x] Python relative imports resolve to actual file paths (PR #207, closes #204).
-- [x] 8 CI anti-patterns + 3 lessons recorded in memory (PR #202).
-- [x] Version bumped 0.1.5 → 0.1.6; CHANGELOG sealed (PR #213, release/v0.1.6 → develop).
-
-**Known post-release gap**: GitHub Release notes for v0.1.6 may not have been created (the
-`merge to main, tag, GitHub Release` job in the release workflow failed for the back-merge PR #215,
-though the tag and crates were published). The tag `v0.1.6` exists on remote. **Escalation
-to founder** to verify GitHub Release page and create it if missing.
+- [x] `self.method()` / `cls.method()` inside a class now resolve to sibling methods (#220, from #214 reliability report). Fixes dominant pattern behind 533 false positives in `get-isolated-symbols`.
+- [x] `get-dependency-depth` expected to improve for complex Python methods (issue #221 — verify post-v0.1.9).
 
 ---
 
@@ -34,69 +27,56 @@ to founder** to verify GitHub Release page and create it if missing.
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **PR #217 (fix/205-python-alias-resolution)** — CI running (nearly green: 18/19 checks ✅,
-   Windows tests in_progress). Closes issue #205 (alias-table dispatch, Bug 1 of #200).
-   Governing RFC: RFC-0092 (merged PR #216). **Merge when Quality Gate passes.**
-2. **PR #218 (fix/decisions-jsonl-conflict)** — CI starting. Resolves memory corruption (conflict
-   markers in `.hive/memory/decisions.jsonl`). **Merge when CI green.**
-3. **Issue #214** — Comprehensive Python reliability report (3 additional accuracy bugs beyond
-   #205): Pattern 2 (destructured imports file-level under-count), Pattern 3 (transitive alias
-   over-count causing 1,472 false callers), `get-isolated-symbols` 533 false positives (intra-file
-   calls not tracked), `get-dependency-depth` returns 0 for method chains. **Needs RFC-0092 Phase
-   2 scoping.** Pack-author + rust-implementer task for v0.1.7.
-4. **Issue #200 (parent)** — Bug 2 (destructured imports) + Bug 3 (caller count consistency) still
-   open after #205 closes Bug 1. Bug 2 is lower severity; Bug 3 may self-resolve after Bug 1 fix.
+1. **PR #231 (fix/229-python-attribute-assignment-alias)** — CI in_progress as of last check
+   (rustfmt/clippy/DCO/unit tests ✅, integration/matrix/coverage still running).
+   Closes #229 (attribute-assignment alias `local = _h.fn; local()` pattern).
+   **Merge when Quality Gate passes.**
+2. **PR fix/227-type-checking-import-guard** — just pushed. Closes #227 (TYPE_CHECKING
+   false-positive cycles — 7 spurious cycle nodes in tree-sitter-analyzer).
+   **Create PR on GitHub then merge when CI green.**
+   ⚠️ GitHub MCP token expired this session — founder must create PR or re-auth token.
+3. **Issue #214** — Comprehensive Python reliability: intra-file calls not tracked (533 false
+   positives root cause, partially fixed by v0.1.8 self/cls), destructured imports file-level
+   under-count, transitive alias over-count. Needs RFC-0092 Phase 2 scoping.
 
-**P2 (v0.1.7 scope):**
-5. **Issue #209** — MCP error model: use `is_error: Some(true)` for application errors.
-   Low-effort sweep of ~89 tools. No RFC needed (matches MCP spec). rust-implementer task.
-6. **Issue #210** — Token-efficient text output format for LLM callers. Medium effort (Formatter
-   trait). RFC needed. v0.2.0 scope.
-7. **Security scan** — routine post-v0.1.6 window. security-reviewer task.
-8. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
+**P2 (v0.1.9 scope):**
+4. **Issue #209** — MCP error model: use `is_error: Some(true)` for application errors.
+   Low-effort sweep of ~89 tools. No RFC needed. rust-implementer task.
+5. **Issue #221** — `get-dependency-depth` returns 0 for complex methods. Re-verify after
+   v0.1.8 self/cls fix — may auto-close.
+6. **Security scan** — routine post-v0.1.8 window. security-reviewer task.
+7. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
 
 **P3 (v0.2.0 backlog):**
-9. **Issue #211** — Cross-tool response contract tests. Low effort, high stability value.
-10. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
-11. Skill marketplace submission metadata: icon, screenshots, category examples.
-12. End-to-end "first 5 minutes" walkthrough / asciinema recording.
+8. **Issue #211** — Cross-tool response contract tests.
+9. **Issue #206** — Comprehensive enhancement suggestions (token-efficient output, runtime packs).
+10. Skill marketplace submission metadata.
+11. End-to-end "first 5 minutes" walkthrough / asciinema recording.
 
 ---
 
-## Dispatch state (2026-05-30, PM run post-v0.1.6)
+## Dispatch state (2026-05-30, PM run post-v0.1.8)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **idle** | v0.1.6 shipped. Next: v0.1.7 after sprint exit criteria met. |
-| pack-author | **in-flight** | PR #217 (Python alias dispatch) — CI running, merge when gate passes. |
-| rust-implementer | **next-up** | Issue #209 MCP error model (P2, no RFC needed, sweep task). |
-| architect | idle | RFC-0092 Phase 2 scoping (issue #214 patterns) + Charter §2 100K-node row. |
-| tech-writer | idle | Marketplace metadata + asciinema. RFC-0092 Phase 2 doc updates when #217 merges. |
+| release | **idle** | v0.1.8 shipped. Next: v0.1.9 after PRs #231 + #227-guard merge. |
+| pack-author | **in-flight** | PR #231 (Python attr-assignment alias) — CI running, merge when gate passes. |
+| rust-implementer | **done-this-run** | Issue #227 fix pushed as `fix/227-type-checking-import-guard`. PR creation blocked by token expiry — needs founder re-auth or manual PR. |
+| architect | idle | RFC-0092 Phase 2 scoping (issue #214 patterns). |
+| tech-writer | idle | Marketplace metadata + asciinema. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | **next-up** | Routine post-v0.1.6 scan. |
-| e2e-runner | idle | Python alias dispatch fixture tests (after PR #217 merges). |
+| security-reviewer | **next-up** | Routine post-v0.1.8 scan. |
+| e2e-runner | idle | Python fixture tests after PRs #231 + #227-guard merge. |
 
 ---
 
-## v0.1.6 Sprint exit criteria — COMPLETE ✅
+## v0.1.9 Sprint — Draft exit criteria
 
-- [x] Python relative import resolution (PR #207, closes #204).
-- [x] parity.yml promoted to --strict (PR #208).
-- [x] 8 anti-patterns + 3 lessons recorded (PR #202).
-- [ ] Python alias dispatch (Bug 1 of #200) — **moved to v0.1.7** (PR #217 in review).
-- [ ] Charter §2 SLA 100K-node benchmark row — **deferred to v0.1.7**.
-- [ ] Security scan clean — **deferred to v0.1.7**.
-
----
-
-## v0.1.7 Sprint — Draft exit criteria
-
-- [ ] PR #217 merged: Python alias-table dispatch closes issue #205 (Bug 1 of #200).
-- [ ] RFC-0092 Phase 2: issue #214 patterns (intra-file calls, destructured imports, alias
-  over-count) — scoped, at least one landed.
+- [ ] PR #231 merged: Python attribute-assignment alias closes #229.
+- [ ] PR fix/227-type-checking-import-guard merged: TYPE_CHECKING false positive cycles closes #227.
 - [ ] Issue #209: MCP `is_error` sweep (all ~89 tool error paths).
-- [ ] Security scan clean (no high-severity findings post-v0.1.6).
-- [ ] Charter §2 SLA 100K-node benchmark row.
+- [ ] Re-verify issue #221 (`get-dependency-depth` 0 for complex methods) after v0.1.8 self/cls fix.
+- [ ] Security scan clean.
 
 ---
 
@@ -116,14 +96,26 @@ to founder** to verify GitHub Release page and create it if missing.
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- Merging any `release/*` branch to `main` if `RELEASE_BOT_TOKEN` is unavailable
-  (normally handled by the `finalize` workflow job automatically).
-- **⚠️ Verify / create GitHub Release for v0.1.6** (tag exists; release notes page may be
-  missing — `release.yml` finalize job reported failure on the back-merge PR).
+- Merging any `release/*` branch to `main` if `RELEASE_BOT_TOKEN` is unavailable.
+- **⚠️ GitHub MCP token expired during this session.** Re-auth required to create/merge PRs via automation.
+  Branch `fix/227-type-checking-import-guard` is pushed; PR at:
+  `https://github.com/aimasteracc/mycelium/pull/new/fix/227-type-checking-import-guard`
 
 ---
 
 ## Archive
+
+### 2026-05-30 PM run (v0.1.8 era — #229 attr-alias + #227 TYPE_CHECKING)
+
+- Discovered latest release is v0.1.8 (self/cls method resolution), not v0.1.7 as PM state showed. State refreshed.
+- PR #231 (fix/229 attribute-assignment alias pattern) in CI — rustfmt/clippy/DCO/unit ✅.
+- Issue #227 (TYPE_CHECKING false positive cycles): implemented fix this run.
+  - TDD: 2 RED→GREEN tests in extractor/tests.rs
+  - Rust helper `is_inside_type_checking_block()` in extractor/mod.rs
+  - CHANGELOG Unreleased entry (merged with #229 entry, no conflict)
+  - Pushed branch `fix/227-type-checking-import-guard`
+  - PR creation blocked by GitHub MCP token expiry — escalated to founder.
+- Open issues after this run: #229 (in PR), #227 (in PR, needs create), #214 (scoping needed), #209 (P2), #221 (verify), #211 (P3), #206 (P3).
 
 ### 2026-05-30 PM run (post-v0.1.6 — RFC-0092 + alias fix kickoff)
 
@@ -131,10 +123,8 @@ to founder** to verify GitHub Release page and create it if missing.
 - Discovered stale `decisions.jsonl` merge conflict (lines 143-149); fixed in PR #218.
 - Closed stale PR #215 (superseded by #213, develop already had v0.1.6 content).
 - Merged PR #216 (RFC-0092 cross-language alias resolution draft).
-- Found PR #217 (Python alias dispatch #205) already in flight with full TDD implementation,
-  CI running.
-- Triaged new issues: #214 (P1 Python reliability), #209 (P2 MCP error), #210 (P2 token output),
-  #211 (P3 contract tests), #212 (P3 runtime packs).
+- Found PR #217 (Python alias dispatch #205) already in flight with full TDD implementation, CI running.
+- Triaged new issues: #214 (P1 Python reliability), #209 (P2 MCP error), #210 (P2 token output), #211 (P3 contract tests), #212 (P3 runtime packs).
 - Escalation: verify v0.1.6 GitHub Release page (finalize job showed failure for back-merge PR).
 
 ### 2026-05-30 PM run (v0.1.5 CI fix + issue #200 triage)
