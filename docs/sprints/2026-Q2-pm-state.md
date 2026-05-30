@@ -5,36 +5,38 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — v0.1.10 shipped; PM state re-synced) |
+| Last updated | 2026-05-30 (PM dispatch — 4 new Python issues triaged #245-248; PR #251 open — Python Extends edges fix) |
 | Current sprint | **v0.1.11 planning** |
 | Active release branch | none — v0.1.10 shipped |
-| Next release target | **v0.1.11** — remaining Python reliability (#214) + MCP error model (#206) |
+| Next release target | **v0.1.11** — Python inheritance edges (#245, PR #251 in CI) + RFC-0094 Phase 2 + Python patterns #214 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.10 — Python TYPE_CHECKING + nested attribute calls** (tag v0.1.10, crates.io published 2026-05-30) |
+| Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
 ---
 
-## 🚀 v0.1.7 — v0.1.10 SHIPPED ✅
+## 🚀 v0.1.10 — SHIPPED ✅
 
-**What shipped (v0.1.7 through v0.1.10):**
-- [x] Python module-alias dispatch (`from . import mod as alias; alias.fn()`) — PR #217 → v0.1.7.
-- [x] `self.method()` / `cls.method()` inside a class resolves to sibling method — v0.1.8. Closes the dominant pattern behind 533 `get-isolated-symbols` false positives (#214).
-- [x] Python attribute-assignment alias pattern (`_alias = _h.fn; _alias()`) — v0.1.9.
-- [x] RFC-0095 runtime language pack loading (spec only) — v0.1.8.
-- [x] Charter §5.12 release-gate rule codified — v0.1.9.
-- [x] RFC-0096 type-only import edge kind drafted — v0.1.9.
-- [x] Python `if TYPE_CHECKING:` imports skipped — v0.1.10 (#227).
-- [x] Nested attribute call regression fixed (post-RFC-0092) — v0.1.10 (#238).
-- [x] decisions.jsonl merge conflict fixed — PR #218.
-- [x] RFC-0092 cross-language alias resolution merged — PR #216.
+**What shipped:**
+- [x] `if TYPE_CHECKING:` imports no longer create `Imports` edges (PR closes #227). 2 TDD tests.
+- [x] Nested attribute call regression restored (`self.history.append(x)` and similar). 1 TDD test.
+- [x] Charter §5.12 release-gate rule codified in CHARTER.md, CLAUDE.md, GITFLOW.md (v0.1.9 governance).
 
-**Post-v0.1.6 gap items still open:**
-- [ ] Issue #206 Suggestion 1: MCP `is_error: Some(true)` sweep (~89 tools). No RFC needed.
-- [ ] Issue #214 Pattern 2: destructured imports file-level under-count (`from .models import X` → `models.py` shows 0 callers). Needs incoming-edge test + extractor fix if still present post-v0.1.6.
-- [ ] Issue #214 Pattern 3: transitive alias over-count (1,472 false callers for `HealthHistory.append`). Complex, needs RFC-0092 Phase 2.
-- [ ] Issue #214: `get-dependency-depth` returns 0 for Python method chains. Needs RFC-0092 Phase 2.
-- [ ] Security scan — routine post-v0.1.10 window.
-- [ ] Charter §2 SLA 100K-node benchmark row.
+**Post-v0.1.10 ceremony:**
+- [x] Tag v0.1.10 pushed, crates.io / npm / PyPI published.
+- [x] PR #240 (release/v0.1.10 → develop back-merge) merged — **ceremony complete**.
+- [x] PR #241 (RFC-0094 Phase 1 Formatter trait) merged to develop.
+- [~] `merge to main, tag, GitHub Release` finalize job failed again (same pattern as v0.1.6). The release was manually recovered. **Escalation to founder**: review `release.yml` finalize job for systemic failure (GitHub Release page creation / auto-merge to main) — happens repeatedly.
+
+---
+
+## Shipped since last PM state (v0.1.6 → v0.1.10)
+
+| Version | Headline | Key PRs |
+|---|---|---|
+| v0.1.7 | Python alias-table dispatch (RFC-0092 Phase 1) — closes #205 (Bug 1 of #200). 73 false dead-code findings eliminated. | #217 |
+| v0.1.8 | `self.method()` / `cls.method()` resolve to sibling method nodes — closes #220 (dominant pattern behind 533 `get-isolated-symbols` false positives). | — |
+| v0.1.9 | Attribute-assignment alias pattern (`_alias = _h.fn; _alias()`) — closes #229. Charter §5.12 release-gate + post-release-sync rules codified. RFC-0096 drafted. | — |
+| v0.1.10 | `if TYPE_CHECKING:` guard + nested-attribute call fallback — closes #227. | — |
 
 ---
 
@@ -43,57 +45,68 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **Issue #214** — Python reliability: remaining open patterns from the tree-sitter-analyzer dogfood. Pattern 2 (destructured imports file-level) may already be fixed by v0.1.6; needs verification test. Pattern 3 (transitive alias over-count) and `get-dependency-depth` require RFC-0092 Phase 2 scoping. **Pack-author + rust-implementer task for v0.1.11.**
-2. **Issue #206 Suggestion 1** — MCP `is_error` model: set `is_error: Some(true)` on all ~89 application-error returns. Requires either (a) changing tool return type from `String` to `CallToolResult` using rmcp 1.7's `IntoCallToolResult` trait, or (b) post-processing in a `call_tool` override. No RFC needed. **Rust-implementer task. Medium effort (architecture choice first).**
+1. **Issue #245 (Python Extends edges)** — **PR #251 in CI** (DCO ✅, rustfmt ✅, unit tests in_progress).
+   Fix: `@reference.extends` query in `packs/python/queries.scm` + extractor handler.
+   Unlocks all inheritance tools for Python. Merge when Quality Gate green.
+2. **Issue #246 (Python virtual dispatch — get-callers empty for overridden methods)** — P1.
+   Root cause: static call resolution doesn't follow abstract-base → concrete-override.
+   Requires type-flow analysis; hard. Target v0.1.12+. RFC needed.
+3. **Issue #247 (get-isolated-symbols false positives — alias/callback patterns)** — P1.
+   525 false positives in tree-sitter-analyzer. Partial fix needed after #245 lands.
+   Target v0.1.12. RFC-0092 Phase 3 scope.
+4. **Issue #248 (get-descendants missing inherited methods)** — P1.
+   Blocked on #245 (need Extends edges to resolve inheritance). Re-assess after #251 merges.
+5. **Issue #214 (Python reliability — remaining patterns)** — P1. After v0.1.7-v0.1.10:
+   - Pattern 2: destructured imports file-level under-count.
+   - Pattern 3: transitive alias over-count (1,472 false callers).
+   - `get-dependency-depth` returning 0 (see #221). RFC-0092 Phase 2/3 scope.
 
 **P2 (v0.1.11 scope):**
-3. **Issue #206 Suggestion 3** — Contract tests: verify all tools return non-empty content and use canonical key names. Low effort, high regression-prevention value.
-4. **Issue #206 Suggestion 2** — Token-efficient text output format. Medium effort, RFC needed (RFC-0097).
-5. **Security scan** — routine post-v0.1.10 window. security-reviewer task.
-6. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
+6. **Issue #210 / RFC-0094 Phase 2** — Wire `output_format` into all 89 tools.
+   Per-transport defaults: stdio → `Text`, CLI → `Json`. rust-implementer task.
+7. **Issue #206 Suggestion 1 (MCP `is_error` sweep)** — Set `is_error: Some(true)` on all ~89
+   application-error returns. rmcp 1.7 supports `CallToolResult::structured_error(value)` via
+   `IntoCallToolResult` trait — tool methods can return `CallToolResult` directly. Recommended
+   approach: add helper `fn mcp_err(msg) -> CallToolResult` and change error-path return type in
+   each tool. No RFC needed. rust-implementer task.
+8. **Issue #221** — `get-dependency-depth` returns 0. Re-verify after #245 + Pattern 3 fix.
+9. **Security scan** — routine post-v0.1.10. security-reviewer task.
+10. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
 
 **P3 (v0.2.0 backlog):**
-7. **Issue #206 Suggestion 4** — Runtime language pack loading implementation (RFC-0095 spec exists, implementation deferred).
-8. Skill marketplace submission metadata: icon, screenshots, category examples.
-9. End-to-end "first 5 minutes" walkthrough / asciinema recording.
+10. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
+11. Skill marketplace submission metadata: icon, screenshots, category examples.
+12. End-to-end "first 5 minutes" walkthrough / asciinema recording.
+
+**Closed this run:**
+- ✅ Issue #211 (contract tests) — closed as completed (PR #249 shipped it in v0.1.10+ window).
+- ✅ Issues #245-248 triaged with P-labels.
 
 ---
 
-## Dispatch state (2026-05-30, PM run post-v0.1.10 re-sync)
+## Dispatch state (2026-05-30, PM run post-v0.1.10)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **idle** | v0.1.10 shipped. Next: v0.1.11 after sprint exit criteria met. |
-| pack-author | **next-up** | Issue #214 Pattern 2 verification + fix (if still present). |
-| rust-implementer | **next-up** | Issue #206 Suggestion 1: MCP `is_error` sweep. Architecture decision (String→CallToolResult or call_tool override) required first. rmcp 1.7 supports `CallToolResult::structured_error(value)` via `IntoCallToolResult`. |
-| architect | idle | RFC-0092 Phase 2 scoping (issue #214 Patterns 3 + dependency-depth) + Charter §2 100K-node row. |
-| tech-writer | idle | Marketplace metadata + asciinema. RFC-0092 Phase 2 doc updates. |
+| release | **idle** | v0.1.10 shipped, back-merge done. Next: v0.1.11 after sprint exit criteria met. |
+| rust-implementer | **next-up** | RFC-0094 Phase 2: wire `output_format` into 89 tool shapes (#210). |
+| pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3 scope). |
+| architect | idle | RFC-0092 Phase 2/3 scoping + Charter §2 100K-node SLA row. |
+| tech-writer | idle | RFC-0094 Phase 2 doc updates when Phase 2 lands. Marketplace metadata. |
 | code-reviewer | idle | Blocks on PR opens. |
 | security-reviewer | **next-up** | Routine post-v0.1.10 scan. |
-| e2e-runner | idle | Incoming-edge test for Pattern 2 verification (after pack-author verifies). |
+| e2e-runner | idle | Python alias Pattern 3 regression test (after pack-author fix). |
 
 ---
 
 ## v0.1.11 Sprint — Draft exit criteria
 
-- [ ] Issue #214 Pattern 2: extractor test verifying `models.py` has incoming Imports edges when N files do `from .models import X`. Green = already fixed; Red = fix needed.
-- [ ] Issue #206 Suggestion 1: MCP `is_error: Some(true)` implemented for all error paths.
-- [ ] Issue #206 Suggestion 3: Contract test suite: every tool with invalid path returns JSON with `"error"` key.
+- [ ] **Issue #245**: PR #251 merged — Python Extends edges live, inheritance tools functional.
+- [ ] RFC-0094 Phase 2: `output_format` wired into ≥ 89 tools; per-transport defaults set.
+- [ ] Issue #214 Pattern 2 or Pattern 3 fixed (at least one Python accuracy regression addressed).
+- [ ] Issue #221 re-verified or fixed.
 - [ ] Security scan clean (no high-severity findings post-v0.1.10).
-- [ ] Charter §2 SLA 100K-node benchmark row.
-
----
-
-## Architecture note: MCP `is_error` implementation path
-
-rmcp 1.7 supports:
-- `CallToolResult::structured_error(serde_json::Value)` — sets `is_error: Some(true)` automatically
-- `IntoCallToolResult` trait — tools can return `CallToolResult` directly (not just `String`)
-- `impl<T: IntoContents> IntoCallToolResult for T` — current `String` path
-
-**Recommended approach**: Add helper `fn mcp_err(msg: impl fmt::Display) -> CallToolResult` returning `CallToolResult::structured_error(json!({"error": msg.to_string()}))`. Change each tool method's error-path return from `String` to `CallToolResult`. The macro handles mixed return types via `IntoCallToolResult`. This requires changing the method return type annotation in each of ~89 tools but is semantically correct and fully compatible with rmcp 1.7.
-
-**Alternative**: Override `call_tool` in `ServerHandler` to post-process — but `#[tool_handler]` macro generates `call_tool`, making override uncertain without inspecting macro internals.
+- [ ] Charter §2 SLA 100K-node benchmark row landed.
 
 ---
 
@@ -113,23 +126,36 @@ rmcp 1.7 supports:
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **⚠️ Verify GitHub Release for v0.1.6–v0.1.10** (tag exists; release notes pages may be incomplete — finalize job failure was observed for v0.1.6).
+- Merging any `release/*` branch to `main` if `RELEASE_BOT_TOKEN` is unavailable.
+- **⚠️ Investigate `release.yml` finalize job** — `merge to main, tag, GitHub Release` step has
+  failed on multiple releases (v0.1.6, v0.1.10 confirmed; possibly others). Each time the release
+  was manually recovered but this is a systemic CI/CD failure. The release workflow's auto-merge
+  to main and GitHub Release creation are not working reliably. Recommend founder audit the
+  `RELEASE_BOT_TOKEN` secret and the finalize job logic before v0.2.0.
 
 ---
 
 ## Archive
 
-### 2026-05-30 PM run (v0.1.10 re-sync)
+### 2026-05-30 PM run (current — v0.1.11 kickoff + issue #206 re-triage)
 
-- Discovered PM state file was stale at v0.1.6 while develop was at v0.1.10.
-- Confirmed 0 open PRs, 2 open issues (#214 P1, #206 P2) without labels.
-- v0.1.7: Python module-alias dispatch (PR #217, closes #205/Bug1/#200).
-- v0.1.8: `self.method()` / `cls.method()` resolution (closes dominant 533 false-positives from #214).
-- v0.1.9: attribute-assignment alias fix + charter release-gate rule + RFC-0096.
-- v0.1.10: TYPE_CHECKING import skip (#227) + nested attribute call regression fix (#238).
-- Assessed remaining open items: issue #214 (Patterns 2+3, dependency-depth) and issue #206 (all 4 suggestions still open).
-- Architecture note added: rmcp 1.7 `IntoCallToolResult` enables clean `is_error` fix.
-- Drafted v0.1.11 sprint exit criteria. PM state re-synced and committed.
+- Scanned 0 open PRs; 2 open issues (#214 P1, #206 P2). Labels applied.
+- Discovered rmcp 1.7 `IntoCallToolResult` / `CallToolResult::structured_error(value)` — clean
+  implementation path for MCP `is_error` sweep (issue #206 S1) without macro-level override.
+- Added is_error sweep to P2 priority list with architecture guidance.
+- Issue #211 (contract tests) confirmed closed (PR #249). Issue #209 (is_error) closed/superseded
+  by #206. Anti-pattern: concurrent PM runs may re-triage already-closed issues; verify before
+  creating new tracking issues.
+
+### 2026-05-30 PM run (post-v0.1.10 — RFC-0094 Phase 1 + back-merge)
+
+- PM state was stale at v0.1.6; fast-forwarded to v0.1.10.
+- v0.1.7–v0.1.10 shipped between sessions (Python accuracy patches).
+- PR #240 (release/v0.1.10 back-merge): Quality Gate ✅ green → merged. Ceremony complete.
+- PR #241 (RFC-0094 Phase 1 Formatter trait): All CI checks ✅ green → merged after CHANGELOG
+  conflict resolved (RFC-0094 Unreleased entry + [0.1.10] section from develop both preserved).
+- Escalation: `release.yml` finalize job failing repeatedly (merge to main + GitHub Release creation).
+- Next: v0.1.11 sprint — RFC-0094 Phase 2 + remaining #214 Python patterns.
 
 ### 2026-05-30 PM run (post-v0.1.6 — RFC-0092 + alias fix kickoff)
 
@@ -150,7 +176,7 @@ rmcp 1.7 supports:
 - Fix: `|| true` on dry-run step in `.github/workflows/release.yml` (commit 58ba0df on release/v0.1.5).
 - Issue #200 triaged: P1 Python accuracy bugs (3 sub-bugs). Target v0.1.6 sprint.
 - Release workflow `finalize` job discovered: auto-merges to main + develop when CI passes.
-  No manual PR merge needed if RELEASE_BOT_TOKEN is set.
+  No manual PR merge required if RELEASE_BOT_TOKEN is set.
 
 ### 2026-05-30 PM run (post-v0.1.4 ship — v0.1.5 sprint complete)
 
@@ -173,6 +199,12 @@ v0.1.4 sprint declared complete. All 7 exit criteria met:
 This PM run attempted to independently implement CLI batch 1 (PR #173) before discovering
 PR #172 already merged concurrently. PR #173 was closed as superseded. Anti-pattern note:
 concurrent PM runs can duplicate work; inter-run state synchronisation depends on this file.
+
+### 2026-05-29 PM run (v0.1.4 kickoff)
+
+- #153 ✅ graph-algorithm timeouts fixed (PR #168)
+- RFC-0090 Phase 1 ✅ parity.yml (PR #170)
+- Confirmed all Phase 2/2.3 from v0.1.3 complete (89/89 coverage)
 
 ### 2026-05-30 PM call (v0.1.2 era — superseded)
 
