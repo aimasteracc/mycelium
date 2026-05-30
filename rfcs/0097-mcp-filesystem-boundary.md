@@ -1,6 +1,6 @@
 # RFC-0097 — MCP Server Filesystem Access Boundary
 
-**Status**: In Progress  
+**Status**: Implemented  
 **Author**: orchestrator  
 **Date**: 2026-05-30  
 **Ref**: Issue #301  
@@ -84,12 +84,12 @@ Snapshot write path (`<root>/.mycelium/index.rmp`) inherits validation because i
 
 ## Acceptance Criteria
 
-- [ ] `MyceliumServer` has `allowed_roots: Arc<Vec<PathBuf>>`
-- [ ] `serve_stdio` accepts `allowed_roots: Vec<PathBuf>` parameter
-- [ ] CLI `--allowed-roots` flag; defaults to `[CWD]`
-- [ ] `mycelium_index_workspace` rejects paths outside allowed roots with `is_error: true`
-- [ ] `mycelium_load_index` rejects paths outside allowed roots with `is_error: true`
-- [ ] Path traversal (`../../etc`) is rejected after canonicalization
-- [ ] Empty allowed_roots = unrestricted (tests pass unchanged)
-- [ ] 3 TDD tests (RED before impl, GREEN after): outside-root rejected, traversal rejected, inside-root accepted
-- [ ] All existing tests continue to pass
+- [x] `MyceliumServer` has `allowed_roots: Arc<Vec<PathBuf>>`
+- [x] `serve_stdio` accepts `allowed_roots: Vec<PathBuf>` parameter
+- [x] CLI `--allowed-roots` flag; defaults to `[CWD]`
+- [x] `mycelium_index_workspace` rejects paths outside allowed roots with `is_error: true`
+- [x] `mycelium_load_index` rejects paths outside allowed roots with `is_error: true`
+- [x] Path traversal (`../../etc`) is rejected after canonicalization
+- [x] Empty allowed_roots = unrestricted (tests pass unchanged)
+- [x] 3 TDD tests (RED before impl, GREEN after): outside-root rejected, traversal rejected, inside-root accepted
+- [x] All existing tests continue to pass

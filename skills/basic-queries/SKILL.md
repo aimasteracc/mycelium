@@ -98,6 +98,13 @@ mcp__mycelium__get_descendants({ "path": "src/a.rs>App" })
 → ["src/a.rs>App>init", "src/a.rs>App>render", ...]
 ```
 
+Pass `"include_inherited": true` to also include methods inherited from parent classes (v0.1.11, Issue #248):
+
+```
+mcp__mycelium__get_descendants({ "path": "src/a.rs>App", "include_inherited": true })
+→ ["src/a.rs>App>init", "src/a.rs>App>render", "src/base.rs>Base>clone", ...]
+```
+
 ### `get_node_kind` — what kind of symbol is this
 
 **When**: agent has a path string but doesn't know if it's a function, class, module, etc. Cheaper than `get_symbol_info` when you only need the kind.
@@ -142,6 +149,13 @@ mcp__mycelium__get_siblings({ "path": "src/a.rs>App>render" })
 mcp__mycelium__get_all_symbols({ "path_prefix": "src/auth/", "kind": null, "limit": 1000 })
 ```
 
+Use `"offset"` for pagination (v0.1.12, Issue #292). Set `"limit": 0` to return all results with no cap. When `limit > 0` the response includes a `total_count` field so callers can compute page counts:
+
+```
+mcp__mycelium__get_all_symbols({ "path_prefix": "src/", "kind": null, "limit": 500, "offset": 1000 })
+→ { "symbols": [...], "total_count": 3247 }
+```
+
 ### `server_status` — the index is healthy
 
 **When**: before starting any analysis, confirm the index loaded. Returns engine version, node/edge counts, last-load source.
@@ -159,6 +173,7 @@ Each capability has a matching `mycelium <cap>` subcommand with identical name, 
 mycelium search-symbol login --limit 20
 mycelium get-symbol-info "src/auth/session.rs>AuthService>login"
 mycelium get-descendants "src/a.rs>App" --format=json
+mycelium get-descendants "src/a.rs>App" --include-inherited --format=json
 mycelium get-all-symbols --prefix src/auth/ --limit 1000 --format=json
 mycelium get-all-symbols --prefix src/ --limit 500 --offset 1000 --format=json
 ```
