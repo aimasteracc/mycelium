@@ -471,6 +471,44 @@ impl Extractor {
                         };
                         store.upsert_edge(EdgeKind::Extends, subclass_id, base_id);
                     }
+                    "reference.implements" => {
+                        // anchor = class_declaration; @name = implemented interface identifier.
+                        let iface_name = name_text.unwrap_or("_unknown");
+                        let Some(class_name) = anchor
+                            .child_by_field_name("name")
+                            .and_then(|n| n.utf8_text(source).ok())
+                        else {
+                            continue;
+                        };
+                        let Ok(class_path) = TrunkPath::parse(&format!("{file_path}>{class_name}"))
+                        else {
+                            continue;
+                        };
+                        let class_id = store.upsert_node(class_path);
+                        let iface_id = {
+                            let intra = format!("{file_path}>{iface_name}");
+                            if let Some(id) = store.lookup(&intra) {
+                                id
+                            } else if let Some(id) = alias_table
+                                .get(iface_name)
+                                .map(|t| alias_target_to_file_path(t))
+                                .and_then(|qualified| {
+                                    store.lookup(&qualified).or_else(|| {
+                                        TrunkPath::parse(&qualified)
+                                            .ok()
+                                            .map(|p| store.upsert_node(p))
+                                    })
+                                })
+                            {
+                                id
+                            } else if let Ok(bare) = TrunkPath::parse(iface_name) {
+                                store.upsert_node(bare)
+                            } else {
+                                continue;
+                            }
+                        };
+                        store.upsert_edge(EdgeKind::Implements, class_id, iface_id);
+                    }
                     _ => {}
                 }
             }

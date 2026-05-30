@@ -1062,6 +1062,7 @@ dependencies = [
  "tracing",
  "tree-sitter",
  "tree-sitter-go",
+ "tree-sitter-java",
  "tree-sitter-javascript",
  "tree-sitter-python",
  "tree-sitter-rust",

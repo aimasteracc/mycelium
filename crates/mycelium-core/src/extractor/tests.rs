@@ -1242,3 +1242,72 @@ fn from_import_with_alias_creates_symbol_level_imports_edge() {
     );
     let _ = symbol_id;
 }
+
+// ── Issue #295: Java Extends/Implements edges ─────────────────────────────────
+
+fn java_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_java::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/java/queries.scm");
+    Extractor::new(language, query_src).expect("java extractor should build")
+}
+
+#[test]
+fn extractor_java_extends_creates_extends_edge() {
+    // `class Sub extends Base` must create an Extends edge Sub → Base.
+    // Base is in a separate file so resolution requires resolve_bare_call_stubs().
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("src/Base.java", b"class Base {}", &mut store)
+        .unwrap();
+    ext.extract("src/Sub.java", b"class Sub extends Base {}", &mut store)
+        .unwrap();
+    store.resolve_bare_call_stubs();
+    let sub = store.lookup("src/Sub.java>Sub").expect("Sub must exist");
+    let base = store
+        .lookup("src/Base.java>Base")
+        .expect("Base must be resolved");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "Sub must have an Extends edge to src/Base.java>Base after stub resolution"
+    );
+}
+
+#[test]
+fn extractor_java_implements_creates_implements_edge() {
+    // `class Foo implements Runnable` must create an Implements edge Foo → Runnable.
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/Foo.java",
+        b"class Foo implements Runnable {}",
+        &mut store,
+    )
+    .unwrap();
+    let foo = store.lookup("src/Foo.java>Foo").expect("Foo must exist");
+    let runnable = store
+        .lookup("Runnable")
+        .expect("Runnable stub must be created");
+    assert!(
+        store
+            .outgoing(foo, EdgeKind::Implements)
+            .contains(&runnable),
+        "Foo must have an Implements edge to Runnable"
+    );
+}
+
+#[test]
+fn extractor_java_interface_extends_creates_extends_edge() {
+    // `interface Sub extends Base` must create an Extends edge Sub → Base.
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("src/Sub.java", b"interface Sub extends Base {}", &mut store)
+        .unwrap();
+    let sub = store
+        .lookup("src/Sub.java>Sub")
+        .expect("Sub interface must exist");
+    let base = store.lookup("Base").expect("Base stub must be created");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "Sub interface must have an Extends edge to Base"
+    );
+}

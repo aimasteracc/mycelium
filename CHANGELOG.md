@@ -51,6 +51,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue #295 — Java `Extends` and `Implements` edges** — The Java language pack
+  (`packs/java/queries.scm`) now captures `@reference.extends` for `class Sub extends Base`
+  and `interface Sub extends Base`, and `@reference.implements` for `class Foo implements Bar`.
+  The extractor core adds a `"reference.implements"` handler (identical resolution logic to the
+  existing `"reference.extends"` handler, producing `EdgeKind::Implements` edges instead).
+  Cross-file extends resolution works via `resolve_bare_call_stubs()`, matching Python
+  inheritance behaviour. Adds `tree-sitter-java` as a dependency of `mycelium-rcig-core` (was
+  only a workspace dep). 3 TDD tests (RED verified). (Issue #295)
+
 - **RFC-0094: Criterion formatter benchmark + byte-savings regression guard** — Adds
   `crates/mycelium-mcp/benches/formatter.rs` with four Criterion benchmarks
   (`json/50_node_callee_tree`, `text/50_node_callee_tree`, `msgpack/50_node_callee_tree`,
