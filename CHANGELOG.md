@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-05-30
+
+Patch release: closes the headline Python static-analysis blind spot from
+the tree-sitter-analyzer dogfood (#200 umbrella resolved).
+
 ### Fixed
 
 - **Python module-alias dispatch now tracks callers through the alias**
