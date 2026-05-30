@@ -56,7 +56,17 @@ pub trait Formatter {
 /// Defaults to [`OutputFormat::Text`] because the primary audience of
 /// Mycelium's MCP surface is LLM agents (RFC-0094 §"Why mycelium ought to
 /// lead here").
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
     /// TOON-inspired indented `key: value` text. Smallest token footprint

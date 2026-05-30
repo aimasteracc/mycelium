@@ -69,6 +69,8 @@ use serde::Deserialize;
 use tokio::sync::RwLock;
 use tracing::warn;
 
+use crate::formatter::{OutputFormat, formatter_for};
+
 /// Shared state for the background watch loop.
 #[derive(Debug, Default)]
 struct WatchState {
@@ -165,6 +167,10 @@ pub struct SearchSymbolRequest {
     /// Maximum number of results to return (default: 20).
     #[serde(default)]
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_ancestors`.
@@ -172,6 +178,10 @@ pub struct SearchSymbolRequest {
 pub struct GetAncestorsRequest {
     /// Trunk path to look up, e.g. `"src/main.rs>greet"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_descendants`.
@@ -179,6 +189,10 @@ pub struct GetAncestorsRequest {
 pub struct GetDescendantsRequest {
     /// Trunk path to look up, e.g. `"src/lib.rs"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_load_index`.
@@ -1199,10 +1213,11 @@ impl MyceliumServer {
     ) -> String {
         let limit = req.limit.unwrap_or(20);
         let matches = self.store.read().await.search_symbol(&req.query, limit);
-        if self.compact_mode.load(Ordering::Relaxed) {
-            encode_msgpack_hex(&serde_json::json!({ "matches": matches }))
-        } else {
-            serde_json::json!({ "matches": matches }).to_string()
+        let value = serde_json::json!({ "matches": matches });
+        match req.output_format {
+            Some(fmt) => formatter_for(fmt).format(&value),
+            None if self.compact_mode.load(Ordering::Relaxed) => encode_msgpack_hex(&value),
+            None => value.to_string(),
         }
     }
 
@@ -1220,7 +1235,11 @@ impl MyceliumServer {
             .await
             .ancestors_of_path(&req.path)
             .unwrap_or_default();
-        serde_json::json!({ "ancestors": ancestors }).to_string()
+        let value = serde_json::json!({ "ancestors": ancestors });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1237,7 +1256,11 @@ impl MyceliumServer {
             .await
             .descendants_of_path(&req.path)
             .unwrap_or_default();
-        serde_json::json!({ "descendants": descendants }).to_string()
+        let value = serde_json::json!({ "descendants": descendants });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -4172,6 +4195,7 @@ mod tests {
             .mycelium_search_symbol(Parameters(SearchSymbolRequest {
                 query: "greet".to_string(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4194,6 +4218,7 @@ mod tests {
             .mycelium_search_symbol(Parameters(SearchSymbolRequest {
                 query: String::new(), // matches everything
                 limit: Some(1),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4210,6 +4235,7 @@ mod tests {
         let raw = server
             .mycelium_get_ancestors(Parameters(GetAncestorsRequest {
                 path: "src/greet.rs>greet".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4229,6 +4255,7 @@ mod tests {
         let raw = server
             .mycelium_get_ancestors(Parameters(GetAncestorsRequest {
                 path: "no/such>path".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4302,6 +4329,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4323,6 +4351,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs>greet".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4338,6 +4367,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "no/such>path".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4369,6 +4399,7 @@ mod tests {
             .mycelium_search_symbol(Parameters(SearchSymbolRequest {
                 query: "new".to_string(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let search_val: serde_json::Value = serde_json::from_str(&search_raw).unwrap();
@@ -4389,6 +4420,7 @@ mod tests {
         let anc_raw = server
             .mycelium_get_ancestors(Parameters(GetAncestorsRequest {
                 path: method_path.to_string(),
+                output_format: None,
             }))
             .await;
         let anc_val: serde_json::Value = serde_json::from_str(&anc_raw).unwrap();
@@ -9552,6 +9584,7 @@ mod tests {
             .mycelium_search_symbol(Parameters(SearchSymbolRequest {
                 query: "greet".to_string(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9571,6 +9604,7 @@ mod tests {
             .mycelium_search_symbol(Parameters(SearchSymbolRequest {
                 query: "greet".to_string(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9653,5 +9687,97 @@ mod tests {
                 "{lang} pack query must contain tree-sitter syntax"
             );
         }
+    }
+
+    // ── RFC-0094 Phase 2: output_format per-request (basic-queries family) ──
+
+    #[tokio::test]
+    async fn search_symbol_json_format_returns_json() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: "greet".to_string(),
+                limit: None,
+                output_format: Some(OutputFormat::Json),
+            }))
+            .await;
+        assert!(
+            raw.trim_start().starts_with('{'),
+            "JSON format must start with {{"
+        );
+        let _: serde_json::Value = serde_json::from_str(&raw).expect("must be valid JSON");
+    }
+
+    #[tokio::test]
+    async fn search_symbol_text_format_not_json_envelope() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: "greet".to_string(),
+                limit: None,
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        // TOON text output starts with a key name, not a JSON brace
+        assert!(
+            !raw.trim_start().starts_with('{'),
+            "Text format must not start with JSON brace; got: {raw:?}"
+        );
+        assert!(
+            raw.contains("matches"),
+            "Text format must still contain the 'matches' key"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_ancestors_text_format_not_json_envelope() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_get_ancestors(Parameters(GetAncestorsRequest {
+                path: "src/greet.rs>greet".to_string(),
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !raw.trim_start().starts_with('{'),
+            "Text format must not start with JSON brace"
+        );
+        assert!(
+            raw.contains("ancestors"),
+            "must contain the 'ancestors' key"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_descendants_text_format_not_json_envelope() {
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "src/greet.rs".to_string(),
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !raw.trim_start().starts_with('{'),
+            "Text format must not start with JSON brace"
+        );
+        assert!(
+            raw.contains("descendants"),
+            "must contain the 'descendants' key"
+        );
+    }
+
+    #[tokio::test]
+    async fn search_symbol_none_format_defaults_to_json() {
+        // Backward-compat: no output_format → JSON (same as before Phase 2)
+        let server = server_with_fixture().await;
+        let raw = server
+            .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+                query: "greet".to_string(),
+                limit: None,
+                output_format: None,
+            }))
+            .await;
+        let _: serde_json::Value = serde_json::from_str(&raw).expect("default must be valid JSON");
     }
 }

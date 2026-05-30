@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0094 Phase 2 PoC: `output_format` per-request for basic-query tools** (#210).
+  Three tools (`mycelium_search_symbol`, `mycelium_get_ancestors`,
+  `mycelium_get_descendants`) now accept an optional `output_format`
+  parameter (`"json"`, `"text"`, or `"msgpack"`). When absent the
+  response is JSON (backward-compatible). `"text"` emits TOON-style
+  `key: value` indented text (~73% fewer structural punctuation tokens
+  than JSON on tree-shaped payloads). Server-wide `compact_mode` toggle
+  continues to work as before when no per-request format is specified.
+  `OutputFormat` derives `schemars::JsonSchema` so the schema is
+  auto-generated in the MCP tool manifest. 5 new TDD tests.
+  Phase 3 (remaining 86 tools) follows in separate PRs.
 - **RFC-0093: MCP application-level error model foundation** (#209).
   New `crates/mycelium-mcp/src/error.rs` module provides `success_json`,
   `application_error`, `not_found`, `not_indexed`, and `invalid_path`
