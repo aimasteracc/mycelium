@@ -117,3 +117,12 @@
   function: (attribute
     object: (identifier) @call.receiver
     attribute: (identifier) @name)) @reference.call
+
+; Fallback for nested attribute access: `self.history.append(x)` etc.
+; The pattern above requires `object: (identifier)`; this one matches
+; any attribute-access call to preserve the Calls edge (without
+; receiver-based alias rewriting). Without this fallback the edge
+; would be silently dropped — regression introduced by RFC-0092.
+(call
+  function: (attribute
+    attribute: (identifier) @name)) @reference.call
