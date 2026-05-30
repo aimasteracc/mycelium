@@ -211,7 +211,10 @@ jobs:
       - name: Check DCO sign-off
         run: |
           MISSING=0
-          for sha in $(git rev-list ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
+          # --no-merges so historical PR merge commits (which never carried
+          # sign-off and predate DCO enforcement) don't fail back-merge PRs
+          # like release/* → develop. Authored commits must still sign off.
+          for sha in $(git rev-list --no-merges ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
             if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' $sha | grep -q .; then
               echo "::error::Commit $sha lacks Signed-off-by trailer (DCO)."
               MISSING=$((MISSING+1))
