@@ -474,37 +474,62 @@ def bar():
 // ── nested-attribute call regression (post-RFC-0092 fallthrough) ─────────────
 
 #[test]
-fn nested_attribute_call_still_creates_calls_edge() {
-    // Regression: RFC-0092 added a `@call.receiver` capture to method calls
-    // that REQUIRES `object: (identifier)`. For nested attribute access like
-    // `self.history.append(x)` the object is `(attribute ...)`, not a single
-    // identifier — so the new query stopped matching and the Calls edge was
-    // silently dropped. Real-world impact: every call through a chain like
-    // `self.x.y()` lost its outgoing edge.
+fn direct_method_call_creates_edge_depth_one_chain_works() {
+    // `self.method()` (depth-1 chain, object = identifier) is handled by the
+    // `@call.receiver` pattern and still creates a Calls edge.  This test
+    // guards that the issue #214 Pattern 3 fix did NOT regress the common case.
+    let source = "\
+class App:
+    def method(self):
+        pass
+    def bar(self):
+        self.method()
+";
+    let store = extract_at("pkg/app.py", source);
+    let bar_id = store
+        .lookup("pkg/app.py>App>bar")
+        .expect("caller method must be indexed");
+    let method_id = store
+        .lookup("pkg/app.py>App>method")
+        .expect("callee method must be indexed");
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&method_id),
+        "self.method() (depth-1 chain) must still create a Calls edge from bar"
+    );
+}
+
+// ── issue #214 Pattern 3: nested-chain false-caller suppression ───────────────
+
+#[test]
+fn nested_attribute_chain_does_not_create_global_bare_stub() {
+    // Issue #214 Pattern 3: `self.history.append(x)` caused the bare node
+    // "append" to be created globally and linked as a callee of any method
+    // that contained such a chain call.  Because Python's `list.append` and
+    // user-defined `HealthHistory.append` share the same bare name, every
+    // chain call across an entire codebase was spuriously attributed to the
+    // user-defined symbol, producing 1,472 false callers.
     //
-    // Fix: a second @reference.call pattern matches all nested-attribute
-    // method calls without the receiver constraint, falling back to the
-    // existing bare-name resolution.
+    // Correct behaviour: when the receiver chain depth > 1 (object is not a
+    // single identifier), the call target is unresolvable without type info.
+    // Emit NO edge rather than a global bare stub that collides with real
+    // symbols.  `self.method()` (depth 1) continues to work via the existing
+    // `@call.receiver` pattern.
     let source = "\
 class App:
     def bar(self):
         self.history.append(1)
 ";
     let store = extract_at("pkg/app.py", source);
-    let bar_id = store
-        .lookup("pkg/app.py>App>bar")
-        .expect("caller method must be indexed");
-    // We don't know what `self.history.append` resolves to without type info,
-    // but the bare `append` node must exist and have an incoming edge from
-    // bar. Otherwise the Calls graph silently loses the relationship.
-    let append_id = store
-        .lookup("append")
-        .expect("bare `append` node must exist (callsite produces it as fallback)");
+    // The bare global node must NOT exist: the fallback query is removed.
     assert!(
-        store.outgoing(bar_id, EdgeKind::Calls).contains(&append_id),
-        "self.history.append() must still create some Calls edge from bar — \
-         regression from RFC-0092 dropped it because the receiver query \
-         required (identifier), not nested (attribute)"
+        store.lookup("append").is_none(),
+        "depth-2+ chain call must NOT create a global bare `append` stub \
+         (issue #214 Pattern 3)"
+    );
+    // The bar method itself is still indexed.
+    assert!(
+        store.lookup("pkg/app.py>App>bar").is_some(),
+        "caller method must still be indexed"
     );
 }
 

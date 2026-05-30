@@ -151,11 +151,10 @@
     object: (identifier) @call.receiver
     attribute: (identifier) @name)) @reference.call
 
-; Fallback for nested attribute access: `self.history.append(x)` etc.
-; The pattern above requires `object: (identifier)`; this one matches
-; any attribute-access call to preserve the Calls edge (without
-; receiver-based alias rewriting). Without this fallback the edge
-; would be silently dropped — regression introduced by RFC-0092.
-(call
-  function: (attribute
-    attribute: (identifier) @name)) @reference.call
+; NOTE (issue #214 Pattern 3): the original fallback here matched
+; `self.history.append(x)` (depth-2+ attribute chains) and created a
+; global bare stub `append`, causing 1,472 false callers when any
+; user-defined method happened to share the bare name.  Removed.
+; Depth-2+ chains are unresolvable without type inference — no edge is
+; emitted rather than a misleading global stub.  Direct `obj.method()`
+; calls (depth 1) continue via the `@call.receiver` pattern above.
