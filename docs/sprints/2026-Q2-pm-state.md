@@ -64,9 +64,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P2 (v0.1.11 scope):**
 6. **Issue #210 / RFC-0094 Phase 2** — Wire `output_format` into all 89 tools.
    Per-transport defaults: stdio → `Text`, CLI → `Json`. rust-implementer task.
-7. **Issue #221** — `get-dependency-depth` returns 0. Re-verify after #245 + Pattern 3 fix.
-8. **Security scan** — routine post-v0.1.10. security-reviewer task.
-9. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
+7. **Issue #206 Suggestion 1 (MCP `is_error` sweep)** — Set `is_error: Some(true)` on all ~89
+   application-error returns. rmcp 1.7 supports `CallToolResult::structured_error(value)` via
+   `IntoCallToolResult` — tool methods can return `CallToolResult` directly. Recommended approach:
+   add helper `fn mcp_err(msg) -> CallToolResult` and change error-path return type per tool.
+   No RFC needed. rust-implementer task.
+8. **Issue #221** — `get-dependency-depth` returns 0. Re-verify after #245 + Pattern 3 fix.
+9. **Security scan** — routine post-v0.1.10. security-reviewer task.
+10. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
 
 **P3 (v0.2.0 backlog):**
 10. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
@@ -131,6 +136,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-30 PM run (current — v0.1.11 kickoff + issue #206 re-triage)
+
+- Scanned 0 open PRs; 2 open issues (#214 P1 python, #206 P2 enhancement). Labels applied via GitHub API.
+- Confirmed #211 (contract tests) closed (PR #249), #209 (is_error) superseded by #206.
+- Added issue #206 S1 (MCP `is_error`) to P2 priorities with rmcp 1.7 implementation guidance:
+  `CallToolResult::structured_error(value)` via `IntoCallToolResult` — tools return `CallToolResult` directly.
+- Anti-pattern note: concurrent PM runs may overwrite PM state with stale data; always branch from
+  develop HEAD, not from a prior session's working state.
 
 ### 2026-05-30 PM run (post-v0.1.10 — RFC-0094 Phase 1 + back-merge)
 
