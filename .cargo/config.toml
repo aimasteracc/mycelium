@@ -18,3 +18,11 @@ t-full  = "test --workspace"
 
 # Watch lane: run the #[ignore] filesystem-watch tests explicitly.
 t-watch = "test -p mycelium-mcp --lib -- --include-ignored watch_mode"
+
+# Note: Windows linker stack size (8 MiB for the `mycelium` binary) is set
+# via crates/mycelium-cli/build.rs, NOT here. CI workflows set
+# `RUSTFLAGS=-D warnings` at the env level, which fully overrides
+# `rustflags` from .cargo/config.toml — so [target.x86_64-pc-windows-*]
+# rustflags = ... was silently ignored on CI. The build.rs uses
+# `cargo:rustc-link-arg-bin=mycelium=...` which is not subject to that
+# RUSTFLAGS override.
