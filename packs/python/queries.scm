@@ -105,6 +105,18 @@
     object: (identifier) @alias.source
     attribute: (identifier) @alias.original_name)) @reference.alias_binding
 
+; ── Class inheritance (Synapse Extends edges) ───────────────────────
+;
+; `class Child(Parent):` → Extends edge from Child → Parent.
+; One match is generated per base-class identifier in the superclasses list,
+; so `class C(A, B):` yields two separate matches (C→A and C→B).
+; Keyword-only entries like `metaclass=ABCMeta` are skipped because they
+; are `keyword_argument` nodes, not plain `identifier` nodes.
+
+(class_definition
+  superclasses: (argument_list
+    (identifier) @name)) @reference.extends
+
 ; ── Call expressions (Synapse Calls edges) ──────────────────────────
 
 ; Simple function calls: foo()

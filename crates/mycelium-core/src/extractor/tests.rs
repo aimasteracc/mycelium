@@ -547,6 +547,68 @@ fn extractor_handles_class_with_multiple_methods() {
     assert!(store.lookup("test.py>Svc>b").is_some());
 }
 
+// ── class inheritance / Extends edges (issue #245) ───────────────────────────
+
+#[test]
+fn python_class_single_base_creates_extends_edge() {
+    // `class Child(Parent):` → Extends edge from test.py>Child → test.py>Parent
+    // Both classes are in the same file so the base class node already exists
+    // in the store (created during the definition pass) when the extends
+    // reference is processed.
+    let source = "class Parent:\n    pass\n\nclass Child(Parent):\n    pass\n";
+    let store = extract(source);
+    let child_id = store
+        .lookup("test.py>Child")
+        .expect("Child class must be indexed");
+    let parent_id = store
+        .lookup("test.py>Parent")
+        .expect("Parent class must be indexed");
+    let extends = store.outgoing(child_id, EdgeKind::Extends);
+    assert!(
+        !extends.is_empty(),
+        "Child class must have at least one Extends edge"
+    );
+    assert!(
+        extends.contains(&parent_id),
+        "Child's Extends edges must include test.py>Parent (same-file base class)"
+    );
+}
+
+#[test]
+fn python_class_multiple_bases_creates_one_extends_edge_per_base() {
+    // `class C(A, B):` → two Extends edges: C→A and C→B
+    let source = "class A:\n    pass\n\nclass B:\n    pass\n\nclass C(A, B):\n    pass\n";
+    let store = extract(source);
+    let c_id = store.lookup("test.py>C").expect("class C must be indexed");
+    let a_id = store.lookup("test.py>A").expect("class A must be indexed");
+    let b_id = store.lookup("test.py>B").expect("class B must be indexed");
+    let extends = store.outgoing(c_id, EdgeKind::Extends);
+    assert_eq!(
+        extends.len(),
+        2,
+        "C(A, B) must produce exactly two Extends edges"
+    );
+    assert!(extends.contains(&a_id), "C must extend A");
+    assert!(extends.contains(&b_id), "C must extend B");
+}
+
+#[test]
+fn python_class_external_base_creates_bare_extends_node() {
+    // `class Child(ExternalBase):` where ExternalBase is not defined in the
+    // same file — the extractor should still emit an Extends edge to a bare
+    // stub node so graph tools can traverse the relationship.
+    let source = "class Child(ExternalBase):\n    pass\n";
+    let store = extract(source);
+    let child_id = store
+        .lookup("test.py>Child")
+        .expect("Child class must be indexed");
+    let extends = store.outgoing(child_id, EdgeKind::Extends);
+    assert!(
+        !extends.is_empty(),
+        "Child extending an external base should still emit an Extends edge to a stub node"
+    );
+}
+
 // ── RFC-0011: reference.call (Calls edges) ───────────────────────────────────
 
 fn ts_extractor() -> Extractor {

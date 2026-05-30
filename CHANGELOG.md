@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Issue #245: Python `Extends` edges now extracted for class inheritance**.
+  `class Child(Parent):` declarations in Python files now produce
+  `EdgeKind::Extends` edges in the Synapse, making all inheritance tools
+  (`subclasses-tree`, `extends-tree`, `get-extends`, `find-extends-path`,
+  `get-implements`, `implementors-tree`) functional for Python projects.
+  Previously the Python `queries.scm` had no `@reference.extends` capture
+  so every inheritance-graph query returned empty results (0 edges).
+  Fix: added `@reference.extends` query to `packs/python/queries.scm` and
+  a corresponding handler in the extractor that resolves the base class
+  intra-file first (same-file bases) then falls back to a bare stub node
+  (cross-file / stdlib bases). Multiple inheritance emits one edge per
+  base class. Keyword-only entries (`metaclass=ABCMeta`) are skipped.
+  3 new TDD tests. Closes #245.
+
 ### Added
 
 - **Issue #211: Cross-tool MCP response contract tests**.

@@ -354,6 +354,31 @@ impl Extractor {
                         };
                         store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
                     }
+                    "reference.extends" => {
+                        // `class Child(Parent):` — anchor is the class_definition.
+                        // @name captures each base-class identifier (one match per base).
+                        // SOURCE = the subclass (derived from the class_definition node).
+                        // TARGET = the base class, tried intra-file first then bare stub.
+                        let base_name = name_text.unwrap_or("_unknown");
+                        let chain = build_class_chain(anchor, source);
+                        if chain.is_empty() {
+                            continue;
+                        }
+                        let subclass_str = format!("{file_path}>{}", chain.join(">"));
+                        let Ok(subclass_tp) = TrunkPath::parse(&subclass_str) else {
+                            continue;
+                        };
+                        let subclass_id = store.upsert_node(subclass_tp);
+                        let intra = format!("{file_path}>{base_name}");
+                        let base_id = if let Some(id) = store.lookup(&intra) {
+                            id
+                        } else if let Ok(bare) = TrunkPath::parse(base_name) {
+                            store.upsert_node(bare)
+                        } else {
+                            continue;
+                        };
+                        store.upsert_edge(EdgeKind::Extends, subclass_id, base_id);
+                    }
                     _ => {}
                 }
             }
