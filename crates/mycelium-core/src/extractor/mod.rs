@@ -629,9 +629,10 @@ fn resolve_python_relative_import(importing_file: &str, mod_name: &str) -> Optio
 }
 
 /// Resolve a TypeScript/JavaScript relative import specifier (`./foo`,
-/// `../bar`) to a file path relative to the workspace root.  Appends `.ts`
-/// as the default extension (covers the vast majority of TS projects; bare
-/// specifiers without an extension map to the `.ts` source file).
+/// `../bar`) to a file path relative to the workspace root.  When the
+/// specifier has no extension, appends the same extension as the importing
+/// file so that `.ts` consumers resolve to `.ts` modules and `.js` consumers
+/// resolve to `.js` modules (matching the source-extension convention).
 ///
 /// Returns `None` for bare package imports (`react`, `lodash`, etc.) that
 /// have no leading `./` or `../` — those remain symbolic nodes.
@@ -640,6 +641,10 @@ fn resolve_python_relative_import(importing_file: &str, mod_name: &str) -> Optio
 /// - `./module`      → `src/module.ts`
 /// - `../lib/util`   → `lib/util.ts`
 /// - `react`         → `None` (package import — stays symbolic)
+///
+/// Examples (importing file = `src/consumer.js`):
+///
+/// - `./module`      → `src/module.js`
 fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<String> {
     if !specifier.starts_with("./") && !specifier.starts_with("../") {
         return None;
@@ -652,7 +657,14 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
     let target = if has_ext {
         dir.join(specifier)
     } else {
-        dir.join(specifier).with_extension("ts")
+        // Use the importer's own extension so .js files resolve to .js targets,
+        // .ts files to .ts targets, etc.  Fall back to "ts" if the importer
+        // has no extension (should not happen in practice).
+        let ext = std::path::Path::new(importing_file)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("ts");
+        dir.join(specifier).with_extension(ext)
     };
     // Normalise `a/b/../c` → `a/c` using component iteration (no fs access).
     let mut components: Vec<_> = Vec::new();

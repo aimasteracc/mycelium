@@ -12,9 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **RFC-0092 Phase 2: TypeScript/JavaScript alias resolution** — `import { foo as bar }`,
   `import * as ns`, `import { foo }`, and `import Foo` statements now build per-file alias
   tables. Call edges such as `bar()` and `ns.greet()` are rewritten through the alias table
-  to resolve to the canonical `src/module.ts>foo` path instead of bare stubs. Relative
-  specifiers (`./module`, `../lib/util`) are resolved to file paths; package imports remain
-  symbolic. Covered by 3 TDD tests in `extractor::tests`.
+  to resolve to the canonical `src/module.ts>foo` or `src/module.js>foo` path instead of
+  bare stubs. Relative specifiers (`./module`, `../lib/util`) are resolved to file paths
+  using the importing file's own extension (`.ts` → `.ts`, `.js` → `.js`); package imports
+  remain symbolic. Covered by 6 TDD tests (3 TypeScript + 3 JavaScript) in `extractor::tests`.
 
 - **RFC-0094 §206 S2: `crates/mycelium-mcp/README.md`** — documents the output format per
   transport (stdio default = `text`, CLI default = `json`), the text-format grammar, and the
