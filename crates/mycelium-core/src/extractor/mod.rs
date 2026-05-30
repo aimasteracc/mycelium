@@ -203,13 +203,37 @@ impl Extractor {
                         None
                     }
                 });
-                let src = m.captures.iter().find_map(|c| {
+                // Primary: @alias.source in the match (Python-style patterns).
+                // Fallback: read source: field from the @reference.alias_binding
+                // anchor node at runtime. This covers TypeScript/JavaScript where
+                // the query validator rejects combining `source:` + `import_clause`
+                // in one pattern (inline-rule visibility limitation in ts 0.26).
+                let captured_src = m.captures.iter().find_map(|c| {
                     if names[c.index as usize] == "alias.source" {
                         c.node.utf8_text(source).ok()
                     } else {
                         None
                     }
                 });
+                let anchor_src: Option<&str> = if captured_src.is_none() {
+                    m.captures
+                        .iter()
+                        .find(|c| names[c.index as usize] == "reference.alias_binding")
+                        .and_then(|c| c.node.child_by_field_name("source"))
+                        .and_then(|string_node| {
+                            // string_fragment is the first named child of the string node.
+                            let count = string_node.named_child_count();
+                            (0..count).find_map(|i| {
+                                string_node
+                                    .named_child(i.try_into().unwrap_or(u32::MAX))
+                                    .filter(|n| n.kind() == "string_fragment")
+                                    .and_then(|n| n.utf8_text(source).ok())
+                            })
+                        })
+                } else {
+                    None
+                };
+                let src = captured_src.or(anchor_src);
                 let original = m.captures.iter().find_map(|c| {
                     if names[c.index as usize] == "alias.original_name" {
                         c.node.utf8_text(source).ok()
@@ -530,6 +554,21 @@ fn enclosing_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<Stri
 /// for the source. Returns the symbolic source as a fallback when the
 /// resolver returns None (purely absolute paths with no leading dots).
 fn build_alias_target(file_path: &str, src: &str, original: Option<&str>, local: &str) -> String {
+    // TypeScript / JavaScript: specifiers are `./path`, `../path`, or bare package names.
+    // We only resolve relative specifiers; package imports stay symbolic.
+    if matches!(
+        std::path::Path::new(file_path)
+            .extension()
+            .and_then(|e| e.to_str()),
+        Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs")
+    ) {
+        let resolved = resolve_typescript_import(file_path, src).unwrap_or_else(|| src.to_string());
+        return match original {
+            Some(orig) => format!("{resolved}>{orig}"),
+            None => resolved,
+        };
+    }
+    // Python: existing logic unchanged.
     let is_relative = src.starts_with('.');
     let resolved_prefix =
         resolve_python_relative_import(file_path, src).unwrap_or_else(|| src.to_string());
@@ -587,6 +626,47 @@ fn resolve_python_relative_import(importing_file: &str, mod_name: &str) -> Optio
     let suffix = rest.replace('.', "/");
     let target = current.join(format!("{suffix}.py"));
     Some(target.to_string_lossy().replace('\\', "/"))
+}
+
+/// Resolve a TypeScript/JavaScript relative import specifier (`./foo`,
+/// `../bar`) to a file path relative to the workspace root.  Appends `.ts`
+/// as the default extension (covers the vast majority of TS projects; bare
+/// specifiers without an extension map to the `.ts` source file).
+///
+/// Returns `None` for bare package imports (`react`, `lodash`, etc.) that
+/// have no leading `./` or `../` — those remain symbolic nodes.
+///
+/// Examples (importing file = `src/consumer.ts`):
+/// - `./module`      → `src/module.ts`
+/// - `../lib/util`   → `lib/util.ts`
+/// - `react`         → `None` (package import — stays symbolic)
+fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<String> {
+    if !specifier.starts_with("./") && !specifier.starts_with("../") {
+        return None;
+    }
+    let dir = std::path::Path::new(importing_file).parent()?;
+    // If the specifier already carries an extension, don't double-append one.
+    let has_ext = std::path::Path::new(specifier)
+        .extension()
+        .is_some_and(|e| !e.is_empty());
+    let target = if has_ext {
+        dir.join(specifier)
+    } else {
+        dir.join(specifier).with_extension("ts")
+    };
+    // Normalise `a/b/../c` → `a/c` using component iteration (no fs access).
+    let mut components: Vec<_> = Vec::new();
+    for comp in target.components() {
+        match comp {
+            std::path::Component::ParentDir => {
+                components.pop();
+            }
+            std::path::Component::CurDir => {}
+            other => components.push(other),
+        }
+    }
+    let normalized: std::path::PathBuf = components.into_iter().collect();
+    Some(normalized.to_string_lossy().replace('\\', "/"))
 }
 
 /// Walk ancestors of `node` looking for the nearest enclosing function-like
