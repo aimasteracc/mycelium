@@ -256,6 +256,58 @@ fn extractor_preserves_absolute_import_behaviour() {
     assert!(store.outgoing(file_id, EdgeKind::Imports).contains(&typing));
 }
 
+// ── TYPE_CHECKING guard (issue #227) ─────────────────────────────────────────
+
+#[test]
+fn extractor_skips_imports_inside_type_checking_block() {
+    // `if TYPE_CHECKING:` blocks are never executed at runtime (TYPE_CHECKING is
+    // always False). Including those import edges causes false-positive cycle
+    // reports (issue #227 — 7 spurious cycle nodes in tree-sitter-analyzer).
+    let source = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from collections import OrderedDict\n";
+    let store = extract(source);
+    let file_id = store.lookup("test.py").unwrap();
+    // The TYPE_CHECKING guard import (typing) should appear.
+    let typing_id = store
+        .lookup("typing")
+        .expect("typing import must still create a node");
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::Imports)
+            .contains(&typing_id),
+        "Imports edge to `typing` (the guard itself) must be present"
+    );
+    // But the import INSIDE the `if TYPE_CHECKING:` block must NOT produce an edge.
+    let imports = store.outgoing(file_id, EdgeKind::Imports);
+    let has_collections = store
+        .lookup("collections")
+        .is_some_and(|id| imports.contains(&id));
+    assert!(
+        !has_collections,
+        "`collections` import inside `if TYPE_CHECKING:` must NOT create an Imports edge"
+    );
+}
+
+#[test]
+fn extractor_keeps_regular_imports_alongside_type_checking_block() {
+    // Files typically have both real imports and TYPE_CHECKING-guarded ones.
+    // Only the guarded ones should be suppressed; the rest must survive.
+    let source = "import os\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import typing_extensions\n";
+    let store = extract(source);
+    let file_id = store.lookup("test.py").unwrap();
+    let os_id = store.lookup("os").expect("os node must exist");
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&os_id),
+        "real `import os` must still produce an Imports edge"
+    );
+    let typing_ext = store.lookup("typing_extensions");
+    let guarded_present =
+        typing_ext.is_some_and(|id| store.outgoing(file_id, EdgeKind::Imports).contains(&id));
+    assert!(
+        !guarded_present,
+        "`typing_extensions` inside `if TYPE_CHECKING:` must NOT create an Imports edge"
+    );
+}
+
 // ── alias-table dispatch (issue #205, RFC-0092) ──────────────────────────────
 
 #[test]
