@@ -6,6 +6,15 @@ allowed-tools:
   - mcp__mycelium__batch_node_degree
   - mcp__mycelium__batch_reachable_from
   - mcp__mycelium__batch_reachable_to
+category: operations
+icon: ⚡
+marketplace_examples:
+  - query: "Get info on 20 symbols at once"
+    tool: batch_symbol_info
+  - query: "Check reachability for a list of functions"
+    tool: batch_reachable_from
+  - query: "Get degree counts for multiple nodes in one call"
+    tool: batch_node_degree
 ---
 
 # `batch-ops` — N symbols, 1 round trip
@@ -26,6 +35,14 @@ Do **NOT** use when:
 
 - You have one symbol — the single-call tool is simpler and cheaper.
 - The set is larger than 50 — split and call in chunks.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Get info on 20 symbols at once" | `mcp__mycelium__batch_symbol_info` |
+| "Check reachability for a list of functions" | `mcp__mycelium__batch_reachable_from` |
+| "Get degree counts for multiple nodes in one call" | `mcp__mycelium__batch_node_degree` |
 
 ## Capabilities under this umbrella
 

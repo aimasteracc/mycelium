@@ -6,6 +6,17 @@ allowed-tools:
   - mcp__mycelium__get_import_tree
   - mcp__mycelium__get_importers_tree
   - mcp__mycelium__find_import_path
+category: analysis
+icon: 📦
+marketplace_examples:
+  - query: "What does src/api/routes.rs import?"
+    tool: mcp__mycelium__get_imports
+  - query: "What imports src/auth/session.rs?"
+    tool: mcp__mycelium__get_importers_tree
+  - query: "Show the full import tree starting from src/main.rs"
+    tool: mcp__mycelium__get_import_tree
+  - query: "Are there circular imports in this project?"
+    tool: mcp__mycelium__get_import_tree
 ---
 
 # `import-graph` — module dependencies, in both directions
@@ -26,6 +37,15 @@ Do **NOT** use when:
 
 - The relationship is `Calls` (use `call-graph`), `Extends`/`Implements` (use `inheritance`).
 - The user wants symbol-level not module-level relationships — drop down to `call-graph`.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "What does src/api/routes.rs import?" | `mcp__mycelium__get_imports` |
+| "What imports src/auth/session.rs?" | `mcp__mycelium__get_importers_tree` |
+| "Show the full import tree starting from src/main.rs" | `mcp__mycelium__get_import_tree` |
+| "Are there circular imports in this project?" | `mcp__mycelium__get_import_tree` |
 
 ## Capabilities under this umbrella
 

@@ -3,6 +3,15 @@ name: hyphae-query
 description: Execute a Hyphae DSL selector against the project's index.
 allowed-tools:
   - mcp__mycelium__query
+category: navigation
+icon: 🌿
+marketplace_examples:
+  - query: "Find all functions in src/auth/ that are not named main"
+    tool: mcp__mycelium__query
+  - query: "Find every class that has a method named render"
+    tool: mcp__mycelium__query
+  - query: "Find all Rust structs that implement the Repository trait"
+    tool: mcp__mycelium__query
 ---
 
 # `hyphae-query` — query the Mycelium symbol graph with one DSL expression
@@ -24,6 +33,14 @@ Do **NOT** use when:
 - The user asks for *one* specific symbol by exact name → reach for `mycelium_search_symbol` (`basic-queries` Skill) which is more focused.
 - The user asks "what calls X" — that's a call-graph traversal, use `mycelium_get_callers` from the `call-graph` Skill.
 - The project hasn't been indexed yet — first run `mycelium index <root>` (will be wrapped in `indexing` Skill).
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Find all functions in src/auth/ that are not named main" | `mcp__mycelium__query` |
+| "Find every class that has a method named render" | `mcp__mycelium__query` |
+| "Find all Rust structs that implement the Repository trait" | `mcp__mycelium__query` |
 
 ## Capabilities under this umbrella
 

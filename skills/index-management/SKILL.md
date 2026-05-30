@@ -9,6 +9,19 @@ allowed-tools:
   - mcp__mycelium__sync_file
   - mcp__mycelium__set_compact_mode
   - mcp__mycelium__get_token_stats
+category: operations
+icon: 🗃️
+marketplace_examples:
+  - query: "Index this workspace"
+    tool: index_workspace
+  - query: "Check the file watcher status"
+    tool: watch_status
+  - query: "Sync a single changed file"
+    tool: sync_file
+  - query: "Get token usage stats"
+    tool: get_token_stats
+  - query: "Switch to compact output mode"
+    tool: set_compact_mode
 ---
 
 # `index-management` — keeping the symbol graph fresh
@@ -37,6 +50,16 @@ Do **NOT** use when:
 
 - The index is already loaded and you just want to query it — see `basic-queries`, `call-graph`, etc.
 - You need to query the file system without going through the index — this is not a file tool.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Index this workspace" | `mcp__mycelium__index_workspace` |
+| "Check the file watcher status" | `mcp__mycelium__watch_status` |
+| "Sync a single changed file" | `mcp__mycelium__sync_file` |
+| "Get token usage stats" | `mcp__mycelium__get_token_stats` |
+| "Switch to compact output mode" | `mcp__mycelium__set_compact_mode` |
 
 ## Capabilities under this umbrella
 

@@ -5,6 +5,15 @@ allowed-tools:
   - mcp__mycelium__CAPABILITY_A
   - mcp__mycelium__CAPABILITY_B
   # ... add one entry per (CLI, MCP) pair this Skill covers
+category: <navigation | analysis | quality | operations>
+icon: <single emoji>
+marketplace_examples:
+  - query: "Natural language question a developer would ask"
+    tool: mcp__mycelium__CAPABILITY_A
+  - query: "Second representative example"
+    tool: mcp__mycelium__CAPABILITY_B
+  - query: "Third representative example"
+    tool: mcp__mycelium__CAPABILITY_A
 ---
 
 # `CATEGORY_NAME` — short title
@@ -18,6 +27,14 @@ this category. Be concrete:
   ('what calls X', 'what does Y impact')."
 - "Do NOT use for graph-statistics questions — see the
   `graph-analysis` Skill for that."
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Natural language question a developer would ask" | `mcp__mycelium__CAPABILITY_A` |
+| "Second representative example" | `mcp__mycelium__CAPABILITY_B` |
+| "Third representative example" | `mcp__mycelium__CAPABILITY_A` |
 
 ## Capabilities under this umbrella
 

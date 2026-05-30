@@ -13,6 +13,19 @@ allowed-tools:
   - mcp__mycelium__find_call_path
   - mcp__mycelium__get_common_callers
   - mcp__mycelium__get_common_callees
+category: analysis
+icon: 📞
+marketplace_examples:
+  - query: "Who calls the login function?"
+    tool: mcp__mycelium__get_callers
+  - query: "What does AuthService.login transitively call?"
+    tool: mcp__mycelium__get_callee_tree
+  - query: "What are the entry points of this project?"
+    tool: mcp__mycelium__get_entry_points
+  - query: "What functions are dead code?"
+    tool: mcp__mycelium__get_dead_symbols
+  - query: "Is there a call path from cli_main to verify_password?"
+    tool: mcp__mycelium__find_call_path
 ---
 
 # `call-graph` — who calls who, and what stays in the dark
@@ -32,6 +45,16 @@ Do **NOT** use when:
 - The relationship is `Imports`, `Extends`, `Implements`, etc. — use `import-graph`, `inheritance` (planned).
 - The user wants a *ranking* of callees by importance — see `centrality`.
 - The user wants multi-hop set reachability across edge kinds — see `reachability` (planned).
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Who calls the login function?" | `mcp__mycelium__get_callers` |
+| "What does AuthService.login transitively call?" | `mcp__mycelium__get_callee_tree` |
+| "What are the entry points of this project?" | `mcp__mycelium__get_entry_points` |
+| "What functions are dead code?" | `mcp__mycelium__get_dead_symbols` |
+| "Is there a call path from cli_main to verify_password?" | `mcp__mycelium__find_call_path` |
 
 ## Capabilities under this umbrella
 

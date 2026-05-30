@@ -10,6 +10,15 @@ allowed-tools:
   - mcp__mycelium__get_implements_tree
   - mcp__mycelium__get_implementors_tree
   - mcp__mycelium__find_implements_path
+category: analysis
+icon: 🌳
+marketplace_examples:
+  - query: "What classes extend BaseRepository?"
+    tool: mcp__mycelium__get_subclasses_tree
+  - query: "Show me the full inheritance hierarchy of AuthService"
+    tool: mcp__mycelium__get_extends_tree
+  - query: "What interfaces does PostgresUserRepo implement?"
+    tool: mcp__mycelium__get_implements
 ---
 
 # `inheritance` — class/trait/interface relationships
@@ -30,6 +39,16 @@ Do **NOT** use when:
 
 - The relationship is `Calls` (use `call-graph`) or `Imports` (use `import-graph`).
 - The user wants multi-edge-kind reachability (use `reachability`).
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "What classes extend BaseRepository?" | `mcp__mycelium__get_subclasses_tree` |
+| "What are all subclasses of AbstractPaymentProcessor?" | `mcp__mycelium__get_subclasses_tree` |
+| "Show me the full inheritance hierarchy of AuthService" | `mcp__mycelium__get_extends_tree` |
+| "Find the path from OAuth2Session to BaseSession in the class tree" | `mcp__mycelium__find_extends_path` |
+| "What interfaces does PostgresUserRepo implement?" | `mcp__mycelium__get_implements` |
 
 ## Capabilities under this umbrella
 
