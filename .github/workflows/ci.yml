@@ -76,7 +76,7 @@ jobs:
       - run: cargo test --workspace --tests
       # Run filesystem-watch tests (marked #[ignore] for local fast lane).
       # Timeout budget raised to 15 min to absorb FSE debounce on GH runners.
-      - run: cargo test -p mycelium-mcp --lib -- --include-ignored watch_mode
+      - run: cargo test -p mycelium-rcig-mcp --lib -- --include-ignored watch_mode
 
   test-matrix:
     name: tests (${{ matrix.os }} / ${{ matrix.toolchain }})
