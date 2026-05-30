@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3] — 2026-05-30
+## [0.1.4] — 2026-05-30
+
+### Fixed
+
+- **Windows stack overflow** in `mycelium index`. Initialising the 11
+  tree-sitter parsers exceeded the Windows 1 MiB default thread stack,
+  terminating with `STATUS_STACK_OVERFLOW` (0xC00000FD = exit
+  -1073741571). Added `[target.x86_64-pc-windows-{msvc,gnu}]`
+  `link-arg=/STACK:8388608` in `.cargo/config.toml` so the binary
+  links with an 8 MiB stack on Windows — matching Linux and macOS
+  defaults. Linux/macOS unchanged.
+- **CI workflow `--fail-under-branches 80`** in `coverage` job — flag
+  doesn't exist in `cargo-llvm-cov`. Removed; lines-only gate at 90%
+  retained.
+- **Rustdoc broken intra-doc links**: `[LanguagePack]` (wrong crate)
+  and ambiguous `[index_file]` (Salsa generates a struct of the same
+  name). Disambiguated.
+- **Stale package-name references** in workflows: `mycelium-core` /
+  `mycelium-mcp` updated to the published `mycelium-rcig-*` names so
+  `cargo test --package` and `cargo publish -p` work.
+- **`watch_mode_resolves_stub_after_callee_file_added`** flaky test:
+  poll budget bumped 8 s → 30 s for slow GitHub-Actions runners.
+- **`e2e_dogfood` / `e2e_real_projects` workflows** were referencing
+  test targets that don't exist yet (Charter §5.10 TODO). They now
+  no-op with a CI warning until the test files land.
 
 ### Added
 
