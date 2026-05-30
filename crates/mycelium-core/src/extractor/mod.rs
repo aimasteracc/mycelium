@@ -573,8 +573,15 @@ fn build_alias_target(file_path: &str, src: &str, original: Option<&str>, local:
     let resolved_prefix =
         resolve_python_relative_import(file_path, src).unwrap_or_else(|| src.to_string());
     match (is_relative, original) {
-        // `from . import M` (no `as`)  →  pkg-dir/M.py
-        (true, None) => format!("{resolved_prefix}/{local}.py"),
+        // `from . import M` (bare dots, no `as`) → local is a sibling module  →  pkg-dir/M.py
+        // `from .submod import X` (non-bare, no `as`) → local is a symbol in submod  →  submod.py>X
+        (true, None) => {
+            if src.trim_start_matches('.').is_empty() {
+                format!("{resolved_prefix}/{local}.py")
+            } else {
+                format!("{resolved_prefix}>{local}")
+            }
+        }
         // `from . import M as N`  →  pkg-dir/M.py (use `original`, not `local`)
         (true, Some(orig)) if src == "." => format!("{resolved_prefix}/{orig}.py"),
         // `from .M import X as Y`  →  resolved>X

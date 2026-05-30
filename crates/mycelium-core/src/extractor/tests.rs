@@ -342,6 +342,71 @@ def bar():
 }
 
 #[test]
+fn from_relative_submodule_import_creates_correct_alias_and_call_edge() {
+    // Issue #214 Pattern 2: `from .models import AnalysisResult` should bind
+    // `AnalysisResult` → `pkg/sub/models.py>AnalysisResult` (a symbol inside
+    // a relative submodule), NOT `pkg/sub/models.py/AnalysisResult.py` (wrong
+    // file path). The latter was produced by the (true, None) arm in
+    // build_alias_target when src was non-bare (e.g. ".models").
+    //
+    // Consequence: code that calls `AnalysisResult()` after such an import
+    // must create a Calls edge to `pkg/sub/models.py>AnalysisResult`, not to
+    // a spurious bare stub.
+    let source = "\
+from .models import AnalysisResult
+
+def create():
+    return AnalysisResult()
+";
+    let store = extract_at("pkg/sub/consumer.py", source);
+
+    let create_id = store
+        .lookup("pkg/sub/consumer.py>create")
+        .expect("caller function must be indexed");
+
+    let target_id = store
+        .lookup("pkg/sub/models.py>AnalysisResult")
+        .expect("AnalysisResult must resolve to pkg/sub/models.py>AnalysisResult via alias table");
+
+    assert!(
+        store
+            .outgoing(create_id, EdgeKind::Calls)
+            .contains(&target_id),
+        "Calls edge must target pkg/sub/models.py>AnalysisResult, not a bare stub"
+    );
+}
+
+#[test]
+fn from_bare_relative_import_still_resolves_to_module_file() {
+    // Regression guard: `from . import sibling` must still resolve to
+    // `pkg/sub/sibling.py` (bare relative: local IS a module, not a symbol).
+    // This test ensures the Pattern 2 fix does not break the existing
+    // bare-relative behaviour.
+    let source = "\
+from . import sibling
+
+def caller():
+    return sibling.func()
+";
+    let store = extract_at("pkg/sub/consumer.py", source);
+
+    let caller_id = store
+        .lookup("pkg/sub/consumer.py>caller")
+        .expect("caller function must be indexed");
+
+    let target_id = store
+        .lookup("pkg/sub/sibling.py>func")
+        .expect("`from . import sibling; sibling.func()` must resolve to sibling.py>func");
+
+    assert!(
+        store
+            .outgoing(caller_id, EdgeKind::Calls)
+            .contains(&target_id),
+        "bare relative import must still resolve module file, not treat sibling as a symbol"
+    );
+}
+
+#[test]
 fn alias_dispatch_resolves_simple_import_as() {
     // `import X as Y; Y.foo()` — also an alias case, even without `from`.
     let source = "\
