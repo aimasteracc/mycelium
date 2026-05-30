@@ -1008,7 +1008,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-cli"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-core"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1063,7 +1063,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-hyphae"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "insta",
  "logos",
@@ -1076,7 +1076,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-mcp"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "ignore",
@@ -1108,7 +1108,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-pack"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "mycelium-rcig-core",
  "serde",
