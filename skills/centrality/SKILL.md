@@ -16,6 +16,15 @@ allowed-tools:
   - mcp__mycelium__page_rank
   - mcp__mycelium__get_harmonic_centrality
   - mcp__mycelium__get_neighbor_similarity
+category: analysis
+icon: ⭐
+marketplace_examples:
+  - query: "Which symbols are most critical to this codebase?"
+    tool: mcp__mycelium__rank_symbols
+  - query: "What are the top 10 most-connected files?"
+    tool: mcp__mycelium__get_top_files
+  - query: "Rank all functions by fan-in"
+    tool: mcp__mycelium__get_fan_in_rank
 ---
 
 # `centrality` — who matters in this codebase
@@ -36,6 +45,16 @@ Do **NOT** use when:
 
 - The user wants raw connectivity, not scores → use `call-graph` or `reachability`.
 - The user wants a specific symbol's neighborhood → use `get_symbol_neighborhood` from `reachability`.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Which symbols are most critical to this codebase?" | `mcp__mycelium__rank_symbols` |
+| "What are the top 10 most-connected files?" | `mcp__mycelium__get_top_files` |
+| "Rank all functions by fan-in" | `mcp__mycelium__get_fan_in_rank` |
+| "Compute PageRank for this codebase" | `mcp__mycelium__page_rank` |
+| "Find hub symbols with high in-degree" | `mcp__mycelium__get_hub_symbols` |
 
 ## Capabilities under this umbrella
 

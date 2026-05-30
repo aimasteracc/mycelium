@@ -16,6 +16,15 @@ allowed-tools:
   - mcp__mycelium__get_singly_referenced
   - mcp__mycelium__get_mutual_reachability
   - mcp__mycelium__get_common_reachable
+category: analysis
+icon: 🔗
+marketplace_examples:
+  - query: "Can handle_login reach find_by_email?"
+    tool: mcp__mycelium__get_shortest_path
+  - query: "What is reachable from the main entrypoint?"
+    tool: mcp__mycelium__get_reachable
+  - query: "What symbols are within 2 hops of AuthService?"
+    tool: mcp__mycelium__get_two_hop_neighbors
 ---
 
 # `reachability` — multi-hop navigation across edge kinds
@@ -36,6 +45,16 @@ Do **NOT** use when:
 
 - The relationship is single-edge-kind direct → use `call-graph` or `import-graph` (cheaper).
 - The user wants ranking/aggregates → use `centrality`.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Can handle_login reach find_by_email?" | `mcp__mycelium__get_shortest_path` |
+| "What is reachable from the main module entry point?" | `mcp__mycelium__get_reachable` |
+| "Find the shortest dependency path from A to B" | `mcp__mycelium__get_shortest_path` |
+| "What symbols are within 2 hops of AuthService?" | `mcp__mycelium__get_two_hop_neighbors` |
+| "Find all cross-module references to UserRepository" | `mcp__mycelium__get_cross_refs` |
 
 ## Capabilities under this umbrella
 
