@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue #246: `get-callers --include-virtual` / MCP `include_virtual` flag for virtual dispatch**.
+  New `Store::virtual_dispatch_callers_of_path` follows `EdgeKind::Extends` edges from the
+  target symbol's class to each base class, then collects callers of `BaseClass>method_name`.
+  When typed variables (e.g. `plugin: AbstractBase`) invoke a method via virtual dispatch,
+  the Calls edge points to the base class method — this flag surfaces those callers for the
+  concrete override. MCP `mycelium_get_callers` gains `include_virtual: Option<bool>`;
+  CLI `get-callers` gains `--include-virtual`. Three-Surface Rule (RFC-0090) satisfied:
+  `Store` method → MCP param → CLI flag. Default `false` is backward-compatible.
+  2 TDD tests.
+
 - **Issue #247: Python callback / higher-order function false positives fixed**.
   `packs/python/queries.scm` now captures identifiers passed as positional
   or keyword-value arguments (`reference.arg_callback`). The extractor's

@@ -212,6 +212,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Also include callers that reach this symbol via virtual dispatch
+        /// (i.e., callers of a base-class method of the same name).
+        #[arg(long, default_value_t = false)]
+        include_virtual: bool,
     },
     /// Return the recursive callee tree rooted at a symbol.
     GetCalleeTree {
@@ -1075,9 +1079,14 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_callees(&canonical, &path, format.into())?;
         }
-        Cmd::GetCallers { path, root, format } => {
+        Cmd::GetCallers {
+            path,
+            root,
+            format,
+            include_virtual,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callers(&canonical, &path, format.into())?;
+            queries::run_get_callers(&canonical, &path, include_virtual, format.into())?;
         }
         Cmd::GetCalleeTree {
             path,
