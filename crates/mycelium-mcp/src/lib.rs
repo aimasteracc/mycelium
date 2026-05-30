@@ -68,7 +68,7 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::RwLock;
-use tracing::warn;
+use tracing::{debug, warn};
 
 use crate::error::{application_error, not_found};
 use crate::formatter::{OutputFormat, formatter_for};
@@ -4783,6 +4783,12 @@ fn importer_node_to_json(node: &ImporterNode, store: &Store) -> serde_json::Valu
     serde_json::json!({ "path": path, "importers": importers })
 }
 
+/// Source-language extensions used by compound-extension detection (Issue #294).
+const SOURCE_EXTS: &[&str] = &[
+    "js", "jsx", "ts", "tsx", "py", "pyi", "rs", "go", "java", "c", "h", "cpp", "cc", "cxx", "hpp",
+    "rb", "cs",
+];
+
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
 
 // ts_lang / tsx_lang differ only by one letter — similarity is intentional.
@@ -4863,6 +4869,21 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             continue;
         };
+
+        // Issue #294: skip files with compound source-language extensions like
+        // `module.ts.py` — artefacts/cache files that would be indexed under
+        // the wrong language and produce misleading results.
+        if let Some(stem_ext) = path
+            .file_stem()
+            .and_then(|s| std::path::Path::new(s).extension())
+            .and_then(|e| e.to_str())
+        {
+            if SOURCE_EXTS.contains(&stem_ext) && stem_ext != ext {
+                debug!("skipping compound-extension file: {}", path.display());
+                continue;
+            }
+        }
+
         let (extractor, lang_name) = match ext {
             "js" | "jsx" => (&js_ext, "javascript"),
             "py" | "pyi" => (&py_ext, "python"),
@@ -4877,11 +4898,19 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
             "cs" => (&csharp_ext, "csharp"),
             _ => continue,
         };
-        let rel = path
-            .strip_prefix(root)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Issue #294: skip rather than fall back to the raw absolute path when
+        // strip_prefix fails — absolute paths produce `///`-prefixed Trunk paths
+        // that cannot be used for further queries.
+        let Ok(rel_path) = path.strip_prefix(root) else {
+            warn!(
+                "could not relativize {} against root {}; skipping",
+                path.display(),
+                root.display()
+            );
+            errors += 1;
+            continue;
+        };
+        let rel = rel_path.to_string_lossy().replace('\\', "/");
         match std::fs::read(path) {
             Err(e) => {
                 warn!("could not read {}: {e}", path.display());

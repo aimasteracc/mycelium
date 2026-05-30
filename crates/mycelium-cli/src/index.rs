@@ -69,6 +69,12 @@ fn grammar_language_for_name(grammar: &str) -> Option<tree_sitter::Language> {
     }
 }
 
+/// Source-language extensions used by compound-extension detection (Issue #294).
+const SOURCE_EXTS: &[&str] = &[
+    "js", "jsx", "ts", "tsx", "py", "pyi", "rs", "go", "java", "c", "h", "cpp", "cc", "cxx", "hpp",
+    "rb", "cs",
+];
+
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
 /// Supported languages: JavaScript (`.js`, `.jsx`), Python (`.py`, `.pyi`),
@@ -174,6 +180,22 @@ pub fn index_path(root: &Path, packs_dir: Option<&Path>) -> Result<(Store, Index
             continue;
         };
 
+        // Issue #294: skip files with compound source-language extensions like
+        // `module.ts.py`.  The stem (`module.ts`) ending in a recognised source
+        // extension that differs from `ext` (`py`) signals an artefact or cache
+        // file, not a real source file.  Indexing it would assign the wrong
+        // language and pollute the graph.
+        if let Some(stem_ext) = path
+            .file_stem()
+            .and_then(|s| std::path::Path::new(s).extension())
+            .and_then(|e| e.to_str())
+        {
+            if SOURCE_EXTS.contains(&stem_ext) && stem_ext != ext {
+                tracing::debug!("skipping compound-extension file: {}", path.display());
+                continue;
+            }
+        }
+
         // Try static built-in extractors first; fall through to registry for
         // unknown extensions when --packs-dir is provided.
         let static_ext: Option<&Extractor> = match ext {
@@ -215,11 +237,20 @@ pub fn index_path(root: &Path, packs_dir: Option<&Path>) -> Result<(Store, Index
             continue;
         };
 
-        let rel = path
-            .strip_prefix(root)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Issue #294: if strip_prefix fails (e.g. due to symlink canonicalization
+        // mismatch), skip the file rather than storing the raw absolute path as
+        // a Trunk node path — absolute paths produce `///`-prefixed query results
+        // that cannot be used for further look-ups.
+        let Ok(rel_path) = path.strip_prefix(root) else {
+            tracing::warn!(
+                "could not relativize path {} against root {}; skipping",
+                path.display(),
+                root.display()
+            );
+            stats.errors += 1;
+            continue;
+        };
+        let rel = rel_path.to_string_lossy().replace('\\', "/");
 
         let source = match std::fs::read(path) {
             Ok(s) => s,
@@ -1018,5 +1049,62 @@ mod tests {
             stats.files, 0,
             "unknown extension must not be indexed without packs-dir"
         );
+    }
+
+    // ── Issue #294: compound-extension / mangled-path guards ─────────────────
+
+    #[test]
+    fn index_path_skips_compound_extension_file() {
+        // A file named `module.ts.py` has last extension `py` but stem `module.ts`
+        // whose own extension is `ts` — a source-language extension that conflicts.
+        // The indexer must skip this file rather than index it as Python, because
+        // it is almost certainly a build artifact or cache file, not a real Python
+        // file.  Issue #294.
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("module.ts.py"), b"x = 1").unwrap();
+
+        let (store, stats) = index_path(root.path(), None).expect("index must succeed");
+
+        assert_eq!(stats.files, 0, "compound-extension file must be skipped");
+        assert!(
+            store.lookup("module.ts.py").is_none(),
+            "compound-extension file must not create a node in the store"
+        );
+    }
+
+    #[test]
+    fn index_path_does_not_skip_simple_named_py_file() {
+        // A file named `js.py` (stem `js`, no extension in stem) is a legitimate
+        // Python file — not a compound-extension artifact.  It must still be
+        // indexed as Python (Issue #294 — non-regression).
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("js.py"), b"def handle(): pass").unwrap();
+
+        let (store, stats) = index_path(root.path(), None).expect("index must succeed");
+
+        assert_eq!(stats.files, 1, "js.py must be indexed as Python");
+        assert!(
+            store.lookup("js.py>handle").is_some(),
+            "js.py>handle must be in the store"
+        );
+    }
+
+    #[test]
+    fn index_path_stored_paths_are_relative() {
+        // All paths stored in the index must be relative to the root, never
+        // absolute.  Absolute paths (mangled '///' prefix) indicate that
+        // path.strip_prefix(root) failed and the raw OS path leaked through.
+        // Issue #294.
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("app.py"), b"def run(): pass").unwrap();
+
+        let (store, _) = index_path(root.path(), None).expect("index must succeed");
+
+        for path in store.all_paths() {
+            assert!(
+                !path.starts_with('/'),
+                "stored path must be relative, got absolute: {path}"
+            );
+        }
     }
 }
