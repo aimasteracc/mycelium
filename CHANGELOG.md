@@ -55,6 +55,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `variable_declarator`'s name, ensuring Calls edges inside the body are attributed to the
   correct definition. 3 TDD tests. (Issue #293, PR #310)
 
+- **Issue #294 — `search-symbol` mangled paths and mis-classified compound-extension files** —
+  Two defects in the file-system walker fixed:
+  (1) **Compound extension guard**: files like `module.ts.py` whose stem's extension is itself a
+  recognised source-language extension (e.g. `ts`) are now skipped rather than indexed under the
+  wrong language. A file named `js.py` (stem `js` has no extension) is NOT affected and continues
+  to be indexed correctly as Python.
+  (2) **Strip-prefix defensive fix**: when `path.strip_prefix(root)` fails (e.g. due to symlink
+  canonicalization mismatch), the indexer now skips the file and logs a warning instead of falling
+  back to the raw absolute path. Previously this fallback caused Trunk nodes with `///`-prefixed
+  paths that were unusable in subsequent queries. Both fixes apply to the CLI and MCP indexers.
+  3 TDD tests in CLI. (Issue #294, PR #311)
+
 - **Issue #298 — batch commands accept repeated `--paths` flags** — `batch-symbol-info`,
   `batch-node-degree`, `batch-reachable-from`, `batch-reachable-to`, `get-common-callers`, and
   `get-common-callees` previously accepted only a single `--paths` string value; passing
