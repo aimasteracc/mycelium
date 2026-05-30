@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a backward-compatible `"error"` key alongside the new structured `"found"/"reason"/"path"`
   keys. Two new contract tests verify the is_error contract end-to-end (PR #266).
 
+### Fixed
+
+- **Issue #214 Pattern 3: depth-2+ attribute chain calls no longer create global bare stubs**.
+  `self.history.append(x)` (and any call through a chain of depth > 1) previously emitted a
+  global bare-name node (`append`) that absorbed every same-named call across the entire
+  codebase. On `tree-sitter-analyzer`, `HealthHistory.append` collected 1,472 spurious callers
+  from this mechanism. Root cause: a fallback tree-sitter pattern matched `(call (attribute
+  attribute: @name))` without a receiver constraint, bypassing the alias table entirely.
+  Fix: remove the fallback. Direct `obj.method()` calls (depth-1 chain, receiver is an
+  identifier) continue to resolve correctly via the `@call.receiver` pattern. Unresolvable
+  deep chains emit no edge rather than a misleading global stub. 2 new TDD tests; 1 updated
+  test (RFC-0092). Pack change synced to embedded MCP and CLI copies.
+
 ### Added
 
 - **Issue #246: `get-callers --include-virtual` / MCP `include_virtual` flag for virtual dispatch**.
