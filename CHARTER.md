@@ -181,6 +181,13 @@ These are added by the AI architect with the founder's blessing:
   - Per-PR autonomous iteration cap: **3 rounds**, then escalate to human.
   - Per-agent wall-clock limit: **30 minutes**, then SIGTERM and log.
   - Any operation touching `main` requires a GPG-signed founder approval.
+  - **Release gate (added 2026-05-30 after the v0.1.4 saga):** a
+    `release/*` branch **MUST NOT** be admin-merged to `main` unless
+    every CI check on that PR is `SUCCESS` or `SKIPPED`. No
+    exceptions — not even with founder authorization in chat. The rule
+    is: *if CI is red, the release does not ship.* Diagnose, fix, push,
+    re-run; only then merge. `gh pr merge --admin --merge` is **not**
+    a substitute for green CI on release branches.
   - High-risk classes of change (schema migration, public API breakage, license, security model) are **always** escalated to founder.
   - Full audit log: `.hive/audit/YYYY-MM-DD.jsonl`, public.
   - Kill switch: closing issue `#1 — Hive kill switch` halts all autonomous activity within 60 seconds.
