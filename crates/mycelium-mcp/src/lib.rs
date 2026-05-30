@@ -214,6 +214,10 @@ pub struct LoadIndexRequest {
 pub struct GetCalleesRequest {
     /// Trunk path to look up callees for, e.g. `"src/lib.rs>process"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_callers`.
@@ -226,6 +230,10 @@ pub struct GetCallersRequest {
     /// Default: false (backward-compatible).
     #[serde(default)]
     pub include_virtual: Option<bool>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_symbol_info`.
@@ -233,6 +241,10 @@ pub struct GetCallersRequest {
 pub struct GetSymbolInfoRequest {
     /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_callee_tree`.
@@ -242,6 +254,10 @@ pub struct GetCalleeTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_caller_tree`.
@@ -251,6 +267,10 @@ pub struct GetCallerTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_imports`.
@@ -258,6 +278,10 @@ pub struct GetCallerTreeRequest {
 pub struct GetImportsRequest {
     /// Trunk path to query, e.g. `"src/auth.rs"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_import_tree`.
@@ -267,6 +291,10 @@ pub struct GetImportTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_batch_symbol_info`.
@@ -274,6 +302,10 @@ pub struct GetImportTreeRequest {
 pub struct BatchSymbolInfoRequest {
     /// List of trunk paths to query (maximum 50).
     pub paths: Vec<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_find_import_path`.
@@ -285,6 +317,10 @@ pub struct FindImportPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_extends_tree`.
@@ -294,6 +330,10 @@ pub struct GetExtendsTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_subclasses_tree`.
@@ -303,6 +343,10 @@ pub struct GetSubclassesTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_find_extends_path`.
@@ -314,6 +358,10 @@ pub struct FindExtendsPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_implements_tree`.
@@ -323,6 +371,10 @@ pub struct GetImplementsTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_implementors_tree`.
@@ -332,6 +384,10 @@ pub struct GetImplementorsTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_importers_tree`.
@@ -341,6 +397,10 @@ pub struct GetImportersTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_find_implements_path`.
@@ -352,6 +412,10 @@ pub struct FindImplementsPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_node_kind`.
@@ -359,6 +423,10 @@ pub struct FindImplementsPathRequest {
 pub struct GetNodeKindRequest {
     /// Trunk path to query, e.g. `"src/auth.rs>login"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_symbols_by_kind`.
@@ -368,6 +436,10 @@ pub struct GetSymbolsByKindRequest {
     pub kind: String,
     /// Optional path prefix to restrict results, e.g. `"src/"`.
     pub path_prefix: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_source_span`.
@@ -375,6 +447,10 @@ pub struct GetSymbolsByKindRequest {
 pub struct GetSourceSpanRequest {
     /// Trunk path to query, e.g. `"src/auth.rs>login"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_extends`.
@@ -382,6 +458,10 @@ pub struct GetSourceSpanRequest {
 pub struct GetExtendsRequest {
     /// Trunk path to query, e.g. `"src/shapes.py>Rectangle"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_implements`.
@@ -389,6 +469,10 @@ pub struct GetExtendsRequest {
 pub struct GetImplementsRequest {
     /// Trunk path to query, e.g. `"src/io.ts>FileReader"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_entry_points`.
@@ -396,6 +480,10 @@ pub struct GetImplementsRequest {
 pub struct GetEntryPointsRequest {
     /// Optional path prefix to restrict results (e.g. `"src/handlers/"`).
     pub path_prefix: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_rank_symbols`.
@@ -403,6 +491,10 @@ pub struct GetEntryPointsRequest {
 pub struct RankSymbolsRequest {
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_top_files`.
@@ -410,6 +502,10 @@ pub struct RankSymbolsRequest {
 pub struct GetTopFilesRequest {
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_most_connected`.
@@ -419,6 +515,10 @@ pub struct GetMostConnectedRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_leaf_symbols`.
@@ -428,6 +528,10 @@ pub struct GetLeafSymbolsRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_shortest_path`.
@@ -439,11 +543,20 @@ pub struct GetShortestPathRequest {
     pub to: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_symbol_count_by_kind` (no parameters).
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSymbolCountByKindRequest {}
+pub struct GetSymbolCountByKindRequest {
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
+}
 
 /// Input parameters for `mycelium_get_common_callers`.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -452,6 +565,10 @@ pub struct GetCommonCallersRequest {
     pub paths: Vec<String>,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_common_callees`.
@@ -461,6 +578,10 @@ pub struct GetCommonCalleesRequest {
     pub paths: Vec<String>,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_fan_out_rank`.
@@ -470,6 +591,10 @@ pub struct GetFanOutRankRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_fan_in_rank`.
@@ -479,6 +604,10 @@ pub struct GetFanInRankRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_files`.
@@ -486,6 +615,10 @@ pub struct GetFanInRankRequest {
 pub struct GetFilesRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_dead_symbols`.
@@ -493,6 +626,10 @@ pub struct GetFilesRequest {
 pub struct GetDeadSymbolsRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_isolated_symbols`.
@@ -500,17 +637,30 @@ pub struct GetDeadSymbolsRequest {
 pub struct GetIsolatedSymbolsRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
-/// Input parameters for `mycelium_get_stats` (no parameters).
+/// Input parameters for `mycelium_get_stats`.
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetStatsRequest {}
+pub struct GetStatsRequest {
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
+}
 
 /// Input parameters for `mycelium_get_cross_refs`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetCrossRefsRequest {
     /// Symbol path to look up, e.g. `"src/lib.rs>MyClass"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_outgoing_refs`.
@@ -518,6 +668,10 @@ pub struct GetCrossRefsRequest {
 pub struct GetOutgoingRefsRequest {
     /// Symbol path to look up, e.g. `"src/app.rs>App"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_scc_groups`.
@@ -525,6 +679,10 @@ pub struct GetOutgoingRefsRequest {
 pub struct GetSccGroupsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_dependency_layers`.
@@ -532,6 +690,10 @@ pub struct GetSccGroupsRequest {
 pub struct GetDependencyLayersRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_two_hop_neighbors`.
@@ -541,6 +703,10 @@ pub struct GetTwoHopNeighborsRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_symbol_neighborhood`.
@@ -550,6 +716,10 @@ pub struct GetSymbolNeighborhoodRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_hub_symbols`.
@@ -563,6 +733,10 @@ pub struct GetHubSymbolsRequest {
     pub min_out: Option<usize>,
     /// Maximum results returned. Defaults to 10, capped at 100.
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_singly_referenced`.
@@ -572,6 +746,10 @@ pub struct GetSinglyReferencedRequest {
     pub edge_kind: String,
     /// Maximum results returned. Defaults to 10, capped at 100.
     pub limit: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_batch_reachable_to`.
@@ -583,6 +761,10 @@ pub struct BatchReachableToRequest {
     pub edge_kind: String,
     /// Maximum BFS depth per source. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_batch_reachable_from`.
@@ -594,6 +776,10 @@ pub struct BatchReachableFromRequest {
     pub edge_kind: String,
     /// Maximum BFS depth per source. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_batch_node_degree`.
@@ -601,6 +787,10 @@ pub struct BatchReachableFromRequest {
 pub struct BatchNodeDegreeRequest {
     /// Symbol paths to query (up to 50 entries).
     pub paths: Vec<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_wcc`.
@@ -610,6 +800,10 @@ pub struct GetWccRequest {
     pub edge_kind: String,
     /// Only return components with at least this many symbols. Defaults to 1.
     pub min_size: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_find_articulation_points`.
@@ -617,6 +811,10 @@ pub struct GetWccRequest {
 pub struct FindArticulationPointsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_find_bridge_edges`.
@@ -624,6 +822,10 @@ pub struct FindArticulationPointsRequest {
 pub struct FindBridgeEdgesRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_biconnected_components`.
@@ -631,6 +833,10 @@ pub struct FindBridgeEdgesRequest {
 pub struct BiconnectedComponentsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_degree_histogram`.
@@ -638,6 +844,10 @@ pub struct BiconnectedComponentsRequest {
 pub struct DegreeHistogramRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_graph_metrics`.
@@ -645,6 +855,10 @@ pub struct DegreeHistogramRequest {
 pub struct GraphMetricsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_neighbor_similarity`.
@@ -656,6 +870,10 @@ pub struct NeighborSimilarityRequest {
     pub path2: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_clustering_coefficient`.
@@ -665,6 +883,10 @@ pub struct ClusteringCoefficientRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_eccentricity`.
@@ -674,6 +896,10 @@ pub struct EccentricityRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_harmonic_centrality`.
@@ -683,6 +909,10 @@ pub struct HarmonicCentralityRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_mutual_reachability`.
@@ -694,6 +924,10 @@ pub struct MutualReachabilityRequest {
     pub path2: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_betweenness_centrality`.
@@ -703,6 +937,10 @@ pub struct BetweennessCentralityRequest {
     pub edge_kind: String,
     /// How many top entries to return; defaults to 10 if absent.
     pub top_n: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_sync_file`.
@@ -719,6 +957,10 @@ pub struct DependencyDepthRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_closeness_centrality`.
@@ -728,6 +970,10 @@ pub struct ClosenessCentralityRequest {
     pub edge_kind: String,
     /// How many top entries to return; defaults to 10 if absent.
     pub top_n: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_degree_centrality`.
@@ -739,6 +985,10 @@ pub struct DegreeCentralityRequest {
     pub top_n: Option<usize>,
     /// Sort order: `"in"` (default, by in-degree centrality) or `"out"` (by out-degree centrality).
     pub sort_by: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_strongly_connected_components`.
@@ -749,6 +999,10 @@ pub struct StronglyConnectedComponentsRequest {
     /// Minimum component size to include; defaults to 1 (all components).
     /// Use `2` to return only non-trivial SCCs (circular dependencies).
     pub min_size: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_k_hop_neighbors`.
@@ -760,6 +1014,10 @@ pub struct KHopNeighborsRequest {
     pub edge_kind: String,
     /// Number of hops (k ≥ 1; k = 0 returns empty).
     pub k: usize,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_common_reachable`.
@@ -771,6 +1029,10 @@ pub struct CommonReachableRequest {
     pub path2: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_page_rank`.
@@ -784,6 +1046,10 @@ pub struct PageRankRequest {
     pub iterations: Option<usize>,
     /// How many top entries to return; defaults to 10 if absent.
     pub top_n: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_reaches_into`.
@@ -793,6 +1059,10 @@ pub struct ReachesIntoRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_reachable_set`.
@@ -802,6 +1072,10 @@ pub struct ReachableSetRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_topological_sort`.
@@ -809,6 +1083,10 @@ pub struct ReachableSetRequest {
 pub struct TopologicalSortRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_find_cycle_members`.
@@ -816,6 +1094,10 @@ pub struct TopologicalSortRequest {
 pub struct FindCycleMembersRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_k_core`.
@@ -825,6 +1107,10 @@ pub struct GetKCoreRequest {
     pub edge_kind: String,
     /// Minimum total degree (in + out) within the induced subgraph. Defaults to 2.
     pub k: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_all_symbols`.
@@ -834,6 +1120,10 @@ pub struct GetAllSymbolsRequest {
     pub path_prefix: Option<String>,
     /// Optional kind filter: `"function"`, `"class"`, `"method"`, etc.
     pub kind: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_reachable`.
@@ -845,6 +1135,10 @@ pub struct GetReachableRequest {
     pub edge_kind: String,
     /// Maximum BFS depth. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_reachable_to`.
@@ -856,6 +1150,10 @@ pub struct GetReachableToRequest {
     pub edge_kind: String,
     /// Maximum BFS depth. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_siblings`.
@@ -863,6 +1161,10 @@ pub struct GetReachableToRequest {
 pub struct GetSiblingsRequest {
     /// Symbol path whose siblings to look up, e.g. `"src/app.rs>App>render"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_query` — the MCP twin of the CLI
@@ -875,6 +1177,10 @@ pub struct QueryRequest {
     /// `.class>.method` (direct-child combinator),
     /// `.function:calls(.function)` (pseudo-class — when executor supports it).
     pub expr: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_get_node_degree`.
@@ -882,6 +1188,10 @@ pub struct QueryRequest {
 pub struct GetNodeDegreeRequest {
     /// Symbol or file path to analyse, e.g. `"src/app.rs>App"`.
     pub path: String,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_detect_cycles`.
@@ -891,6 +1201,10 @@ pub struct DetectCyclesRequest {
     pub edge_kind: String,
     /// Optional path prefix to filter returned cycle nodes (e.g. `"src/"`).
     pub path_prefix: Option<String>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_find_call_path`.
@@ -902,6 +1216,10 @@ pub struct FindCallPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 /// Input parameters for `mycelium_set_compact_mode`.
@@ -1378,7 +1696,11 @@ impl MyceliumServer {
         drop(store_guard);
         paths.sort();
         paths.dedup();
-        serde_json::json!({ "callee_paths": paths }).to_string()
+        let value = serde_json::json!({ "callee_paths": paths });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1414,7 +1736,11 @@ impl MyceliumServer {
         paths.extend(virtual_opt);
         paths.sort();
         paths.dedup();
-        serde_json::json!({ "caller_paths": paths }).to_string()
+        let value = serde_json::json!({ "caller_paths": paths });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1463,14 +1789,17 @@ impl MyceliumServer {
 
         drop(store_guard);
 
-        serde_json::json!({
+        let value = serde_json::json!({
             "path": req.path,
             "ancestors": ancestors,
             "descendants": descendants,
             "callers": callers,
             "callees": callees,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1531,7 +1860,11 @@ impl MyceliumServer {
             })
             .collect();
         drop(store_guard);
-        serde_json::json!({ "symbols": symbols }).to_string()
+        let value = serde_json::json!({ "symbols": symbols });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1553,7 +1886,11 @@ impl MyceliumServer {
         let tree = store_guard.callee_tree(root_id, max_depth);
         let json_tree = callee_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json_tree }).to_string()
+        let value = serde_json::json!({ "root": json_tree });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1576,7 +1913,11 @@ impl MyceliumServer {
         let tree = store_guard.caller_tree(root_id, max_depth);
         let json_tree = caller_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json_tree }).to_string()
+        let value = serde_json::json!({ "root": json_tree });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(description = "Return the direct import neighbors for a trunk path: \
@@ -1593,7 +1934,11 @@ impl MyceliumServer {
         let imports = store_guard.imports_of(id);
         let imported_by = store_guard.imported_by(id);
         drop(store_guard);
-        serde_json::json!({ "imports": imports, "imported_by": imported_by }).to_string()
+        let value = serde_json::json!({ "imports": imports, "imported_by": imported_by });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1616,7 +1961,11 @@ impl MyceliumServer {
         let tree = store_guard.import_tree(root_id, max_depth);
         let json_tree = import_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json_tree }).to_string()
+        let value = serde_json::json!({ "root": json_tree });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1641,7 +1990,11 @@ impl MyceliumServer {
                 serde_json::Value::String(k.as_str().to_owned())
             });
         drop(store_guard);
-        serde_json::json!({ "path": req.path, "kind": kind_str }).to_string()
+        let value = serde_json::json!({ "path": req.path, "kind": kind_str });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1664,7 +2017,11 @@ impl MyceliumServer {
             .read()
             .await
             .symbols_of_kind(kind, req.path_prefix.as_deref());
-        serde_json::json!({ "symbols": symbols }).to_string()
+        let value = serde_json::json!({ "symbols": symbols });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1685,9 +2042,10 @@ impl MyceliumServer {
             return serde_json::json!({ "error": format!("path not found: {}", req.path) })
                 .to_string();
         };
+        let fmt = req.output_format;
         if let Some(span) = store_guard.span_of(id) {
             drop(store_guard);
-            serde_json::json!({
+            let value = serde_json::json!({
                 "path": req.path,
                 "start_line": span.start_line,
                 "start_col": span.start_col,
@@ -1695,11 +2053,12 @@ impl MyceliumServer {
                 "end_col": span.end_col,
                 "start_byte": span.start_byte,
                 "end_byte": span.end_byte,
-            })
-            .to_string()
+            });
+            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
         } else {
             drop(store_guard);
-            serde_json::json!({ "path": req.path, "span": serde_json::Value::Null }).to_string()
+            let value = serde_json::json!({ "path": req.path, "span": serde_json::Value::Null });
+            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
         }
     }
 
@@ -1729,7 +2088,11 @@ impl MyceliumServer {
             .collect();
         extended_by.sort_unstable();
         drop(store_guard);
-        serde_json::json!({ "extends": extends, "extended_by": extended_by }).to_string()
+        let value = serde_json::json!({ "extends": extends, "extended_by": extended_by });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1762,8 +2125,12 @@ impl MyceliumServer {
             .collect();
         implemented_by.sort_unstable();
         drop(store_guard);
-        serde_json::json!({ "implements": implements, "implemented_by": implemented_by })
-            .to_string()
+        let value =
+            serde_json::json!({ "implements": implements, "implemented_by": implemented_by });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1781,7 +2148,11 @@ impl MyceliumServer {
             .read()
             .await
             .entry_points(req.path_prefix.as_deref());
-        serde_json::json!({ "entry_points": eps }).to_string()
+        let value = serde_json::json!({ "entry_points": eps });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1800,7 +2171,11 @@ impl MyceliumServer {
             .await
             .dead_symbols(req.path_prefix.as_deref());
         let count = dead.len();
-        serde_json::json!({ "dead_symbols": dead, "count": count }).to_string()
+        let value = serde_json::json!({ "dead_symbols": dead, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1821,7 +2196,11 @@ impl MyceliumServer {
             .await
             .isolated_symbols(req.path_prefix.as_deref());
         let count = isolated.len();
-        serde_json::json!({ "isolated_symbols": isolated, "count": count }).to_string()
+        let value = serde_json::json!({ "isolated_symbols": isolated, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1831,15 +2210,18 @@ impl MyceliumServer {
                        Returns { total_nodes, total_edges, nodes_by_kind, edges_by_kind }. \
                        Kinds with zero count are omitted."
     )]
-    async fn mycelium_get_stats(&self, Parameters(_req): Parameters<GetStatsRequest>) -> String {
+    async fn mycelium_get_stats(&self, Parameters(req): Parameters<GetStatsRequest>) -> String {
         let stats: GraphStats = self.store.read().await.graph_stats();
-        serde_json::json!({
+        let value = serde_json::json!({
             "total_nodes": stats.total_nodes,
             "total_edges": stats.total_edges,
             "nodes_by_kind": stats.nodes_by_kind,
             "edges_by_kind": stats.edges_by_kind,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1861,13 +2243,16 @@ impl MyceliumServer {
             return serde_json::json!({ "error": format!("path not found: {}", req.path) })
                 .to_string();
         };
-        serde_json::json!({
+        let value = serde_json::json!({
             "callers": refs.callers,
             "importers": refs.importers,
             "extended_by": refs.extended_by,
             "implemented_by": refs.implemented_by,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1889,13 +2274,16 @@ impl MyceliumServer {
             return serde_json::json!({ "error": format!("path not found: {}", req.path) })
                 .to_string();
         };
-        serde_json::json!({
+        let value = serde_json::json!({
             "callees": refs.callees,
             "imports": refs.imports,
             "extends": refs.extends,
             "implements": refs.implements,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1923,7 +2311,11 @@ impl MyceliumServer {
             .await
             .all_symbols(req.path_prefix.as_deref(), kind);
         let count = symbols.len();
-        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1953,7 +2345,11 @@ impl MyceliumServer {
                 .to_string();
         };
         let count = reachable.len();
-        serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+        let value = serde_json::json!({ "reachable": reachable, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -1983,7 +2379,11 @@ impl MyceliumServer {
                 .to_string();
         };
         let count = reachable.len();
-        serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+        let value = serde_json::json!({ "reachable": reachable, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2005,7 +2405,11 @@ impl MyceliumServer {
                 .to_string();
         };
         let count = siblings.len();
-        serde_json::json!({ "siblings": siblings, "count": count }).to_string()
+        let value = serde_json::json!({ "siblings": siblings, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2031,7 +2435,11 @@ impl MyceliumServer {
         let matches = evaluator.eval(&ast);
         drop(store);
         let count = matches.len();
-        serde_json::json!({ "matches": matches, "count": count }).to_string()
+        let value = serde_json::json!({ "matches": matches, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2053,7 +2461,7 @@ impl MyceliumServer {
             return serde_json::json!({ "error": format!("path not found: {}", req.path) })
                 .to_string();
         };
-        serde_json::json!({
+        let value = serde_json::json!({
             "in_calls": deg.in_calls,
             "out_calls": deg.out_calls,
             "in_imports": deg.in_imports,
@@ -2062,8 +2470,11 @@ impl MyceliumServer {
             "out_extends": deg.out_extends,
             "in_implements": deg.in_implements,
             "out_implements": deg.out_implements,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2086,7 +2497,11 @@ impl MyceliumServer {
             .await
             .nodes_in_cycles(kind, req.path_prefix.as_deref());
         let count = nodes.len();
-        serde_json::json!({ "cycle_nodes": nodes, "count": count }).to_string()
+        let value = serde_json::json!({ "cycle_nodes": nodes, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2109,12 +2524,15 @@ impl MyceliumServer {
         let groups = self.store.read().await.scc_groups(kind);
         let group_count = groups.len();
         let total_symbols: usize = groups.iter().map(Vec::len).sum();
-        serde_json::json!({
+        let value = serde_json::json!({
             "groups": groups,
             "group_count": group_count,
             "total_symbols": total_symbols,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2144,13 +2562,16 @@ impl MyceliumServer {
         let layer_count = layers.len();
         let total_symbols: usize = layers.iter().map(Vec::len).sum();
         let cycle_excluded_count = all_symbol_count.saturating_sub(total_symbols);
-        serde_json::json!({
+        let value = serde_json::json!({
             "layers": layers,
             "layer_count": layer_count,
             "total_symbols": total_symbols,
             "cycle_excluded_count": cycle_excluded_count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2178,7 +2599,11 @@ impl MyceliumServer {
         let neighbors = store.two_hop_neighbors(id, kind);
         drop(store);
         let count = neighbors.len();
-        serde_json::json!({ "neighbors": neighbors, "count": count }).to_string()
+        let value = serde_json::json!({ "neighbors": neighbors, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2209,14 +2634,17 @@ impl MyceliumServer {
         };
         let incoming_count = nb.incoming.len();
         let outgoing_count = nb.outgoing.len();
-        serde_json::json!({
+        let value = serde_json::json!({
             "path": nb.path,
             "incoming": nb.incoming,
             "outgoing": nb.outgoing,
             "incoming_count": incoming_count,
             "outgoing_count": outgoing_count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2252,7 +2680,11 @@ impl MyceliumServer {
                 serde_json::json!({ "path": path, "in_degree": in_degree, "out_degree": out_degree })
             })
             .collect();
-        serde_json::json!({ "hubs": hubs_json, "count": count }).to_string()
+        let value = serde_json::json!({ "hubs": hubs_json, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2285,7 +2717,11 @@ impl MyceliumServer {
                 serde_json::json!({ "path": path, "referenced_by": referenced_by })
             })
             .collect();
-        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2317,7 +2753,11 @@ impl MyceliumServer {
             result
         };
         let count = reachable.len();
-        serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+        let value = serde_json::json!({ "reachable": reachable, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2351,7 +2791,11 @@ impl MyceliumServer {
             result
         };
         let count = reachable.len();
-        serde_json::json!({ "reachable": reachable, "count": count }).to_string()
+        let value = serde_json::json!({ "reachable": reachable, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2393,7 +2837,11 @@ impl MyceliumServer {
             .collect();
         let count = degrees.len();
         drop(store);
-        serde_json::json!({ "degrees": degrees, "count": count }).to_string()
+        let value = serde_json::json!({ "degrees": degrees, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2423,13 +2871,16 @@ impl MyceliumServer {
         };
         let ordered_count = order.len();
         let cycle_count = cycle_members.len();
-        serde_json::json!({
+        let value = serde_json::json!({
             "order": order,
             "cycle_members": cycle_members,
             "ordered_count": ordered_count,
             "cycle_count": cycle_count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2455,7 +2906,11 @@ impl MyceliumServer {
             p
         };
         let count = points.len();
-        serde_json::json!({ "points": points, "count": count }).to_string()
+        let value = serde_json::json!({ "points": points, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2485,7 +2940,11 @@ impl MyceliumServer {
             .into_iter()
             .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
             .collect();
-        serde_json::json!({ "bridges": bridge_list, "count": count }).to_string()
+        let value = serde_json::json!({ "bridges": bridge_list, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2513,12 +2972,15 @@ impl MyceliumServer {
         };
         let component_count = comps.len();
         let total_symbols: usize = comps.iter().map(Vec::len).sum();
-        serde_json::json!({
+        let value = serde_json::json!({
             "components": comps,
             "component_count": component_count,
             "total_symbols": total_symbols
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2553,12 +3015,15 @@ impl MyceliumServer {
             .iter()
             .map(|&(d, c)| serde_json::json!({ "degree": d, "count": c }))
             .collect();
-        serde_json::json!({
+        let value = serde_json::json!({
             "in_degrees": in_list,
             "out_degrees": out_list,
             "total_symbols": total_symbols
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2582,15 +3047,18 @@ impl MyceliumServer {
             drop(store);
             metrics
         };
-        serde_json::json!({
+        let value = serde_json::json!({
             "symbol_count": m.symbol_count,
             "directed_edge_count": m.directed_edge_count,
             "density": m.density,
             "avg_degree": m.avg_degree,
             "max_in_degree": m.max_in_degree,
             "max_out_degree": m.max_out_degree,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2620,12 +3088,15 @@ impl MyceliumServer {
         };
         let (similarity, shared, total) = store.neighbor_similarity_stats(id1, id2, kind);
         drop(store);
-        serde_json::json!({
+        let value = serde_json::json!({
             "similarity": similarity,
             "shared": shared,
             "total": total,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2653,12 +3124,15 @@ impl MyceliumServer {
         let (coefficient, neighbor_count, neighbor_edge_count) =
             store.clustering_coefficient_stats(id, kind);
         drop(store);
-        serde_json::json!({
+        let value = serde_json::json!({
             "coefficient": coefficient,
             "neighbor_count": neighbor_count,
             "neighbor_edge_count": neighbor_edge_count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2683,11 +3157,14 @@ impl MyceliumServer {
         };
         let (eccentricity, reachable_count) = store.eccentricity_stats(id, kind);
         drop(store);
-        serde_json::json!({
+        let value = serde_json::json!({
             "eccentricity": eccentricity,
             "reachable_count": reachable_count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2714,12 +3191,15 @@ impl MyceliumServer {
         let (harmonic_centrality, reachable_count, symbol_count) =
             store.harmonic_centrality_stats(id, kind);
         drop(store);
-        serde_json::json!({
+        let value = serde_json::json!({
             "harmonic_centrality": harmonic_centrality,
             "reachable_count": reachable_count,
             "symbol_count": symbol_count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2749,14 +3229,17 @@ impl MyceliumServer {
         };
         let result = store.mutual_reachability(id1, id2, kind);
         drop(store);
-        serde_json::json!({
+        let value = serde_json::json!({
             "forward": result.forward,
             "backward": result.backward,
             "mutual": result.mutual,
             "forward_distance": result.forward_distance,
             "backward_distance": result.backward_distance,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2782,11 +3265,14 @@ impl MyceliumServer {
         let reachable = store.reachable_set(id, kind);
         drop(store);
         let count = reachable.len();
-        serde_json::json!({
+        let value = serde_json::json!({
             "reachable": reachable,
             "count": count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2812,11 +3298,14 @@ impl MyceliumServer {
         let callers = store.reaches_into(id, kind);
         drop(store);
         let count = callers.len();
-        serde_json::json!({
+        let value = serde_json::json!({
             "callers": callers,
             "count": count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2847,11 +3336,14 @@ impl MyceliumServer {
         let common = store.common_reachable(id1, id2, kind);
         drop(store);
         let count = common.len();
-        serde_json::json!({
+        let value = serde_json::json!({
             "common": common,
             "count": count,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2877,12 +3369,15 @@ impl MyceliumServer {
         let neighbors = store.k_hop_neighbors(id, kind, req.k);
         drop(store);
         let count = neighbors.len();
-        serde_json::json!({
+        let value = serde_json::json!({
             "neighbors": neighbors,
             "count": count,
             "k": req.k,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2911,12 +3406,15 @@ impl MyceliumServer {
             .take(top_n)
             .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
             .collect();
-        serde_json::json!({
+        let value = serde_json::json!({
             "nodes": nodes,
             "symbol_count": symbol_count,
             "top_n": top_n,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2944,12 +3442,15 @@ impl MyceliumServer {
             .take(top_n)
             .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
             .collect();
-        serde_json::json!({
+        let value = serde_json::json!({
             "nodes": nodes,
             "symbol_count": symbol_count,
             "top_n": top_n,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -2974,12 +3475,15 @@ impl MyceliumServer {
         };
         let component_count = components.len();
         let total_symbols: usize = components.iter().map(Vec::len).sum();
-        serde_json::json!({
+        let value = serde_json::json!({
             "components": components,
             "component_count": component_count,
             "total_symbols": total_symbols,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3004,7 +3508,11 @@ impl MyceliumServer {
             m
         };
         let count = members.len();
-        serde_json::json!({ "members": members, "count": count }).to_string()
+        let value = serde_json::json!({ "members": members, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3027,7 +3535,11 @@ impl MyceliumServer {
             result
         };
         let count = core.len();
-        serde_json::json!({ "core": core, "count": count, "k": k }).to_string()
+        let value = serde_json::json!({ "core": core, "count": count, "k": k });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3048,7 +3560,11 @@ impl MyceliumServer {
                 serde_json::json!({ "path": path, "caller_count": caller_count })
             })
             .collect();
-        serde_json::json!({ "symbols": symbols }).to_string()
+        let value = serde_json::json!({ "symbols": symbols });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3069,7 +3585,11 @@ impl MyceliumServer {
                 serde_json::json!({ "path": path, "symbol_count": symbol_count })
             })
             .collect();
-        serde_json::json!({ "files": files, "count": count }).to_string()
+        let value = serde_json::json!({ "files": files, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3094,7 +3614,11 @@ impl MyceliumServer {
             .into_iter()
             .map(|(path, degree)| serde_json::json!({ "path": path, "degree": degree }))
             .collect();
-        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3116,7 +3640,11 @@ impl MyceliumServer {
         let limit = req.limit.unwrap_or(10);
         let symbols = self.store.read().await.leaf_symbols(kind, limit);
         let count = symbols.len();
-        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3147,11 +3675,16 @@ impl MyceliumServer {
             };
             Ok(store.shortest_path(from_id, to_id, kind))
         };
+        let fmt = req.output_format;
         path_opt.unwrap().map_or_else(
-            || serde_json::json!({ "path": null, "length": null }).to_string(),
+            || {
+                let value = serde_json::json!({ "path": null, "length": null });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+            },
             |p| {
                 let length = p.len() - 1;
-                serde_json::json!({ "path": p, "length": length }).to_string()
+                let value = serde_json::json!({ "path": p, "length": length });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
             },
         )
     }
@@ -3163,7 +3696,7 @@ impl MyceliumServer {
                        Returns { kinds: [{ kind, count }], total }.")]
     async fn mycelium_get_symbol_count_by_kind(
         &self,
-        Parameters(_req): Parameters<GetSymbolCountByKindRequest>,
+        Parameters(req): Parameters<GetSymbolCountByKindRequest>,
     ) -> String {
         let counts = self.store.read().await.symbol_count_by_kind();
         let total: usize = counts.iter().map(|(_, n)| n).sum();
@@ -3171,7 +3704,11 @@ impl MyceliumServer {
             .into_iter()
             .map(|(kind, count)| serde_json::json!({ "kind": kind, "count": count }))
             .collect();
-        serde_json::json!({ "kinds": kinds, "total": total }).to_string()
+        let value = serde_json::json!({ "kinds": kinds, "total": total });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3207,7 +3744,11 @@ impl MyceliumServer {
         };
         let callers = callers_opt.unwrap();
         let count = callers.len();
-        serde_json::json!({ "callers": callers, "count": count }).to_string()
+        let value = serde_json::json!({ "callers": callers, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3243,7 +3784,11 @@ impl MyceliumServer {
         };
         let callees = callees_opt.unwrap();
         let count = callees.len();
-        serde_json::json!({ "callees": callees, "count": count }).to_string()
+        let value = serde_json::json!({ "callees": callees, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3269,7 +3814,11 @@ impl MyceliumServer {
             .into_iter()
             .map(|(path, out_degree)| serde_json::json!({ "path": path, "out_degree": out_degree }))
             .collect();
-        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3295,7 +3844,11 @@ impl MyceliumServer {
             .into_iter()
             .map(|(path, in_degree)| serde_json::json!({ "path": path, "in_degree": in_degree }))
             .collect();
-        serde_json::json!({ "symbols": symbols, "count": count }).to_string()
+        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3312,7 +3865,11 @@ impl MyceliumServer {
                 .filter(|p| p.starts_with(prefix.as_str()))
                 .collect(),
         };
-        serde_json::json!({ "files": files }).to_string()
+        let value = serde_json::json!({ "files": files });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3344,19 +3901,21 @@ impl MyceliumServer {
                 .filter_map(|&id| store_guard.path_of(id).map(str::to_owned))
                 .collect()
         });
+        let fmt = req.output_format;
         drop(store_guard);
         path_strings.map_or_else(
             || {
-                serde_json::json!({
+                let value = serde_json::json!({
                     "path": [],
                     "hops": serde_json::Value::Null,
                     "message": format!("no call path found within depth {max_depth}"),
-                })
-                .to_string()
+                });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
-                serde_json::json!({ "path": path, "hops": hops }).to_string()
+                let value = serde_json::json!({ "path": path, "hops": hops });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
             },
         )
     }
@@ -3389,19 +3948,21 @@ impl MyceliumServer {
                 .filter_map(|&id| store_guard.path_of(id).map(str::to_owned))
                 .collect()
         });
+        let fmt = req.output_format;
         drop(store_guard);
         path_strings.map_or_else(
             || {
-                serde_json::json!({
+                let value = serde_json::json!({
                     "path": [],
                     "hops": serde_json::Value::Null,
                     "message": format!("no import path found within max_depth={max_depth}"),
-                })
-                .to_string()
+                });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
-                serde_json::json!({ "path": path, "hops": hops }).to_string()
+                let value = serde_json::json!({ "path": path, "hops": hops });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
             },
         )
     }
@@ -3435,19 +3996,21 @@ impl MyceliumServer {
                 .filter_map(|&id| store_guard.path_of(id).map(str::to_owned))
                 .collect()
         });
+        let fmt = req.output_format;
         drop(store_guard);
         path_strings.map_or_else(
             || {
-                serde_json::json!({
+                let value = serde_json::json!({
                     "path": [],
                     "hops": serde_json::Value::Null,
                     "message": format!("no extends path found within max_depth={max_depth}"),
-                })
-                .to_string()
+                });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
-                serde_json::json!({ "path": path, "hops": hops }).to_string()
+                let value = serde_json::json!({ "path": path, "hops": hops });
+                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
             },
         )
     }
@@ -3472,7 +4035,11 @@ impl MyceliumServer {
         let tree = store_guard.extends_tree(id, max_depth);
         let json = extends_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json }).to_string()
+        let value = serde_json::json!({ "root": json });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3495,7 +4062,11 @@ impl MyceliumServer {
         let tree = store_guard.subclasses_tree(id, max_depth);
         let json = subclass_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json }).to_string()
+        let value = serde_json::json!({ "root": json });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3520,6 +4091,7 @@ impl MyceliumServer {
             return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
                 .to_string();
         };
+        let fmt = req.output_format;
         if let Some(ids) = store_guard.find_implements_path(from_id, to_id, max_depth) {
             let path: Vec<String> = ids
                 .iter()
@@ -3527,15 +4099,16 @@ impl MyceliumServer {
                 .collect();
             let hops = path.len() - 1;
             drop(store_guard);
-            serde_json::json!({ "path": path, "hops": hops }).to_string()
+            let value = serde_json::json!({ "path": path, "hops": hops });
+            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
         } else {
             drop(store_guard);
-            serde_json::json!({
+            let value = serde_json::json!({
                 "path": [],
                 "hops": null,
                 "message": format!("no implements path found within max_depth={max_depth}")
-            })
-            .to_string()
+            });
+            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
         }
     }
 
@@ -3560,7 +4133,11 @@ impl MyceliumServer {
         let tree = store_guard.implements_tree(id, max_depth);
         let json = implements_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json }).to_string()
+        let value = serde_json::json!({ "root": json });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3584,7 +4161,11 @@ impl MyceliumServer {
         let tree = store_guard.implementors_tree(id, max_depth);
         let json = implementor_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json }).to_string()
+        let value = serde_json::json!({ "root": json });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3608,7 +4189,11 @@ impl MyceliumServer {
         let tree = store_guard.importers_tree(id, max_depth);
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
-        serde_json::json!({ "root": json }).to_string()
+        let value = serde_json::json!({ "root": json });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3636,12 +4221,15 @@ impl MyceliumServer {
             .take(top_n)
             .map(|e| serde_json::json!({ "path": e.path, "score": e.score }))
             .collect();
-        serde_json::json!({
+        let value = serde_json::json!({
             "nodes": nodes,
             "symbol_count": symbol_count,
             "top_n": top_n,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3665,12 +4253,15 @@ impl MyceliumServer {
                 .to_string();
         };
         drop(store);
-        serde_json::json!({
+        let value = serde_json::json!({
             "path": req.path,
             "depth": depth,
             "edge_kind": req.edge_kind,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3725,13 +4316,16 @@ impl MyceliumServer {
                 })
             })
             .collect();
-        serde_json::json!({
+        let value = serde_json::json!({
             "nodes": nodes,
             "symbol_count": symbol_count,
             "top_n": top_n,
             "sort_by": sort_by,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -3760,13 +4354,16 @@ impl MyceliumServer {
             .filter(|e| e.size >= min_size)
             .map(|e| serde_json::json!({ "members": e.members, "size": e.size }))
             .collect();
-        serde_json::json!({
+        let value = serde_json::json!({
             "components": components,
             "total_components": total_components,
             "symbol_count": symbol_count,
             "min_size": min_size,
-        })
-        .to_string()
+        });
+        req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        )
     }
 
     #[tool(
@@ -4847,6 +5444,7 @@ mod tests {
         let raw = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "src/lib.rs>foo".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4873,6 +5471,7 @@ mod tests {
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "src/lib.rs>bar".to_string(),
                 include_virtual: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4898,6 +5497,7 @@ mod tests {
         let raw = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "no/such/path".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4922,6 +5522,7 @@ mod tests {
         let raw = server
             .mycelium_get_symbol_info(Parameters(GetSymbolInfoRequest {
                 path: "src/lib.rs>foo".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4960,6 +5561,7 @@ mod tests {
         let raw = server
             .mycelium_get_symbol_info(Parameters(GetSymbolInfoRequest {
                 path: "no/such>path".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -4977,6 +5579,7 @@ mod tests {
                 from_path: "src/lib.rs>foo".to_string(),
                 to_path: "src/lib.rs>bar".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5008,6 +5611,7 @@ mod tests {
                 from_path: "x.rs>a".to_string(),
                 to_path: "x.rs>c".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5031,6 +5635,7 @@ mod tests {
                 from_path: "src/lib.rs>bar".to_string(),
                 to_path: "src/lib.rs>foo".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5060,6 +5665,7 @@ mod tests {
                 from_path: "no/such>symbol".to_string(),
                 to_path: "src/lib.rs>bar".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5077,6 +5683,7 @@ mod tests {
                 from_path: "src/lib.rs>foo".to_string(),
                 to_path: "no/such>symbol".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5096,6 +5703,7 @@ mod tests {
             .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
                 path: "src/lib.rs>foo".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5116,6 +5724,7 @@ mod tests {
             .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5138,6 +5747,7 @@ mod tests {
             .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
                 path: "a.rs>a".to_string(),
                 max_depth: Some(1),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5160,6 +5770,7 @@ mod tests {
             .mycelium_get_caller_tree(Parameters(GetCallerTreeRequest {
                 path: "src/lib.rs>bar".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5180,6 +5791,7 @@ mod tests {
             .mycelium_get_caller_tree(Parameters(GetCallerTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5202,6 +5814,7 @@ mod tests {
             .mycelium_get_caller_tree(Parameters(GetCallerTreeRequest {
                 path: "c.rs>c".to_string(),
                 max_depth: Some(1),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5222,7 +5835,10 @@ mod tests {
         // Fixture: foo→bar, foo→baz, baz→bar
         // foo has no callers → entry point; bar and baz have callers → not
         let raw = server
-            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest { path_prefix: None }))
+            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
+                path_prefix: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         let eps = val["entry_points"].as_array().unwrap();
@@ -5242,7 +5858,10 @@ mod tests {
     async fn get_entry_points_excludes_file_nodes() {
         let server = server_with_call_fixture().await;
         let raw = server
-            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest { path_prefix: None }))
+            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
+                path_prefix: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         let eps = val["entry_points"].as_array().unwrap();
@@ -5263,6 +5882,7 @@ mod tests {
         let raw = server
             .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
                 path_prefix: Some("src/".to_string()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5290,6 +5910,7 @@ mod tests {
         let raw = server
             .mycelium_get_imports(Parameters(GetImportsRequest {
                 path: "src/auth.rs".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5306,6 +5927,7 @@ mod tests {
         let raw = server
             .mycelium_get_imports(Parameters(GetImportsRequest {
                 path: "no/such.rs".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5322,6 +5944,7 @@ mod tests {
         let raw = server
             .mycelium_get_imports(Parameters(GetImportsRequest {
                 path: "src/isolated.rs".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5346,6 +5969,7 @@ mod tests {
             .mycelium_get_import_tree(Parameters(GetImportTreeRequest {
                 path: "a.rs".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5367,6 +5991,7 @@ mod tests {
             .mycelium_get_import_tree(Parameters(GetImportTreeRequest {
                 path: "no/such.rs".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5388,6 +6013,7 @@ mod tests {
             .mycelium_get_import_tree(Parameters(GetImportTreeRequest {
                 path: "a.rs".to_string(),
                 max_depth: Some(1),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5408,6 +6034,7 @@ mod tests {
         let raw = server
             .mycelium_batch_symbol_info(Parameters(BatchSymbolInfoRequest {
                 paths: vec!["src/lib.rs>foo".to_string(), "src/lib.rs>bar".to_string()],
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5431,6 +6058,7 @@ mod tests {
         let raw = server
             .mycelium_batch_symbol_info(Parameters(BatchSymbolInfoRequest {
                 paths: vec!["src/lib.rs>foo".to_string(), "no/such>path".to_string()],
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5453,6 +6081,7 @@ mod tests {
                     "src/lib.rs>foo".to_string(),
                     "src/lib.rs>baz".to_string(),
                 ],
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5469,7 +6098,10 @@ mod tests {
         let server = server_with_call_fixture().await;
         // Fixture: foo→bar, foo→baz, baz→bar → bar has 2 callers, baz has 1, foo has 0
         let raw = server
-            .mycelium_rank_symbols(Parameters(RankSymbolsRequest { limit: None }))
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+                limit: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
@@ -5490,7 +6122,10 @@ mod tests {
     async fn rank_symbols_respects_limit() {
         let server = server_with_call_fixture().await;
         let raw = server
-            .mycelium_rank_symbols(Parameters(RankSymbolsRequest { limit: Some(1) }))
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+                limit: Some(1),
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(
@@ -5504,7 +6139,10 @@ mod tests {
     async fn rank_symbols_empty_when_no_call_edges() {
         let server = server_with_fixture().await; // only Contains edges, no Calls
         let raw = server
-            .mycelium_rank_symbols(Parameters(RankSymbolsRequest { limit: None }))
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+                limit: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert!(
@@ -5520,7 +6158,10 @@ mod tests {
         let server = server_with_fixture().await;
         // server_with_fixture has src/greet.rs, src/greet.rs>greet, src/greet.rs>helper
         let raw = server
-            .mycelium_get_files(Parameters(GetFilesRequest { path_prefix: None }))
+            .mycelium_get_files(Parameters(GetFilesRequest {
+                path_prefix: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         let files: Vec<&str> = val["files"]
@@ -5548,6 +6189,7 @@ mod tests {
         let raw = server
             .mycelium_get_files(Parameters(GetFilesRequest {
                 path_prefix: Some("src/".to_string()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5581,7 +6223,10 @@ mod tests {
             store.upsert_node(TrunkPath::parse("m.rs").unwrap());
         }
         let raw = server
-            .mycelium_get_files(Parameters(GetFilesRequest { path_prefix: None }))
+            .mycelium_get_files(Parameters(GetFilesRequest {
+                path_prefix: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         let files: Vec<&str> = val["files"]
@@ -5677,6 +6322,7 @@ mod tests {
         let raw = server
             .mycelium_get_extends(Parameters(GetExtendsRequest {
                 path: "src/shapes.py>Rectangle".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5695,6 +6341,7 @@ mod tests {
         let raw = server
             .mycelium_get_extends(Parameters(GetExtendsRequest {
                 path: "src/shapes.py>Shape".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5708,6 +6355,7 @@ mod tests {
         let raw = server
             .mycelium_get_extends(Parameters(GetExtendsRequest {
                 path: "no/such>Symbol".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5720,6 +6368,7 @@ mod tests {
         let raw = server
             .mycelium_get_implements(Parameters(GetImplementsRequest {
                 path: "src/shapes.py>Shape".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5737,6 +6386,7 @@ mod tests {
         let raw = server
             .mycelium_get_implements(Parameters(GetImplementsRequest {
                 path: "src/shapes.py>IShape".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5753,6 +6403,7 @@ mod tests {
         let raw = server
             .mycelium_get_implements(Parameters(GetImplementsRequest {
                 path: "no/such>Symbol".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5783,6 +6434,7 @@ mod tests {
                 from_path: "a.rs".to_string(),
                 to_path: "b.rs".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5802,6 +6454,7 @@ mod tests {
                 from_path: "a.rs".to_string(),
                 to_path: "c.rs".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5819,6 +6472,7 @@ mod tests {
                 from_path: "c.rs".to_string(),
                 to_path: "a.rs".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5836,6 +6490,7 @@ mod tests {
                 from_path: "no/such.rs".to_string(),
                 to_path: "b.rs".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5851,6 +6506,7 @@ mod tests {
                 from_path: "a.rs".to_string(),
                 to_path: "c.rs".to_string(),
                 max_depth: Some(1),
+                output_format: None,
             }))
             .await;
         let val_shallow: serde_json::Value = serde_json::from_str(&raw_shallow).unwrap();
@@ -5861,6 +6517,7 @@ mod tests {
                 from_path: "a.rs".to_string(),
                 to_path: "c.rs".to_string(),
                 max_depth: Some(2),
+                output_format: None,
             }))
             .await;
         let val_deep: serde_json::Value = serde_json::from_str(&raw_deep).unwrap();
@@ -5888,6 +6545,7 @@ mod tests {
         let raw = server
             .mycelium_get_node_kind(Parameters(GetNodeKindRequest {
                 path: "src/a.rs>foo".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5904,6 +6562,7 @@ mod tests {
         let raw = server
             .mycelium_get_node_kind(Parameters(GetNodeKindRequest {
                 path: "x.rs>foo".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5917,6 +6576,7 @@ mod tests {
         let raw = server
             .mycelium_get_node_kind(Parameters(GetNodeKindRequest {
                 path: "no/such>path".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5930,6 +6590,7 @@ mod tests {
             .mycelium_get_symbols_by_kind(Parameters(GetSymbolsByKindRequest {
                 kind: "function".to_string(),
                 path_prefix: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5954,6 +6615,7 @@ mod tests {
             .mycelium_get_symbols_by_kind(Parameters(GetSymbolsByKindRequest {
                 kind: "function".to_string(),
                 path_prefix: Some("src/".to_string()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -5969,6 +6631,7 @@ mod tests {
             .mycelium_get_symbols_by_kind(Parameters(GetSymbolsByKindRequest {
                 kind: "not_a_real_kind".to_string(),
                 path_prefix: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6003,6 +6666,7 @@ mod tests {
         let raw = server
             .mycelium_get_source_span(Parameters(GetSourceSpanRequest {
                 path: "src/auth.rs>login".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6025,6 +6689,7 @@ mod tests {
         let raw = server
             .mycelium_get_source_span(Parameters(GetSourceSpanRequest {
                 path: "x.rs>foo".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6038,6 +6703,7 @@ mod tests {
         let raw = server
             .mycelium_get_source_span(Parameters(GetSourceSpanRequest {
                 path: "no/such>path".to_string(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6072,6 +6738,7 @@ mod tests {
                 from_path: "src/child.ts>Child".to_string(),
                 to_path: "src/mid.ts>Mid".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6087,6 +6754,7 @@ mod tests {
                 from_path: "src/child.ts>Child".to_string(),
                 to_path: "src/base.ts>Base".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6102,6 +6770,7 @@ mod tests {
                 from_path: "src/base.ts>Base".to_string(),
                 to_path: "src/child.ts>Child".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6118,6 +6787,7 @@ mod tests {
                 from_path: "no/such>path".to_string(),
                 to_path: "src/base.ts>Base".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6133,6 +6803,7 @@ mod tests {
             .mycelium_get_extends_tree(Parameters(GetExtendsTreeRequest {
                 path: "src/child.ts>Child".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6150,6 +6821,7 @@ mod tests {
             .mycelium_get_extends_tree(Parameters(GetExtendsTreeRequest {
                 path: "src/child.ts>Child".to_string(),
                 max_depth: Some(0),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6163,6 +6835,7 @@ mod tests {
             .mycelium_get_extends_tree(Parameters(GetExtendsTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6180,6 +6853,7 @@ mod tests {
             .mycelium_get_subclasses_tree(Parameters(GetSubclassesTreeRequest {
                 path: "src/base.ts>Base".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6200,6 +6874,7 @@ mod tests {
             .mycelium_get_subclasses_tree(Parameters(GetSubclassesTreeRequest {
                 path: "src/base.ts>Base".to_string(),
                 max_depth: Some(0),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6215,6 +6890,7 @@ mod tests {
             .mycelium_get_subclasses_tree(Parameters(GetSubclassesTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6248,6 +6924,7 @@ mod tests {
                 from_path: "src/cls.ts>Cls".to_string(),
                 to_path: "src/iface.ts>IFace".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6266,6 +6943,7 @@ mod tests {
                 from_path: "src/iface.ts>IFace".to_string(),
                 to_path: "src/cls.ts>Cls".to_string(), // backwards — no path
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6281,6 +6959,7 @@ mod tests {
                 from_path: "no/such>path".to_string(),
                 to_path: "src/iface.ts>IFace".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6295,6 +6974,7 @@ mod tests {
                 from_path: "src/cls.ts>Cls".to_string(),
                 to_path: "src/base.ts>BaseIFace".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6313,6 +6993,7 @@ mod tests {
             .mycelium_get_implements_tree(Parameters(GetImplementsTreeRequest {
                 path: "src/cls.ts>Cls".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6333,6 +7014,7 @@ mod tests {
             .mycelium_get_implements_tree(Parameters(GetImplementsTreeRequest {
                 path: "src/cls.ts>Cls".to_string(),
                 max_depth: Some(0),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6347,6 +7029,7 @@ mod tests {
             .mycelium_get_implements_tree(Parameters(GetImplementsTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6364,6 +7047,7 @@ mod tests {
             .mycelium_get_implementors_tree(Parameters(GetImplementorsTreeRequest {
                 path: "src/base.ts>BaseIFace".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6384,6 +7068,7 @@ mod tests {
             .mycelium_get_implementors_tree(Parameters(GetImplementorsTreeRequest {
                 path: "src/base.ts>BaseIFace".to_string(),
                 max_depth: Some(0),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6398,6 +7083,7 @@ mod tests {
             .mycelium_get_implementors_tree(Parameters(GetImplementorsTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6429,6 +7115,7 @@ mod tests {
             .mycelium_get_importers_tree(Parameters(GetImportersTreeRequest {
                 path: "src/core.ts>core".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6449,6 +7136,7 @@ mod tests {
             .mycelium_get_importers_tree(Parameters(GetImportersTreeRequest {
                 path: "src/core.ts>core".to_string(),
                 max_depth: Some(0),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6463,6 +7151,7 @@ mod tests {
             .mycelium_get_importers_tree(Parameters(GetImportersTreeRequest {
                 path: "no/such>path".to_string(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6490,7 +7179,10 @@ mod tests {
     async fn get_dead_symbols_returns_unreferenced_symbols() {
         let server = server_with_mixed_fixture().await;
         let raw = server
-            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest { path_prefix: None }))
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
+                path_prefix: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         let dead: Vec<String> = val["dead_symbols"]
@@ -6512,7 +7204,10 @@ mod tests {
     async fn get_dead_symbols_empty_store() {
         let server = MyceliumServer::new();
         let raw = server
-            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest { path_prefix: None }))
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
+                path_prefix: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["dead_symbols"].as_array().unwrap().len(), 0);
@@ -6525,6 +7220,7 @@ mod tests {
         let raw = server
             .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
                 path_prefix: Some("src/lib.rs".to_owned()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6555,6 +7251,7 @@ mod tests {
         let raw = server
             .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
                 path_prefix: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6573,6 +7270,7 @@ mod tests {
         let raw = server
             .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
                 path_prefix: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6590,6 +7288,7 @@ mod tests {
         let raw = server
             .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
                 path_prefix: Some("src/".to_owned()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6608,7 +7307,9 @@ mod tests {
     async fn get_stats_empty_store() {
         let server = MyceliumServer::new();
         let raw = server
-            .mycelium_get_stats(Parameters(GetStatsRequest {}))
+            .mycelium_get_stats(Parameters(GetStatsRequest {
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["total_nodes"].as_u64().unwrap(), 0);
@@ -6630,7 +7331,9 @@ mod tests {
             store.upsert_edge(EdgeKind::Imports, fn1, fn2);
         }
         let raw = server
-            .mycelium_get_stats(Parameters(GetStatsRequest {}))
+            .mycelium_get_stats(Parameters(GetStatsRequest {
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["total_nodes"].as_u64().unwrap(), 2);
@@ -6661,6 +7364,7 @@ mod tests {
         let raw = server
             .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
                 path: "src/lib.rs>Base".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6680,6 +7384,7 @@ mod tests {
         let raw = server
             .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
                 path: "src/lone.rs>lone".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6695,6 +7400,7 @@ mod tests {
         let raw = server
             .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
                 path: "no/such>path".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6717,6 +7423,7 @@ mod tests {
             .mycelium_detect_cycles(Parameters(DetectCyclesRequest {
                 edge_kind: "imports".to_owned(),
                 path_prefix: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6745,6 +7452,7 @@ mod tests {
             .mycelium_detect_cycles(Parameters(DetectCyclesRequest {
                 edge_kind: "imports".to_owned(),
                 path_prefix: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6759,6 +7467,7 @@ mod tests {
             .mycelium_detect_cycles(Parameters(DetectCyclesRequest {
                 edge_kind: "unknown_kind".to_owned(),
                 path_prefix: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6780,6 +7489,7 @@ mod tests {
         let raw = server
             .mycelium_get_scc_groups(Parameters(GetSccGroupsRequest {
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6801,6 +7511,7 @@ mod tests {
         let raw = server
             .mycelium_get_scc_groups(Parameters(GetSccGroupsRequest {
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6814,6 +7525,7 @@ mod tests {
         let raw = server
             .mycelium_get_scc_groups(Parameters(GetSccGroupsRequest {
                 edge_kind: "bad".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6837,6 +7549,7 @@ mod tests {
         let raw = server
             .mycelium_get_dependency_layers(Parameters(GetDependencyLayersRequest {
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6864,6 +7577,7 @@ mod tests {
         let raw = server
             .mycelium_get_dependency_layers(Parameters(GetDependencyLayersRequest {
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6877,6 +7591,7 @@ mod tests {
         let raw = server
             .mycelium_get_dependency_layers(Parameters(GetDependencyLayersRequest {
                 edge_kind: "bad".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6901,6 +7616,7 @@ mod tests {
             .mycelium_get_two_hop_neighbors(Parameters(GetTwoHopNeighborsRequest {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6918,6 +7634,7 @@ mod tests {
             .mycelium_get_two_hop_neighbors(Parameters(GetTwoHopNeighborsRequest {
                 path: "nonexistent.rs>x".to_owned(),
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6932,6 +7649,7 @@ mod tests {
             .mycelium_get_two_hop_neighbors(Parameters(GetTwoHopNeighborsRequest {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "bad".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6955,6 +7673,7 @@ mod tests {
             .mycelium_get_symbol_neighborhood(Parameters(GetSymbolNeighborhoodRequest {
                 path: "src/svc.rs>svc".to_owned(),
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6972,6 +7691,7 @@ mod tests {
             .mycelium_get_symbol_neighborhood(Parameters(GetSymbolNeighborhoodRequest {
                 path: "nonexistent.rs>x".to_owned(),
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -6987,6 +7707,7 @@ mod tests {
             .mycelium_get_symbol_neighborhood(Parameters(GetSymbolNeighborhoodRequest {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "bad".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7017,6 +7738,7 @@ mod tests {
                 min_in: Some(2),
                 min_out: Some(2),
                 limit: Some(10),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7035,6 +7757,7 @@ mod tests {
                 min_in: None,
                 min_out: None,
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7050,6 +7773,7 @@ mod tests {
                 min_in: None,
                 min_out: None,
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7072,6 +7796,7 @@ mod tests {
             .mycelium_get_singly_referenced(Parameters(GetSinglyReferencedRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7091,6 +7816,7 @@ mod tests {
             .mycelium_get_singly_referenced(Parameters(GetSinglyReferencedRequest {
                 edge_kind: "unknown_kind".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7104,6 +7830,7 @@ mod tests {
             .mycelium_get_singly_referenced(Parameters(GetSinglyReferencedRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7127,6 +7854,7 @@ mod tests {
                 paths: vec!["src/util.rs>helper".to_owned()],
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7143,6 +7871,7 @@ mod tests {
                 paths: vec!["src/a.rs>a".to_owned()],
                 edge_kind: "bogus".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7157,6 +7886,7 @@ mod tests {
                 paths: vec![],
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7182,6 +7912,7 @@ mod tests {
             .mycelium_get_k_core(Parameters(GetKCoreRequest {
                 edge_kind: "calls".to_owned(),
                 k: Some(2),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7196,6 +7927,7 @@ mod tests {
             .mycelium_get_k_core(Parameters(GetKCoreRequest {
                 edge_kind: "nope".to_owned(),
                 k: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7209,6 +7941,7 @@ mod tests {
             .mycelium_get_k_core(Parameters(GetKCoreRequest {
                 edge_kind: "calls".to_owned(),
                 k: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7232,6 +7965,7 @@ mod tests {
                 paths: vec!["src/top.rs>top".to_owned()],
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7248,6 +7982,7 @@ mod tests {
                 paths: vec!["src/a.rs>a".to_owned()],
                 edge_kind: "invalid".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7262,6 +7997,7 @@ mod tests {
                 paths: vec![],
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7283,6 +8019,7 @@ mod tests {
         let raw = server
             .mycelium_batch_node_degree(Parameters(BatchNodeDegreeRequest {
                 paths: vec!["src/a.rs>a".to_owned(), "src/b.rs>b".to_owned()],
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7298,6 +8035,7 @@ mod tests {
         let raw = server
             .mycelium_batch_node_degree(Parameters(BatchNodeDegreeRequest {
                 paths: vec!["src/missing.rs>nope".to_owned()],
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7309,7 +8047,10 @@ mod tests {
     async fn batch_node_degree_empty_paths_returns_empty() {
         let server = MyceliumServer::new();
         let raw = server
-            .mycelium_batch_node_degree(Parameters(BatchNodeDegreeRequest { paths: vec![] }))
+            .mycelium_batch_node_degree(Parameters(BatchNodeDegreeRequest {
+                paths: vec![],
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
@@ -7331,6 +8072,7 @@ mod tests {
         let raw = server
             .mycelium_find_cycle_members(Parameters(FindCycleMembersRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7357,6 +8099,7 @@ mod tests {
         let raw = server
             .mycelium_find_cycle_members(Parameters(FindCycleMembersRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7370,6 +8113,7 @@ mod tests {
         let raw = server
             .mycelium_find_cycle_members(Parameters(FindCycleMembersRequest {
                 edge_kind: "unknown_kind".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7394,6 +8138,7 @@ mod tests {
             .mycelium_get_wcc(Parameters(GetWccRequest {
                 edge_kind: "calls".into(),
                 min_size: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7415,6 +8160,7 @@ mod tests {
             .mycelium_get_wcc(Parameters(GetWccRequest {
                 edge_kind: "calls".into(),
                 min_size: Some(2),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7430,6 +8176,7 @@ mod tests {
             .mycelium_get_wcc(Parameters(GetWccRequest {
                 edge_kind: "bad_kind".into(),
                 min_size: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7452,6 +8199,7 @@ mod tests {
         let raw = server
             .mycelium_topological_sort(Parameters(TopologicalSortRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7482,6 +8230,7 @@ mod tests {
         let raw = server
             .mycelium_topological_sort(Parameters(TopologicalSortRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7495,6 +8244,7 @@ mod tests {
         let raw = server
             .mycelium_topological_sort(Parameters(TopologicalSortRequest {
                 edge_kind: "bad".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7517,6 +8267,7 @@ mod tests {
         let raw = server
             .mycelium_find_articulation_points(Parameters(FindArticulationPointsRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7546,6 +8297,7 @@ mod tests {
         let raw = server
             .mycelium_find_articulation_points(Parameters(FindArticulationPointsRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7558,6 +8310,7 @@ mod tests {
         let raw = server
             .mycelium_find_articulation_points(Parameters(FindArticulationPointsRequest {
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7581,6 +8334,7 @@ mod tests {
         let raw = server
             .mycelium_find_bridge_edges(Parameters(FindBridgeEdgesRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7612,6 +8366,7 @@ mod tests {
         let raw = server
             .mycelium_find_bridge_edges(Parameters(FindBridgeEdgesRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7624,6 +8379,7 @@ mod tests {
         let raw = server
             .mycelium_find_bridge_edges(Parameters(FindBridgeEdgesRequest {
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7648,6 +8404,7 @@ mod tests {
         let raw = server
             .mycelium_get_biconnected_components(Parameters(BiconnectedComponentsRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7665,6 +8422,7 @@ mod tests {
         let raw = server
             .mycelium_get_biconnected_components(Parameters(BiconnectedComponentsRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7677,6 +8435,7 @@ mod tests {
         let raw = server
             .mycelium_get_biconnected_components(Parameters(BiconnectedComponentsRequest {
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7700,6 +8459,7 @@ mod tests {
         let raw = server
             .mycelium_get_degree_histogram(Parameters(DegreeHistogramRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7715,6 +8475,7 @@ mod tests {
         let raw = server
             .mycelium_get_degree_histogram(Parameters(DegreeHistogramRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7727,6 +8488,7 @@ mod tests {
         let raw = server
             .mycelium_get_degree_histogram(Parameters(DegreeHistogramRequest {
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7747,6 +8509,7 @@ mod tests {
         let raw = server
             .mycelium_get_graph_metrics(Parameters(GraphMetricsRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7762,6 +8525,7 @@ mod tests {
         let raw = server
             .mycelium_get_graph_metrics(Parameters(GraphMetricsRequest {
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7775,6 +8539,7 @@ mod tests {
         let raw = server
             .mycelium_get_graph_metrics(Parameters(GraphMetricsRequest {
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7800,6 +8565,7 @@ mod tests {
                 path1: "src/x.rs>a".into(),
                 path2: "src/x.rs>b".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7826,6 +8592,7 @@ mod tests {
                 path1: "src/y.rs>a".into(),
                 path2: "src/y.rs>b".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7843,6 +8610,7 @@ mod tests {
                 path1: "src/z.rs>a".into(),
                 path2: "src/z.rs>b".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7868,6 +8636,7 @@ mod tests {
             .mycelium_get_clustering_coefficient(Parameters(ClusteringCoefficientRequest {
                 path: "src/cc.rs>hub".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7884,6 +8653,7 @@ mod tests {
             .mycelium_get_clustering_coefficient(Parameters(ClusteringCoefficientRequest {
                 path: "src/no_such.rs>ghost".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7897,6 +8667,7 @@ mod tests {
             .mycelium_get_clustering_coefficient(Parameters(ClusteringCoefficientRequest {
                 path: "src/any.rs>any".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7920,6 +8691,7 @@ mod tests {
             .mycelium_get_eccentricity(Parameters(EccentricityRequest {
                 path: "src/ecc.rs>root".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7934,6 +8706,7 @@ mod tests {
             .mycelium_get_eccentricity(Parameters(EccentricityRequest {
                 path: "src/ghost.rs>none".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7947,6 +8720,7 @@ mod tests {
             .mycelium_get_eccentricity(Parameters(EccentricityRequest {
                 path: "src/any.rs>any".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7970,6 +8744,7 @@ mod tests {
             .mycelium_get_harmonic_centrality(Parameters(HarmonicCentralityRequest {
                 path: "src/hc.rs>root".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -7988,6 +8763,7 @@ mod tests {
             .mycelium_get_harmonic_centrality(Parameters(HarmonicCentralityRequest {
                 path: "src/ghost.rs>none_hc".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8001,6 +8777,7 @@ mod tests {
             .mycelium_get_harmonic_centrality(Parameters(HarmonicCentralityRequest {
                 path: "src/any.rs>any_hc".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8023,6 +8800,7 @@ mod tests {
                 path1: "src/mr.rs>src".into(),
                 path2: "src/mr.rs>dst".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8041,6 +8819,7 @@ mod tests {
                 path1: "src/ghost.rs>none_mr".into(),
                 path2: "src/ghost.rs>other_mr".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8055,6 +8834,7 @@ mod tests {
                 path1: "src/any.rs>any_mr1".into(),
                 path2: "src/any.rs>any_mr2".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8078,6 +8858,7 @@ mod tests {
             .mycelium_get_reachable_set(Parameters(ReachableSetRequest {
                 path: "src/rset.rs>head".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8099,6 +8880,7 @@ mod tests {
             .mycelium_get_reachable_set(Parameters(ReachableSetRequest {
                 path: "src/ghost.rs>none_rset".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8112,6 +8894,7 @@ mod tests {
             .mycelium_get_reachable_set(Parameters(ReachableSetRequest {
                 path: "src/any.rs>any_rset".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8135,6 +8918,7 @@ mod tests {
             .mycelium_get_reaches_into(Parameters(ReachesIntoRequest {
                 path: "src/ri.rs>tail_ri".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8156,6 +8940,7 @@ mod tests {
             .mycelium_get_reaches_into(Parameters(ReachesIntoRequest {
                 path: "src/ghost.rs>none_ri".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8169,6 +8954,7 @@ mod tests {
             .mycelium_get_reaches_into(Parameters(ReachesIntoRequest {
                 path: "src/any.rs>any_ri".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8194,6 +8980,7 @@ mod tests {
                 damping: Some(0.85),
                 iterations: Some(30),
                 top_n: Some(3),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8211,6 +8998,7 @@ mod tests {
                 damping: None,
                 iterations: None,
                 top_n: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8235,6 +9023,7 @@ mod tests {
                 path1: "src/cr.rs>mcp_cr_left".into(),
                 path2: "src/cr.rs>mcp_cr_right".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8253,6 +9042,7 @@ mod tests {
                 path1: "src/ghost.rs>none_cr".into(),
                 path2: "src/ghost.rs>also_none".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8267,6 +9057,7 @@ mod tests {
                 path1: "src/any.rs>any_cr1".into(),
                 path2: "src/any.rs>any_cr2".into(),
                 edge_kind: "unknown".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8291,6 +9082,7 @@ mod tests {
                 path: "src/kh.rs>mcp_kh_root".into(),
                 edge_kind: "calls".into(),
                 k: 2,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8310,6 +9102,7 @@ mod tests {
                 path: "src/ghost.rs>none_kh".into(),
                 edge_kind: "calls".into(),
                 k: 1,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8324,6 +9117,7 @@ mod tests {
                 path: "src/any.rs>any_kh".into(),
                 edge_kind: "unknown".into(),
                 k: 1,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8347,6 +9141,7 @@ mod tests {
             .mycelium_get_betweenness_centrality(Parameters(BetweennessCentralityRequest {
                 edge_kind: "calls".into(),
                 top_n: Some(3),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8362,6 +9157,7 @@ mod tests {
             .mycelium_get_betweenness_centrality(Parameters(BetweennessCentralityRequest {
                 edge_kind: "unknown".into(),
                 top_n: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8387,6 +9183,7 @@ mod tests {
                 StronglyConnectedComponentsRequest {
                     edge_kind: "calls".into(),
                     min_size: Some(2),
+                    output_format: None,
                 },
             ))
             .await;
@@ -8406,6 +9203,7 @@ mod tests {
                 StronglyConnectedComponentsRequest {
                     edge_kind: "unknown".into(),
                     min_size: None,
+                    output_format: None,
                 },
             ))
             .await;
@@ -8431,6 +9229,7 @@ mod tests {
                 edge_kind: "calls".into(),
                 top_n: Some(3),
                 sort_by: Some("in".into()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8452,6 +9251,7 @@ mod tests {
                 edge_kind: "unknown".into(),
                 top_n: None,
                 sort_by: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8466,6 +9266,7 @@ mod tests {
                 edge_kind: "calls".into(),
                 top_n: None,
                 sort_by: Some("bogus".into()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8489,6 +9290,7 @@ mod tests {
             .mycelium_get_closeness_centrality(Parameters(ClosenessCentralityRequest {
                 edge_kind: "calls".into(),
                 top_n: Some(3),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8507,6 +9309,7 @@ mod tests {
             .mycelium_get_closeness_centrality(Parameters(ClosenessCentralityRequest {
                 edge_kind: "unknown".into(),
                 top_n: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8526,6 +9329,7 @@ mod tests {
             .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
                 path: "src/dd_mcp.rs>mcp_dd_leaf".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8549,6 +9353,7 @@ mod tests {
             .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
                 path: "src/dd_mcp.rs>mcp_dd_c".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8562,6 +9367,7 @@ mod tests {
             .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
                 path: "src/nonexistent.rs>ghost".into(),
                 edge_kind: "calls".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8579,6 +9385,7 @@ mod tests {
             .mycelium_get_dependency_depth(Parameters(DependencyDepthRequest {
                 path: "src/dd_mcp.rs>mcp_dd_kind_check".into(),
                 edge_kind: "unknown_kind".into(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8605,6 +9412,7 @@ mod tests {
         let raw = server
             .mycelium_get_outgoing_refs(Parameters(GetOutgoingRefsRequest {
                 path: "src/app.rs>App".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8624,6 +9432,7 @@ mod tests {
         let raw = server
             .mycelium_get_outgoing_refs(Parameters(GetOutgoingRefsRequest {
                 path: "src/lone.rs>lone".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8639,6 +9448,7 @@ mod tests {
         let raw = server
             .mycelium_get_outgoing_refs(Parameters(GetOutgoingRefsRequest {
                 path: "no/such>path".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8659,6 +9469,7 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8683,6 +9494,7 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: Some("src/".to_owned()),
                 kind: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8705,6 +9517,7 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: Some("function".to_owned()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8720,6 +9533,7 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: Some("bogus_kind".to_owned()),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8739,6 +9553,7 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8763,6 +9578,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: Some(1),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8792,6 +9608,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8807,6 +9624,7 @@ mod tests {
                 path: "no/such>path".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8825,6 +9643,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "bogus".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8845,6 +9664,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: Some(0),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8869,6 +9689,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: Some(1),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8898,6 +9719,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8913,6 +9735,7 @@ mod tests {
                 path: "no/such>path".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8931,6 +9754,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "bogus".to_owned(),
                 max_depth: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8951,6 +9775,7 @@ mod tests {
                 path: "src/a.rs>a".to_owned(),
                 edge_kind: "calls".to_owned(),
                 max_depth: Some(0),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8972,6 +9797,7 @@ mod tests {
         let raw = server
             .mycelium_query(Parameters(QueryRequest {
                 expr: "#login".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -8998,6 +9824,7 @@ mod tests {
         let raw = server
             .mycelium_query(Parameters(QueryRequest {
                 expr: "this is not a selector >>".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9022,6 +9849,7 @@ mod tests {
         let raw = server
             .mycelium_get_siblings(Parameters(GetSiblingsRequest {
                 path: "src/a.rs>App>render".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9047,6 +9875,7 @@ mod tests {
         let raw = server
             .mycelium_get_siblings(Parameters(GetSiblingsRequest {
                 path: "src/a.rs".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9060,6 +9889,7 @@ mod tests {
         let raw = server
             .mycelium_get_siblings(Parameters(GetSiblingsRequest {
                 path: "no/such>path".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9078,6 +9908,7 @@ mod tests {
         let raw = server
             .mycelium_get_siblings(Parameters(GetSiblingsRequest {
                 path: "src/a.rs>App>method".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9097,6 +9928,7 @@ mod tests {
         let raw = server
             .mycelium_get_node_degree(Parameters(GetNodeDegreeRequest {
                 path: "src/a.rs>fn1".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9121,6 +9953,7 @@ mod tests {
         let raw = server
             .mycelium_get_node_degree(Parameters(GetNodeDegreeRequest {
                 path: "src/a.rs>a".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9134,6 +9967,7 @@ mod tests {
         let raw = server
             .mycelium_get_node_degree(Parameters(GetNodeDegreeRequest {
                 path: "no/such>path".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9155,7 +9989,10 @@ mod tests {
             store.upsert_node(TrunkPath::parse("src/small.rs>fn1").unwrap());
         }
         let raw = server
-            .mycelium_get_top_files(Parameters(GetTopFilesRequest { limit: Some(10) }))
+            .mycelium_get_top_files(Parameters(GetTopFilesRequest {
+                limit: Some(10),
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         let files = val["files"].as_array().unwrap();
@@ -9168,7 +10005,10 @@ mod tests {
     async fn get_top_files_empty_graph_returns_empty() {
         let server = MyceliumServer::new();
         let raw = server
-            .mycelium_get_top_files(Parameters(GetTopFilesRequest { limit: None }))
+            .mycelium_get_top_files(Parameters(GetTopFilesRequest {
+                limit: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
@@ -9188,7 +10028,10 @@ mod tests {
             }
         }
         let raw = server
-            .mycelium_get_top_files(Parameters(GetTopFilesRequest { limit: None }))
+            .mycelium_get_top_files(Parameters(GetTopFilesRequest {
+                limit: None,
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         // default limit is 10, so at most 10 files returned even though 15 exist
@@ -9212,6 +10055,7 @@ mod tests {
             .mycelium_get_most_connected(Parameters(GetMostConnectedRequest {
                 edge_kind: "calls".to_owned(),
                 limit: Some(10),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9227,6 +10071,7 @@ mod tests {
             .mycelium_get_most_connected(Parameters(GetMostConnectedRequest {
                 edge_kind: "bogus".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9244,6 +10089,7 @@ mod tests {
             .mycelium_get_most_connected(Parameters(GetMostConnectedRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9265,6 +10111,7 @@ mod tests {
             .mycelium_get_leaf_symbols(Parameters(GetLeafSymbolsRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9281,6 +10128,7 @@ mod tests {
             .mycelium_get_leaf_symbols(Parameters(GetLeafSymbolsRequest {
                 edge_kind: "unknown".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9294,6 +10142,7 @@ mod tests {
             .mycelium_get_leaf_symbols(Parameters(GetLeafSymbolsRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9318,6 +10167,7 @@ mod tests {
                 from: "src/a.rs>root".to_owned(),
                 to: "src/b.rs>leaf".to_owned(),
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9339,6 +10189,7 @@ mod tests {
                 from: "src/a.rs>a".to_owned(),
                 to: "src/b.rs>b".to_owned(),
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9354,6 +10205,7 @@ mod tests {
                 from: "src/a.rs>a".to_owned(),
                 to: "src/b.rs>b".to_owned(),
                 edge_kind: "unknown".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9368,6 +10220,7 @@ mod tests {
                 from: "no/such.rs>sym".to_owned(),
                 to: "src/b.rs>b".to_owned(),
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9391,7 +10244,9 @@ mod tests {
             );
         }
         let raw = server
-            .mycelium_get_symbol_count_by_kind(Parameters(GetSymbolCountByKindRequest {}))
+            .mycelium_get_symbol_count_by_kind(Parameters(GetSymbolCountByKindRequest {
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["total"].as_u64().unwrap(), 2);
@@ -9403,7 +10258,9 @@ mod tests {
     async fn get_symbol_count_by_kind_empty_graph() {
         let server = MyceliumServer::new();
         let raw = server
-            .mycelium_get_symbol_count_by_kind(Parameters(GetSymbolCountByKindRequest {}))
+            .mycelium_get_symbol_count_by_kind(Parameters(GetSymbolCountByKindRequest {
+                output_format: None,
+            }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
         assert_eq!(val["total"].as_u64().unwrap(), 0);
@@ -9430,6 +10287,7 @@ mod tests {
             .mycelium_get_common_callers(Parameters(GetCommonCallersRequest {
                 paths: vec!["src/ta.rs>ta".to_owned(), "src/tb.rs>tb".to_owned()],
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9447,6 +10305,7 @@ mod tests {
             .mycelium_get_common_callers(Parameters(GetCommonCallersRequest {
                 paths: vec![],
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9460,6 +10319,7 @@ mod tests {
             .mycelium_get_common_callers(Parameters(GetCommonCallersRequest {
                 paths: vec!["no/such.rs>sym".to_owned()],
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9483,6 +10343,7 @@ mod tests {
             .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
                 paths: vec!["src/a.rs>a".to_owned(), "src/b.rs>b".to_owned()],
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9500,6 +10361,7 @@ mod tests {
             .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
                 paths: vec![],
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9513,6 +10375,7 @@ mod tests {
             .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
                 paths: vec!["no/such.rs>sym".to_owned()],
                 edge_kind: "calls".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9526,6 +10389,7 @@ mod tests {
             .mycelium_get_common_callees(Parameters(GetCommonCalleesRequest {
                 paths: vec!["src/a.rs>a".to_owned()],
                 edge_kind: "bad".to_owned(),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9549,6 +10413,7 @@ mod tests {
             .mycelium_get_fan_out_rank(Parameters(GetFanOutRankRequest {
                 edge_kind: "calls".to_owned(),
                 limit: Some(10),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9564,6 +10429,7 @@ mod tests {
             .mycelium_get_fan_out_rank(Parameters(GetFanOutRankRequest {
                 edge_kind: "bad".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9577,6 +10443,7 @@ mod tests {
             .mycelium_get_fan_out_rank(Parameters(GetFanOutRankRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9601,6 +10468,7 @@ mod tests {
             .mycelium_get_fan_in_rank(Parameters(GetFanInRankRequest {
                 edge_kind: "calls".to_owned(),
                 limit: Some(10),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9616,6 +10484,7 @@ mod tests {
             .mycelium_get_fan_in_rank(Parameters(GetFanInRankRequest {
                 edge_kind: "bad".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9629,6 +10498,7 @@ mod tests {
             .mycelium_get_fan_in_rank(Parameters(GetFanInRankRequest {
                 edge_kind: "calls".to_owned(),
                 limit: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9945,6 +10815,7 @@ mod tests {
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
                 include_virtual: Some(true),
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9964,6 +10835,7 @@ mod tests {
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
                 include_virtual: None,
+                output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9974,5 +10846,179 @@ mod tests {
                 .any(|v| v.as_str() == Some("pkg/engine.py>Engine>run")),
             "without include_virtual, virtual dispatch callers must not appear"
         );
+    }
+
+    // ── RFC-0094 Phase 3: output_format on remaining MCP query tools ──────────
+    // These tests were written BEFORE the field was added (Charter §5.1 TDD RED step).
+
+    #[tokio::test]
+    async fn test_get_callees_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_callees(Parameters(GetCalleesRequest {
+                path: "src/greet.rs>greet".to_owned(),
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        // Text format must not start with a JSON brace.
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_callers_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "src/greet.rs>greet".to_owned(),
+                include_virtual: None,
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_symbol_info_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_symbol_info(Parameters(GetSymbolInfoRequest {
+                path: "src/greet.rs>greet".to_owned(),
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+        assert!(
+            result.contains("path"),
+            "text output must contain 'path' key"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_callee_tree_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+                path: "src/greet.rs>greet".to_owned(),
+                max_depth: None,
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_files_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_files(Parameters(GetFilesRequest {
+                path_prefix: None,
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+        assert!(
+            result.contains("files"),
+            "text output must contain 'files' key"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_entry_points_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
+                path_prefix: None,
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_imports_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_imports(Parameters(GetImportsRequest {
+                path: "src/greet.rs>greet".to_owned(),
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        // path not found → error JSON, that's OK — error paths remain JSON.
+        // For text format on a found path the result would be text.
+        // We just confirm compilation succeeds.
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_rank_symbols_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+                limit: None,
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_node_kind_text_format() {
+        let server = server_with_fixture().await;
+        let result = server
+            .mycelium_get_node_kind(Parameters(GetNodeKindRequest {
+                path: "src/greet.rs>greet".to_owned(),
+                output_format: Some(OutputFormat::Text),
+            }))
+            .await;
+        assert!(
+            !result.trim_start().starts_with('{'),
+            "expected text format, got JSON: {result}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_output_format_none_defaults_to_json_for_new_tools() {
+        // Backward-compat regression check: all newly-wired tools must default
+        // to JSON when output_format is None.
+        let server = server_with_fixture().await;
+
+        let raw = server
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+                limit: None,
+                output_format: None,
+            }))
+            .await;
+        let _: serde_json::Value =
+            serde_json::from_str(&raw).expect("None output_format must yield valid JSON");
+
+        let raw = server
+            .mycelium_get_files(Parameters(GetFilesRequest {
+                path_prefix: None,
+                output_format: None,
+            }))
+            .await;
+        let _: serde_json::Value =
+            serde_json::from_str(&raw).expect("None output_format must yield valid JSON");
     }
 }

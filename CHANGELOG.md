@@ -63,6 +63,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manifest carries a non-empty description string. Tests use the rmcp
   `client` feature; `Cargo.toml` dev-deps updated accordingly.
 
+- **RFC-0094 Phase 3: `output_format` wired into all remaining 83 MCP query tools**.
+  Every query tool now accepts `output_format: "json" | "text" | "msgpack"` in its
+  request payload. Mutation/control tools (`index_workspace`, `load_index`,
+  `sync_file`, `set_compact_mode`, `server_status`, `watch_status`,
+  `get_token_stats`) are unchanged. Handler success paths use
+  `req.output_format.map_or_else(|| value.to_string(), |fmt| formatter_for(fmt).format(&value))`
+  (Pattern B, no compact_mode dependency). Complex multi-branch handlers
+  (`get_shortest_path`, `find_call_path`, `find_import_path`,
+  `find_extends_path`, `find_implements_path`) capture `let fmt =
+  req.output_format` before early-return guard clauses so every branch honours
+  the caller's requested format. 12 new TDD tests written RED-first per
+  Charter §5.1 before any implementation. All 319 MCP tests pass.
+
 - **RFC-0094 Phase 2 PoC: `output_format` per-request for basic-query tools** (#210).
   Three tools (`mycelium_search_symbol`, `mycelium_get_ancestors`,
   `mycelium_get_descendants`) now accept an optional `output_format`

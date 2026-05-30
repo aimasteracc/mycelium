@@ -187,9 +187,9 @@ specific consumer.
 
 ## Acceptance criteria
 
-- [ ] `crates/mycelium-mcp/src/formatter.rs` ships the `Formatter`
+- [x] `crates/mycelium-mcp/src/formatter.rs` ships the `Formatter`
   trait + three impls
-- [ ] Every MCP tool accepts the optional `output_format` field
+- [x] Every MCP tool accepts the optional `output_format` field
 - [ ] Default-format logic per transport documented in
   `crates/mycelium-mcp/README.md`
 - [ ] Round-trip test: `text → parser → JSON → text` is byte-identical
