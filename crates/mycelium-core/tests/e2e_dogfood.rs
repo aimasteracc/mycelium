@@ -20,14 +20,17 @@ use mycelium_core::{extractor::Extractor, store::Store};
 
 const RUST_QUERIES: &str = include_str!("../packs/rust/queries.scm");
 
-/// Find the workspace root by walking up from `CARGO_MANIFEST_DIR` until we
-/// see a `Cargo.lock` (the workspace marker — individual crates only have
-/// `Cargo.toml`).
+/// The workspace root. Every Mycelium crate lives at
+/// `<workspace>/crates/<name>/`, so the root is exactly two parents above
+/// `CARGO_MANIFEST_DIR`. The earlier "ascend until Cargo.lock" heuristic
+/// misfires on CI when cargo's package / vendor layout puts a Cargo.lock
+/// next to the crate's Cargo.toml — the walker then sees only the
+/// individual crate (~46 .rs files) instead of the whole workspace (~145).
 fn workspace_root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .find(|p| p.join("Cargo.lock").exists())
-        .expect("could not locate workspace root from CARGO_MANIFEST_DIR")
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("CARGO_MANIFEST_DIR must be <workspace>/crates/<name>/")
 }
 
 /// Recursively walk `dir`, calling `f` for every file. Skips well-known
