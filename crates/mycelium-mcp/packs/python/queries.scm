@@ -146,6 +146,12 @@
   superclasses: (argument_list
     (identifier) @name)) @reference.extends
 
+; Attribute-form base class: `class Foo(module.Base):` — @name captures
+; the full "module.Base" text; handler stores a dotted stub node.
+(class_definition
+  superclasses: (argument_list
+    (attribute) @name)) @reference.extends
+
 ; ── Call expressions (Synapse Calls edges) ──────────────────────────
 
 ; Simple function calls: foo()

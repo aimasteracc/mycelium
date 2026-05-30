@@ -31,6 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mycelium_rank_symbols`, `mycelium_get_dead_symbols`). New store methods:
   `top_symbols_by_incoming` and `dead_symbols_for_kind`. 4 TDD tests. (Issue #297)
 
+- **Issue #296 — Python Extends edges not detected for dotted base classes** — Classes using
+  attribute-form superclasses (e.g., `class SimpleTestCase(unittest.TestCase):`) produced no
+  `Extends` edge because the Python query only captured `(identifier)` base classes, not
+  `(attribute)` nodes. Added `(class_definition superclasses: (argument_list (attribute) @name))`
+  to `packs/python/queries.scm`. The extractor's existing `"reference.extends"` handler treats the
+  full attribute text (e.g., `"unittest.TestCase"`) as the base-class name and creates a dotted
+  stub node if no in-file definition or import alias resolves it. Mixed inheritance
+  (`class Foo(bar.Base, LocalBase):`) produces Extends edges for both forms. Metaclass keyword
+  arguments (`metaclass=Meta`) are correctly excluded (they are `keyword_argument` nodes, not
+  plain `attribute`/`identifier` nodes). Syncs embedded packs. 3 TDD tests
+  (2 RED verified). (Issue #296)
+
 - **Issue #298 — batch commands accept repeated `--paths` flags** — `batch-symbol-info`,
   `batch-node-degree`, `batch-reachable-from`, `batch-reachable-to`, `get-common-callers`, and
   `get-common-callees` previously accepted only a single `--paths` string value; passing
