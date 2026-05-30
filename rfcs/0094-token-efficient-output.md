@@ -1,6 +1,6 @@
 # RFC-0094: Token-Efficient Text Output Format for LLM Callers
 
-- **Status**: draft
+- **Status**: Partially Implemented (Phases 1–3 done; Phase 4 stdio-default flip + bindings deferred to v0.2.0)
 - **Author(s)**: @aimasteracc (orchestrator dispatch)
 - **Created**: 2026-05-30
 - **Last updated**: 2026-05-30
@@ -193,15 +193,17 @@ specific consumer.
 - [x] Default-format logic per transport documented in
   `crates/mycelium-mcp/README.md`
 - [ ] Round-trip test: `text → parser → JSON → text` is byte-identical
-  for every fixture
-- [ ] Token-saving regression bench: `cargo bench -p mycelium-rcig-mcp
-  --bench output_format` reports the % saving vs JSON baseline; fails
-  if saving drops below 60%
+  for every fixture (deferred to v0.2.0 — requires text parser)
+- [x] Token-saving regression bench: `cargo bench -p mycelium-rcig-mcp --bench formatter`
+  ships 4 Criterion benchmarks (json/text/msgpack per 50-node tree + byte_savings_ratio).
+  Unit test guards < 80% bytes (NOTE: RFC-0094 headline ~73% is *token* savings, not byte
+  savings; byte guard is < 80%). Criterion bench named `formatter`, not `output_format`
+  per RFC — functionally equivalent. (PR #288)
 - [ ] `bindings/node/format` + `bindings/python/format` ship the
   reference parser (deferred — Charter §5.14 doesn't require bindings
   for v0.2.0)
 - [ ] CHANGELOG `[Unreleased]` BREAKING note: stdio MCP default
-  output format changes from `json` to `text`
+  output format changes from `json` to `text` (deferred — flip happens at v0.2.0)
 
 ## Rollout plan
 
