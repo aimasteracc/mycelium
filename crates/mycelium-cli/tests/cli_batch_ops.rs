@@ -118,3 +118,42 @@ fn batch_reachable_to_smoke() {
     );
     assert!(v["reachable"].is_array());
 }
+
+// Issue #298: batch commands should accept repeated --paths flags (not just comma-separated string).
+#[test]
+fn batch_symbol_info_repeated_paths_flag() {
+    let p = prepare_diamond();
+    let v = json_out(
+        &[
+            "batch-symbol-info",
+            "--paths",
+            "src/lib.rs>a",
+            "--paths",
+            "src/lib.rs>b",
+            "--format",
+            "json",
+        ],
+        p.path(),
+    );
+    let arr = v["symbols"].as_array().unwrap();
+    assert_eq!(arr.len(), 2);
+}
+
+#[test]
+fn batch_node_degree_repeated_paths_flag() {
+    let p = prepare_diamond();
+    let v = json_out(
+        &[
+            "batch-node-degree",
+            "--paths",
+            "src/lib.rs>a",
+            "--paths",
+            "src/lib.rs>b",
+            "--format",
+            "json",
+        ],
+        p.path(),
+    );
+    let arr = v["degrees"].as_array().unwrap();
+    assert_eq!(arr.len(), 2);
+}

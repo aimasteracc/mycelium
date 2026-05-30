@@ -806,9 +806,9 @@ enum Cmd {
     },
     /// Batch get-symbol-info for up to 50 paths.
     BatchSymbolInfo {
-        /// Comma-separated list of symbol paths.
-        #[arg(long)]
-        paths: String,
+        /// Symbol paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -816,8 +816,9 @@ enum Cmd {
     },
     /// Batch node-degree breakdown for up to 50 paths.
     BatchNodeDegree {
-        #[arg(long)]
-        paths: String,
+        /// Symbol paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -825,8 +826,9 @@ enum Cmd {
     },
     /// Batch forward reachability from up to 20 seeds.
     BatchReachableFrom {
-        #[arg(long)]
-        paths: String,
+        /// Seed paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value_t = 10)]
@@ -838,8 +840,9 @@ enum Cmd {
     },
     /// Batch reverse reachability into up to 20 targets.
     BatchReachableTo {
-        #[arg(long)]
-        paths: String,
+        /// Target paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value_t = 10)]
@@ -859,7 +862,7 @@ enum Cmd {
     },
     /// List indexed file paths, optionally filtered by prefix.
     GetFiles {
-        #[arg(long)]
+        #[arg(long, alias = "prefix")]
         path_prefix: Option<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
@@ -886,8 +889,9 @@ enum Cmd {
     },
     /// Common callers across a set of target paths.
     GetCommonCallers {
-        #[arg(long)]
-        paths: String,
+        /// Target paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value = ".")]
@@ -897,8 +901,9 @@ enum Cmd {
     },
     /// Common callees across a set of source paths.
     GetCommonCallees {
-        #[arg(long)]
-        paths: String,
+        /// Source paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value = ".")]
@@ -1609,11 +1614,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_symbol_info(&canonical, &paths, format.into())?;
         }
         Cmd::BatchNodeDegree {
@@ -1622,11 +1622,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_node_degree(&canonical, &paths, format.into())?;
         }
         Cmd::BatchReachableFrom {
@@ -1637,11 +1632,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_reachable_from(
                 &canonical,
                 &paths,
@@ -1658,11 +1648,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_reachable_to(
                 &canonical,
                 &paths,
@@ -1703,11 +1688,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_get_common_callers(&canonical, &paths, &edge_kind, format.into())?;
         }
         Cmd::GetCommonCallees {
@@ -1717,11 +1697,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_get_common_callees(&canonical, &paths, &edge_kind, format.into())?;
         }
         Cmd::GetCommonReachable {

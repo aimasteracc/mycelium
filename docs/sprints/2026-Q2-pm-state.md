@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #291 merged; RFC-0092 status→Implemented, RFC-0094 status→Partially Implemented; autonomous queue exhausted; founder action required for PR #275) |
-| Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
-| Active release branch | `release/v0.1.11` — PR #275 open targeting main |
-| Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed) |
+| Last updated | 2026-05-30 (PM update — PR #266 open CI green awaiting founder review; release/v0.1.11 blocked on founder auth) |
+| Current sprint | **v0.1.11 — COMPLETE ✅** |
+| Active release branch | none — cut release/v0.1.11 next |
+| Next release target | **v0.1.11** — Python inheritance + RFC-0094 output_format + Charter SLA |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -31,46 +31,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0: Founder authorization** — PR #275 (release/v0.1.11 → main) is open. Requires founder to:
-  1. Verify CI green on PR #275
-  2. Admin-merge PR #275 to main
-  3. Push tag v0.1.11
-  4. Trigger crates.io publish (requires `RELEASE_BOT_TOKEN`)
-  5. Open back-merge PR: main → develop
+**P0: none** — no blocking issues.
 
-  ⚠️ `release.yml` finalize job has failed on v0.1.6 and v0.1.10. Recommend manual verify.
-
-**P1 (v0.1.12 sprint — next up after release ceremony):**
-1. ✅ **RFC-0092 Phase 2 — TypeScript import alias resolution** — DONE (PR #277 TS, PR #278 JS).
-   6 TDD tests. Embedded packs synced.
-2. ✅ **Issue #214 Pattern 2 — `from .submod import Symbol` alias resolution** — DONE (PR #283).
-   Fixed `build_alias_target` `(true,None)` arm: discriminates bare `.` (module file) from
-   non-bare `.models` (symbol in submodule). 2 TDD tests GREEN. All 18 CI checks pass.
-3. **Issue #214 Pattern 3 — re-verify** — `HealthHistory.append` 1472→~36 callers: founder
-   must re-run v0.1.11 against tree-sitter-analyzer to confirm Pattern 3 is fixed by PR #270.
-   BLOCKED on founder action.
+**P1 (action items):**
+1. **Cut release/v0.1.11** — BLOCKED: requires founder authorization to publish to crates.io.
+   v0.1.11 sprint exit criteria 9/9 met; develop is release-ready. Waiting on founder.
+2. **Issue #214 (Python reliability — remaining patterns)** — deferred to v0.1.12.
+   - Pattern 2: destructured imports file-level under-count.
+   - Pattern 3: transitive alias over-count (1,472 false callers).
+   Requires RFC-0092 Phase 2/3. pack-author + rust-implementer task.
 
 **P2 (v0.1.12 scope):**
-3. ✅ **Issue #212 / RFC-0095 COMPLETE** — PackRegistry shipped (PR #279), `--packs-dir` CLI flag
-   shipped (PR #280). MYCELIUM_PACKS_DIR env var activates runtime pack loading for cortex;
-   `mycelium index --packs-dir <dir>` activates it for the indexer. Static embeds remain as
-   fallback. Circular dep fixed. All RFC-0095 acceptance criteria met.
-4. ✅ **Issue #206 S3 COMPLETE** — Criterion formatter bench + byte-savings unit test shipped (PR #288).
-   Clarified: RFC-0094's ~73% savings is *token* savings, not byte savings. Issue #206 fully closed.
+3. **Issue #206 S1 (MCP `is_error` sweep)** — COMPLETED: PR #266 open, CI green (20/20
+   checks pass), awaiting founder code review (branch protection requires founder review).
+   Branch: `feature/206-is-error-sweep`.
+4. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
+5. **Issue #206 S2** — Token-efficient text output. RFC-0094 already landed Phase 1+3; this is
+   per-transport default configuration. Low effort remaining.
 
 **P3 (v0.2.0 backlog):**
-5. ✅ **Skill marketplace submission metadata** — DONE (PR #284). All 10 SKILL.md files
-   enriched with `category`, `icon`, `marketplace_examples` frontmatter + `## Quick examples`
-   tables. Template updated.
-6. ✅ **End-to-end “first 5 minutes” walkthrough** — DONE (PR #285). `docs/walkthrough.md`
-   (226 lines, 5 steps: install → index → search → call-graph → MCP setup). Asciinema
-   recording deferred to founder (requires a live running indexer).
-
-**Closed this session (2026-05-30):**
-- ✅ #267 — cross-file `subclasses-tree` (PR #272)
-- ✅ #268 — cross-file `get-descendants --include-inherited` (PR #272)
-- ✅ #269 — autouse conftest fixture limitation docs (PR #273)
-- ✅ #206 S2 — MCP README output_format docs (PR #274)
+6. Skill marketplace submission metadata: icon, screenshots, category examples.
+7. End-to-end “first 5 minutes” walkthrough / asciinema recording.
 
 ---
 
@@ -91,17 +72,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-30, PM run — release/v0.1.11 PR #275 open, awaiting founder)
+## Dispatch state (2026-05-30, post-v0.1.11 sprint complete)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **BLOCKED (decision gate)** | PR #275 (release/v0.1.11 → main): needs founder to merge + publish. |
-| pack-author | **active** | RFC-0092 Phase 2: TypeScript import alias resolution. Branch: feature/rfc0092-ts-aliases. |
-| rust-implementer | **next-up** | RFC-0092 Phase 2: TS resolver in extractor/mod.rs after pack-author finishes queries.scm. |
-| tech-writer | **done** | #269 documented (PR #273 merged). #214 re-verify comment posted. |
+| release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish requires explicit authorization). |
+| rust-implementer | **BLOCKED on review** | Issue #206 S1 done: PR #266 open, CI green (20/20). Awaiting founder code review (branch protection). |
+| pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3). After v0.1.11 ships. |
+| architect | idle | RFC-0092 Phase 2/3 scoping. After v0.1.11 ships. |
+| tech-writer | idle | Marketplace metadata + asciinema after v0.2.0. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | idle | Routine scan: post-v0.1.11. |
-| e2e-runner | idle | v0.1.12 regression tests after TS alias PR lands. |
+| security-reviewer | idle | Next scan: post-v0.1.11. |
+| e2e-runner | idle | Python Pattern 2/3 regression tests after pack-author fix. |
 
 ---
 
@@ -131,28 +113,6 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
-
-### 2026-05-30 PM dispatch (this run — #266 + #270 merged; #267/#268 triaged; release/v0.1.11 unblocked)
-
-- Pre-flight: read CHARTER.md, _orchestrator.md, PM state, decisions.jsonl tail, anti-patterns.
-- Found PM state stale (local filesystem showed v0.1.6; develop HEAD is v0.1.11 complete).
-  Recovered by checking out develop HEAD. **Anti-pattern confirmed**: always `git fetch` + checkout
-  before reading files, not relying on initial clone state.
-- Assessed 2 open PRs (#266 all-green, #270 CI in-progress), 5 open issues (#267 #268 P1,
-  #214 P1, #206 P2, #269 P3).
-- **Merged PR #266** — MCP `is_error` sweep (all 90 tools). Closes #206 S1. Quality Gate: 20/20 ✅.
-- **Subscribed to PR #270** — nested-chain false callers fix (issue #214 Pattern 3). No review
-  comments. 2 remaining CI checks (Windows + integration) in-progress; all others ✅.
-- **PR #270 auto-merged** via webhook notification — all CI green. Closes #214 Pattern 3.
-- **Triaged new P1 issues #267 + #268** — cross-file Extends reverse lookup. Root cause:
-  `resolve_bare_call_stubs()` updates edge sources to full-path but leaves edge *targets* as bare
-  names. `subclasses-tree` and `get-descendants --include-inherited` reverse-walk Extends edges
-  and find only same-file subclasses because bare-name stub ≠ full-path definition node.
-  Dispatched to rust-implementer for v0.1.12.
-- **develop now has** v0.1.11 sprint (9 items) + MCP is_error (#266) + Pattern 3 (#270).
-  release/v0.1.11 is unblocked.
-- Updated PM state, dispatched release agent as P0.
-- Decisions.jsonl: appended this run's summary.
 
 ### 2026-05-30 PM dispatch (v0.1.11 sprint complete — release/v0.1.11 ready to cut)
 
