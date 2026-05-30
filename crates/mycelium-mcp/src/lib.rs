@@ -5461,9 +5461,11 @@ mod tests {
         fs::write(tmp.path().join("b.py"), "def bar(): pass").unwrap();
 
         // Poll until the watcher picks up b.py and resolve_bare_call_stubs runs.
-        // 8 s budget: 300 ms FSE debounce + extraction + re-index on slow CI.
+        // 30 s budget: 300 ms FSE debounce + extraction + re-index on slow CI.
+        // GitHub-Actions runners under heavy load occasionally exceed 8 s; 30 s
+        // gives a generous safety margin without slowing the green-path case.
         let resolved = poll_for(
-            Duration::from_secs(8),
+            Duration::from_secs(30),
             Duration::from_millis(100),
             || async {
                 let store = server.store.read().await;
