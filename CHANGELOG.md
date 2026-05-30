@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue #245: Python class inheritance (Extends) edges extracted**.
+  `packs/python/queries.scm` now captures `class Sub(Base):` superclass
+  identifiers as `@reference.extends` matches. The extractor's Pass 2
+  match block gains a `"reference.extends"` arm that reads the subclass
+  name from the `class_definition` anchor, resolves the base class
+  (intra-file definition first, bare-symbol stub fallback), and emits an
+  `EdgeKind::Extends` edge. Multiple-inheritance (`class Sub(A, B):`)
+  produces one Extends edge per superclass via tree-sitter's per-identifier
+  match semantics. 3 TDD tests cover same-file, external, and multiple-
+  inheritance cases.
+
 - **Issue #211: Cross-tool MCP response contract tests**.
   New `crates/mycelium-mcp/tests/contract.rs` spins up an in-process
   `MyceliumServer` + rmcp client over `tokio::io::duplex` and verifies

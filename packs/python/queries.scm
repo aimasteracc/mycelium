@@ -105,6 +105,14 @@
     object: (identifier) @alias.source
     attribute: (identifier) @alias.original_name)) @reference.alias_binding
 
+; ── Class inheritance (Extends edges) ────────────────────────────────
+; `class Sub(Base1, Base2):` — one match per superclass identifier.
+; The class_definition node is the anchor; @name captures the base class.
+; The extractor reads the subclass name from anchor.child_by_field_name("name").
+(class_definition
+  superclasses: (argument_list
+    (identifier) @name)) @reference.extends
+
 ; ── Call expressions (Synapse Calls edges) ──────────────────────────
 
 ; Simple function calls: foo()

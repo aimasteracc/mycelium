@@ -354,6 +354,34 @@ impl Extractor {
                         };
                         store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
                     }
+                    "reference.extends" => {
+                        // anchor = class_definition node; @name = base class identifier.
+                        let base_name = name_text.unwrap_or("_unknown");
+                        let Some(subclass_name) = anchor
+                            .child_by_field_name("name")
+                            .and_then(|n| n.utf8_text(source).ok())
+                        else {
+                            continue;
+                        };
+                        let Ok(subclass_path) =
+                            TrunkPath::parse(&format!("{file_path}>{subclass_name}"))
+                        else {
+                            continue;
+                        };
+                        let subclass_id = store.upsert_node(subclass_path);
+                        // Prefer the intra-file definition; fall back to a bare stub.
+                        let base_id = {
+                            let intra = format!("{file_path}>{base_name}");
+                            if let Some(id) = store.lookup(&intra) {
+                                id
+                            } else if let Ok(bare) = TrunkPath::parse(base_name) {
+                                store.upsert_node(bare)
+                            } else {
+                                continue;
+                            }
+                        };
+                        store.upsert_edge(EdgeKind::Extends, subclass_id, base_id);
+                    }
                     _ => {}
                 }
             }
