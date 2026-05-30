@@ -18,12 +18,20 @@ on:
       - "crates/mycelium-cli/src/**"
       - "skills/**"
       - "scripts/check_skill_parity.py"
+      - "packs/**"
+      - "crates/mycelium-mcp/packs/**"
+      - "crates/mycelium-cli/packs/**"
+      - "scripts/check_pack_parity.sh"
   pull_request:
     paths:
       - "crates/mycelium-mcp/src/**"
       - "crates/mycelium-cli/src/**"
       - "skills/**"
       - "scripts/check_skill_parity.py"
+      - "packs/**"
+      - "crates/mycelium-mcp/packs/**"
+      - "crates/mycelium-cli/packs/**"
+      - "scripts/check_pack_parity.sh"
 
 jobs:
   parity-check:
@@ -34,3 +42,12 @@ jobs:
 
       - name: Run Three-Surface parity checker (strict)
         run: python3 scripts/check_skill_parity.py --strict
+
+  pack-parity:
+    name: Pack query parity (canonical vs embedded copies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check pack queries match canonical packs/
+        run: bash scripts/check_pack_parity.sh

@@ -76,6 +76,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the caller's requested format. 12 new TDD tests written RED-first per
   Charter §5.1 before any implementation. All 319 MCP tests pass.
 
+- **fix(packs): sync stale embedded Python pack queries — issue #260**.
+  `crates/mycelium-mcp/packs/python/queries.scm` and
+  `crates/mycelium-cli/packs/python/queries.scm` were 80 lines behind
+  canonical `packs/python/queries.scm` after PR #250 (Python Extends edges).
+  Both copies synced. The compiled binary now correctly emits Python Extends
+  edges. Adds `scripts/check_pack_parity.sh` + `pack-parity` CI job to
+  `parity.yml` to prevent future drift.
+
 - **Charter §2 SLA: 100 K-node heavy-graph benchmark row**.
   New `crates/mycelium-core/tests/sla_heavy_graph.rs` contains 6 CI-gated SLA
   assertions (leaf_symbols, degree_histogram, graph_metrics, page_rank with 5
