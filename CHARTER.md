@@ -188,6 +188,21 @@ These are added by the AI architect with the founder's blessing:
     is: *if CI is red, the release does not ship.* Diagnose, fix, push,
     re-run; only then merge. `gh pr merge --admin --merge` is **not**
     a substitute for green CI on release branches.
+  - **Post-release sync (added 2026-05-30):** a release ceremony is
+    not complete until **all four steps** land:
+    1. `release/vX.Y.Z` merged to `main` (the release PR)
+    2. Tag `vX.Y.Z` pushed to origin
+    3. All five crates published to crates.io
+    4. `release/vX.Y.Z` back-merged to `develop` (so develop carries
+       the version bump + sealed CHANGELOG and the next iteration
+       can branch from the new baseline)
+    The release is **incomplete** if any step is skipped. `main` lags
+    `develop` by design between releases (gitflow), but every
+    published version MUST exist on both branches when the dust
+    settles. Reason: leaving `develop` un-back-merged silently
+    de-syncs the version bump, causing the next release branch to
+    duplicate work or miss a version. Surfaced 2026-05-30 when
+    founder observed `main` not at the latest code post-release.
   - High-risk classes of change (schema migration, public API breakage, license, security model) are **always** escalated to founder.
   - Full audit log: `.hive/audit/YYYY-MM-DD.jsonl`, public.
   - Kill switch: closing issue `#1 — Hive kill switch` halts all autonomous activity within 60 seconds.
