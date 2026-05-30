@@ -24,10 +24,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run dogfood e2e tests
-        run: cargo test --package mycelium-core --test e2e_dogfood -- --test-threads=1
+        run: cargo test --package mycelium-rcig-core --test e2e_dogfood -- --test-threads=1
       - name: Print indexed symbol count (diagnostic)
         run: |
-          cargo test --package mycelium-core --test e2e_dogfood -- --nocapture 2>&1 \
+          cargo test --package mycelium-rcig-core --test e2e_dogfood -- --nocapture 2>&1 \
             | grep -E "indexed|nodes|edges|Store|Trunk" || true
 
   real-projects:
@@ -55,5 +55,5 @@ jobs:
             tests/e2e/fixtures/${{ matrix.project }}
       - name: Run real-project e2e tests
         run: |
-          cargo test --package mycelium-core --test e2e_real_projects \
+          cargo test --package mycelium-rcig-core --test e2e_real_projects \
             -- --nocapture --test-threads=1
