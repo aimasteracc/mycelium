@@ -315,13 +315,19 @@ pub(crate) fn run_server_status(root: &Path, format: Format) -> Result<()> {
 
 // ── call-graph: get-callees / get-callers ─────────────────────────────────────
 
-pub(crate) fn run_get_callees(root: &Path, path: &str, format: Format) -> Result<()> {
+pub(crate) fn run_get_callees(
+    root: &Path,
+    path: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let kind = parse_edge_kind(edge_kind)?;
     let store = load_index(root)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
     let mut paths: Vec<String> = store
-        .outgoing(id, EdgeKind::Calls)
+        .outgoing(id, kind)
         .iter()
         .filter_map(|&t| store.path_of(t).map(str::to_owned))
         .collect();
@@ -333,19 +339,21 @@ pub(crate) fn run_get_callees(root: &Path, path: &str, format: Format) -> Result
 pub(crate) fn run_get_callers(
     root: &Path,
     path: &str,
+    edge_kind: &str,
     include_virtual: bool,
     format: Format,
 ) -> Result<()> {
+    let kind = parse_edge_kind(edge_kind)?;
     let store = load_index(root)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
     let mut paths: Vec<String> = store
-        .incoming(id, EdgeKind::Calls)
+        .incoming(id, kind)
         .iter()
         .filter_map(|&t| store.path_of(t).map(str::to_owned))
         .collect();
-    if include_virtual {
+    if kind == EdgeKind::Calls && include_virtual {
         let virtual_callers = store
             .virtual_dispatch_callers_of_path(path)
             .unwrap_or_default();
@@ -431,10 +439,17 @@ pub(crate) fn run_get_entry_points(
 pub(crate) fn run_get_dead_symbols(
     root: &Path,
     prefix: Option<&str>,
+    edge_kind: Option<&str>,
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let symbols = store.dead_symbols(prefix);
+    let symbols = match edge_kind {
+        None => store.dead_symbols(prefix),
+        Some(ek) => {
+            let kind = parse_edge_kind(ek)?;
+            store.dead_symbols_for_kind(kind, prefix)
+        }
+    };
     print_string_list(&symbols, format)
 }
 
@@ -1011,9 +1026,19 @@ pub(crate) fn run_get_singly_referenced(
 
 // ── centrality: 14 ranking/scoring tools ──────────────────────────────────────
 
-pub(crate) fn run_rank_symbols(root: &Path, limit: usize, format: Format) -> Result<()> {
+pub(crate) fn run_rank_symbols(
+    root: &Path,
+    limit: usize,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let kind = parse_edge_kind(edge_kind)?;
     let store = load_index(root)?;
-    let ranked = store.top_callee_symbols(limit.min(100));
+    let ranked = if kind == EdgeKind::Calls {
+        store.top_callee_symbols(limit.min(100))
+    } else {
+        store.top_symbols_by_incoming(kind, limit.min(100))
+    };
     let symbols: Vec<serde_json::Value> = ranked
         .into_iter()
         .map(|(p, c)| serde_json::json!({ "path": p, "caller_count": c }))

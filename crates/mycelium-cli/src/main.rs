@@ -216,6 +216,9 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Edge kind to traverse: calls (default), imports, extends, implements.
+        #[arg(long, default_value = "calls")]
+        edge_kind: String,
     },
     /// Return the direct callers of a symbol (incoming `Calls` edges).
     GetCallers {
@@ -224,8 +227,12 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Edge kind to traverse: calls (default), imports, extends, implements.
+        #[arg(long, default_value = "calls")]
+        edge_kind: String,
         /// Also include callers that reach this symbol via virtual dispatch
         /// (i.e., callers of a base-class method of the same name).
+        /// Only applies when --edge-kind=calls (the default).
         #[arg(long, default_value_t = false)]
         include_virtual: bool,
     },
@@ -262,6 +269,11 @@ enum Cmd {
     GetDeadSymbols {
         #[arg(long)]
         prefix: Option<String>,
+        /// When set, return symbols with no incoming edges of this specific kind
+        /// (calls, imports, extends, implements).
+        /// Without this flag: no incoming Calls AND no incoming Imports (classic dead).
+        #[arg(long)]
+        edge_kind: Option<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -513,10 +525,13 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
-    /// Rank symbols by caller count.
+    /// Rank symbols by incoming edge count for a given edge kind.
     RankSymbols {
         #[arg(long, default_value_t = 10)]
         limit: usize,
+        /// Edge kind to rank by: calls (default), imports, extends, implements.
+        #[arg(long, default_value = "calls")]
+        edge_kind: String,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -1105,18 +1120,30 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_server_status(&canonical, format.into())?;
         }
-        Cmd::GetCallees { path, root, format } => {
+        Cmd::GetCallees {
+            path,
+            root,
+            format,
+            edge_kind,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callees(&canonical, &path, format.into())?;
+            queries::run_get_callees(&canonical, &path, &edge_kind, format.into())?;
         }
         Cmd::GetCallers {
             path,
             root,
             format,
+            edge_kind,
             include_virtual,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callers(&canonical, &path, include_virtual, format.into())?;
+            queries::run_get_callers(
+                &canonical,
+                &path,
+                &edge_kind,
+                include_virtual,
+                format.into(),
+            )?;
         }
         Cmd::GetCalleeTree {
             path,
@@ -1146,11 +1173,17 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         }
         Cmd::GetDeadSymbols {
             prefix,
+            edge_kind,
             root,
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_dead_symbols(&canonical, prefix.as_deref(), format.into())?;
+            queries::run_get_dead_symbols(
+                &canonical,
+                prefix.as_deref(),
+                edge_kind.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetIsolatedSymbols {
             prefix,
@@ -1350,11 +1383,12 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         }
         Cmd::RankSymbols {
             limit,
+            edge_kind,
             root,
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_rank_symbols(&canonical, limit, format.into())?;
+            queries::run_rank_symbols(&canonical, limit, &edge_kind, format.into())?;
         }
         Cmd::GetTopFiles {
             limit,

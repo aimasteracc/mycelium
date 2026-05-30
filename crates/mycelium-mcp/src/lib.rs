@@ -222,6 +222,9 @@ pub struct LoadIndexRequest {
 pub struct GetCalleesRequest {
     /// Trunk path to look up callees for, e.g. `"src/lib.rs>process"`.
     pub path: String,
+    /// Edge kind to traverse: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -233,9 +236,12 @@ pub struct GetCalleesRequest {
 pub struct GetCallersRequest {
     /// Trunk path to look up callers for, e.g. `"src/lib.rs>helper"`.
     pub path: String,
+    /// Edge kind to traverse: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// When true, also include callers that reach this symbol via virtual dispatch —
     /// i.e., callers that call an ancestor (base class) method of the same name.
-    /// Default: false (backward-compatible).
+    /// Only applies when `edge_kind` is `"calls"` (the default). Default: false.
     #[serde(default)]
     pub include_virtual: Option<bool>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
@@ -499,6 +505,9 @@ pub struct GetEntryPointsRequest {
 pub struct RankSymbolsRequest {
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Edge kind to rank by incoming-edge count: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -634,6 +643,12 @@ pub struct GetFilesRequest {
 pub struct GetDeadSymbolsRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
+    /// When set, return symbols with no incoming edges of this specific kind
+    /// (`"calls"`, `"imports"`, `"extends"`, `"implements"`).
+    /// When omitted (default), returns symbols with no incoming Calls AND no incoming Imports
+    /// — the classic "unreachable" definition.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -1785,6 +1800,10 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetCalleesRequest>,
     ) -> CallToolResult {
+        let kind = match parse_edge_kind(req.edge_kind.as_deref().unwrap_or("calls")) {
+            Ok(k) => k,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
         let store_guard = self.store.read().await;
         let lookup_result = store_guard.lookup(&req.path);
         let Some(id) = lookup_result else {
@@ -1792,7 +1811,7 @@ impl MyceliumServer {
             return not_found(&req.path);
         };
         let mut paths: Vec<String> = store_guard
-            .outgoing(id, mycelium_core::types::EdgeKind::Calls)
+            .outgoing(id, kind)
             .iter()
             .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
             .collect();
@@ -1818,6 +1837,10 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetCallersRequest>,
     ) -> CallToolResult {
+        let kind = match parse_edge_kind(req.edge_kind.as_deref().unwrap_or("calls")) {
+            Ok(k) => k,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
         let (direct, virtual_opt) = {
             let store_guard = self.store.read().await;
             let Some(id) = store_guard.lookup(&req.path) else {
@@ -1826,11 +1849,14 @@ impl MyceliumServer {
                 );
             };
             let d: Vec<String> = store_guard
-                .incoming(id, mycelium_core::types::EdgeKind::Calls)
+                .incoming(id, kind)
                 .iter()
                 .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
                 .collect();
-            let v = if req.include_virtual == Some(true) {
+            // virtual dispatch only makes sense for Calls edges
+            let v = if kind == mycelium_core::types::EdgeKind::Calls
+                && req.include_virtual == Some(true)
+            {
                 store_guard
                     .virtual_dispatch_callers_of_path(&req.path)
                     .unwrap_or_default()
@@ -2270,11 +2296,15 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetDeadSymbolsRequest>,
     ) -> CallToolResult {
-        let dead = self
-            .store
-            .read()
-            .await
-            .dead_symbols(req.path_prefix.as_deref());
+        let store = self.store.read().await;
+        let dead = match req.edge_kind.as_deref() {
+            None => store.dead_symbols(req.path_prefix.as_deref()),
+            Some(ek) => match parse_edge_kind(ek) {
+                Ok(kind) => store.dead_symbols_for_kind(kind, req.path_prefix.as_deref()),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
+        drop(store);
         let count = dead.len();
         let value = serde_json::json!({ "dead_symbols": dead, "count": count });
         ok_str(req.output_format.map_or_else(
@@ -3673,13 +3703,21 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<RankSymbolsRequest>,
     ) -> CallToolResult {
+        let kind = match parse_edge_kind(req.edge_kind.as_deref().unwrap_or("calls")) {
+            Ok(k) => k,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
         let limit = req.limit.unwrap_or(10).min(100);
-        let ranked = self.store.read().await.top_callee_symbols(limit);
+        let store = self.store.read().await;
+        let ranked = if kind == mycelium_core::types::EdgeKind::Calls {
+            store.top_callee_symbols(limit)
+        } else {
+            store.top_symbols_by_incoming(kind, limit)
+        };
+        drop(store);
         let symbols: Vec<serde_json::Value> = ranked
             .into_iter()
-            .map(|(path, caller_count)| {
-                serde_json::json!({ "path": path, "caller_count": caller_count })
-            })
+            .map(|(path, count)| serde_json::json!({ "path": path, "caller_count": count }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols });
         ok_str(req.output_format.map_or_else(
@@ -5617,6 +5655,7 @@ mod tests {
         let raw = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "src/lib.rs>foo".to_string(),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -5643,6 +5682,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "src/lib.rs>bar".to_string(),
+                edge_kind: None,
                 include_virtual: None,
                 output_format: None,
             }))
@@ -5670,6 +5710,7 @@ mod tests {
         let raw = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "no/such/path".to_string(),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -6273,6 +6314,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -6297,6 +6339,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: Some(1),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -6314,6 +6357,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -7355,6 +7399,7 @@ mod tests {
         let raw = server
             .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
                 path_prefix: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -7380,6 +7425,7 @@ mod tests {
         let raw = server
             .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
                 path_prefix: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -7394,6 +7440,7 @@ mod tests {
         let raw = server
             .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
                 path_prefix: Some("src/lib.rs".to_owned()),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -10990,6 +11037,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                edge_kind: None,
                 include_virtual: Some(true),
                 output_format: None,
             }))
@@ -11010,6 +11058,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                edge_kind: None,
                 include_virtual: None,
                 output_format: None,
             }))
@@ -11033,6 +11082,7 @@ mod tests {
         let result = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "src/greet.rs>greet".to_owned(),
+                edge_kind: None,
                 output_format: Some(OutputFormat::Text),
             }))
             .await;
@@ -11050,6 +11100,7 @@ mod tests {
         let result = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "src/greet.rs>greet".to_owned(),
+                edge_kind: None,
                 include_virtual: None,
                 output_format: Some(OutputFormat::Text),
             }))
@@ -11155,6 +11206,7 @@ mod tests {
         let result = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: Some(OutputFormat::Text),
             }))
             .await;
@@ -11190,6 +11242,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -11276,6 +11329,137 @@ mod tests {
         assert!(
             !msg.contains("outside allowed"),
             "allowed path must not be rejected: {msg}"
+        );
+    }
+
+    // ── Issue #297: --edge-kind consistency ────────────────────────────────────
+
+    #[tokio::test]
+    async fn get_callees_edge_kind_imports_returns_import_targets() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>ModA").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>ModB").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, b);
+        }
+        let result = server
+            .mycelium_get_callees(Parameters(GetCalleesRequest {
+                path: "src/a.rs>ModA".to_string(),
+                edge_kind: Some("imports".to_string()),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
+        let paths = val["callee_paths"].as_array().unwrap();
+        assert!(
+            paths.iter().any(|p| p == "src/b.rs>ModB"),
+            "expected src/b.rs>ModB in callee_paths, got: {paths:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_callers_edge_kind_extends_returns_extenders() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let base = store.upsert_node(TrunkPath::parse("src/base.rs>Base").unwrap());
+            let child = store.upsert_node(TrunkPath::parse("src/child.rs>Child").unwrap());
+            store.upsert_edge(EdgeKind::Extends, child, base);
+        }
+        let result = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "src/base.rs>Base".to_string(),
+                edge_kind: Some("extends".to_string()),
+                include_virtual: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
+        let paths = val["caller_paths"].as_array().unwrap();
+        assert!(
+            paths.iter().any(|p| p == "src/child.rs>Child"),
+            "expected src/child.rs>Child in caller_paths, got: {paths:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn rank_symbols_edge_kind_imports_ranks_most_imported_first() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/hub.rs>Hub").unwrap());
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>A").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>B").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>C").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, hub);
+            store.upsert_edge(EdgeKind::Imports, b, hub);
+            store.upsert_edge(EdgeKind::Imports, c, hub);
+        }
+        let result = server
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+                limit: Some(5),
+                edge_kind: Some("imports".to_string()),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert!(!symbols.is_empty(), "expected ranked symbols");
+        assert_eq!(
+            symbols[0]["path"].as_str().unwrap(),
+            "src/hub.rs>Hub",
+            "most-imported symbol should rank first"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let importer = store.upsert_node(TrunkPath::parse("src/importer.rs>A").unwrap());
+            let target = store.upsert_node(TrunkPath::parse("src/target.rs>B").unwrap());
+            // target has an incoming Imports edge but no incoming Calls edge
+            store.upsert_edge(EdgeKind::Imports, importer, target);
+        }
+        // Default (no edge_kind): checks Calls AND Imports → target NOT dead
+        let result_default = server
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
+                path_prefix: None,
+                edge_kind: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result_default)).unwrap();
+        let dead: Vec<&str> = val["dead_symbols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(
+            !dead.contains(&"src/target.rs>B"),
+            "default dead check must NOT flag symbol that has an Imports edge; got: {dead:?}"
+        );
+        // With edge_kind "calls": target has no Calls → IS dead for calls
+        let result_calls = server
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
+                path_prefix: None,
+                edge_kind: Some("calls".to_string()),
+                output_format: None,
+            }))
+            .await;
+        let val2: serde_json::Value = serde_json::from_str(result_str(&result_calls)).unwrap();
+        let dead_calls: Vec<&str> = val2["dead_symbols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(
+            dead_calls.contains(&"src/target.rs>B"),
+            "with edge_kind=calls, symbol with no Calls edge must appear as dead; got: {dead_calls:?}"
         );
     }
 }

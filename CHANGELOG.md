@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Issue #297 — `--edge-kind` flag added to `get-callers`, `get-callees`, `rank-symbols`,
+  `get-dead-symbols`** — These four commands previously hardcoded `Calls` edges, making it
+  impossible to query `Imports`, `Extends`, or `Implements` relationships. All four now accept
+  `--edge-kind <calls|imports|extends|implements>` (default: `calls`, backward-compatible).
+  `get-dead-symbols --edge-kind imports` returns symbols with no incoming Imports edges;
+  without `--edge-kind`, the classic Calls+Imports dead definition is preserved.
+  `include_virtual` on `get-callers` is silently ignored when `--edge-kind` is not `calls`.
+  Same parameters added to the MCP tools (`mycelium_get_callers`, `mycelium_get_callees`,
+  `mycelium_rank_symbols`, `mycelium_get_dead_symbols`). New store methods:
+  `top_symbols_by_incoming` and `dead_symbols_for_kind`. 4 TDD tests. (Issue #297)
+
 - **Issue #298 — batch commands accept repeated `--paths` flags** — `batch-symbol-info`,
   `batch-node-degree`, `batch-reachable-from`, `batch-reachable-to`, `get-common-callers`, and
   `get-common-callees` previously accepted only a single `--paths` string value; passing

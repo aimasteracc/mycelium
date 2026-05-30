@@ -144,8 +144,11 @@ This is a static analysis limitation, not a mycelium bug (issue #269).
 
 ```bash
 mycelium get-callers "src/auth/session.rs>AuthService>login" --format=json
+mycelium get-callers "src/models.rs>User" --edge-kind extends   # who extends User?
+mycelium get-callees "src/auth.rs>login" --edge-kind imports    # what does login import?
 mycelium get-caller-tree "src/auth/session.rs>AuthService>login" --max-depth 3
-mycelium get-dead-symbols --exclude-paths tests/ --limit 200
+mycelium get-dead-symbols --prefix src/                         # dead by Calls+Imports (classic)
+mycelium get-dead-symbols --edge-kind imports --prefix src/     # no incoming Imports
 ```
 
 ## Parity contract
