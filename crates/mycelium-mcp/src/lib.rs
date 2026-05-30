@@ -221,6 +221,11 @@ pub struct GetCalleesRequest {
 pub struct GetCallersRequest {
     /// Trunk path to look up callers for, e.g. `"src/lib.rs>helper"`.
     pub path: String,
+    /// When true, also include callers that reach this symbol via virtual dispatch —
+    /// i.e., callers that call an ancestor (base class) method of the same name.
+    /// Default: false (backward-compatible).
+    #[serde(default)]
+    pub include_virtual: Option<bool>,
 }
 
 /// Input parameters for `mycelium_get_symbol_info`.
@@ -1377,24 +1382,36 @@ impl MyceliumServer {
     }
 
     #[tool(
-        description = "Return all symbols (caller paths) that call a given symbol directly. \
-                       Uses the reverse Calls edges populated during indexing. Returns a sorted \
-                       list of trunk paths."
+        description = "Return all symbols (caller paths) that call a given symbol directly, \
+                       and optionally via virtual dispatch. Direct callers use reverse Calls edges. \
+                       When include_virtual is true, also includes callers that call an ancestor \
+                       (base class) method of the same name — surfacing virtual dispatch call sites \
+                       that reference the abstract base rather than the concrete override. \
+                       Returns a sorted, deduplicated list of trunk paths."
     )]
     async fn mycelium_get_callers(&self, Parameters(req): Parameters<GetCallersRequest>) -> String {
-        let store_guard = self.store.read().await;
-        let lookup_result = store_guard.lookup(&req.path);
-        let Some(id) = lookup_result else {
-            drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+        let (direct, virtual_opt) = {
+            let store_guard = self.store.read().await;
+            let Some(id) = store_guard.lookup(&req.path) else {
+                return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                    .to_string();
+            };
+            let d: Vec<String> = store_guard
+                .incoming(id, mycelium_core::types::EdgeKind::Calls)
+                .iter()
+                .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
+                .collect();
+            let v = if req.include_virtual == Some(true) {
+                store_guard
+                    .virtual_dispatch_callers_of_path(&req.path)
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            };
+            (d, v)
         };
-        let mut paths: Vec<String> = store_guard
-            .incoming(id, mycelium_core::types::EdgeKind::Calls)
-            .iter()
-            .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
-            .collect();
-        drop(store_guard);
+        let mut paths = direct;
+        paths.extend(virtual_opt);
         paths.sort();
         paths.dedup();
         serde_json::json!({ "caller_paths": paths }).to_string()
@@ -4855,6 +4872,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "src/lib.rs>bar".to_string(),
+                include_virtual: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9887,5 +9905,74 @@ mod tests {
             }))
             .await;
         let _: serde_json::Value = serde_json::from_str(&raw).expect("default must be valid JSON");
+    }
+
+    // ── issue #246: virtual dispatch callers ──────────────────────────────────
+
+    /// Fixture: `Abstract>method` is called by Caller.
+    /// `SubClass` extends `Abstract` but defines its own `SubClass>method`.
+    /// `get-callers(SubClass>method, include_virtual=true)` must include the
+    /// call site (`Caller>fn`) that calls `Abstract>method` via virtual dispatch.
+    async fn server_with_virtual_dispatch_fixture() -> MyceliumServer {
+        use mycelium_core::trunk::TrunkPath;
+        use mycelium_core::types::{EdgeKind, NodeKind};
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        // Nodes
+        let abstract_class =
+            store.upsert_node(TrunkPath::parse("pkg/base.py>AbstractPlugin").unwrap());
+        let abstract_method =
+            store.upsert_node(TrunkPath::parse("pkg/base.py>AbstractPlugin>analyze").unwrap());
+        store.set_kind(abstract_method, NodeKind::Method);
+        let sub_class = store.upsert_node(TrunkPath::parse("pkg/sub.py>ConcretePlugin").unwrap());
+        let sub_method =
+            store.upsert_node(TrunkPath::parse("pkg/sub.py>ConcretePlugin>analyze").unwrap());
+        store.set_kind(sub_method, NodeKind::Method);
+        let caller_fn = store.upsert_node(TrunkPath::parse("pkg/engine.py>Engine>run").unwrap());
+        store.set_kind(caller_fn, NodeKind::Method);
+        // Edges
+        store.upsert_edge(EdgeKind::Extends, sub_class, abstract_class);
+        // Virtual dispatch: Engine>run calls AbstractPlugin>analyze (via typed variable)
+        store.upsert_edge(EdgeKind::Calls, caller_fn, abstract_method);
+        drop(store);
+        server
+    }
+
+    #[tokio::test]
+    async fn get_callers_include_virtual_surfaces_virtual_dispatch_caller() {
+        let server = server_with_virtual_dispatch_fixture().await;
+        let raw = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                include_virtual: Some(true),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "must not return error");
+        let arr = val["caller_paths"].as_array().unwrap();
+        assert!(
+            arr.iter()
+                .any(|v| v.as_str() == Some("pkg/engine.py>Engine>run")),
+            "include_virtual must surface Engine>run which calls AbstractPlugin>analyze"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_callers_default_does_not_include_virtual() {
+        let server = server_with_virtual_dispatch_fixture().await;
+        let raw = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                include_virtual: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "must not return error");
+        let arr = val["caller_paths"].as_array().unwrap();
+        assert!(
+            !arr.iter()
+                .any(|v| v.as_str() == Some("pkg/engine.py>Engine>run")),
+            "without include_virtual, virtual dispatch callers must not appear"
+        );
     }
 }

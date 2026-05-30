@@ -801,6 +801,45 @@ impl Store {
         )
     }
 
+    /// Return callers of `path` that are reachable only via virtual dispatch.
+    ///
+    /// When a typed variable (e.g. `plugin: AbstractBase`) is used to invoke
+    /// a method, the call edge points to the **base class** method, not to any
+    /// concrete override.  This method finds those callers by:
+    ///
+    /// 1. Extracting the method name (last `>` segment) from `path`.
+    /// 2. Walking Extends edges from the class that owns `path` to each base class.
+    /// 3. For each base class, looking up `BaseClass>method_name` and collecting
+    ///    its incoming Calls edges.
+    ///
+    /// Returns `None` when `path` cannot be found in the index.
+    pub fn virtual_dispatch_callers_of_path(&self, path: &str) -> Option<Vec<String>> {
+        let _ = self.trunk.lookup_path(path)?;
+        let method_name = path.split('>').next_back()?;
+        let class_path_end = path.rfind('>')?;
+        let class_path = &path[..class_path_end];
+        let class_id = self.trunk.lookup_path(class_path)?;
+
+        let mut result: Vec<String> = Vec::new();
+        for &base_id in self.outgoing(class_id, EdgeKind::Extends) {
+            let Some(base_path) = self.trunk.path_of(base_id) else {
+                continue;
+            };
+            let base_method_path = format!("{base_path}>{method_name}");
+            let Some(base_method_id) = self.trunk.lookup_path(&base_method_path) else {
+                continue;
+            };
+            for &caller_id in self.incoming(base_method_id, EdgeKind::Calls) {
+                if let Some(p) = self.trunk.path_of(caller_id).map(str::to_owned) {
+                    result.push(p);
+                }
+            }
+        }
+        result.sort();
+        result.dedup();
+        Some(result)
+    }
+
     /// Return methods inherited from base classes via `Extends` edges.
     ///
     /// For each base class reachable through Extends, collect the descendants
@@ -811,7 +850,6 @@ impl Store {
     /// Each entry in the returned vec is `(path, declaring_class_path)`.
     pub fn inherited_descendants_of_path(&self, path: &str) -> Option<Vec<(String, String)>> {
         let id = self.trunk.lookup_path(path)?;
-        // Collect the last-segment names of directly-defined children.
         let direct_names: std::collections::HashSet<String> = self
             .trunk
             .descendants(id)
