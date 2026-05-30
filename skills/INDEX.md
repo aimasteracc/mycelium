@@ -79,12 +79,12 @@ authored in Phase 2 PRs, one PR per category.
 | `get_hub_symbols` | `mycelium get-hub-symbols` | `mycelium_get_hub_symbols` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `get_fan_out_rank` | `mycelium get-fan-out-rank` | `mycelium_get_fan_out_rank` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `get_fan_in_rank` | `mycelium get-fan-in-rank` | `mycelium_get_fan_in_rank` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
-| `betweenness_centrality` | `mycelium betweenness-centrality` | `mycelium_betweenness_centrality` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
+| `betweenness_centrality` | `mycelium betweenness-centrality` | `mycelium_betweenness_centrality` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5; ⚠️ #153 perf |
 | `closeness_centrality` | `mycelium closeness-centrality` | `mycelium_closeness_centrality` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `degree_centrality` | `mycelium degree-centrality` | `mycelium_degree_centrality` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `clustering_coefficient` | `mycelium clustering-coefficient` | `mycelium_clustering_coefficient` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `eccentricity` | `mycelium eccentricity` | `mycelium_eccentricity` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
-| `page_rank` | `mycelium page-rank` | `mycelium_page_rank` | [`centrality`](centrality/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
+| `page_rank` | `mycelium page-rank` | `mycelium_page_rank` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5; ⚠️ #153 perf |
 | `harmonic_centrality` | `mycelium harmonic-centrality` | `mycelium_harmonic_centrality` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `neighbor_similarity` | `mycelium neighbor-similarity` | `mycelium_neighbor_similarity` | [`centrality`](centrality/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 7) |
 | `get_extends` | `mycelium get-extends` | `mycelium_get_extends` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
@@ -96,7 +96,7 @@ authored in Phase 2 PRs, one PR per category.
 | `implementors_tree` | `mycelium implementors-tree` | `mycelium_implementors_tree` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
 | `find_implements_path` | `mycelium find-implements-path` | `mycelium_find_implements_path` | [`inheritance`](inheritance/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 5) |
 | `get_stats` | `mycelium get-stats` | `mycelium_get_stats` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
-| `get_graph_metrics` | `mycelium get-graph-metrics` | `mycelium_get_graph_metrics` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
+| `get_graph_metrics` | `mycelium get-graph-metrics` | `mycelium_get_graph_metrics` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5; ⚠️ #153 perf |
 | `detect_cycles` | `mycelium detect-cycles` | `mycelium_detect_cycles` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `get_scc_groups` | `mycelium get-scc-groups` | `mycelium_get_scc_groups` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `topological_sort` | `mycelium topological-sort` | `mycelium_topological_sort` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
@@ -106,29 +106,29 @@ authored in Phase 2 PRs, one PR per category.
 | `get_k_core` | `mycelium get-k-core` | `mycelium_get_k_core` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `get_dependency_layers` | `mycelium get-dependency-layers` | `mycelium_get_dependency_layers` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `get_strongly_connected_components` | `mycelium get-strongly-connected-components` | `mycelium_get_strongly_connected_components` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
-| `get_wcc` | `mycelium get-wcc` | `mycelium_get_wcc` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
-| `get_degree_histogram` | `mycelium get-degree-histogram` | `mycelium_get_degree_histogram` | [`graph-structure`](graph-structure/SKILL.md) | 🟡 Skill landed v0.1.3; CLI subcommand pending; ⚠️ #153 perf |
+| `get_wcc` | `mycelium get-wcc` | `mycelium_get_wcc` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5; ⚠️ #153 perf |
+| `get_degree_histogram` | `mycelium get-degree-histogram` | `mycelium_get_degree_histogram` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5; ⚠️ #153 perf |
 | `find_cycle_members` | `mycelium find-cycle-members` | `mycelium_find_cycle_members` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 8) |
 | `batch_symbol_info` | `mycelium batch-symbol-info` | `mycelium_batch_symbol_info` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
 | `batch_node_degree` | `mycelium batch-node-degree` | `mycelium_batch_node_degree` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
 | `batch_reachable_from` | `mycelium batch-reachable-from` | `mycelium_batch_reachable_from` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
 | `batch_reachable_to` | `mycelium batch-reachable-to` | `mycelium_batch_reachable_to` | [`batch-ops`](batch-ops/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 9) |
-| `index_workspace` | `mycelium index` | `mycelium_index_workspace` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI `index` subcommand is the equivalent |
-| `load_index` | `mycelium load-index` | `mycelium_load_index` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `watch_status` | `mycelium watch-status` | `mycelium_watch_status` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `sync_file` | `mycelium sync-file` | `mycelium_sync_file` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `set_compact_mode` | `mycelium set-compact-mode` | `mycelium_set_compact_mode` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_token_stats` | `mycelium get-token-stats` | `mycelium_get_token_stats` | [`index-management`](index-management/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_node_degree` | `mycelium get-node-degree` | `mycelium_get_node_degree` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_files` | `mycelium get-files` | `mycelium_get_files` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_symbol_count_by_kind` | `mycelium get-symbol-count-by-kind` | `mycelium_get_symbol_count_by_kind` | [`basic-queries`](basic-queries/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_leaf_symbols` | `mycelium get-leaf-symbols` | `mycelium_get_leaf_symbols` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending; ⚠️ #153 perf |
-| `find_call_path` | `mycelium find-call-path` | `mycelium_find_call_path` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending; ⚠️ #153 perf |
-| `get_common_callers` | `mycelium get-common-callers` | `mycelium_get_common_callers` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_common_callees` | `mycelium get-common-callees` | `mycelium_get_common_callees` | [`call-graph`](call-graph/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `find_import_path` | `mycelium find-import-path` | `mycelium_find_import_path` | [`import-graph`](import-graph/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_mutual_reachability` | `mycelium get-mutual-reachability` | `mycelium_get_mutual_reachability` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
-| `get_common_reachable` | `mycelium get-common-reachable` | `mycelium_get_common_reachable` | [`reachability`](reachability/SKILL.md) | 🟡 Skill landed v0.1.4; CLI subcommand pending |
+| `index_workspace` | `mycelium index` | `mycelium_index_workspace` | [`index-management`](index-management/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI `mycelium index` is the equivalent) |
+| `load_index` | _(MCP-only)_ | `mycelium_load_index` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — CLI loads index per-invocation; no human-visible "load" verb needed |
+| `watch_status` | _(MCP-only)_ | `mycelium_watch_status` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — live MCP server-process state, no CLI equivalent |
+| `sync_file` | `mycelium sync-file` | `mycelium_sync_file` | [`index-management`](index-management/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `set_compact_mode` | _(MCP-only)_ | `mycelium_set_compact_mode` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — MCP output-format toggle, no CLI equivalent |
+| `get_token_stats` | _(MCP-only)_ | `mycelium_get_token_stats` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — MCP server-state stats, no CLI equivalent |
+| `get_node_degree` | `mycelium get-node-degree` | `mycelium_get_node_degree` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `get_files` | `mycelium get-files` | `mycelium_get_files` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `get_symbol_count_by_kind` | `mycelium get-symbol-count-by-kind` | `mycelium_get_symbol_count_by_kind` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `get_leaf_symbols` | `mycelium get-leaf-symbols` | `mycelium_get_leaf_symbols` | [`call-graph`](call-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10); ⚠️ #153 perf |
+| `find_call_path` | `mycelium find-call-path` | `mycelium_find_call_path` | [`call-graph`](call-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10); ⚠️ #153 perf |
+| `get_common_callers` | `mycelium get-common-callers` | `mycelium_get_common_callers` | [`call-graph`](call-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `get_common_callees` | `mycelium get-common-callees` | `mycelium_get_common_callees` | [`call-graph`](call-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `find_import_path` | `mycelium find-import-path` | `mycelium_find_import_path` | [`import-graph`](import-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `get_mutual_reachability` | `mycelium get-mutual-reachability` | `mycelium_get_mutual_reachability` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
+| `get_common_reachable` | `mycelium get-common-reachable` | `mycelium_get_common_reachable` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 
 **Status legend:** 🟡 Skill bundle written + MCP tool exists, but the CLI half is still missing — `parity-backfill` epic tracks these. ✅ Three-Surface = all three surfaces shipped, parity-CI green. The CLI subcommands ship in v0.1.4–v0.1.5 alongside the parity-CI workflow.
 
