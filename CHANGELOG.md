@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue #246: `get-callers --include-virtual` / MCP `include_virtual` flag for virtual dispatch**.
+  New `Store::virtual_dispatch_callers_of_path` follows `EdgeKind::Extends` edges from the
+  target symbol's class to each base class, then collects callers of `BaseClass>method_name`.
+  When typed variables (e.g. `plugin: AbstractBase`) invoke a method via virtual dispatch,
+  the Calls edge points to the base class method — this flag surfaces those callers for the
+  concrete override. MCP `mycelium_get_callers` gains `include_virtual: Option<bool>`;
+  CLI `get-callers` gains `--include-virtual`. Three-Surface Rule (RFC-0090) satisfied:
+  `Store` method → MCP param → CLI flag. Default `false` is backward-compatible.
+  2 TDD tests.
+
+- **Issue #248: `get-descendants --include-inherited` / MCP `include_inherited` flag**.
+  `Store::inherited_descendants_of_path` follows `EdgeKind::Extends` edges from the
+  requested class to each declared base class and returns methods that exist on the
+  base but are not overridden in the subclass. The MCP handler for
+  `mycelium_get_descendants` accepts `include_inherited: true` and appends an
+  `inherited_descendants` array to the response, where each entry carries the method
+  path and the `from` (declaring class path). The CLI command `get-descendants` gains
+  `--include-inherited` boolean flag with identical output in `--format text` mode.
+  Three-Surface Rule (RFC-0090) satisfied: Store method → MCP param → CLI flag.
+  2 new MCP TDD tests; clippy `significant_drop_tightening` and
+  `double_ended_iterator_last` lints fixed as part of this work.
+
+
+- **Issue #247: Python callback / higher-order function false positives fixed**.
+  `packs/python/queries.scm` now captures identifiers passed as positional
+  or keyword-value arguments (`reference.arg_callback`). The extractor's
+  Pass 2 creates a `Calls` edge from the enclosing function to the argument
+  identifier, so `get-isolated-symbols` no longer reports callback functions
+  as dead code when they are only ever passed (not directly called). 525
+  false positives eliminated in the `tree-sitter-analyzer` dogfood project.
+  Also confirmed that Pattern 1 (import aliases: `from .mod import fn as
+  alias`) was already correctly resolved via the RFC-0092 alias table; a
+  regression-guard test is added. 2 TDD tests.
+
+- **Issue #245: Python class inheritance (Extends) edges extracted**.
+  `packs/python/queries.scm` now captures `class Sub(Base):` superclass
+  identifiers as `@reference.extends` matches. The extractor's Pass 2
+  match block gains a `"reference.extends"` arm that reads the subclass
+  name from the `class_definition` anchor, resolves the base class
+  (intra-file definition first, bare-symbol stub fallback), and emits an
+  `EdgeKind::Extends` edge. Multiple-inheritance (`class Sub(A, B):`)
+  produces one Extends edge per superclass via tree-sitter's per-identifier
+  match semantics. 3 TDD tests cover same-file, external, and multiple-
+  inheritance cases.
+
 - **Issue #211: Cross-tool MCP response contract tests**.
   New `crates/mycelium-mcp/tests/contract.rs` spins up an in-process
   `MyceliumServer` + rmcp client over `tokio::io::duplex` and verifies

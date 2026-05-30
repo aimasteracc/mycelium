@@ -713,3 +713,97 @@ fn extractor_forward_reference_rust() {
         "foo->bar Calls edge must use definition node for forward reference"
     );
 }
+
+// ── issue #247 diagnostics: import-alias and callback false positives ────────
+
+/// Pattern 1 (issue #247): import alias resolution.
+/// Calling the aliased name must create a Calls edge to the original definition.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_import_alias_call_resolves_to_original() {
+    let ext = python_extractor();
+    let mut store = Store::new();
+    // Index the utility module first (definition side).
+    ext.extract("pkg/_utils.py", b"def helper(): pass", &mut store)
+        .unwrap();
+    // Then index the importer (alias + call site).
+    ext.extract(
+        "pkg/main.py",
+        b"from ._utils import helper as _helper\ndef do_work():\n    _helper()",
+        &mut store,
+    )
+    .unwrap();
+
+    let caller = store
+        .lookup("pkg/main.py>do_work")
+        .expect("do_work must exist");
+    let callee = store
+        .lookup("pkg/_utils.py>helper")
+        .expect("helper must exist in _utils.py");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "import alias `_helper` should resolve to pkg/_utils.py>helper"
+    );
+}
+
+/// Pattern 2: `run_with_cb(callback)` — callback passed as positional arg
+/// must produce a Calls edge so `callback` is NOT isolated.
+#[test]
+fn extractor_callback_arg_not_isolated() {
+    let source = "def callback(): pass\ndef caller():\n    run_with_cb(callback)";
+    let store = extract(source);
+    let cb = store
+        .lookup("test.py>callback")
+        .expect("callback must exist");
+    let degree = store.node_degree(cb);
+    assert!(
+        degree.in_calls > 0 || degree.out_calls > 0,
+        "callback passed as argument should have at least one Calls edge to avoid dead-code false positive"
+    );
+}
+
+// ── reference.extends (issue #245) ───────────────────────────────────────────
+
+#[test]
+fn extractor_python_extends_same_file_base() {
+    let source = "class Base:\n    pass\n\nclass Sub(Base):\n    pass";
+    let store = extract(source);
+    let sub = store.lookup("test.py>Sub").expect("Sub must exist");
+    let base = store.lookup("test.py>Base").expect("Base must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "Sub should have an Extends edge to same-file Base"
+    );
+}
+
+#[test]
+fn extractor_python_extends_external_base() {
+    let source = "class Sub(ExternalBase):\n    pass";
+    let store = extract(source);
+    let sub = store.lookup("test.py>Sub").expect("Sub must exist");
+    let base = store.lookup("ExternalBase");
+    assert!(base.is_some(), "ExternalBase stub node must be created");
+    assert!(
+        store
+            .outgoing(sub, EdgeKind::Extends)
+            .contains(&base.unwrap()),
+        "Sub should have an Extends edge to ExternalBase stub"
+    );
+}
+
+#[test]
+fn extractor_python_extends_multiple_inheritance() {
+    let source = "class Sub(Base1, Base2):\n    pass";
+    let store = extract(source);
+    let sub = store.lookup("test.py>Sub").expect("Sub must exist");
+    let base1 = store.lookup("Base1").expect("Base1 stub must exist");
+    let base2 = store.lookup("Base2").expect("Base2 stub must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base1),
+        "Sub should extend Base1"
+    );
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base2),
+        "Sub should extend Base2"
+    );
+}

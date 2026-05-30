@@ -189,6 +189,13 @@ pub struct GetAncestorsRequest {
 pub struct GetDescendantsRequest {
     /// Trunk path to look up, e.g. `"src/lib.rs"`.
     pub path: String,
+    /// When `true`, also return methods inherited from base classes via
+    /// Extends edges. Inherited methods appear in an `inherited_descendants`
+    /// array, each entry as `{"path": "...", "from": "..."}`. Methods
+    /// overridden by the class are excluded from the inherited list.
+    /// Defaults to `false` for backward compatibility.
+    #[serde(default)]
+    pub include_inherited: Option<bool>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -214,6 +221,11 @@ pub struct GetCalleesRequest {
 pub struct GetCallersRequest {
     /// Trunk path to look up callers for, e.g. `"src/lib.rs>helper"`.
     pub path: String,
+    /// When true, also include callers that reach this symbol via virtual dispatch —
+    /// i.e., callers that call an ancestor (base class) method of the same name.
+    /// Default: false (backward-compatible).
+    #[serde(default)]
+    pub include_virtual: Option<bool>,
 }
 
 /// Input parameters for `mycelium_get_symbol_info`.
@@ -1250,13 +1262,26 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetDescendantsRequest>,
     ) -> String {
-        let descendants = self
-            .store
-            .read()
-            .await
-            .descendants_of_path(&req.path)
-            .unwrap_or_default();
-        let value = serde_json::json!({ "descendants": descendants });
+        let (descendants, inherited_opt) = {
+            let store = self.store.read().await;
+            let d = store.descendants_of_path(&req.path).unwrap_or_default();
+            let i = if req.include_inherited == Some(true) {
+                store
+                    .inherited_descendants_of_path(&req.path)
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            };
+            (d, i)
+        };
+        let mut value = serde_json::json!({ "descendants": descendants });
+        if req.include_inherited == Some(true) {
+            let inherited = inherited_opt
+                .into_iter()
+                .map(|(path, from)| serde_json::json!({ "path": path, "from": from }))
+                .collect::<Vec<_>>();
+            value["inherited_descendants"] = serde_json::Value::Array(inherited);
+        }
         req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -1357,24 +1382,36 @@ impl MyceliumServer {
     }
 
     #[tool(
-        description = "Return all symbols (caller paths) that call a given symbol directly. \
-                       Uses the reverse Calls edges populated during indexing. Returns a sorted \
-                       list of trunk paths."
+        description = "Return all symbols (caller paths) that call a given symbol directly, \
+                       and optionally via virtual dispatch. Direct callers use reverse Calls edges. \
+                       When include_virtual is true, also includes callers that call an ancestor \
+                       (base class) method of the same name — surfacing virtual dispatch call sites \
+                       that reference the abstract base rather than the concrete override. \
+                       Returns a sorted, deduplicated list of trunk paths."
     )]
     async fn mycelium_get_callers(&self, Parameters(req): Parameters<GetCallersRequest>) -> String {
-        let store_guard = self.store.read().await;
-        let lookup_result = store_guard.lookup(&req.path);
-        let Some(id) = lookup_result else {
-            drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+        let (direct, virtual_opt) = {
+            let store_guard = self.store.read().await;
+            let Some(id) = store_guard.lookup(&req.path) else {
+                return serde_json::json!({ "error": format!("path not found: {}", req.path) })
+                    .to_string();
+            };
+            let d: Vec<String> = store_guard
+                .incoming(id, mycelium_core::types::EdgeKind::Calls)
+                .iter()
+                .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
+                .collect();
+            let v = if req.include_virtual == Some(true) {
+                store_guard
+                    .virtual_dispatch_callers_of_path(&req.path)
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            };
+            (d, v)
         };
-        let mut paths: Vec<String> = store_guard
-            .incoming(id, mycelium_core::types::EdgeKind::Calls)
-            .iter()
-            .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
-            .collect();
-        drop(store_guard);
+        let mut paths = direct;
+        paths.extend(virtual_opt);
         paths.sort();
         paths.dedup();
         serde_json::json!({ "caller_paths": paths }).to_string()
@@ -4329,6 +4366,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs".to_string(),
+                include_inherited: None,
                 output_format: None,
             }))
             .await;
@@ -4351,6 +4389,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs>greet".to_string(),
+                include_inherited: None,
                 output_format: None,
             }))
             .await;
@@ -4367,6 +4406,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "no/such>path".to_string(),
+                include_inherited: None,
                 output_format: None,
             }))
             .await;
@@ -4374,6 +4414,90 @@ mod tests {
         assert!(
             val["descendants"].as_array().unwrap().is_empty(),
             "unknown path should yield empty descendants list"
+        );
+    }
+
+    // ── issue #248: get-descendants with include_inherited ────────────────────
+
+    /// Helper: server with a base class and a subclass that has its own method.
+    async fn server_with_descendants_inheritance_fixture() -> MyceliumServer {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            // Base class: pkg/base.py>BaseClass with methods foo and shared
+            let base_file = store.upsert_node(TrunkPath::parse("pkg/base.py").unwrap());
+            let base_cls = store.upsert_node(TrunkPath::parse("pkg/base.py>BaseClass").unwrap());
+            let base_foo =
+                store.upsert_node(TrunkPath::parse("pkg/base.py>BaseClass>foo").unwrap());
+            let base_shared =
+                store.upsert_node(TrunkPath::parse("pkg/base.py>BaseClass>shared").unwrap());
+            store.upsert_edge(EdgeKind::Contains, base_file, base_cls);
+            store.upsert_edge(EdgeKind::Contains, base_cls, base_foo);
+            store.upsert_edge(EdgeKind::Contains, base_cls, base_shared);
+            // Sub class: pkg/sub.py>SubClass with its own bar + shared (override)
+            let sub_file = store.upsert_node(TrunkPath::parse("pkg/sub.py").unwrap());
+            let sub_cls = store.upsert_node(TrunkPath::parse("pkg/sub.py>SubClass").unwrap());
+            let sub_bar = store.upsert_node(TrunkPath::parse("pkg/sub.py>SubClass>bar").unwrap());
+            let sub_shared =
+                store.upsert_node(TrunkPath::parse("pkg/sub.py>SubClass>shared").unwrap());
+            store.upsert_edge(EdgeKind::Contains, sub_file, sub_cls);
+            store.upsert_edge(EdgeKind::Contains, sub_cls, sub_bar);
+            store.upsert_edge(EdgeKind::Contains, sub_cls, sub_shared);
+            // Inheritance: SubClass extends BaseClass
+            store.upsert_edge(EdgeKind::Extends, sub_cls, base_cls);
+        }
+        server
+    }
+
+    #[tokio::test]
+    async fn get_descendants_include_inherited_returns_base_methods() {
+        let server = server_with_descendants_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "pkg/sub.py>SubClass".to_string(),
+                include_inherited: Some(true),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let inherited = val["inherited_descendants"]
+            .as_array()
+            .expect("include_inherited=true must produce an inherited_descendants array");
+        // `foo` is inherited (not overridden in SubClass)
+        assert!(
+            inherited
+                .iter()
+                .any(|v| v["path"].as_str() == Some("pkg/base.py>BaseClass>foo")),
+            "inherited_descendants must include BaseClass>foo (not overridden)"
+        );
+        // `shared` is overridden in SubClass — must NOT appear in inherited
+        assert!(
+            !inherited
+                .iter()
+                .any(|v| v["path"].as_str() == Some("pkg/base.py>BaseClass>shared")),
+            "shared is overridden; must not appear in inherited_descendants"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_descendants_default_unchanged_without_include_inherited() {
+        let server = server_with_descendants_inheritance_fixture().await;
+        let raw = server
+            .mycelium_get_descendants(Parameters(GetDescendantsRequest {
+                path: "pkg/sub.py>SubClass".to_string(),
+                include_inherited: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        // Without include_inherited, inherited_descendants must be absent or empty
+        let inherited_absent = val["inherited_descendants"].is_null()
+            || val["inherited_descendants"]
+                .as_array()
+                .is_none_or(Vec::is_empty);
+        assert!(
+            inherited_absent,
+            "without include_inherited, inherited_descendants must not appear"
         );
     }
 
@@ -4748,6 +4872,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "src/lib.rs>bar".to_string(),
+                include_virtual: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -9754,6 +9879,7 @@ mod tests {
         let raw = server
             .mycelium_get_descendants(Parameters(GetDescendantsRequest {
                 path: "src/greet.rs".to_string(),
+                include_inherited: None,
                 output_format: Some(OutputFormat::Text),
             }))
             .await;
@@ -9779,5 +9905,74 @@ mod tests {
             }))
             .await;
         let _: serde_json::Value = serde_json::from_str(&raw).expect("default must be valid JSON");
+    }
+
+    // ── issue #246: virtual dispatch callers ──────────────────────────────────
+
+    /// Fixture: `Abstract>method` is called by Caller.
+    /// `SubClass` extends `Abstract` but defines its own `SubClass>method`.
+    /// `get-callers(SubClass>method, include_virtual=true)` must include the
+    /// call site (`Caller>fn`) that calls `Abstract>method` via virtual dispatch.
+    async fn server_with_virtual_dispatch_fixture() -> MyceliumServer {
+        use mycelium_core::trunk::TrunkPath;
+        use mycelium_core::types::{EdgeKind, NodeKind};
+        let server = MyceliumServer::new();
+        let mut store = server.store.write().await;
+        // Nodes
+        let abstract_class =
+            store.upsert_node(TrunkPath::parse("pkg/base.py>AbstractPlugin").unwrap());
+        let abstract_method =
+            store.upsert_node(TrunkPath::parse("pkg/base.py>AbstractPlugin>analyze").unwrap());
+        store.set_kind(abstract_method, NodeKind::Method);
+        let sub_class = store.upsert_node(TrunkPath::parse("pkg/sub.py>ConcretePlugin").unwrap());
+        let sub_method =
+            store.upsert_node(TrunkPath::parse("pkg/sub.py>ConcretePlugin>analyze").unwrap());
+        store.set_kind(sub_method, NodeKind::Method);
+        let caller_fn = store.upsert_node(TrunkPath::parse("pkg/engine.py>Engine>run").unwrap());
+        store.set_kind(caller_fn, NodeKind::Method);
+        // Edges
+        store.upsert_edge(EdgeKind::Extends, sub_class, abstract_class);
+        // Virtual dispatch: Engine>run calls AbstractPlugin>analyze (via typed variable)
+        store.upsert_edge(EdgeKind::Calls, caller_fn, abstract_method);
+        drop(store);
+        server
+    }
+
+    #[tokio::test]
+    async fn get_callers_include_virtual_surfaces_virtual_dispatch_caller() {
+        let server = server_with_virtual_dispatch_fixture().await;
+        let raw = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                include_virtual: Some(true),
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "must not return error");
+        let arr = val["caller_paths"].as_array().unwrap();
+        assert!(
+            arr.iter()
+                .any(|v| v.as_str() == Some("pkg/engine.py>Engine>run")),
+            "include_virtual must surface Engine>run which calls AbstractPlugin>analyze"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_callers_default_does_not_include_virtual() {
+        let server = server_with_virtual_dispatch_fixture().await;
+        let raw = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                include_virtual: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert!(val.get("error").is_none(), "must not return error");
+        let arr = val["caller_paths"].as_array().unwrap();
+        assert!(
+            !arr.iter()
+                .any(|v| v.as_str() == Some("pkg/engine.py>Engine>run")),
+            "without include_virtual, virtual dispatch callers must not appear"
+        );
     }
 }
