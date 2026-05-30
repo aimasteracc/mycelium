@@ -8,11 +8,11 @@
 
 | Phase | State |
 |---|---|
-| Phase 0 (RFC-0090 PR) | Coverage matrix scaffolded. No real Skills yet. Existing 88 MCP capabilities are unmapped. |
-| Phase 1 (v0.1.2) | Parity-check CI + generator script land. INDEX.md becomes mechanical. |
-| Phase 2 (v0.1.3, **complete for the 8 planned categories**) | All 9 category Skills (hyphae-query + the 8 from glm5.1 eval) shipped. 73/88 capabilities covered. |
-| Phase 2.3 (v0.1.4, **complete**) | All 16 remaining capabilities triaged: 10 into existing Skills, 6 into new `index-management` Skill. Index total rises from 89 (query was added in v0.1.3). |
-| Phase 3 (v0.2.0) | Coverage invariant CI-gated on `main`. Orphans block release. |
+| Phase 0 (RFC-0090 PR) | ✅ Coverage matrix scaffolded, Charter §5.13 + ADR-0007 + CLAUDE.md updated. |
+| Phase 1 (v0.1.2) | ✅ `parity.yml` CI workflow live (informational). `check_skill_parity.py` generator. 12 naming fixes. |
+| Phase 2 (v0.1.3, **complete**) | ✅ All 9 category Skills shipped. 73/89 capabilities covered. |
+| Phase 2.3 (v0.1.5, **complete**) | ✅ **89/89 (100%) Three-Surface compliant.** CLI batches 1–10 landed. All 16 remaining capabilities triaged into existing Skills or `index-management`. 4 MCP-only exceptions filed per RFC-0090 §Exceptions. RFC-0091 jQuery selectors landed. RFC-0090 status → Implemented. |
+| Phase 3 (v0.2.0) | ⏳ `parity.yml` flip to required blocked on v0.1.4 main merge (PR #176). Skill bundle marketplace submission queued. |
 
 ## Proposed Skill categories for v0.2
 
@@ -130,7 +130,7 @@ authored in Phase 2 PRs, one PR per category.
 | `get_mutual_reachability` | `mycelium get-mutual-reachability` | `mycelium_get_mutual_reachability` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 | `get_common_reachable` | `mycelium get-common-reachable` | `mycelium_get_common_reachable` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 
-**Status legend:** 🟡 Skill bundle written + MCP tool exists, but the CLI half is still missing — `parity-backfill` epic tracks these. ✅ Three-Surface = all three surfaces shipped, parity-CI green. The CLI subcommands ship in v0.1.4–v0.1.5 alongside the parity-CI workflow.
+**Status legend:** ✅ Three-Surface = all three surfaces shipped, parity-CI green. `EXCEPTION: MCP-only` = server-process state with no human-visible CLI verb, filed per RFC-0090 §Exceptions, BDFL sign-off on file. ⚠️ #153 = perf issue *fixed in v0.1.4*; annotation retained for history.
 
 ## Orphan detection
 

@@ -5,56 +5,93 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-29 (PM run — v0.1.4 sprint COMPLETE; v0.1.4 release queued) |
-| Current sprint | v0.1.5 (CLI parity batches 2–N + marketplace prep) |
-| Active release branch | **release/v0.1.4 needed** — all exit criteria met, awaiting cut |
-| Next release target | v0.1.4, ETA 2026-06-20 (ready now) |
+| Last updated | 2026-05-30 (PM dispatch run — v0.1.5 COMPLETE, awaiting founder release of v0.1.4) |
+| Current sprint | **v0.1.5 COMPLETE on develop** |
+| Active release branch | `release/v0.1.4` — PR #176 → `main`, **awaiting founder admin merge** |
+| Next release target | v0.1.4 (founder merge needed), then v0.1.5, then v0.2.0 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.3 — Hyphae lands + Skill umbrella sprint 1** (tag v0.1.3) |
+| Last shipped | **v0.1.3 — Hyphae lands + first Skills** |
 
-## v0.1.4 Sprint — ALL EXIT CRITERIA MET ✅
+---
 
-All items confirmed complete as of develop `be317da`:
+## 🚨 Escalation: PR #176 needs founder merge
 
-- [x] All 6 timeout tools complete on 1K-node graph in < 2 s. (PR #168)
-- [x] New SLA rows in Charter §2 for heavy-graph algorithms. (PR #168)
-- [x] Benchmarks in `benches/` for each of the 6 tools. (PR #168)
-- [x] `parity.yml` CI workflow live (informational). (PR #170)
-- [x] `mycelium init` resolved — keeping hidden. (PR #154, confirmed no action needed)
-- [x] PR template Three-Surface Self-Check section. (PR #149, confirmed already shipped)
-- [x] CLI parity backfill batch 1: `search-symbol`, `get-symbol-info`, `get-ancestors`. (PR #172)
+**PR #176** (`release/v0.1.4` → `main`) has been open since 2026-05-29T22:36.  
+Charter §5.12: any operation touching `main` requires GPG-signed founder approval.  
+After merge: tag v0.1.4, publish 5 crates to crates.io, then cut release/v0.1.5.
 
-**→ Next run action: cut release/v0.1.4 from develop, bump to 0.1.4, publish 5 crates.**
+---
+
+## v0.1.5 Sprint — ALL EXIT CRITERIA MET ✅
+
+All items confirmed complete as of develop `34b989610`:
+
+- [x] CLI parity batch 2: 7 subcommands (get-descendants … get-all-symbols, server-status). PR #175
+- [x] CLI parity batch 3: 7 call-graph subcommands. PR #177
+- [x] CLI parity batch 4: 3 import-graph subcommands. PR #178
+- [x] CLI parity batch 5: 8 inheritance subcommands. PR #179
+- [x] CLI parity batch 6: 12 reachability subcommands. PR #182
+- [x] CLI parity batch 7: 14 centrality subcommands. PR #183
+- [x] CLI parity batch 8: 14 graph-structure subcommands. PR #185
+- [x] CLI parity batch 9: 4 batch-ops subcommands. PR #186
+- [x] CLI parity batch 10 (FINAL): 10 misc subcommands + 4 MCP-only exceptions filed. PR #187
+- [x] **RFC-0091 jQuery-style Hyphae selectors** (8 pseudo-classes + attribute selectors). PR #184
+- [x] **89/89 capabilities Three-Surface compliant** (100% — Three-Surface Rule complete).
+- [x] skills/INDEX.md flushed: all 89 rows ✅ (this PM run).
+- [x] RFC-0090 marked Implemented (this PM run).
+- [ ] parity.yml flipped to required — **blocked on v0.1.4 main merge** (PR #176).
+- [ ] Marketplace metadata + asciinema — stretch, not blocking v0.1.5.
+
+---
 
 ## Live priorities (ordered)
 
-P0:
-1. Cut **v0.1.4 release** — all exit criteria met; develop is clean. Assign to release agent.
+**P0: none** — issue queue is empty (0 open issues).
 
-P1 (v0.1.5 sprint):
-2. CLI parity backfill batch 2 — next 5 subcommands (suggested: `get-descendants`,
-   `get-callees`, `get-callers`, `get-callee-tree`, `get-caller-tree`).
-3. CLI parity backfill batch 3 — next 5 (suggested: `get-imports`, `get-import-tree`,
-   `get-stats`, `detect-cycles`, `rank-symbols`).
-4. Charter §2 SLA — 100K-node benchmark row. (PR #168 covered 1K+10K; 100K row still TODO)
-5. Parity checker `--strict` promotion — flip `parity.yml` from informational to required
-   when CLI parity reaches ≥ 50 % (currently 4/89 = ~5 %).
+**Decision gates (require founder — treat as P0 blocker):**
+1. **PR #176** → `main`: v0.1.4 release. Founder admin merge required. Unblocks v0.1.5 cut.
 
-P2 (v0.1.5 / governance):
-6. `skills/INDEX.md` status flip — mark landed CLI rows from 🟡 to ✅ as each batch lands.
-7. Security scan — routine post-sprint-4 check (post-v0.1.3 window).
+**P1 (v0.2.0 prep, start after v0.1.4 ships):**
+2. `parity.yml` flip from informational to required (PR, rust-implementer).
+3. Charter §2 SLA — add 100K-node heavy-graph rows (architect, PR #168 covered 1K+10K only).
+4. Skill marketplace submission metadata: icon, screenshots, category examples (tech-writer).
+5. End-to-end "first 5 minutes" walkthrough / asciinema recording (tech-writer).
+6. RFC-0091 e2e tests — fixture tests against real repos for new selector forms (e2e-runner).
 
-## Dispatch state (2026-05-29, post-PM-run)
+**P2 (v0.2.0 stretch):**
+7. README badges + `cargo install` line updated to v0.1.4 / v0.1.5 (doc-updater).
+8. Security scan — routine post-v0.1.4 window (security-reviewer).
+
+---
+
+## Dispatch state (2026-05-30, post-batch-10)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **P0 — next-up** | Cut release/v0.1.4; bump to 0.1.4; CHANGELOG date; PR to develop+main; tag; publish crates.io |
-| rust-implementer | **next-up** | CLI parity batch 2 (5 subcommands). Branch from develop post-v0.1.4. |
-| architect | idle | Charter §2 SLA 100K-node row — open PR to add the row after batch 2 lands |
-| tech-writer | idle | Update skills/INDEX.md as CLI rows flip from 🟡 to ✅ after each batch |
-| code-reviewer | idle | blocks on PR opens |
-| security-reviewer | idle | next: routine post-sprint scan |
-| e2e-runner | idle | next: extend cli_basic_queries.rs tests once batch 2 lands |
+| release | **blocked** | Waiting for founder to merge PR #176. |
+| rust-implementer | idle | Next: parity.yml `--strict` promotion (post-v0.1.4 merge). |
+| architect | idle | Charter §2 SLA 100K-node row. |
+| tech-writer | idle | Marketplace metadata + asciinema. |
+| code-reviewer | idle | Blocks on PR opens. |
+| security-reviewer | idle | Routine post-v0.1.4 scan. |
+| e2e-runner | idle | RFC-0091 selector e2e tests. |
+| doc-updater | idle | README badges + install line. |
+
+---
+
+## v0.1.4 Sprint — COMPLETE on develop ✅ (awaiting main merge)
+
+All items confirmed complete as of develop `be317da` (merged into release/v0.1.4):
+
+- [x] All 6 timeout tools < 2 s on 1K-node graph. PR #168
+- [x] New SLA rows in Charter §2 for heavy-graph algorithms. PR #168
+- [x] Benchmarks in `benches/` for each of the 6 tools. PR #168
+- [x] `parity.yml` CI workflow live (informational). PR #170
+- [x] `mycelium init` resolved — keeping hidden. PR #154
+- [x] PR template Three-Surface Self-Check section. PR #149
+- [x] CLI parity backfill batch 1: `search-symbol`, `get-symbol-info`, `get-ancestors`. PR #172
+
+---
 
 ## Cadence
 
@@ -63,13 +100,7 @@ P2 (v0.1.5 / governance):
 - **Weekly Sprint review** (orchestrator + founder if available): mark sprint exit criteria; cut next sprint.
 - **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/v0.1.x branch, publish.
 
-## Sprint v0.1.5 exit criteria (draft)
-
-- [ ] CLI parity batch 2 (5 subcommands): `get-descendants`, `get-callees`, `get-callers`, `get-callee-tree`, `get-caller-tree`.
-- [ ] CLI parity batch 3 (5 subcommands): `get-imports`, `get-import-tree`, `get-stats`, `detect-cycles`, `rank-symbols`.
-- [ ] Charter §2 SLA 100K-node benchmark row added.
-- [ ] `skills/INDEX.md` rows flipped to ✅ for all landed CLI batches.
-- [ ] Security scan complete (no high-severity findings).
+---
 
 ## Decision gates (require founder)
 
@@ -78,6 +109,9 @@ P2 (v0.1.5 / governance):
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
+- **Merging any `release/*` branch to `main`** (Charter §5.12 — GPG-signed founder approval).
+
+---
 
 ## Archive
 
@@ -94,16 +128,16 @@ This PM run attempted to independently implement CLI batch 1 (PR #173) before di
 PR #172 already merged concurrently. PR #173 was closed as superseded. Anti-pattern note:
 concurrent PM runs can duplicate work; inter-run state synchronisation depends on this file.
 
-### 2026-05-29 PM run (v0.1.4 kickoff — prior run)
+### 2026-05-29 PM run (v0.1.4 kickoff)
 
 - #153 ✅ graph-algorithm timeouts fixed (PR #168)
 - RFC-0090 Phase 1 ✅ parity.yml (PR #170)
-- Confirmed all Phase 2/2.3 from v0.1.3 complete (89/89 coverage)
+- Confirmed all Phase 2/2.3 from v0.1.3 complete (89/89 test coverage)
 
 ### 2026-05-30 PM call (v0.1.2 era — superseded)
 
-1. v0.1.0 + v0.1.1 are shipped and on crates.io. Three-Surface Rule is law.
+1. v0.1.0 + v0.1.1 shipped and on crates.io. Three-Surface Rule is law.
 2. External eval (glm5.1) found 4 issues; orchestrator dogfood found 2 more. All filed.
-3. Priority order is set. Sprint v0.1.2 kicks off on issue #150.
-4. PRD for v0.2 is at [`docs/prd/v0.2-the-three-surface-release.md`](../prd/v0.2-the-three-surface-release.md).
-5. No blocker from the founder needed at this checkpoint. Begin dispatch.
+3. Priority order set. Sprint v0.1.2 kicked off on issue #150.
+4. PRD for v0.2 at [`docs/prd/v0.2-the-three-surface-release.md`](../prd/v0.2-the-three-surface-release.md).
+5. No blocker from founder at this checkpoint. Begin dispatch.

@@ -3,7 +3,7 @@
 | 字段 | 值 |
 |------|----|
 | RFC  | 0090 |
-| 状态 | Accepted |
+| 状态 | Implemented |
 | 作者 | orchestrator (Hive AI agent) |
 | 日期 | 2026-05-30 |
 | 参考 | Charter §5.13, ADR-0007 |
@@ -197,7 +197,7 @@ unbackfilled gaps that do not have a filed exception RFC.
 - [x] The `parity-backfill` audit is seeded with one issue per
       existing un-covered capability, grouped by proposed Skill
       category.
-- [ ] PR template gains a "Three-Surface Self-Check" section.
+- [x] PR template gains a "Three-Surface Self-Check" section.
 - [x] `.github/workflows/parity.yml` runs the parity check on every
       PR touching `crates/mycelium-cli/`, `crates/mycelium-mcp/`,
       or `skills/` (Phase 1: informational).
