@@ -308,6 +308,76 @@ fn extractor_keeps_regular_imports_alongside_type_checking_block() {
     );
 }
 
+// ── RFC-0096: TypeImports edge kind ─────────────────────────────────────────
+// TYPE_CHECKING imports must produce TypeImports edges (not be silently dropped).
+// This lets agents query type-only dependency graphs while keeping detect-cycles
+// clean (Imports-only by default, same as before).
+
+#[test]
+fn type_checking_import_emits_type_imports_edge() {
+    // `from collections import OrderedDict` inside `if TYPE_CHECKING:` must
+    // produce a TypeImports edge (RFC-0096) — not be dropped silently.
+    let source = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from collections import OrderedDict\n";
+    let store = extract(source);
+    let file_id = store.lookup("test.py").unwrap();
+    let collections_id = store
+        .lookup("collections")
+        .expect("collections node must exist (TypeImports)");
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&collections_id),
+        "import inside `if TYPE_CHECKING:` must produce a TypeImports edge"
+    );
+    // Must NOT appear as a regular Imports edge (would pollute cycle detection)
+    assert!(
+        !store
+            .outgoing(file_id, EdgeKind::Imports)
+            .contains(&collections_id),
+        "import inside `if TYPE_CHECKING:` must NOT produce a regular Imports edge"
+    );
+}
+
+#[test]
+fn regular_imports_not_in_type_imports() {
+    // Regular imports (`import os`) must stay as Imports, not TypeImports.
+    let source = "import os\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import typing_extensions\n";
+    let store = extract(source);
+    let file_id = store.lookup("test.py").unwrap();
+    let os_id = store.lookup("os").expect("os node must exist");
+    // Regular import: Imports edge present, TypeImports absent
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&os_id),
+        "regular `import os` must produce an Imports edge"
+    );
+    assert!(
+        !store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&os_id),
+        "regular `import os` must NOT produce a TypeImports edge"
+    );
+    // TYPE_CHECKING import: TypeImports present, Imports absent
+    let te_id = store
+        .lookup("typing_extensions")
+        .expect("typing_extensions node must exist (TypeImports)");
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&te_id),
+        "`typing_extensions` inside TYPE_CHECKING must produce a TypeImports edge"
+    );
+    assert!(
+        !store.outgoing(file_id, EdgeKind::Imports).contains(&te_id),
+        "`typing_extensions` inside TYPE_CHECKING must NOT produce an Imports edge"
+    );
+}
+
+#[test]
+fn type_imports_wire_string_is_type_imports() {
+    assert_eq!(EdgeKind::TypeImports.as_str(), "type_imports");
+    assert_eq!(EdgeKind::TypeImports.to_string(), "type_imports");
+}
+
 // ── alias-table dispatch (issue #205, RFC-0092) ──────────────────────────────
 
 #[test]
