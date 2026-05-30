@@ -10,7 +10,8 @@ every change, instantly felt, instantly understood.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-blue.svg)](#)
-[![Version](https://img.shields.io/badge/version-v0.1.0-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.1.4-green.svg)](CHANGELOG.md)
+[![crates.io](https://img.shields.io/crates/v/mycelium-rcig-core.svg)](https://crates.io/crates/mycelium-rcig-core)
 [![Rust](https://img.shields.io/badge/built_with-Rust-dea584.svg)](https://www.rust-lang.org/)
 [![Sponsor](https://img.shields.io/badge/sponsor-aimasteracc-ea4aaa.svg?logo=github-sponsors)](https://github.com/sponsors/aimasteracc)
 
@@ -40,14 +41,14 @@ everything between sessions.
 
 ## Status
 
-**v0.1.0 — Alpha.** All Charter §2 performance SLAs satisfied. 835 tests passing. 96% coverage.
+**v0.1.4 — Alpha.** All Charter §2 performance SLAs satisfied. Heavy-graph algorithms complete in < 2 s on 1K-node graphs.
 
 | Component | Status |
 |---|---|
 | Core engine (Trunk + Synapse + Cortex) | ✅ Shipped |
 | Language packs: Python, TS, JS, Rust, Go | ✅ Tier 1 complete |
 | Language packs: Java, C, C++, C#, Ruby | ✅ Tier 2 complete |
-| MCP server (88 tools) | ✅ Shipped |
+| MCP server (89 tools) | ✅ Shipped |
 | Hyphae DSL (lexer + parser + evaluator) | ✅ RFC-0004 complete |
 | CLI (`mycelium index`, `mycelium serve --mcp`) | ✅ Shipped |
 | Persistence (MessagePack snapshot) | ✅ Shipped |
