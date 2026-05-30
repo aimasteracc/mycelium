@@ -5,6 +5,8 @@
 //!
 //! See RFC-0002 for the full design.
 
+use std::collections::HashMap;
+
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator as _};
 
 use crate::{
@@ -177,6 +179,52 @@ impl Extractor {
             }
         }
 
+        // ─── Pass 1b: per-file alias table (RFC-0092) ─────────────────────
+        // Walk `@reference.alias_binding` captures, build a
+        // `local_name → resolved_path` map. Pass 2's `reference.call`
+        // handler uses this to rewrite `_query.foo()` style calls back
+        // to their real symbol path.
+        let mut alias_table: HashMap<String, String> = HashMap::new();
+        {
+            let mut cursor = QueryCursor::new();
+            let mut matches = cursor.matches(&self.query, root, source);
+            while let Some(m) = matches.next() {
+                let is_alias = m
+                    .captures
+                    .iter()
+                    .any(|c| names[c.index as usize] == "reference.alias_binding");
+                if !is_alias {
+                    continue;
+                }
+                let local = m.captures.iter().find_map(|c| {
+                    if names[c.index as usize] == "alias.local" {
+                        c.node.utf8_text(source).ok()
+                    } else {
+                        None
+                    }
+                });
+                let src = m.captures.iter().find_map(|c| {
+                    if names[c.index as usize] == "alias.source" {
+                        c.node.utf8_text(source).ok()
+                    } else {
+                        None
+                    }
+                });
+                let original = m.captures.iter().find_map(|c| {
+                    if names[c.index as usize] == "alias.original_name" {
+                        c.node.utf8_text(source).ok()
+                    } else {
+                        None
+                    }
+                });
+                let (Some(local), Some(src)) = (local, src) else {
+                    continue;
+                };
+                let resolved = build_alias_target(file_path, src, original, local);
+                alias_table.insert(local.to_string(), resolved);
+            }
+        }
+
         // ─── Pass 2: references ──────────────────────────────────────────
         // All definitions are now in the store; intra-file callee lookup
         // will succeed for both backward and forward references.
@@ -216,18 +264,44 @@ impl Extractor {
                     }
                     "reference.call" => {
                         let callee_name = name_text.unwrap_or("_unknown");
+                        let receiver = m.captures.iter().find_map(|c| {
+                            if names[c.index as usize] == "call.receiver" {
+                                c.node.utf8_text(source).ok()
+                            } else {
+                                None
+                            }
+                        });
                         let caller_path =
                             enclosing_function_path(anchor, source).and_then(|suffix| {
                                 TrunkPath::parse(&format!("{file_path}>{suffix}")).ok()
                             });
                         let caller_id = caller_path.map_or(file_id, |p| store.upsert_node(p));
-                        let intra = format!("{file_path}>{callee_name}");
-                        let callee_id = if let Some(id) = store.lookup(&intra) {
-                            id
-                        } else if let Ok(bare) = TrunkPath::parse(callee_name) {
-                            store.upsert_node(bare)
+
+                        // RFC-0092: alias-aware dispatch for receiver.method() calls.
+                        // If the receiver is in the alias table, rewrite to the
+                        // resolved path. Otherwise fall back to intra-file lookup
+                        // then bare-symbol upsert.
+                        let resolved_target = receiver
+                            .and_then(|r| alias_table.get(r))
+                            .map(|prefix| format!("{prefix}>{callee_name}"));
+
+                        let callee_id = if let Some(qualified) = resolved_target {
+                            if let Some(id) = store.lookup(&qualified) {
+                                id
+                            } else if let Ok(path) = TrunkPath::parse(&qualified) {
+                                store.upsert_node(path)
+                            } else {
+                                continue;
+                            }
                         } else {
-                            continue;
+                            let intra = format!("{file_path}>{callee_name}");
+                            if let Some(id) = store.lookup(&intra) {
+                                id
+                            } else if let Ok(bare) = TrunkPath::parse(callee_name) {
+                                store.upsert_node(bare)
+                            } else {
+                                continue;
+                            }
                         };
                         store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
                     }
@@ -241,6 +315,38 @@ impl Extractor {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+/// Build the resolved target path that an alias binding points to
+/// (RFC-0092). Handles four import shapes:
+///
+/// | Capture pattern                          | source     | original | local | Returns                  |
+/// |------------------------------------------|------------|----------|-------|--------------------------|
+/// | `import X as Y`                          | `X`        | None     | `Y`   | `X`                      |
+/// | `from M import X as Y` (M absolute)      | `M`        | `X`      | `Y`   | `M>X`                    |
+/// | `from .M import X as Y` (M relative)     | `.M`       | `X`      | `Y`   | `<resolved>>X`           |
+/// | `from . import M as N` (bare relative)   | `.`        | `M`      | `N`   | `<pkg-dir>/M.py`         |
+/// | `from . import M` (no `as`)              | `.`        | None     | `M`   | `<pkg-dir>/M.py`         |
+///
+/// The `<resolved>` is whatever [`resolve_python_relative_import`] yields
+/// for the source. Returns the symbolic source as a fallback when the
+/// resolver returns None (purely absolute paths with no leading dots).
+fn build_alias_target(file_path: &str, src: &str, original: Option<&str>, local: &str) -> String {
+    let is_relative = src.starts_with('.');
+    let resolved_prefix =
+        resolve_python_relative_import(file_path, src).unwrap_or_else(|| src.to_string());
+    match (is_relative, original) {
+        // `from . import M` (no `as`)  →  pkg-dir/M.py
+        (true, None) => format!("{resolved_prefix}/{local}.py"),
+        // `from . import M as N`  →  pkg-dir/M.py (use `original`, not `local`)
+        (true, Some(orig)) if src == "." => format!("{resolved_prefix}/{orig}.py"),
+        // `from .M import X as Y`  →  resolved>X
+        (true, Some(orig)) => format!("{resolved_prefix}>{orig}"),
+        // `from M import X as Y`  →  M>X
+        (false, Some(orig)) => format!("{src}>{orig}"),
+        // `import X as Y`  →  X
+        (false, None) => src.to_string(),
+    }
+}
 
 /// Resolve a Python relative import (`.X` or `..X.Y`) to the importing file's
 /// sibling/ancestor file path. Returns `None` for absolute imports (no leading
