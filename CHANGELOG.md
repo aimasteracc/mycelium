@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Issue #214 Pattern 2 — `from .submod import Symbol` alias resolution** — When code uses
+  `from .models import AnalysisResult` (a relative-submodule import without `as`), mycelium
+  now correctly binds `AnalysisResult → pkg/sub/models.py>AnalysisResult` in the per-file
+  alias table. Previously the `(true, None)` arm of `build_alias_target` produced the wrong
+  target `pkg/sub/models.py/AnalysisResult.py` (a file path) by treating the imported name
+  as a module rather than a symbol. Calls to `AnalysisResult()` now resolve to the correct
+  definition node instead of a bare stub. 2 TDD tests (RED verified). (Issue #214)
+
 ### Added
 
 - **RFC-0095: `mycelium index --packs-dir <dir>`** — the CLI `index` subcommand now accepts
