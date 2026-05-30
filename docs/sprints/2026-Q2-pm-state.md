@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — v0.1.10 shipped; PR #240 back-merge merged; PR #241 RFC-0094 Phase 1 merged) |
+| Last updated | 2026-05-30 (PM dispatch — 4 new Python issues triaged #245-248; PR #251 open — Python Extends edges fix) |
 | Current sprint | **v0.1.11 planning** |
 | Active release branch | none — v0.1.10 shipped |
-| Next release target | **v0.1.11** — RFC-0094 Phase 2 (output_format wiring) + remaining Python patterns from #214 |
+| Next release target | **v0.1.11** — Python inheritance edges (#245, PR #251 in CI) + RFC-0094 Phase 2 + Python patterns #214 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
 
@@ -45,28 +45,37 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **Issue #214 (Python reliability — remaining patterns)** — after v0.1.7/v0.1.8/v0.1.9/v0.1.10,
-   the self.method() false positives and TYPE_CHECKING false cycles are fixed. Still open:
-   - Pattern 2: destructured imports file-level under-count (`from .models import X` → models.py shows 0 callers at file level).
-   - Pattern 3: transitive alias over-count (1,472 false callers for `HealthHistory.append` — root cause likely still present, needs re-verification after v0.1.7/v0.1.9).
-   - `get-dependency-depth` returning 0 for method chains (see also #221).
-   **Needs RFC-0092 Phase 2 or 3 scoping.** Pack-author + rust-implementer task for v0.1.11.
+1. **Issue #245 (Python Extends edges)** — **PR #251 in CI** (DCO ✅, rustfmt ✅, unit tests in_progress).
+   Fix: `@reference.extends` query in `packs/python/queries.scm` + extractor handler.
+   Unlocks all inheritance tools for Python. Merge when Quality Gate green.
+2. **Issue #246 (Python virtual dispatch — get-callers empty for overridden methods)** — P1.
+   Root cause: static call resolution doesn't follow abstract-base → concrete-override.
+   Requires type-flow analysis; hard. Target v0.1.12+. RFC needed.
+3. **Issue #247 (get-isolated-symbols false positives — alias/callback patterns)** — P1.
+   525 false positives in tree-sitter-analyzer. Partial fix needed after #245 lands.
+   Target v0.1.12. RFC-0092 Phase 3 scope.
+4. **Issue #248 (get-descendants missing inherited methods)** — P1.
+   Blocked on #245 (need Extends edges to resolve inheritance). Re-assess after #251 merges.
+5. **Issue #214 (Python reliability — remaining patterns)** — P1. After v0.1.7-v0.1.10:
+   - Pattern 2: destructured imports file-level under-count.
+   - Pattern 3: transitive alias over-count (1,472 false callers).
+   - `get-dependency-depth` returning 0 (see #221). RFC-0092 Phase 2/3 scope.
 
 **P2 (v0.1.11 scope):**
-2. **Issue #210 / RFC-0094 Phase 2** — Wire `output_format: Option<OutputFormat>` into all 89 tool
-   request shapes (now that Phase 1 Formatter trait landed in PR #241). Per-transport defaults:
-   stdio → `Text`, CLI → `Json`. Medium effort. rust-implementer task.
-3. **Issue #221** — `get-dependency-depth` returns 0 for complex methods (from #214).
-   May partially self-resolve after Phase 2 alias work; re-verify after Pattern 3 fix.
-4. **Security scan** — routine post-v0.1.10 window. security-reviewer task.
-5. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. Deferred from v0.1.6. architect task.
+6. **Issue #210 / RFC-0094 Phase 2** — Wire `output_format` into all 89 tools.
+   Per-transport defaults: stdio → `Text`, CLI → `Json`. rust-implementer task.
+7. **Issue #221** — `get-dependency-depth` returns 0. Re-verify after #245 + Pattern 3 fix.
+8. **Security scan** — routine post-v0.1.10. security-reviewer task.
+9. **Charter §2 SLA** — 100K-node heavy-graph benchmark row. architect task.
 
 **P3 (v0.2.0 backlog):**
-6. **Issue #211** — Cross-tool response contract tests. Low effort. Depends on #209 (MCP error
-   model) — check if #209 was closed during v0.1.7–v0.1.10 window.
-7. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
-8. Skill marketplace submission metadata: icon, screenshots, category examples.
-9. End-to-end "first 5 minutes" walkthrough / asciinema recording.
+10. **Issue #212** — Runtime language pack loading. Medium effort, RFC needed.
+11. Skill marketplace submission metadata: icon, screenshots, category examples.
+12. End-to-end "first 5 minutes" walkthrough / asciinema recording.
+
+**Closed this run:**
+- ✅ Issue #211 (contract tests) — closed as completed (PR #249 shipped it in v0.1.10+ window).
+- ✅ Issues #245-248 triaged with P-labels.
 
 ---
 
@@ -87,6 +96,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## v0.1.11 Sprint — Draft exit criteria
 
+- [ ] **Issue #245**: PR #251 merged — Python Extends edges live, inheritance tools functional.
 - [ ] RFC-0094 Phase 2: `output_format` wired into ≥ 89 tools; per-transport defaults set.
 - [ ] Issue #214 Pattern 2 or Pattern 3 fixed (at least one Python accuracy regression addressed).
 - [ ] Issue #221 re-verified or fixed.
