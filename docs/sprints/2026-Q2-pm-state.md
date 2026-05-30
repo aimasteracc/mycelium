@@ -5,12 +5,21 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch run — v0.1.5 COMPLETE, awaiting founder release of v0.1.4) |
+| Last updated | 2026-05-30 (PM dispatch run — Windows CI fix pushed to PR #191) |
 | Current sprint | **v0.1.5 COMPLETE on develop** |
 | Active release branch | `release/v0.1.4` — PR #176 → `main`, **awaiting founder admin merge** |
 | Next release target | v0.1.4 (founder merge needed), then v0.1.5, then v0.2.0 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.3 — Hyphae lands + first Skills** |
+
+---
+
+## 🚨 Escalation: PR #176 + open develop PRs need attention
+
+**Open develop PRs blocked by Windows CI failure:**
+- **PR #191** (`fix/ci-red-coverage-rustdoc-windows`): CI fixes. Windows tests still failing despite stack fix. This PM run added `.output()` diagnostics to all 11 test prepare helpers + CI cache buster (`prefix-key: v2`). Awaiting CI re-run to confirm green.
+- **PR #192** (`meta/decisions-v0.1.4-sequential`): append-only memory update. Blocked on develop CI green (windows).
+- **PR #194** (`feature/dogfood-test-charter-5.10`): Charter §5.10 dogfood test. Blocked on PR #191 merging first.
 
 ---
 
