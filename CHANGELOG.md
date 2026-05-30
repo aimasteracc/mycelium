@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`release.yml` finalize job robustness** — Decoupled tag creation and GitHub Release page
+  from the main-branch merge step. Tag is now created on the release branch first (branch
+  protection doesn't apply to tags; `GITHUB_TOKEN` is sufficient). The GitHub Release action
+  now uses `GITHUB_TOKEN` (`contents: write`) rather than `RELEASE_BOT_TOKEN`, so the release
+  page is always created even when the bot token is absent or expired. Main merge and develop
+  back-merge steps are `continue-on-error: true` with actionable `::warning::` messages
+  (including the exact `gh pr create / gh pr merge --admin` commands for the founder). A final
+  step fails the job when manual action is required, preserving CI RED visibility. Addresses
+  systemic failures on v0.1.6, v0.1.10, and v0.1.11 releases.
+
 - **Issue #214 Pattern 2 — `from .submod import Symbol` alias resolution** — When code uses
   `from .models import AnalysisResult` (a relative-submodule import without `as`), mycelium
   now correctly binds `AnalysisResult → pkg/sub/models.py>AnalysisResult` in the per-file
