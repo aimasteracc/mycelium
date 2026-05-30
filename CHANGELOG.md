@@ -84,6 +84,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   edges. Adds `scripts/check_pack_parity.sh` + `pack-parity` CI job to
   `parity.yml` to prevent future drift.
 
+- **fix(extractor): regression test for cross-file Extends resolution — issue #261**.
+  Confirmed that `resolve_bare_call_stubs()` correctly redirects `EdgeKind::Extends`
+  edges (not just `Calls`) after multi-file extraction: when `Sub(Base)` in `sub.py`
+  references `Base` from `base.py`, the bare stub is resolved to `base.py>Base` and
+  removed. Issue #261 was a symptom of issue #260 (stale embedded pack emitted no
+  `@reference.extends` captures); PR #263 (pack sync) already fixed the root cause.
+  New TDD test `extractor_python_extends_cross_file_resolves_to_definition` guards
+  against regression.
+
 - **Charter §2 SLA: 100 K-node heavy-graph benchmark row**.
   New `crates/mycelium-core/tests/sla_heavy_graph.rs` contains 6 CI-gated SLA
   assertions (leaf_symbols, degree_histogram, graph_metrics, page_rank with 5

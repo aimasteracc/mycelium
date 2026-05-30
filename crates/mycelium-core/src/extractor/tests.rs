@@ -807,3 +807,35 @@ fn extractor_python_extends_multiple_inheritance() {
         "Sub should extend Base2"
     );
 }
+
+// ── issue #261: cross-file Extends resolution ─────────────────────────────────
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_python_extends_cross_file_resolves_to_definition() {
+    // Sub(Base): Base defined in base.py, Sub in sub.py.
+    // After resolve_bare_call_stubs, the Extends edge must point to
+    // base.py>Base (the definition), not the bare "Base" stub.
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("base.py", b"class Base:\n    pass", &mut store)
+        .unwrap();
+    ext.extract("sub.py", b"class Sub(Base):\n    pass", &mut store)
+        .unwrap();
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 1, "exactly one stub (Base) should be resolved");
+    let sub = store.lookup("sub.py>Sub").expect("sub.py>Sub must exist");
+    let base = store
+        .lookup("base.py>Base")
+        .expect("base.py>Base must exist");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "sub.py>Sub must have an Extends edge to base.py>Base after stub resolution"
+    );
+    assert!(
+        store.lookup("Base").is_none(),
+        "bare stub 'Base' must be removed after resolution"
+    );
+}
