@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2 new MCP TDD tests; clippy `significant_drop_tightening` and
   `double_ended_iterator_last` lints fixed as part of this work.
 
+
 - **Issue #247: Python callback / higher-order function false positives fixed**.
   `packs/python/queries.scm` now captures identifiers passed as positional
   or keyword-value arguments (`reference.arg_callback`). The extractor's
