@@ -72,12 +72,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-30, post-v0.1.11 sprint complete)
+## Dispatch state (2026-05-31, post-Issues #297/#292 implementation)
 
 | Agent | Status | Current item |
 |---|---|---|
 | release | **BLOCKED** | Cut release/v0.1.11 — blocked on founder auth (crates.io publish requires explicit authorization). |
-| rust-implementer | **BLOCKED on review** | Issue #206 S1 done: PR #266 open, CI green (20/20). Awaiting founder code review (branch protection). |
+| rust-implementer | **BLOCKED on review** | PR #266 (Issue #206 S1), PR #304 (CI fix), PR #305 (RFC-0097 security), PR #306 (Issue #297 edge-kind), PR #307 (Issue #292 pagination) — all open, CI green, awaiting founder review. Next unblocked: Issues #293/#294/#295/#296 (see backlog). |
 | pack-author | **next-up** | Issue #214 Pattern 2+3: destructured imports + alias over-count (RFC-0092 Phase 2/3). After v0.1.11 ships. |
 | architect | idle | RFC-0092 Phase 2/3 scoping. After v0.1.11 ships. |
 | tech-writer | idle | Marketplace metadata + asciinema after v0.2.0. |
