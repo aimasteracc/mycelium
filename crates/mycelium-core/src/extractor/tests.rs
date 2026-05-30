@@ -1032,3 +1032,76 @@ fn extractor_ts_named_import_no_alias_resolves_direct_call() {
         "foo() (imported from './module') must resolve to src/module.ts>foo"
     );
 }
+
+// ── RFC-0092 Phase 2: JavaScript alias resolution ─────────────────────────────
+
+fn js_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/javascript/queries.scm");
+    Extractor::new(language, query_src).expect("javascript extractor should build")
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_js_named_import_alias_resolves_direct_call() {
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("src/module.js", b"export function foo() {}", &mut store)
+        .unwrap();
+    ext.extract(
+        "src/consumer.js",
+        b"import { foo as bar } from './module';\nfunction run() { bar(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.js>run").expect("run must exist");
+    let callee = store.lookup("src/module.js>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "bar() must resolve via alias table to src/module.js>foo"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_js_namespace_import_alias_resolves_method_call() {
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("src/module.js", b"export function greet() {}", &mut store)
+        .unwrap();
+    ext.extract(
+        "src/consumer.js",
+        b"import * as ns from './module';\nfunction run() { ns.greet(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.js>run").expect("run must exist");
+    let callee = store
+        .lookup("src/module.js>greet")
+        .expect("greet must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "ns.greet() must resolve via namespace alias to src/module.js>greet"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_js_named_import_no_alias_resolves_direct_call() {
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("src/module.js", b"export function foo() {}", &mut store)
+        .unwrap();
+    ext.extract(
+        "src/consumer.js",
+        b"import { foo } from './module';\nfunction run() { foo(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.js>run").expect("run must exist");
+    let callee = store.lookup("src/module.js>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo() (imported from './module') must resolve to src/module.js>foo"
+    );
+}
