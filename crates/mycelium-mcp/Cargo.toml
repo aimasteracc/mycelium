@@ -25,7 +25,11 @@ mycelium-hyphae         = { workspace = true }
 rmcp                    = { workspace = true }
 schemars                = { workspace = true }
 serde                   = { workspace = true }
-serde_json              = { workspace = true }
+# preserve_order: RFC-0094 formatter emits keys in source order so
+# tree-shaped responses stay human-skimmable (e.g. `root` / `depth` /
+# `nodes` for callee_tree). serde_json's default BTreeMap backing
+# would alphabetise them.
+serde_json              = { workspace = true, features = ["preserve_order"] }
 tokio                   = { workspace = true }
 tracing                 = { workspace = true }
 thiserror               = { workspace = true }
@@ -45,6 +49,7 @@ tree-sitter-c-sharp     = { workspace = true }
 notify                  = { workspace = true }
 ignore                  = { workspace = true }
 rmp-serde               = { workspace = true }
+hex                     = "0.4"
 
 [dev-dependencies]
 tempfile = { workspace = true }
