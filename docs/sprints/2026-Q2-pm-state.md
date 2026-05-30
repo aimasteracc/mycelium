@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #278 RFC-0092 Phase 2 JS aliases; PR #279 RFC-0095 PackRegistry; v0.1.11 awaiting founder auth) |
+| Last updated | 2026-05-30 (PM dispatch — PR #280 RFC-0095 --packs-dir CLI flag; RFC-0095 fully complete; v0.1.11 awaiting founder auth) |
 | Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
 | Active release branch | `release/v0.1.11` — PR #275 open targeting main |
 | Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed); RFC-0095 remaining (CLI --packs-dir flag) |
@@ -48,9 +48,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
    BLOCKED on founder action.
 
 **P2 (v0.1.12 scope):**
-3. ✅ **Issue #212 / RFC-0095 MVP** — PackRegistry shipped (PR #279). MYCELIUM_PACKS_DIR env var
-   activates runtime pack loading; static embeds remain as fallback. Circular dep fixed.
-   **Remaining**: `--packs-dir` CLI flag (additive, small effort).
+3. ✅ **Issue #212 / RFC-0095 COMPLETE** — PackRegistry shipped (PR #279), `--packs-dir` CLI flag
+   shipped (PR #280). MYCELIUM_PACKS_DIR env var activates runtime pack loading for cortex;
+   `mycelium index --packs-dir <dir>` activates it for the indexer. Static embeds remain as
+   fallback. Circular dep fixed. All RFC-0095 acceptance criteria met.
 4. **Issue #206 remaining** — RFC-0094 round-trip test + token-saving bench (deferred to v0.2.0).
 
 **P3 (v0.2.0 backlog):**
