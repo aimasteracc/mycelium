@@ -76,6 +76,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the caller's requested format. 12 new TDD tests written RED-first per
   Charter §5.1 before any implementation. All 319 MCP tests pass.
 
+- **Charter §2 SLA: 100 K-node heavy-graph benchmark row**.
+  New `crates/mycelium-core/tests/sla_heavy_graph.rs` contains 6 CI-gated SLA
+  assertions (leaf_symbols, degree_histogram, graph_metrics, page_rank with 5
+  iterations, weakly_connected_components, find_call_path) on a deterministic
+  100 000-node / ~300 000-edge sparse graph. All 6 pass in < 1 s on a
+  development machine (SLA limit is 30 s). Charter §2 table gains the
+  100 K-node row: < 30 s for the same six heavy-graph tools.
+
 - **RFC-0094 Phase 2 PoC: `output_format` per-request for basic-query tools** (#210).
   Three tools (`mycelium_search_symbol`, `mycelium_get_ancestors`,
   `mycelium_get_descendants`) now accept an optional `output_format`
