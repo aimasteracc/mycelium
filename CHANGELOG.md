@@ -63,6 +63,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manifest carries a non-empty description string. Tests use the rmcp
   `client` feature; `Cargo.toml` dev-deps updated accordingly.
 
+- **RFC-0094 Phase 3: `output_format` wired into all remaining 83 MCP query tools**.
+  Every query tool now accepts `output_format: "json" | "text" | "msgpack"` in its
+  request payload. Mutation/control tools (`index_workspace`, `load_index`,
+  `sync_file`, `set_compact_mode`, `server_status`, `watch_status`,
+  `get_token_stats`) are unchanged. Handler success paths use
+  `req.output_format.map_or_else(|| value.to_string(), |fmt| formatter_for(fmt).format(&value))`
+  (Pattern B, no compact_mode dependency). Complex multi-branch handlers
+  (`get_shortest_path`, `find_call_path`, `find_import_path`,
+  `find_extends_path`, `find_implements_path`) capture `let fmt =
+  req.output_format` before early-return guard clauses so every branch honours
+  the caller's requested format. 12 new TDD tests written RED-first per
+  Charter §5.1 before any implementation. All 319 MCP tests pass.
+
+- **fix(packs): sync stale embedded Python pack queries — issue #260**.
+  `crates/mycelium-mcp/packs/python/queries.scm` and
+  `crates/mycelium-cli/packs/python/queries.scm` were 80 lines behind
+  canonical `packs/python/queries.scm` after PR #250 (Python Extends edges).
+  Both copies synced. The compiled binary now correctly emits Python Extends
+  edges. Adds `scripts/check_pack_parity.sh` + `pack-parity` CI job to
+  `parity.yml` to prevent future drift.
+
+- **fix(extractor): regression test for cross-file Extends resolution — issue #261**.
+  Confirmed that `resolve_bare_call_stubs()` correctly redirects `EdgeKind::Extends`
+  edges (not just `Calls`) after multi-file extraction: when `Sub(Base)` in `sub.py`
+  references `Base` from `base.py`, the bare stub is resolved to `base.py>Base` and
+  removed. Issue #261 was a symptom of issue #260 (stale embedded pack emitted no
+  `@reference.extends` captures); PR #263 (pack sync) already fixed the root cause.
+  New TDD test `extractor_python_extends_cross_file_resolves_to_definition` guards
+  against regression.
+
+- **Charter §2 SLA: 100 K-node heavy-graph benchmark row**.
+  New `crates/mycelium-core/tests/sla_heavy_graph.rs` contains 6 CI-gated SLA
+  assertions (leaf_symbols, degree_histogram, graph_metrics, page_rank with 5
+  iterations, weakly_connected_components, find_call_path) on a deterministic
+  100 000-node / ~300 000-edge sparse graph. All 6 pass in < 1 s on a
+  development machine (SLA limit is 30 s). Charter §2 table gains the
+  100 K-node row: < 30 s for the same six heavy-graph tools.
+
 - **RFC-0094 Phase 2 PoC: `output_format` per-request for basic-query tools** (#210).
   Three tools (`mycelium_search_symbol`, `mycelium_get_ancestors`,
   `mycelium_get_descendants`) now accept an optional `output_format`
