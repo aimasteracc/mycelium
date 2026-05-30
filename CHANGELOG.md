@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests covering edge emission, Imports/TypeImports segregation, and wire string
   stability. Wire string: `"type_imports"`. (RFC-0096)
 
+
 - **RFC-0097 — MCP server filesystem boundary (`--allowed-roots` / `allowed_roots`)** —
   `mycelium serve --mcp` previously accepted arbitrary filesystem paths via
   `mycelium_index_workspace` and `mycelium_load_index` with no validation, allowing any path

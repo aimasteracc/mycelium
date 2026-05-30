@@ -13,6 +13,7 @@ allowed-tools:
   - mcp__mycelium__find_call_path
   - mcp__mycelium__get_common_callers
   - mcp__mycelium__get_common_callees
+  - mcp__mycelium__rank_symbols
 category: analysis
 icon: 📞
 marketplace_examples:
@@ -65,11 +66,31 @@ mcp__mycelium__get_callees({ "path": "src/auth/session.rs>AuthService>login" })
 → { "callees": ["src/db.rs>users>find_by_email", "src/crypto.rs>verify_password", ...], "count": 5 }
 ```
 
+**`edge_kind`** (v0.1.12, Issue #297) — query a specific edge kind instead of the default `Calls`. Accepted values: `calls` (default), `imports`, `extends`, `implements`.
+
+```
+mcp__mycelium__get_callees({ "path": "src/auth.rs>login", "edge_kind": "imports" })
+→ { "callees": ["src/crypto.rs", "src/db.rs"], "count": 2 }
+```
+
 ### `get_callers` — direct callers of a symbol
 
 ```
 mcp__mycelium__get_callers({ "path": "src/auth/session.rs>AuthService>login" })
 → { "callers": ["src/api/routes.rs>handle_login", "src/cli/main.rs>cli_login"], "count": 2 }
+```
+
+**`include_virtual`** (v0.1.11) — also include virtual/dynamic dispatch call sites (trait object calls, `dyn Trait` dispatch). Off by default because virtual edges are approximate.
+
+```
+mcp__mycelium__get_callers({ "path": "src/auth/session.rs>AuthService>login", "include_virtual": true })
+```
+
+**`edge_kind`** (v0.1.12, Issue #297) — query a specific edge kind instead of the default `Calls`. Accepted values: `calls` (default), `imports`, `extends`, `implements`.
+
+```
+mcp__mycelium__get_callers({ "path": "src/models.rs>User", "edge_kind": "extends" })
+→ { "callers": ["src/models/admin.rs>AdminUser"], "count": 1 }
 ```
 
 ### `get_callee_tree` — recursive callee tree
@@ -106,9 +127,30 @@ mcp__mycelium__get_entry_points({ "limit": 100 })
 mcp__mycelium__get_dead_symbols({ "exclude_paths": ["tests/"], "limit": 200 })
 ```
 
+**`edge_kind`** (v0.1.12, Issue #297) — query a specific edge kind instead of the default `Calls`. When set to `imports`, returns symbols with no incoming `Imports` edges (i.e. nothing imports them). Accepted values: `calls` (default), `imports`, `extends`, `implements`.
+
+```
+mcp__mycelium__get_dead_symbols({ "edge_kind": "imports", "exclude_paths": ["tests/"], "limit": 200 })
+→ symbols that are never imported by any other file
+```
+
 ### `get_isolated_symbols` — singleton nodes in the call graph
 
 **When**: similar to `get_dead_symbols` but stricter — symbols with zero edges of any kind. Often signals unused utility functions or generated code.
+
+### `rank_symbols` — rank symbols by edge-kind fanout (v0.1.12, Issue #297)
+
+**When**: "what are the most-imported / most-extended / most-called symbols?" — importance ranking scoped to a specific edge kind.
+
+**`edge_kind`** (required) — the edge kind to rank by. Accepted values: `calls`, `imports`, `extends`, `implements`.
+
+```
+mcp__mycelium__rank_symbols({ "edge_kind": "imports", "limit": 20 })
+→ { "symbols": [{ "path": "src/utils.rs>helpers", "in_degree": 47 }, ...] }
+
+mcp__mycelium__rank_symbols({ "edge_kind": "calls", "limit": 10 })
+→ { "symbols": [{ "path": "src/db.rs>query", "in_degree": 132 }, ...] }
+```
 
 ## Known limitation: autouse conftest fixtures inflate caller counts
 

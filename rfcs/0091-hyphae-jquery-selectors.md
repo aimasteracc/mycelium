@@ -3,7 +3,7 @@
 | 字段 | 值 |
 |------|----|
 | RFC  | 0091 |
-| 状态 | Accepted |
+| 状态 | Implemented |
 | 作者 | orchestrator (Hive AI agent) |
 | 日期 | 2026-05-30 |
 | 参考 | RFC-0003 (Hyphae grammar), RFC-0004 (Hyphae executor) |
