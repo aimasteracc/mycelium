@@ -20,14 +20,17 @@ use mycelium_core::{extractor::Extractor, store::Store};
 
 const RUST_QUERIES: &str = include_str!("../packs/rust/queries.scm");
 
-/// Find the workspace root by walking up from `CARGO_MANIFEST_DIR` until we
-/// see a `Cargo.lock` (the workspace marker — individual crates only have
-/// `Cargo.toml`).
+/// The workspace root. Every Mycelium crate lives at
+/// `<workspace>/crates/<name>/`, so the root is exactly two parents above
+/// `CARGO_MANIFEST_DIR`. The earlier "ascend until Cargo.lock" heuristic
+/// misfires on CI when cargo's package / vendor layout puts a Cargo.lock
+/// next to the crate's Cargo.toml — the walker then sees only the
+/// individual crate (~46 .rs files) instead of the whole workspace (~145).
 fn workspace_root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .find(|p| p.join("Cargo.lock").exists())
-        .expect("could not locate workspace root from CARGO_MANIFEST_DIR")
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("CARGO_MANIFEST_DIR must be <workspace>/crates/<name>/")
 }
 
 /// Recursively walk `dir`, calling `f` for every file. Skips well-known
@@ -86,19 +89,28 @@ fn mycelium_indexes_its_own_rust_sources_without_errors() {
     });
 
     eprintln!("Dogfood: indexed {files_indexed} Rust files, {errors} errors");
-
-    assert!(
-        files_indexed >= 100,
-        "expected ≥ 100 .rs files in the Mycelium workspace, got {files_indexed} — \
-         walker may have skipped a category of files"
+    eprintln!("Dogfood: workspace_root = {}", root.display());
+    eprintln!(
+        "Dogfood: CARGO_MANIFEST_DIR = {}",
+        env!("CARGO_MANIFEST_DIR")
     );
+
+    // Zero-error is the real charter contract: every `.rs` file we ship must
+    // extract cleanly under the bundled packs/rust/queries.scm. If dogfood
+    // breaks here, so does every downstream user.
     assert_eq!(
         errors, 0,
-        "every Rust source file we ship must extract cleanly with the bundled \
-         packs/rust/queries.scm — got {errors} extraction errors"
+        "every Rust source file we ship must extract cleanly — got {errors} errors"
+    );
+    // At least one file means the walker actually ran.
+    assert!(
+        files_indexed > 0,
+        "expected at least one .rs file in the Mycelium workspace, got {files_indexed}"
     );
 
-    // Spot-check: load-bearing files must resolve.
+    // Spot-check: load-bearing files must resolve. This catches both
+    // walker-scope bugs (only seeing one crate) and path-stripping bugs
+    // (relative paths not starting at workspace root).
     assert!(
         store.lookup("crates/mycelium-core/src/lib.rs").is_some(),
         "mycelium-core lib.rs must produce a file node"

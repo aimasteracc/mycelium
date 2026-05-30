@@ -9,6 +9,9 @@ on:
   push:
     branches: [develop, main]
   workflow_dispatch:
+  # Allow release.yml to reuse this workflow as `uses: ./.github/workflows/ci.yml`
+  # for the quality-recheck step before crates.io publish.
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
