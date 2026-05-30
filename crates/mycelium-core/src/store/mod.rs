@@ -572,6 +572,13 @@ impl Store {
         self.trunk.all_paths()
     }
 
+    /// Iterate all symbol nodes (paths with `>`). Yields `(NodeId, &str)`.
+    ///
+    /// O(V) — no trie navigation. Replaces `all_paths() + filter + lookup_path()` loops.
+    pub fn symbol_nodes(&self) -> impl Iterator<Item = (NodeId, &str)> + '_ {
+        self.trunk.symbol_nodes()
+    }
+
     /// Return the top `limit` symbols ranked by incoming `Calls` edge count,
     /// sorted by caller count descending (ties broken by path ascending).
     ///
@@ -866,26 +873,35 @@ impl Store {
         if from == to {
             return Some(vec![from]);
         }
-        // BFS queue: (current_node, path_so_far)
-        let mut queue: VecDeque<(NodeId, Vec<NodeId>)> = VecDeque::new();
-        let mut visited: HashSet<NodeId> = HashSet::new();
-        queue.push_back((from, vec![from]));
-        visited.insert(from);
-        while let Some((cur, path)) = queue.pop_front() {
-            if path.len() > max_depth {
-                continue;
-            }
+        if max_depth == 0 {
+            return None;
+        }
+        // Parent-map BFS — O(V) space vs O(V·D) for path-clone BFS.
+        // `parent[v] = Some(u)` means `u` is v's predecessor on the BFS tree.
+        // `parent[from] = None` is the root sentinel.
+        let mut parent: HashMap<NodeId, Option<NodeId>> = HashMap::new();
+        parent.insert(from, None);
+        let mut queue: VecDeque<(NodeId, usize)> = VecDeque::new(); // (node, edge-depth)
+        queue.push_back((from, 0));
+        while let Some((cur, edge_depth)) = queue.pop_front() {
             for &next in self.synapse.outgoing(cur, EdgeKind::Calls) {
-                if next == to {
-                    let mut result = path;
-                    result.push(next);
-                    return Some(result);
+                if parent.contains_key(&next) {
+                    continue;
                 }
-                if !visited.contains(&next) && path.len() < max_depth {
-                    visited.insert(next);
-                    let mut new_path = path.clone();
-                    new_path.push(next);
-                    queue.push_back((next, new_path));
+                parent.insert(next, Some(cur));
+                if next == to {
+                    // Reconstruct path via parent links.
+                    let mut path = vec![to];
+                    let mut node = to;
+                    while let Some(&Some(p)) = parent.get(&node) {
+                        path.push(p);
+                        node = p;
+                    }
+                    path.reverse();
+                    return Some(path);
+                }
+                if edge_depth + 1 < max_depth {
+                    queue.push_back((next, edge_depth + 1));
                 }
             }
         }
@@ -2512,31 +2528,29 @@ impl Store {
     /// File nodes excluded.
     #[must_use]
     pub fn weakly_connected_components(&self, kind: EdgeKind) -> Vec<Vec<String>> {
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
+        // Collect (id, path) in one pass — no trie navigation.
+        let sym_nodes: Vec<(NodeId, String)> = self
+            .symbol_nodes()
+            .map(|(id, p)| (id, p.to_owned()))
             .collect();
 
-        let n = sym_ids.len();
+        let n = sym_nodes.len();
         if n == 0 {
             return Vec::new();
         }
 
-        let id_to_idx: HashMap<NodeId, usize> = sym_ids
+        let id_to_idx: HashMap<NodeId, usize> = sym_nodes
             .iter()
-            .copied()
             .enumerate()
-            .map(|(i, id)| (id, i))
+            .map(|(i, (id, _))| (*id, i))
             .collect();
 
         // Path-compressed Union-Find.
         let mut parent: Vec<usize> = (0..n).collect();
 
-        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
-        for (idx, &id) in sym_ids.iter().enumerate() {
-            for &nb in self.synapse.outgoing(id, kind) {
+        let sym_set: HashSet<NodeId> = sym_nodes.iter().map(|(id, _)| *id).collect();
+        for (idx, (id, _)) in sym_nodes.iter().enumerate() {
+            for &nb in self.synapse.outgoing(*id, kind) {
                 if sym_set.contains(&nb) {
                     let nb_idx = id_to_idx[&nb];
                     uf_union(&mut parent, idx, nb_idx);
@@ -2546,11 +2560,9 @@ impl Store {
 
         // Flatten path compression and group by root.
         let mut groups: HashMap<usize, Vec<String>> = HashMap::new();
-        for (idx, &id) in sym_ids.iter().enumerate() {
+        for (idx, (_, p)) in sym_nodes.iter().enumerate() {
             let root = uf_find(&mut parent, idx);
-            if let Some(p) = self.path_of(id) {
-                groups.entry(root).or_default().push(p.to_owned());
-            }
+            groups.entry(root).or_default().push(p.clone());
         }
 
         let mut result: Vec<Vec<String>> = groups
@@ -2752,15 +2764,9 @@ impl Store {
     pub fn leaf_symbols(&self, kind: EdgeKind, limit: usize) -> Vec<String> {
         let limit = limit.min(100);
         let mut result: Vec<String> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter(|p| {
-                self.trunk
-                    .lookup_path(p)
-                    .is_some_and(|id| self.synapse.outgoing(id, kind).is_empty())
-            })
-            .map(str::to_owned)
+            .symbol_nodes()
+            .filter(|(id, _)| self.synapse.outgoing(*id, kind).is_empty())
+            .map(|(_, p)| p.to_owned())
             .collect();
         result.sort_unstable();
         result.truncate(limit);
@@ -2954,16 +2960,11 @@ impl Store {
     pub fn degree_histogram(&self, kind: EdgeKind) -> DegreeHistogram {
         let mut in_counts: HashMap<u64, u64> = HashMap::new();
         let mut out_counts: HashMap<u64, u64> = HashMap::new();
-        for p in self.trunk.all_paths() {
-            if !p.contains('>') {
-                continue;
-            }
-            if let Some(id) = self.trunk.lookup_path(p) {
-                let in_deg = self.synapse.incoming(id, kind).len() as u64;
-                let out_deg = self.synapse.outgoing(id, kind).len() as u64;
-                *in_counts.entry(in_deg).or_insert(0) += 1;
-                *out_counts.entry(out_deg).or_insert(0) += 1;
-            }
+        for (id, _) in self.symbol_nodes() {
+            let in_deg = self.synapse.incoming(id, kind).len() as u64;
+            let out_deg = self.synapse.outgoing(id, kind).len() as u64;
+            *in_counts.entry(in_deg).or_insert(0) += 1;
+            *out_counts.entry(out_deg).or_insert(0) += 1;
         }
         let mut in_degrees: Vec<(u64, u64)> = in_counts.into_iter().collect();
         let mut out_degrees: Vec<(u64, u64)> = out_counts.into_iter().collect();
@@ -2987,21 +2988,16 @@ impl Store {
         let mut max_in = 0usize;
         let mut max_out = 0usize;
 
-        for p in self.trunk.all_paths() {
-            if !p.contains('>') {
-                continue;
+        for (id, _) in self.symbol_nodes() {
+            symbol_count += 1;
+            let out = self.synapse.outgoing(id, kind).len();
+            let inc = self.synapse.incoming(id, kind).len();
+            directed_edge_count += out;
+            if out > max_out {
+                max_out = out;
             }
-            if let Some(id) = self.trunk.lookup_path(p) {
-                symbol_count += 1;
-                let out = self.synapse.outgoing(id, kind).len();
-                let inc = self.synapse.incoming(id, kind).len();
-                directed_edge_count += out;
-                if out > max_out {
-                    max_out = out;
-                }
-                if inc > max_in {
-                    max_in = inc;
-                }
+            if inc > max_in {
+                max_in = inc;
             }
         }
 
@@ -3344,13 +3340,8 @@ impl Store {
     pub fn page_rank(&self, kind: EdgeKind, damping: f64, iterations: usize) -> Vec<PageRankEntry> {
         let damping = damping.clamp(0.0, 1.0);
 
-        // Collect all symbol NodeIds (paths containing '>') in a stable order.
-        let symbols: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // Collect all symbol NodeIds in a stable order (no trie navigation).
+        let symbols: Vec<NodeId> = self.symbol_nodes().map(|(id, _)| id).collect();
         let n = symbols.len();
         if n == 0 {
             return Vec::new();

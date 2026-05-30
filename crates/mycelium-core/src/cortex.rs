@@ -24,7 +24,7 @@
 //! * Define [`InputFile`] as a Salsa *input* (path + content bytes).
 //! * Define [`FileIndex`] as a lightweight, `Eq`-able snapshot of a file's
 //!   extracted symbols (paths + node kinds).
-//! * Define [`index_file`] as a Salsa *tracked* query that runs the
+//! * Define [`index_file()`] as a Salsa *tracked* query that runs the
 //!   language-aware [`Extractor`] and returns an `Arc<FileIndex>`.
 //! * Wire the watch loop in `mycelium-mcp` to call
 //!   [`Cortex::set_file`]/[`Cortex::query_file`] instead of calling the
@@ -72,7 +72,7 @@ const GO_QUERIES: &str = include_str!("../packs/go/queries.scm");
 
 /// A single symbol extracted from a source file.
 ///
-/// Lightweight, `Clone + Eq`-able record produced by [`index_file`] and
+/// Lightweight, `Clone + Eq`-able record produced by [`index_file()`] and
 /// stored in [`FileIndex`].  Designed for cheap comparison by Salsa's
 /// backdating logic.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,7 +89,7 @@ pub struct ExtractedSymbol {
 
 /// The result of indexing a single source file.
 ///
-/// Returned (wrapped in [`Arc`]) by [`index_file`].  Salsa uses `Eq` to
+/// Returned (wrapped in [`Arc`]) by [`index_file()`].  Salsa uses `Eq` to
 /// decide whether the result has changed and whether to propagate
 /// invalidation to dependents.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -184,7 +184,7 @@ impl CortexDb for Cortex {}
 /// ```
 ///
 /// Changing `content` automatically marks all downstream tracked queries
-/// (including [`index_file`]) as stale for that file.
+/// (including [`index_file()`]) as stale for that file.
 #[salsa::input]
 pub struct InputFile {
     /// Repository-relative path, e.g. `"src/main.rs"`.
@@ -294,7 +294,7 @@ impl Cortex {
         InputFile::new(self, path, Arc::new(content))
     }
 
-    /// Run (or return the cached result of) [`index_file`] for `file`.
+    /// Run (or return the cached result of) [`index_file()`] for `file`.
     ///
     /// This is the primary read path for the watch loop.
     #[must_use]

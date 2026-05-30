@@ -1,6 +1,6 @@
 //! # Symbol extractor
 //!
-//! Parses source files with tree-sitter using a [`LanguagePack`]'s query
+//! Parses source files with tree-sitter using a `LanguagePack`'s query
 //! source, then populates a [`Store`] with nodes and edges.
 //!
 //! See RFC-0002 for the full design.

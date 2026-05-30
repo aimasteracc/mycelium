@@ -7,9 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3] — 2026-05-30
+## [0.1.4] — 2026-05-30
+
+### Fixed
+
+- **Windows stack overflow** in `mycelium index`. Initialising the 11
+  tree-sitter parsers exceeded the Windows 1 MiB default thread stack,
+  terminating with `STATUS_STACK_OVERFLOW` (0xC00000FD = exit
+  -1073741571). Added `[target.x86_64-pc-windows-{msvc,gnu}]`
+  `link-arg=/STACK:8388608` in `.cargo/config.toml` so the binary
+  links with an 8 MiB stack on Windows — matching Linux and macOS
+  defaults. Linux/macOS unchanged.
+- **CI workflow `--fail-under-branches 80`** in `coverage` job — flag
+  doesn't exist in `cargo-llvm-cov`. Removed; lines-only gate at 90%
+  retained.
+- **Rustdoc broken intra-doc links**: `[LanguagePack]` (wrong crate)
+  and ambiguous `[index_file]` (Salsa generates a struct of the same
+  name). Disambiguated.
+- **Stale package-name references** in workflows: `mycelium-core` /
+  `mycelium-mcp` updated to the published `mycelium-rcig-*` names so
+  `cargo test --package` and `cargo publish -p` work.
+- **`watch_mode_resolves_stub_after_callee_file_added`** flaky test:
+  poll budget bumped 8 s → 30 s for slow GitHub-Actions runners.
+- **`e2e_dogfood` / `e2e_real_projects` workflows** were referencing
+  test targets that don't exist yet (Charter §5.10 TODO). They now
+  no-op with a CI warning until the test files land.
 
 ### Added
+
+- **CLI parity backfill batch 2** (v0.1.4): the remaining seven
+  `basic-queries` capabilities get CLI subcommands. Combined with
+  batch 1, the entire `basic-queries` category is now ✅ Three-Surface
+  (10 / 10 rows in `skills/INDEX.md`):
+  - `mycelium get-descendants <path> [--format ...]`
+  - `mycelium get-node-kind <path> [--format ...]`
+  - `mycelium get-symbols-by-kind <kind> [--path-prefix ...] [--format ...]`
+  - `mycelium get-source-span <path> [--format ...]`
+  - `mycelium get-siblings <path> [--format ...]`
+  - `mycelium get-all-symbols [--prefix ...] [--kind ...] [--format ...]`
+  - `mycelium server-status [--format ...]`
+  Tests: 10 integration assertions in
+  `crates/mycelium-cli/tests/cli_basic_queries_batch2.rs`.
+
+- **CLI parity backfill batch 1** (v0.1.4): three high-frequency
+  basic-queries capabilities now have CLI subcommands flipping their
+  `skills/INDEX.md` rows from 🟡 to ✅ Three-Surface:
+  - `mycelium search-symbol <query> [--limit N] [--format text|json]`
+  - `mycelium get-symbol-info <path> [--format text|json]`
+  - `mycelium get-ancestors <path> [--format text|json]`
+  Each is the human-facing twin of an existing MCP tool. Shared
+  loader (`load_index`) gives every subcommand the same "no index
+  found — run `mycelium index <root>` first" recovery hint. Tests:
+  8 integration assertions in `crates/mycelium-cli/tests/cli_basic_queries.rs`.
+
+- **Performance hardening — issue #153** (v0.1.4):
+  - Added `Trunk::symbol_nodes()` and `Store::symbol_nodes()` — O(V) iterator over
+    symbol nodes yielding `(NodeId, &str)` without trie navigation. Eliminates the
+    `all_paths() + lookup_path()` anti-pattern from five heavy-graph algorithms
+    (`leaf_symbols`, `degree_histogram`, `graph_metrics`, `page_rank`, `weakly_connected_components`).
+  - Replaced path-clone BFS in `find_call_path` with a parent-map BFS — O(V) space
+    instead of O(V·max_depth), eliminates per-frontier Vec allocations.
+  - Added 8 performance regression tests (`heavy_graph_*`) proving all six tools
+    complete in < 2 s on 1 K-node and < 10 s on 10 K-node graphs in debug mode.
+  - Added `benches/heavy_graph.rs` — Criterion benchmarks at 1 K and 10 K nodes for
+    all six tools; use `cargo bench -p mycelium-rcig-core --bench heavy_graph` for SLA tracking.
+  - Charter §2 SLA table extended with two new rows for heavy-graph algorithm classes.
+
+- **RFC-0090 Phase 1 — Three-Surface parity checker** (v0.1.4):
+  - New [`scripts/check_skill_parity.py`](scripts/check_skill_parity.py): extracts MCP tool names
+    from `crates/mycelium-mcp/src/lib.rs` and Skill `allowed-tools` from `skills/*/SKILL.md`,
+    reports I1 (every MCP tool has ≥1 Skill) and I2 (no Skill orphans) coverage.
+  - New [`.github/workflows/parity.yml`](.github/workflows/parity.yml): runs the checker
+    on every PR touching MCP, CLI, or Skills. Phase 1: informational (exits 0).
+    Phase 3 / v0.2.0: add `--strict` to make the gate blocking.
+  - Fixed 12 Skill `allowed-tools` naming mismatches discovered by the checker:
+    `betweenness_centrality` → `get_betweenness_centrality`, `extends_tree` → `get_extends_tree`,
+    `get_scc` → `get_strongly_connected_components`, and nine more.
+    Confirmed coverage at 89/89 (100 %).
+
+- **RFC-0090 Phase 2.3 — Skill coverage complete (89/89)** (v0.1.4):
+  - New [`skills/index-management/`](skills/index-management/) Skill — 7 tools covering
+    the server lifecycle: `index_workspace`, `load_index`, `server_status` (shared with
+    `basic-queries`), `watch_status`, `sync_file`, `set_compact_mode`, `get_token_stats`.
+  - 10 capabilities triaged into existing Skills:
+    `get_files`, `get_node_degree`, `get_symbol_count_by_kind` → **basic-queries**;
+    `get_leaf_symbols`, `find_call_path`, `get_common_callers`, `get_common_callees` → **call-graph**;
+    `find_import_path` → **import-graph**;
+    `get_mutual_reachability`, `get_common_reachable` → **reachability**.
+  - Fixed `get_scc` name in INDEX.md to correct `get_strongly_connected_components`.
+  - `skills/INDEX.md` updated to 89/89 coverage (100% of all MCP tools have Skill umbrella).
 
 - **Third wave of category Skills** (RFC-0090 Phase 2 closing, v0.1.3):
   - [`skills/inheritance/`](skills/inheritance/) — 8 capabilities for

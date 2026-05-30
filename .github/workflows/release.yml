@@ -71,16 +71,31 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Dry run
         run: |
-          for crate in mycelium-core mycelium-hyphae mycelium-pack mycelium-cli mycelium-mcp; do
-            if [ -d "crates/$crate" ]; then
-              cargo publish -p "$crate" --dry-run
+          # crates.io names are `mycelium-rcig-*`; on-disk dirs are `mycelium-*`.
+          for pair in \
+              "mycelium-core:mycelium-rcig-core" \
+              "mycelium-hyphae:mycelium-rcig-hyphae" \
+              "mycelium-pack:mycelium-rcig-pack" \
+              "mycelium-cli:mycelium-rcig-cli" \
+              "mycelium-mcp:mycelium-rcig-mcp"; do
+            dir="${pair%:*}"
+            pkg="${pair#*:}"
+            if [ -d "crates/$dir" ]; then
+              cargo publish -p "$pkg" --dry-run
             fi
           done
       - name: Publish
         run: |
-          for crate in mycelium-core mycelium-hyphae mycelium-pack mycelium-cli mycelium-mcp; do
-            if [ -d "crates/$crate" ]; then
-              cargo publish -p "$crate" --token "${{ secrets.CRATES_IO_TOKEN }}" || true
+          for pair in \
+              "mycelium-core:mycelium-rcig-core" \
+              "mycelium-hyphae:mycelium-rcig-hyphae" \
+              "mycelium-pack:mycelium-rcig-pack" \
+              "mycelium-cli:mycelium-rcig-cli" \
+              "mycelium-mcp:mycelium-rcig-mcp"; do
+            dir="${pair%:*}"
+            pkg="${pair#*:}"
+            if [ -d "crates/$dir" ]; then
+              cargo publish -p "$pkg" --token "${{ secrets.CRATES_IO_TOKEN }}" || true
               # Wait for index propagation before next crate
               sleep 30
             fi

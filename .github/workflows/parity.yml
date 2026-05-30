@@ -1,0 +1,35 @@
+name: Three-Surface Parity (RFC-0090)
+
+# Checks that every MCP tool is referenced in ≥1 Skill's allowed-tools
+# (Invariant I1) and that every Skill reference resolves to a real MCP
+# tool (Invariant I2).
+#
+# Phase 1 (current): informational — reports coverage, never blocks merge.
+# Phase 3 (v0.2.0):  --strict flag added; gate is required on main.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "crates/mycelium-mcp/src/**"
+      - "crates/mycelium-cli/src/**"
+      - "skills/**"
+      - "scripts/check_skill_parity.py"
+  pull_request:
+    paths:
+      - "crates/mycelium-mcp/src/**"
+      - "crates/mycelium-cli/src/**"
+      - "skills/**"
+      - "scripts/check_skill_parity.py"
+
+jobs:
+  parity-check:
+    name: Skill coverage check (I1 + I2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Three-Surface parity checker
+        run: python3 scripts/check_skill_parity.py
+        # Phase 1: exits 0 always (informational).
+        # Promote to `--strict` in v0.2.0 to make this gate blocking.

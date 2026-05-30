@@ -14,6 +14,8 @@ allowed-tools:
   - mcp__mycelium__get_reachable_set
   - mcp__mycelium__get_reaches_into
   - mcp__mycelium__get_singly_referenced
+  - mcp__mycelium__get_mutual_reachability
+  - mcp__mycelium__get_common_reachable
 ---
 
 # `reachability` — multi-hop navigation across edge kinds

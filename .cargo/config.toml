@@ -18,3 +18,16 @@ t-full  = "test --workspace"
 
 # Watch lane: run the #[ignore] filesystem-watch tests explicitly.
 t-watch = "test -p mycelium-mcp --lib -- --include-ignored watch_mode"
+
+# Windows: bump linker stack size to 8 MiB.
+#
+# The default Windows main-thread stack is 1 MiB. Initialising the 11
+# tree-sitter parsers and queries in `mycelium index` exceeds that and the
+# binary terminates with STATUS_STACK_OVERFLOW (0xC00000FD = -1073741571).
+# Linux and macOS use 8 MiB by default, so this matches that baseline.
+# Surfaced by PR #191 Windows CI panic at cli_basic_queries.rs:38.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/STACK:8388608"]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-arg=-Wl,--stack,8388608"]

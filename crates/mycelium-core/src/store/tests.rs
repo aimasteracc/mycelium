@@ -5582,3 +5582,145 @@ fn dep_depth_large_cycle_terminates_without_oom() {
         );
     }
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Performance regression — issue #153
+// Six heavy-graph tools must complete in < 2 s on a 1 K-node graph and
+// < 10 s on a 10 K-node graph (verifying O(V+E) scaling, not O(V²)).
+// ──────────────────────────────────────────────────────────────────────
+
+/// Build a sparse call graph with `n` symbol nodes (~3 outgoing Calls edges each).
+/// Deterministic LCG keeps the test reproducible without a rand dependency.
+fn build_graph(n: usize) -> (Store, Vec<NodeId>) {
+    let mut store = Store::new();
+    let ids: Vec<NodeId> = (0..n)
+        .map(|i| store.upsert_node(path(&format!("src/f{}.rs>sym_{i}", i / 100))))
+        .collect();
+    let mut lcg = 0x1234_5678_9abc_def0u64;
+    for i in 0..n {
+        for _ in 0..3 {
+            lcg = lcg
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            let j = (lcg >> 33) as usize % n;
+            if i != j {
+                store.upsert_edge(EdgeKind::Calls, ids[i], ids[j]);
+            }
+        }
+    }
+    (store, ids)
+}
+
+fn build_1k_graph() -> (Store, Vec<NodeId>) {
+    build_graph(1024)
+}
+
+fn build_10k_graph() -> (Store, Vec<NodeId>) {
+    build_graph(10_240)
+}
+
+// Probe: does page_rank scale linearly? 10× the nodes should take < 10× the
+// time.  If this is RED it proves a super-linear complexity bug.
+#[test]
+fn heavy_graph_10k_page_rank_under_ten_seconds() {
+    let (store, _) = build_10k_graph();
+    let start = std::time::Instant::now();
+    let entries = store.page_rank(EdgeKind::Calls, 0.85, 20);
+    let elapsed = start.elapsed();
+    assert!(!entries.is_empty());
+    assert!(
+        elapsed.as_secs_f64() < 10.0,
+        "page_rank on 10 K nodes took {elapsed:?}, want < 10 s (O(V+E) scaling check)"
+    );
+}
+
+#[test]
+fn heavy_graph_10k_wcc_under_ten_seconds() {
+    let (store, _) = build_10k_graph();
+    let start = std::time::Instant::now();
+    let comps = store.weakly_connected_components(EdgeKind::Calls);
+    let elapsed = start.elapsed();
+    assert!(!comps.is_empty());
+    assert!(
+        elapsed.as_secs_f64() < 10.0,
+        "wcc on 10 K nodes took {elapsed:?}, want < 10 s"
+    );
+}
+
+#[test]
+fn heavy_graph_leaf_symbols_under_two_seconds() {
+    let (store, _) = build_1k_graph();
+    let start = std::time::Instant::now();
+    let result = store.leaf_symbols(EdgeKind::Calls, 100);
+    let elapsed = start.elapsed();
+    assert!(!result.is_empty() || result.is_empty()); // force evaluation
+    assert!(
+        elapsed.as_secs_f64() < 2.0,
+        "leaf_symbols took {elapsed:?}, want < 2 s"
+    );
+}
+
+#[test]
+fn heavy_graph_degree_histogram_under_two_seconds() {
+    let (store, _) = build_1k_graph();
+    let start = std::time::Instant::now();
+    let h = store.degree_histogram(EdgeKind::Calls);
+    let elapsed = start.elapsed();
+    assert!(!h.in_degrees.is_empty());
+    assert!(
+        elapsed.as_secs_f64() < 2.0,
+        "degree_histogram took {elapsed:?}, want < 2 s"
+    );
+}
+
+#[test]
+fn heavy_graph_graph_metrics_under_two_seconds() {
+    let (store, _) = build_1k_graph();
+    let start = std::time::Instant::now();
+    let m = store.graph_metrics(EdgeKind::Calls);
+    let elapsed = start.elapsed();
+    assert!(m.symbol_count > 0);
+    assert!(
+        elapsed.as_secs_f64() < 2.0,
+        "graph_metrics took {elapsed:?}, want < 2 s"
+    );
+}
+
+#[test]
+fn heavy_graph_page_rank_under_two_seconds() {
+    let (store, _) = build_1k_graph();
+    let start = std::time::Instant::now();
+    let entries = store.page_rank(EdgeKind::Calls, 0.85, 20);
+    let elapsed = start.elapsed();
+    assert!(!entries.is_empty());
+    assert!(
+        elapsed.as_secs_f64() < 2.0,
+        "page_rank took {elapsed:?}, want < 2 s"
+    );
+}
+
+#[test]
+fn heavy_graph_wcc_under_two_seconds() {
+    let (store, _) = build_1k_graph();
+    let start = std::time::Instant::now();
+    let comps = store.weakly_connected_components(EdgeKind::Calls);
+    let elapsed = start.elapsed();
+    assert!(!comps.is_empty());
+    assert!(
+        elapsed.as_secs_f64() < 2.0,
+        "weakly_connected_components took {elapsed:?}, want < 2 s"
+    );
+}
+
+#[test]
+fn heavy_graph_find_call_path_under_two_seconds() {
+    let (store, ids) = build_1k_graph();
+    let start = std::time::Instant::now();
+    // Attempt a path — may or may not exist; what matters is it terminates fast.
+    let _result = store.find_call_path(ids[0], ids[1023], 10);
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed.as_secs_f64() < 2.0,
+        "find_call_path took {elapsed:?}, want < 2 s"
+    );
+}

@@ -5,6 +5,7 @@ allowed-tools:
   - mcp__mycelium__get_imports
   - mcp__mycelium__get_import_tree
   - mcp__mycelium__get_importers_tree
+  - mcp__mycelium__find_import_path
 ---
 
 # `import-graph` — module dependencies, in both directions

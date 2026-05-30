@@ -1,0 +1,317 @@
+//! v0.1.4 CLI parity backfill — the human-facing twins of MCP tools
+//! `mycelium_search_symbol`, `mycelium_get_symbol_info`,
+//! `mycelium_get_ancestors`.
+//!
+//! Three-Surface Rule (Charter §5.13 / RFC-0090) parity: the CLI output
+//! shape here MUST match the MCP tool output shape byte-for-byte (modulo
+//! timestamps). The fixtures in `skills/basic-queries/tests/parity.test.json`
+//! exercise that contract.
+
+use std::path::Path;
+
+use anyhow::{Context, Result, anyhow};
+use mycelium_core::store::Store;
+use mycelium_core::types::EdgeKind;
+
+/// Output format requested by the user (or by the MCP wrapper).
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Format {
+    /// One result per line (or human-friendly key-value), default for terminals.
+    Text,
+    /// JSON — the stable contract used by the MCP twin tool.
+    Json,
+}
+
+fn load_index(root: &Path) -> Result<Store> {
+    let index_path = root.join(".mycelium").join("index.rmp");
+    if !index_path.exists() {
+        return Err(anyhow!(
+            "no index found at {} — run `mycelium index <root>` first",
+            index_path.display()
+        ));
+    }
+    Store::load(&index_path)
+        .with_context(|| format!("failed to load index from {}", index_path.display()))
+}
+
+// ── search-symbol ─────────────────────────────────────────────────────────────
+
+pub(crate) fn run_search_symbol(
+    root: &Path,
+    query: &str,
+    limit: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let matches = store.search_symbol(query, limit);
+    match format {
+        Format::Text => {
+            for m in &matches {
+                println!("{m}");
+            }
+        }
+        Format::Json => {
+            println!("{}", serde_json::to_string(&matches)?);
+        }
+    }
+    Ok(())
+}
+
+// ── get-symbol-info ───────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_symbol_info(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let value = symbol_info(&store, path)?;
+    match format {
+        Format::Text => {
+            println!("path:        {}", value["path"]);
+            println!("ancestors:   {}", value["ancestors"]);
+            println!("descendants: {}", value["descendants"]);
+            println!("callers:     {}", value["callers"]);
+            println!("callees:     {}", value["callees"]);
+        }
+        Format::Json => {
+            println!("{}", serde_json::to_string(&value)?);
+        }
+    }
+    Ok(())
+}
+
+/// Same shape as the MCP `mycelium_get_symbol_info` tool's success envelope.
+/// Three-Surface Rule single-source-of-truth.
+#[allow(
+    clippy::similar_names,
+    reason = "callers/callees are the canonical field names matched by the MCP tool"
+)]
+fn symbol_info(store: &Store, path: &str) -> Result<serde_json::Value> {
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+
+    let ancestors: Vec<String> = store
+        .ancestors(id)
+        .filter_map(|aid| store.path_of(aid).map(str::to_owned))
+        .collect();
+
+    let mut descendants: Vec<String> = store
+        .descendants(id)
+        .filter_map(|did| store.path_of(did).map(str::to_owned))
+        .collect();
+    descendants.sort_unstable();
+
+    let mut callers: Vec<String> = store
+        .incoming(id, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&src| store.path_of(src).map(str::to_owned))
+        .collect();
+    callers.sort_unstable();
+    callers.dedup();
+
+    let mut callees: Vec<String> = store
+        .outgoing(id, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&dst| store.path_of(dst).map(str::to_owned))
+        .collect();
+    callees.sort_unstable();
+    callees.dedup();
+
+    Ok(serde_json::json!({
+        "path": path,
+        "ancestors": ancestors,
+        "descendants": descendants,
+        "callers": callers,
+        "callees": callees,
+    }))
+}
+
+// ── get-ancestors ─────────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_ancestors(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let ancestors = store
+        .ancestors_of_path(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    print_string_list(&ancestors, format)
+}
+
+// ── get-descendants ───────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_descendants(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let descendants = store
+        .descendants_of_path(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    print_string_list(&descendants, format)
+}
+
+// ── get-node-kind ─────────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_node_kind(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let kind = store.kind_of(id).map(|k| k.as_str().to_owned());
+    let value = serde_json::json!({ "path": path, "kind": kind });
+    match format {
+        Format::Text => match kind {
+            Some(k) => println!("{k}"),
+            None => println!("(no kind recorded)"),
+        },
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── get-symbols-by-kind ───────────────────────────────────────────────────────
+
+pub(crate) fn run_get_symbols_by_kind(
+    root: &Path,
+    kind_str: &str,
+    prefix: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = mycelium_core::types::NodeKind::try_from_wire(kind_str)
+        .ok_or_else(|| anyhow!("unknown kind: {kind_str}"))?;
+    let symbols = store.symbols_of_kind(kind, prefix);
+    print_string_list(&symbols, format)
+}
+
+// ── get-source-span ───────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_source_span(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let value = store.span_of(id).map_or_else(
+        || serde_json::json!({ "path": path, "span": serde_json::Value::Null }),
+        |span| {
+            serde_json::json!({
+                "path": path,
+                "start_line": span.start_line,
+                "start_col":  span.start_col,
+                "end_line":   span.end_line,
+                "end_col":    span.end_col,
+                "start_byte": span.start_byte,
+                "end_byte":   span.end_byte,
+            })
+        },
+    );
+    match format {
+        Format::Text => {
+            if value["span"].is_null() {
+                println!("(no source span recorded)");
+            } else {
+                println!(
+                    "{}:{}:{}-{}:{}",
+                    value["path"].as_str().unwrap_or(""),
+                    value["start_line"],
+                    value["start_col"],
+                    value["end_line"],
+                    value["end_col"],
+                );
+            }
+        }
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── get-siblings ──────────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_siblings(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let siblings = store.siblings(id);
+    print_string_list(&siblings, format)
+}
+
+// ── get-all-symbols ───────────────────────────────────────────────────────────
+
+pub(crate) fn run_get_all_symbols(
+    root: &Path,
+    prefix: Option<&str>,
+    kind_str: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = match kind_str {
+        None => None,
+        Some(k) => Some(
+            mycelium_core::types::NodeKind::try_from_wire(k)
+                .ok_or_else(|| anyhow!("unknown kind: {k}"))?,
+        ),
+    };
+    let symbols = store.all_symbols(prefix, kind);
+    print_string_list(&symbols, format)
+}
+
+// ── server-status ─────────────────────────────────────────────────────────────
+
+pub(crate) fn run_server_status(root: &Path, format: Format) -> Result<()> {
+    let index_path = root.join(".mycelium").join("index.rmp");
+    let is_loaded = index_path.exists();
+    let (node_count, edge_count) = if is_loaded {
+        let store = Store::load(&index_path)
+            .with_context(|| format!("failed to load index from {}", index_path.display()))?;
+        (store.node_count(), store.edge_count())
+    } else {
+        (0, 0)
+    };
+    let value = serde_json::json!({
+        "node_count":   node_count,
+        "edge_count":   edge_count,
+        "indexed_root": root.to_string_lossy(),
+        "is_loaded":    is_loaded,
+    });
+    match format {
+        Format::Text => {
+            println!("indexed_root: {}", root.display());
+            println!("is_loaded:    {is_loaded}");
+            println!("node_count:   {node_count}");
+            println!("edge_count:   {edge_count}");
+        }
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    }
+    Ok(())
+}
+
+// ── shared output helper ──────────────────────────────────────────────────────
+
+fn print_string_list(items: &[String], format: Format) -> Result<()> {
+    match format {
+        Format::Text => {
+            for item in items {
+                println!("{item}");
+            }
+        }
+        Format::Json => println!("{}", serde_json::to_string(items)?),
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn run_search_symbol_no_index_errors_clearly() {
+        let dir = tempdir().unwrap();
+        let err = run_search_symbol(dir.path(), "x", 10, Format::Text).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("no index"), "got: {msg}");
+        assert!(msg.contains("mycelium index"), "got: {msg}");
+    }
+
+    #[test]
+    fn symbol_info_unknown_path_errors() {
+        let store = Store::default();
+        let err = symbol_info(&store, "nonexistent").unwrap_err();
+        assert!(format!("{err}").contains("path not found"));
+    }
+}
