@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — fix/release-finalize-robustness in progress; all P3 DONE; investigating systemic CI/CD issue) |
+| Last updated | 2026-05-30 (PM dispatch — PR #288 merged; Issue #206 fully DONE; P2 queue empty; only P0 founder gate + P1 Pattern 3 re-verify remain) |
 | Current sprint | **v0.1.11 — RELEASED (PR #275 open, awaiting founder auth for crates.io)** |
 | Active release branch | `release/v0.1.11` — PR #275 open targeting main |
 | Next release target | **v0.1.12** — Issue #214 Pattern 3 re-verify (founder action needed) |
@@ -55,7 +55,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
    shipped (PR #280). MYCELIUM_PACKS_DIR env var activates runtime pack loading for cortex;
    `mycelium index --packs-dir <dir>` activates it for the indexer. Static embeds remain as
    fallback. Circular dep fixed. All RFC-0095 acceptance criteria met.
-4. **Issue #206 remaining** — RFC-0094 round-trip test + token-saving bench (deferred to v0.2.0).
+4. ✅ **Issue #206 S3 COMPLETE** — Criterion formatter bench + byte-savings unit test shipped (PR #288).
+   Clarified: RFC-0094's ~73% savings is *token* savings, not byte savings. Issue #206 fully closed.
 
 **P3 (v0.2.0 backlog):**
 5. ✅ **Skill marketplace submission metadata** — DONE (PR #284). All 10 SKILL.md files

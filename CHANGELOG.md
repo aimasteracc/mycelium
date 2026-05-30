@@ -29,6 +29,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0094: Criterion formatter benchmark + byte-savings regression guard** — Adds
+  `crates/mycelium-mcp/benches/formatter.rs` with four Criterion benchmarks
+  (`json/50_node_callee_tree`, `text/50_node_callee_tree`, `msgpack/50_node_callee_tree`,
+  `byte_savings_ratio`) and a unit test that verifies text format bytes are < 80% of JSON
+  bytes for a 50-node callee tree. Clarifies that RFC-0094's ~73% savings headline is
+  **token savings** (not byte savings): LLM tokenisers split JSON punctuation into individual
+  tokens, so token savings exceed byte savings. (Issue #206 S3, PR #288)
+
 - **Skill marketplace metadata** — All 10 category Skill files now include `category`,
   `icon`, and `marketplace_examples` frontmatter fields plus a `## Quick examples` table.
   Enables Skill marketplace submission for v0.2.0. Template updated for future Skill authors.
