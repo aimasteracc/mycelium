@@ -383,6 +383,42 @@ class App:
     );
 }
 
+// ── attribute-assignment alias (issue #229) ──────────────────────────────────
+
+#[test]
+fn attribute_assignment_alias_resolves_call_target() {
+    // After v0.1.7 fixed `_h.fn()` direct call dispatch, a closely-related
+    // pattern remained broken:
+    //
+    //   from . import _codegraph_explore_helpers as _h
+    //   _signature_from = _h.signature_from        # attribute → local rebind
+    //   sig = _signature_from(d)                   # now called via local
+    //
+    // mycelium reported `_codegraph_explore_helpers.py>signature_from` as
+    // having `callers: []`. The fix extends the alias table to learn from
+    // `local = module_alias.attr` assignments.
+    let source = "\
+from . import helpers as _h
+
+_signature_from = _h.signature_from
+
+def bar():
+    return _signature_from()
+";
+    let store = extract_at("pkg/foo.py", source);
+    let bar_id = store
+        .lookup("pkg/foo.py>bar")
+        .expect("caller function must be indexed");
+    let resolved = store.lookup("pkg/helpers.py>signature_from").expect(
+        "`_signature_from = _h.signature_from` then `_signature_from()` must \
+             resolve to pkg/helpers.py>signature_from",
+    );
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&resolved),
+        "Calls edge must follow the assignment alias chain"
+    );
+}
+
 // ── idempotence ──────────────────────────────────────────────────────────────
 
 #[test]
