@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-05-30
+
+Patch release: closes the headline Python static-analysis blind spot from
+the tree-sitter-analyzer dogfood (#200 umbrella resolved).
+
+### Fixed
+
+- **Python module-alias dispatch now tracks callers through the alias**
+  (#205, bug 1 of #200, RFC-0092 Phase 1). When a file does
+  `from . import _ast_cache_query as _query` and later calls
+  `_query.fts_search_ranked(...)`, the Calls edge previously pointed to
+  the bare path `_query>fts_search_ranked`, so the real definition at
+  `_ast_cache_query.py>fts_search_ranked` saw 0 callers. Now the
+  extractor builds a per-file alias table (`local_name → resolved_path`)
+  in a new Pass 1b, and the reference pass rewrites the leftmost
+  identifier of `obj.method()` calls through that table. Closes the
+  73-function false-positive-dead-code case from
+  `tree-sitter-analyzer`'s dogfood. Python only in this PR; TypeScript /
+  JavaScript / Ruby follow per RFC-0092. Tests: 3 new assertions in
+  `crates/mycelium-core/src/extractor/tests.rs`.
+
 ## [0.1.6] — 2026-05-30
 
 Patch release focused on Python correctness + Three-Surface enforcement.

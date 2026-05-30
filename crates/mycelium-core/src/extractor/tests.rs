@@ -256,6 +256,80 @@ fn extractor_preserves_absolute_import_behaviour() {
     assert!(store.outgoing(file_id, EdgeKind::Imports).contains(&typing));
 }
 
+// ── alias-table dispatch (issue #205, RFC-0092) ──────────────────────────────
+
+#[test]
+fn alias_dispatch_resolves_to_real_module_via_from_import_as() {
+    // The headline #205 bug: every caller in tree-sitter-analyzer goes
+    // through `from . import _ast_cache_query as _query`, and the call site
+    // is `_query.fts_search_ranked(...)`. Before RFC-0092 the Calls edge
+    // pointed at the bare symbol `_query>fts_search_ranked`, so the real
+    // definition at `_ast_cache_query.py>fts_search_ranked` saw 0 callers
+    // and looked like dead code.
+    //
+    // After RFC-0092, the leftmost identifier `_query` is looked up in the
+    // per-file alias table, rewritten to the resolved file path, and the
+    // edge targets the real symbol.
+    let source = "\
+from . import _ast_cache_query as _query
+
+def bar():
+    return _query.fts_search_ranked()
+";
+    let store = extract_at("pkg/foo.py", source);
+    let bar_id = store
+        .lookup("pkg/foo.py>bar")
+        .expect("caller function must be indexed");
+    let resolved = store
+        .lookup("pkg/_ast_cache_query.py>fts_search_ranked")
+        .expect("alias must resolve to pkg/_ast_cache_query.py>fts_search_ranked");
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&resolved),
+        "Calls edge must target the resolved alias path, not _query>fts_search_ranked"
+    );
+}
+
+#[test]
+fn alias_dispatch_resolves_simple_import_as() {
+    // `import X as Y; Y.foo()` — also an alias case, even without `from`.
+    let source = "\
+import json as j
+
+def bar():
+    return j.loads()
+";
+    let store = extract_at("pkg/foo.py", source);
+    let bar_id = store.lookup("pkg/foo.py>bar").unwrap();
+    let resolved = store
+        .lookup("json>loads")
+        .expect("alias `j` must resolve to `json` for `j.loads()`");
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&resolved),
+        "Calls edge must point to json>loads when called via alias j"
+    );
+}
+
+#[test]
+fn non_aliased_identifier_call_unchanged() {
+    // Regression-prevention: when no alias is in play, behaviour must
+    // match the existing intra/bare fallback exactly.
+    let source = "\
+def helper(): pass
+
+def bar():
+    return helper()
+";
+    let store = extract_at("pkg/foo.py", source);
+    let bar_id = store.lookup("pkg/foo.py>bar").unwrap();
+    let helper_id = store
+        .lookup("pkg/foo.py>helper")
+        .expect("intra-file callee must resolve to its definition node");
+    assert!(
+        store.outgoing(bar_id, EdgeKind::Calls).contains(&helper_id),
+        "non-aliased intra-file call must still hit the definition node"
+    );
+}
+
 // ── idempotence ──────────────────────────────────────────────────────────────
 
 #[test]
