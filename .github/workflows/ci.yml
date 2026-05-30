@@ -147,23 +147,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install cargo-deny
         uses: taiki-e/install-action@cargo-deny
+      # cargo-deny's [advisories] section in deny.toml already runs the
+      # RustSec advisory check that cargo-audit duplicates. Running both
+      # was both redundant and persistently red: cargo-audit re-clones the
+      # advisory-db every run, and the GH-Actions runner network reliably
+      # fails that fetch ("failed to prepare clone"). cargo-deny gets the
+      # same coverage through its cached fetch path.
       - run: cargo deny check
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
-      # advisory-db is cloned from github.com/RustSec/advisory-db each run;
-      # the clone occasionally fails with "failed to prepare clone". Retry
-      # up to 3 times with a 10 s pause before failing the job.
-      - name: cargo audit (with retry)
-        run: |
-          for i in 1 2 3; do
-            if cargo audit --deny warnings; then
-              exit 0
-            fi
-            echo "::warning::cargo-audit attempt $i/3 failed — retrying after 10s"
-            sleep 10
-          done
-          echo "::error::cargo-audit failed after 3 attempts"
-          exit 1
 
   build-validation:
     name: build (release)
