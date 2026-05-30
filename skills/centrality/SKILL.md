@@ -145,7 +145,9 @@ Given a symbol, returns symbols with overlapping neighborhoods. Useful for "find
 ## Equivalent CLI
 
 ```bash
-mycelium rank-symbols --limit 20 --format=json
+mycelium rank-symbols --limit 20 --format=json               # top callee symbols (Calls)
+mycelium rank-symbols --edge-kind imports --limit 20          # most-imported symbols
+mycelium rank-symbols --edge-kind extends --limit 10          # most-extended base classes
 mycelium get-top-files --limit 10
 mycelium page-rank --edge-kind calls --limit 20
 ```

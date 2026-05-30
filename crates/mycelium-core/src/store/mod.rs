@@ -623,6 +623,29 @@ impl Store {
         ranked
     }
 
+    /// Top-N symbols by incoming-edge count for the given edge kind.
+    /// Symbols with zero incoming edges of `kind` are excluded.
+    /// Results are sorted descending by count, then alphabetically by path.
+    #[must_use]
+    pub fn top_symbols_by_incoming(&self, kind: EdgeKind, limit: usize) -> Vec<(String, usize)> {
+        let mut ranked: Vec<(String, usize)> = self
+            .trunk
+            .all_paths()
+            .filter_map(|p| {
+                let id = self.trunk.lookup_path(p)?;
+                let count = self.synapse.incoming(id, kind).len();
+                if count > 0 {
+                    Some((p.to_owned(), count))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        ranked.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        ranked.truncate(limit);
+        ranked
+    }
+
     /// Return all file-level paths (trunk paths with no `>` separator),
     /// sorted lexicographically.
     ///
@@ -1925,6 +1948,27 @@ impl Store {
                     self.synapse.incoming(id, EdgeKind::Calls).is_empty()
                         && self.synapse.incoming(id, EdgeKind::Imports).is_empty()
                 })
+            })
+            .map(str::to_owned)
+            .collect();
+        result.sort_unstable();
+        result
+    }
+
+    /// Return symbol paths (paths containing `>`) that have zero incoming edges
+    /// of the given `kind`, sorted lexicographically.
+    /// File-level nodes (no `>`) are excluded. Pass `prefix` to restrict results.
+    #[must_use]
+    pub fn dead_symbols_for_kind(&self, kind: EdgeKind, prefix: Option<&str>) -> Vec<String> {
+        let mut result: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_some_and(|id| self.synapse.incoming(id, kind).is_empty())
             })
             .map(str::to_owned)
             .collect();
