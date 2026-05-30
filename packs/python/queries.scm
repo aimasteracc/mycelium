@@ -105,6 +105,39 @@
     object: (identifier) @alias.source
     attribute: (identifier) @alias.original_name)) @reference.alias_binding
 
+; ── Callback / higher-order function arguments (issue #247) ─────────
+;
+; When an identifier is passed as a positional argument to a call
+; (e.g. `run(callback)` or `sorted(items, key=fn)`), the function object
+; is "reached" even though it is never called directly. Without this query
+; `get-isolated-symbols` reports such identifiers as dead code.
+;
+; We emit a Calls edge from the enclosing function to the argument
+; identifier, representing "the caller reaches this function object".
+; Keyword-argument values are matched by the `@name` capture on the
+; `keyword_argument value: (identifier)` branch.
+;
+; Note: `(_)` in `@name` position here is intentional — we want only the
+; *function-valued* arguments. We can't distinguish function from non-function
+; at parse time, so we capture all identifier arguments and rely on the
+; extractor to limit the blast-radius (only creates edges, never deletes).
+(call
+  arguments: (argument_list
+    (identifier) @name)) @reference.arg_callback
+
+(call
+  arguments: (argument_list
+    (keyword_argument
+      value: (identifier) @name))) @reference.arg_callback
+
+; ── Class inheritance (Extends edges) ────────────────────────────────
+; `class Sub(Base1, Base2):` — one match per superclass identifier.
+; The class_definition node is the anchor; @name captures the base class.
+; The extractor reads the subclass name from anchor.child_by_field_name("name").
+(class_definition
+  superclasses: (argument_list
+    (identifier) @name)) @reference.extends
+
 ; ── Call expressions (Synapse Calls edges) ──────────────────────────
 
 ; Simple function calls: foo()
