@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Issue #206 S1: MCP `is_error` sweep — all 90 tool handlers now set `is_error` flag**.
+  Every MCP tool handler return type changed from `String` to `CallToolResult`. Success
+  paths set `is_error: Some(false)` via `ok_str()` helper; error paths (`not_found`,
+  `application_error`, `invalid_path`) set `is_error: Some(true)`. MCP clients can now
+  branch on `is_error` without parsing JSON bodies. The `not_found()` payload includes
+  a backward-compatible `"error"` key alongside the new structured `"found"/"reason"/"path"`
+  keys. Two new contract tests verify the is_error contract end-to-end (PR #266).
+
 ### Fixed
 
 - **Issue #214 Pattern 3: depth-2+ attribute chain calls no longer create global bare stubs**.

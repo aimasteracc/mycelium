@@ -25,6 +25,7 @@ pub fn application_error(value: &Value) -> CallToolResult {
 #[must_use]
 pub fn not_found(path: &str) -> CallToolResult {
     application_error(&serde_json::json!({
+        "error": format!("symbol not found: {path}"),
         "found": false,
         "reason": "symbol not found",
         "path": path,
@@ -35,6 +36,7 @@ pub fn not_found(path: &str) -> CallToolResult {
 #[must_use]
 pub fn not_indexed() -> CallToolResult {
     application_error(&serde_json::json!({
+        "error": "index not loaded — run `mycelium index <root>` first",
         "found": false,
         "reason": "index not loaded — run `mycelium index <root>` first",
     }))
@@ -45,6 +47,7 @@ pub fn not_indexed() -> CallToolResult {
 #[must_use]
 pub fn invalid_path(path: &str, detail: &str) -> CallToolResult {
     application_error(&serde_json::json!({
+        "error": format!("invalid path syntax: {path}"),
         "found": false,
         "reason": "invalid path syntax",
         "path": path,
