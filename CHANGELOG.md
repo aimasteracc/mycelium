@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] — 2026-05-30
+
+Patch release: two Python correctness fixes (TYPE_CHECKING cycle
+false-positives + nested-attribute call regression).
+
+### Fixed
+
+- **`if TYPE_CHECKING:` imports no longer create `Imports` edges**
+  (#227). Python's `TYPE_CHECKING` constant is always `False` at runtime;
+  imports guarded by it are annotation-only and were causing
+  false-positive cycle reports (`detect-cycles` reported 7 spurious
+  cycle nodes in tree-sitter-analyzer that had no runtime counterpart).
+  Fix: new `is_inside_type_checking_block` helper in the extractor walks
+  AST ancestors of each import node and skips edge creation when the
+  import lives inside an `if TYPE_CHECKING:` block. Real imports in the
+  same file are unaffected. 2 new TDD tests.
+- **Nested attribute calls regression** (post-RFC-0092 fallthrough).
+  `self.history.append(x)` and other nested-attribute call patterns
+  were silently dropped after v0.1.7 because the new receiver-capturing
+  call query required `object: (identifier)`. Nested attribute access
+  (`object: (attribute ...)`) didn't match — outgoing Calls edges from
+  any such caller were lost. Added a fallback query pattern that
+  matches all attribute calls without the receiver constraint,
+  preserving the bare-name fallback path. Tests: 1 new assertion.
+
 ## [0.1.9] — 2026-05-30
 
 Patch release: ships the attribute-assignment alias fix that closes
@@ -20,15 +45,6 @@ artefacts that arrived in the same window.
   alias table + new `chain_resolve` multi-hop walker. Closes the gap
   that remained after v0.1.7's direct `_h.fn()` fix. Tests: 1 new
   assertion in `crates/mycelium-core/src/extractor/tests.rs`.
-- **`if TYPE_CHECKING:` imports no longer create `Imports` edges** (#227).
-  Python's `TYPE_CHECKING` constant is always `False` at runtime; imports
-  guarded by it are annotation-only and were causing false-positive cycle
-  reports (`detect-cycles` reported 7 spurious cycle nodes in
-  tree-sitter-analyzer that had no runtime counterpart). Fix: new
-  `is_inside_type_checking_block` helper in the extractor walks AST
-  ancestors of each import node and skips edge creation when the import
-  lives inside an `if TYPE_CHECKING:` block. Real imports in the same
-  file are unaffected. 2 new TDD tests.
 
 ### Added
 
