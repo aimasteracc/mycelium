@@ -136,12 +136,45 @@ pub(crate) fn run_get_ancestors(root: &Path, path: &str, format: Format) -> Resu
 
 // ── get-descendants ───────────────────────────────────────────────────────────
 
-pub(crate) fn run_get_descendants(root: &Path, path: &str, format: Format) -> Result<()> {
+pub(crate) fn run_get_descendants(
+    root: &Path,
+    path: &str,
+    include_inherited: bool,
+    format: Format,
+) -> Result<()> {
     let store = load_index(root)?;
     let descendants = store
         .descendants_of_path(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
-    print_string_list(&descendants, format)
+    if !include_inherited {
+        return print_string_list(&descendants, format);
+    }
+    let inherited = store
+        .inherited_descendants_of_path(path)
+        .unwrap_or_default();
+    match format {
+        Format::Json => {
+            let value = serde_json::json!({
+                "descendants": descendants,
+                "inherited_descendants": inherited.into_iter()
+                    .map(|(p, from)| serde_json::json!({ "path": p, "from": from }))
+                    .collect::<Vec<_>>(),
+            });
+            println!("{}", serde_json::to_string_pretty(&value)?);
+        }
+        Format::Text => {
+            for d in &descendants {
+                println!("{d}");
+            }
+            if !inherited.is_empty() {
+                println!("\ninherited:");
+                for (p, from) in &inherited {
+                    println!("  {p}  (from {from})");
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 // ── get-node-kind ─────────────────────────────────────────────────────────────
