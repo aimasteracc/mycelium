@@ -61,15 +61,23 @@ use mycelium_core::{
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use rmcp::{
-    ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::Implementation,
-    model::ServerCapabilities, model::ServerInfo, tool, tool_handler, tool_router,
+    ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::CallToolResult,
+    model::Content, model::Implementation, model::ServerCapabilities, model::ServerInfo, tool,
+    tool_handler, tool_router,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::RwLock;
 use tracing::warn;
 
+use crate::error::{application_error, not_found};
 use crate::formatter::{OutputFormat, formatter_for};
+
+/// Wrap a success string in a `CallToolResult` with `is_error: Some(false)`.
+#[inline]
+fn ok_str(s: String) -> CallToolResult {
+    CallToolResult::success(vec![Content::text(s)])
+}
 
 /// Shared state for the background watch loop.
 #[derive(Debug, Default)]
@@ -1504,12 +1512,14 @@ impl MyceliumServer {
     async fn mycelium_index_workspace(
         &self,
         Parameters(req): Parameters<IndexWorkspaceRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let root = PathBuf::from(&req.path);
         let result = tokio::task::spawn_blocking(move || run_index(&root)).await;
         match result {
-            Err(e) => serde_json::json!({ "error": format!("task panicked: {e}") }).to_string(),
-            Ok(Err(e)) => serde_json::json!({ "error": e.to_string() }).to_string(),
+            Err(e) => {
+                application_error(&serde_json::json!({ "error": format!("task panicked: {e}") }))
+            }
+            Ok(Err(e)) => application_error(&serde_json::json!({ "error": e.to_string() })),
             Ok(Ok((new_store, files, errors, languages, stubs_resolved))) => {
                 // RFC-0006: auto-save snapshot alongside the workspace
                 let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
@@ -1518,13 +1528,15 @@ impl MyceliumServer {
                 }
                 *self.store.write().await = new_store;
                 *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
-                serde_json::json!({
-                    "files": files,
-                    "errors": errors,
-                    "languages": languages,
-                    "stubs_resolved": stubs_resolved,
-                })
-                .to_string()
+                ok_str(
+                    serde_json::json!({
+                        "files": files,
+                        "errors": errors,
+                        "languages": languages,
+                        "stubs_resolved": stubs_resolved,
+                    })
+                    .to_string(),
+                )
             }
         }
     }
@@ -1540,14 +1552,14 @@ impl MyceliumServer {
     async fn mycelium_search_symbol(
         &self,
         Parameters(req): Parameters<SearchSymbolRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let limit = req.limit.unwrap_or(20);
         let matches = self.store.read().await.search_symbol(&req.query, limit);
         let value = serde_json::json!({ "matches": matches });
         match req.output_format {
-            Some(fmt) => formatter_for(fmt).format(&value),
-            None if self.compact_mode.load(Ordering::Relaxed) => encode_msgpack_hex(&value),
-            None => value.to_string(),
+            Some(fmt) => ok_str(formatter_for(fmt).format(&value)),
+            None if self.compact_mode.load(Ordering::Relaxed) => ok_str(encode_msgpack_hex(&value)),
+            None => ok_str(value.to_string()),
         }
     }
 
@@ -1558,7 +1570,7 @@ impl MyceliumServer {
     async fn mycelium_get_ancestors(
         &self,
         Parameters(req): Parameters<GetAncestorsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let ancestors = self
             .store
             .read()
@@ -1566,10 +1578,10 @@ impl MyceliumServer {
             .ancestors_of_path(&req.path)
             .unwrap_or_default();
         let value = serde_json::json!({ "ancestors": ancestors });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1579,7 +1591,7 @@ impl MyceliumServer {
     async fn mycelium_get_descendants(
         &self,
         Parameters(req): Parameters<GetDescendantsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let (descendants, inherited_opt) = {
             let store = self.store.read().await;
             let d = store.descendants_of_path(&req.path).unwrap_or_default();
@@ -1600,10 +1612,10 @@ impl MyceliumServer {
                 .collect::<Vec<_>>();
             value["inherited_descendants"] = serde_json::Value::Array(inherited);
         }
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1611,19 +1623,24 @@ impl MyceliumServer {
                        Reads the .mycelium/index.rmp snapshot created by mycelium_index_workspace. \
                        Returns the number of nodes loaded."
     )]
-    async fn mycelium_load_index(&self, Parameters(req): Parameters<LoadIndexRequest>) -> String {
+    async fn mycelium_load_index(
+        &self,
+        Parameters(req): Parameters<LoadIndexRequest>,
+    ) -> CallToolResult {
         let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
         match Store::load(&snap) {
-            Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+            Err(e) => application_error(&serde_json::json!({ "error": e.to_string() })),
             Ok(loaded) => {
                 let nodes = loaded.node_count();
                 *self.store.write().await = loaded;
                 *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
-                serde_json::json!({
-                    "nodes": nodes,
-                    "loaded_from": ".mycelium/index.rmp"
-                })
-                .to_string()
+                ok_str(
+                    serde_json::json!({
+                        "nodes": nodes,
+                        "loaded_from": ".mycelium/index.rmp"
+                    })
+                    .to_string(),
+                )
             }
         }
     }
@@ -1633,7 +1650,7 @@ impl MyceliumServer {
                        and whether an index has been loaded. Useful for diagnostics and \
                        confirming the server is ready before issuing queries."
     )]
-    async fn mycelium_server_status(&self) -> String {
+    async fn mycelium_server_status(&self) -> CallToolResult {
         let store_guard = self.store.read().await;
         let node_count = store_guard.node_count();
         let edge_count = store_guard.edge_count();
@@ -1645,20 +1662,22 @@ impl MyceliumServer {
             .unwrap_or_default();
         let is_loaded = root_guard.is_some();
         drop(root_guard);
-        serde_json::json!({
-            "node_count": node_count,
-            "edge_count": edge_count,
-            "indexed_root": indexed_root,
-            "is_loaded": is_loaded,
-        })
-        .to_string()
+        ok_str(
+            serde_json::json!({
+                "node_count": node_count,
+                "edge_count": edge_count,
+                "indexed_root": indexed_root,
+                "is_loaded": is_loaded,
+            })
+            .to_string(),
+        )
     }
 
     #[tool(
         description = "Return the current file-watch loop status: whether the watcher is active, \
                        the root being watched, and how many change batches have been processed."
     )]
-    async fn mycelium_watch_status(&self) -> String {
+    async fn mycelium_watch_status(&self) -> CallToolResult {
         let watching = self.watch_state.watching.load(Ordering::Relaxed);
         let batches_processed = self.watch_state.batches_processed.load(Ordering::Relaxed);
         let root_guard = self.indexed_root.read().await;
@@ -1667,12 +1686,14 @@ impl MyceliumServer {
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_default();
         drop(root_guard);
-        serde_json::json!({
-            "watching": watching,
-            "root": root,
-            "batches_processed": batches_processed,
-        })
-        .to_string()
+        ok_str(
+            serde_json::json!({
+                "watching": watching,
+                "root": root,
+                "batches_processed": batches_processed,
+            })
+            .to_string(),
+        )
     }
 
     #[tool(
@@ -1680,13 +1701,15 @@ impl MyceliumServer {
                        Uses the Calls edges populated during indexing. Returns a sorted list \
                        of trunk paths."
     )]
-    async fn mycelium_get_callees(&self, Parameters(req): Parameters<GetCalleesRequest>) -> String {
+    async fn mycelium_get_callees(
+        &self,
+        Parameters(req): Parameters<GetCalleesRequest>,
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let lookup_result = store_guard.lookup(&req.path);
         let Some(id) = lookup_result else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let mut paths: Vec<String> = store_guard
             .outgoing(id, mycelium_core::types::EdgeKind::Calls)
@@ -1697,10 +1720,10 @@ impl MyceliumServer {
         paths.sort();
         paths.dedup();
         let value = serde_json::json!({ "callee_paths": paths });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1711,12 +1734,16 @@ impl MyceliumServer {
                        that reference the abstract base rather than the concrete override. \
                        Returns a sorted, deduplicated list of trunk paths."
     )]
-    async fn mycelium_get_callers(&self, Parameters(req): Parameters<GetCallersRequest>) -> String {
+    async fn mycelium_get_callers(
+        &self,
+        Parameters(req): Parameters<GetCallersRequest>,
+    ) -> CallToolResult {
         let (direct, virtual_opt) = {
             let store_guard = self.store.read().await;
             let Some(id) = store_guard.lookup(&req.path) else {
-                return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                    .to_string();
+                return application_error(
+                    &serde_json::json!({ "error": format!("path not found: {}", req.path) }),
+                );
             };
             let d: Vec<String> = store_guard
                 .incoming(id, mycelium_core::types::EdgeKind::Calls)
@@ -1737,10 +1764,10 @@ impl MyceliumServer {
         paths.sort();
         paths.dedup();
         let value = serde_json::json!({ "caller_paths": paths });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1752,12 +1779,11 @@ impl MyceliumServer {
     async fn mycelium_get_symbol_info(
         &self,
         Parameters(req): Parameters<GetSymbolInfoRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
 
         let ancestors: Vec<String> = store_guard
@@ -1796,10 +1822,10 @@ impl MyceliumServer {
             "callers": callers,
             "callees": callees,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1812,7 +1838,7 @@ impl MyceliumServer {
     async fn mycelium_batch_symbol_info(
         &self,
         Parameters(req): Parameters<BatchSymbolInfoRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let symbols: Vec<serde_json::Value> = req
             .paths
@@ -1861,10 +1887,10 @@ impl MyceliumServer {
             .collect();
         drop(store_guard);
         let value = serde_json::json!({ "symbols": symbols });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1875,22 +1901,21 @@ impl MyceliumServer {
     async fn mycelium_get_callee_tree(
         &self,
         Parameters(req): Parameters<GetCalleeTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(root_id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.callee_tree(root_id, max_depth);
         let json_tree = callee_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1902,43 +1927,44 @@ impl MyceliumServer {
     async fn mycelium_get_caller_tree(
         &self,
         Parameters(req): Parameters<GetCallerTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(root_id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.caller_tree(root_id, max_depth);
         let json_tree = caller_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(description = "Return the direct import neighbors for a trunk path: \
                        'imports' (outgoing Imports edges — what this node imports) and \
                        'imported_by' (incoming Imports edges — what imports this node). \
                        Both lists sorted lexicographically. Unknown path returns { error }.")]
-    async fn mycelium_get_imports(&self, Parameters(req): Parameters<GetImportsRequest>) -> String {
+    async fn mycelium_get_imports(
+        &self,
+        Parameters(req): Parameters<GetImportsRequest>,
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let imports = store_guard.imports_of(id);
         let imported_by = store_guard.imported_by(id);
         drop(store_guard);
         let value = serde_json::json!({ "imports": imports, "imported_by": imported_by });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1950,22 +1976,21 @@ impl MyceliumServer {
     async fn mycelium_get_import_tree(
         &self,
         Parameters(req): Parameters<GetImportTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(root_id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.import_tree(root_id, max_depth);
         let json_tree = import_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -1977,12 +2002,11 @@ impl MyceliumServer {
     async fn mycelium_get_node_kind(
         &self,
         Parameters(req): Parameters<GetNodeKindRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let kind_str: serde_json::Value = store_guard
             .kind_of(id)
@@ -1991,10 +2015,10 @@ impl MyceliumServer {
             });
         drop(store_guard);
         let value = serde_json::json!({ "path": req.path, "kind": kind_str });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2007,10 +2031,11 @@ impl MyceliumServer {
     async fn mycelium_get_symbols_by_kind(
         &self,
         Parameters(req): Parameters<GetSymbolsByKindRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let Some(kind) = mycelium_core::types::NodeKind::try_from_wire(&req.kind) else {
-            return serde_json::json!({ "error": format!("unknown kind: {}", req.kind) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown kind: {}", req.kind) }),
+            );
         };
         let symbols = self
             .store
@@ -2018,10 +2043,10 @@ impl MyceliumServer {
             .await
             .symbols_of_kind(kind, req.path_prefix.as_deref());
         let value = serde_json::json!({ "symbols": symbols });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2035,12 +2060,11 @@ impl MyceliumServer {
     async fn mycelium_get_source_span(
         &self,
         Parameters(req): Parameters<GetSourceSpanRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let fmt = req.output_format;
         if let Some(span) = store_guard.span_of(id) {
@@ -2054,11 +2078,11 @@ impl MyceliumServer {
                 "start_byte": span.start_byte,
                 "end_byte": span.end_byte,
             });
-            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         } else {
             drop(store_guard);
             let value = serde_json::json!({ "path": req.path, "span": serde_json::Value::Null });
-            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         }
     }
 
@@ -2068,12 +2092,14 @@ impl MyceliumServer {
                        lists symbols that extend this path (incoming Extends edges). Both lists \
                        are sorted lexicographically. Unknown path returns { error }."
     )]
-    async fn mycelium_get_extends(&self, Parameters(req): Parameters<GetExtendsRequest>) -> String {
+    async fn mycelium_get_extends(
+        &self,
+        Parameters(req): Parameters<GetExtendsRequest>,
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let mut extends: Vec<String> = store_guard
             .outgoing(id, mycelium_core::types::EdgeKind::Extends)
@@ -2089,10 +2115,10 @@ impl MyceliumServer {
         extended_by.sort_unstable();
         drop(store_guard);
         let value = serde_json::json!({ "extends": extends, "extended_by": extended_by });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2105,12 +2131,11 @@ impl MyceliumServer {
     async fn mycelium_get_implements(
         &self,
         Parameters(req): Parameters<GetImplementsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let mut implements: Vec<String> = store_guard
             .outgoing(id, mycelium_core::types::EdgeKind::Implements)
@@ -2127,10 +2152,10 @@ impl MyceliumServer {
         drop(store_guard);
         let value =
             serde_json::json!({ "implements": implements, "implemented_by": implemented_by });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2142,17 +2167,17 @@ impl MyceliumServer {
     async fn mycelium_get_entry_points(
         &self,
         Parameters(req): Parameters<GetEntryPointsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let eps = self
             .store
             .read()
             .await
             .entry_points(req.path_prefix.as_deref());
         let value = serde_json::json!({ "entry_points": eps });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2164,7 +2189,7 @@ impl MyceliumServer {
     async fn mycelium_get_dead_symbols(
         &self,
         Parameters(req): Parameters<GetDeadSymbolsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let dead = self
             .store
             .read()
@@ -2172,10 +2197,10 @@ impl MyceliumServer {
             .dead_symbols(req.path_prefix.as_deref());
         let count = dead.len();
         let value = serde_json::json!({ "dead_symbols": dead, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2189,7 +2214,7 @@ impl MyceliumServer {
     async fn mycelium_get_isolated_symbols(
         &self,
         Parameters(req): Parameters<GetIsolatedSymbolsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let isolated = self
             .store
             .read()
@@ -2197,10 +2222,10 @@ impl MyceliumServer {
             .isolated_symbols(req.path_prefix.as_deref());
         let count = isolated.len();
         let value = serde_json::json!({ "isolated_symbols": isolated, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2210,7 +2235,10 @@ impl MyceliumServer {
                        Returns { total_nodes, total_edges, nodes_by_kind, edges_by_kind }. \
                        Kinds with zero count are omitted."
     )]
-    async fn mycelium_get_stats(&self, Parameters(req): Parameters<GetStatsRequest>) -> String {
+    async fn mycelium_get_stats(
+        &self,
+        Parameters(req): Parameters<GetStatsRequest>,
+    ) -> CallToolResult {
         let stats: GraphStats = self.store.read().await.graph_stats();
         let value = serde_json::json!({
             "total_nodes": stats.total_nodes,
@@ -2218,10 +2246,10 @@ impl MyceliumServer {
             "nodes_by_kind": stats.nodes_by_kind,
             "edges_by_kind": stats.edges_by_kind,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2234,14 +2262,13 @@ impl MyceliumServer {
     async fn mycelium_get_cross_refs(
         &self,
         Parameters(req): Parameters<GetCrossRefsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let refs_opt: Option<CrossRefs> = {
             let store = self.store.read().await;
             store.lookup(&req.path).map(|id| store.cross_refs(id))
         };
         let Some(refs) = refs_opt else {
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let value = serde_json::json!({
             "callers": refs.callers,
@@ -2249,10 +2276,10 @@ impl MyceliumServer {
             "extended_by": refs.extended_by,
             "implemented_by": refs.implemented_by,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2265,14 +2292,13 @@ impl MyceliumServer {
     async fn mycelium_get_outgoing_refs(
         &self,
         Parameters(req): Parameters<GetOutgoingRefsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let refs_opt: Option<OutgoingRefs> = {
             let store = self.store.read().await;
             store.lookup(&req.path).map(|id| store.outgoing_refs(id))
         };
         let Some(refs) = refs_opt else {
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let value = serde_json::json!({
             "callees": refs.callees,
@@ -2280,10 +2306,10 @@ impl MyceliumServer {
             "extends": refs.extends,
             "implements": refs.implements,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2295,10 +2321,12 @@ impl MyceliumServer {
     async fn mycelium_get_all_symbols(
         &self,
         Parameters(req): Parameters<GetAllSymbolsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         if let Some(ref k) = req.kind {
             if mycelium_core::types::NodeKind::try_from_wire(k).is_none() {
-                return serde_json::json!({ "error": format!("unknown kind: {k}") }).to_string();
+                return application_error(
+                    &serde_json::json!({ "error": format!("unknown kind: {k}") }),
+                );
             }
         }
         let kind = req
@@ -2312,10 +2340,10 @@ impl MyceliumServer {
             .all_symbols(req.path_prefix.as_deref(), kind);
         let count = symbols.len();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2328,10 +2356,10 @@ impl MyceliumServer {
     async fn mycelium_get_reachable(
         &self,
         Parameters(req): Parameters<GetReachableRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable_opt: Option<Vec<String>> = {
@@ -2341,15 +2369,14 @@ impl MyceliumServer {
                 .map(|id| store.reachable_from(id, kind, max_depth))
         };
         let Some(reachable) = reachable_opt else {
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2362,10 +2389,10 @@ impl MyceliumServer {
     async fn mycelium_get_reachable_to(
         &self,
         Parameters(req): Parameters<GetReachableToRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable_opt: Option<Vec<String>> = {
@@ -2375,15 +2402,14 @@ impl MyceliumServer {
                 .map(|id| store.reachable_to(id, kind, max_depth))
         };
         let Some(reachable) = reachable_opt else {
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2395,21 +2421,20 @@ impl MyceliumServer {
     async fn mycelium_get_siblings(
         &self,
         Parameters(req): Parameters<GetSiblingsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let siblings_opt: Option<Vec<String>> = {
             let store = self.store.read().await;
             store.lookup(&req.path).map(|id| store.siblings(id))
         };
         let Some(siblings) = siblings_opt else {
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let count = siblings.len();
         let value = serde_json::json!({ "siblings": siblings, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2420,14 +2445,13 @@ impl MyceliumServer {
                        Twin of the CLI `mycelium query <expr>` subcommand — same selector grammar, \
                        same match-set shape (RFC-0090 Three-Surface Rule)."
     )]
-    async fn mycelium_query(&self, Parameters(req): Parameters<QueryRequest>) -> String {
+    async fn mycelium_query(&self, Parameters(req): Parameters<QueryRequest>) -> CallToolResult {
         let ast = match mycelium_hyphae::parse(&req.expr) {
             Ok(ast) => ast,
             Err(e) => {
-                return serde_json::json!({
+                return application_error(&serde_json::json!({
                     "error": format!("hyphae parse error: {e:?}")
-                })
-                .to_string();
+                }));
             }
         };
         let store = self.store.read().await;
@@ -2436,10 +2460,10 @@ impl MyceliumServer {
         drop(store);
         let count = matches.len();
         let value = serde_json::json!({ "matches": matches, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2452,14 +2476,13 @@ impl MyceliumServer {
     async fn mycelium_get_node_degree(
         &self,
         Parameters(req): Parameters<GetNodeDegreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let degree_opt: Option<NodeDegree> = {
             let store = self.store.read().await;
             store.lookup(&req.path).map(|id| store.node_degree(id))
         };
         let Some(deg) = degree_opt else {
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let value = serde_json::json!({
             "in_calls": deg.in_calls,
@@ -2471,10 +2494,10 @@ impl MyceliumServer {
             "in_implements": deg.in_implements,
             "out_implements": deg.out_implements,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2486,10 +2509,10 @@ impl MyceliumServer {
     async fn mycelium_detect_cycles(
         &self,
         Parameters(req): Parameters<DetectCyclesRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let nodes = self
             .store
@@ -2498,10 +2521,10 @@ impl MyceliumServer {
             .nodes_in_cycles(kind, req.path_prefix.as_deref());
         let count = nodes.len();
         let value = serde_json::json!({ "cycle_nodes": nodes, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2516,10 +2539,10 @@ impl MyceliumServer {
     async fn mycelium_get_scc_groups(
         &self,
         Parameters(req): Parameters<GetSccGroupsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let groups = self.store.read().await.scc_groups(kind);
         let group_count = groups.len();
@@ -2529,10 +2552,10 @@ impl MyceliumServer {
             "group_count": group_count,
             "total_symbols": total_symbols,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2547,10 +2570,10 @@ impl MyceliumServer {
     async fn mycelium_get_dependency_layers(
         &self,
         Parameters(req): Parameters<GetDependencyLayersRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let (layers, all_symbol_count) = {
             let store = self.store.read().await;
@@ -2568,10 +2591,10 @@ impl MyceliumServer {
             "total_symbols": total_symbols,
             "cycle_excluded_count": cycle_excluded_count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2586,24 +2609,24 @@ impl MyceliumServer {
     async fn mycelium_get_two_hop_neighbors(
         &self,
         Parameters(req): Parameters<GetTwoHopNeighborsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
             drop(store);
-            return serde_json::json!({ "neighbors": [], "count": 0 }).to_string();
+            return ok_str(serde_json::json!({ "neighbors": [], "count": 0 }).to_string());
         };
         let neighbors = store.two_hop_neighbors(id, kind);
         drop(store);
         let count = neighbors.len();
         let value = serde_json::json!({ "neighbors": neighbors, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2618,10 +2641,10 @@ impl MyceliumServer {
     async fn mycelium_get_symbol_neighborhood(
         &self,
         Parameters(req): Parameters<GetSymbolNeighborhoodRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let nb = {
             let store = self.store.read().await;
@@ -2641,10 +2664,10 @@ impl MyceliumServer {
             "incoming_count": incoming_count,
             "outgoing_count": outgoing_count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2660,10 +2683,10 @@ impl MyceliumServer {
     async fn mycelium_get_hub_symbols(
         &self,
         Parameters(req): Parameters<GetHubSymbolsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let min_in = req.min_in.unwrap_or(1);
         let min_out = req.min_out.unwrap_or(1);
@@ -2681,10 +2704,10 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "hubs": hubs_json, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2698,10 +2721,10 @@ impl MyceliumServer {
     async fn mycelium_get_singly_referenced(
         &self,
         Parameters(req): Parameters<GetSinglyReferencedRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let limit = req.limit.unwrap_or(10);
         let pairs = {
@@ -2718,10 +2741,10 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2734,10 +2757,10 @@ impl MyceliumServer {
     async fn mycelium_batch_reachable_to(
         &self,
         Parameters(req): Parameters<BatchReachableToRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable = {
@@ -2754,10 +2777,10 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2772,10 +2795,10 @@ impl MyceliumServer {
     async fn mycelium_batch_reachable_from(
         &self,
         Parameters(req): Parameters<BatchReachableFromRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let max_depth = req.max_depth.unwrap_or(10);
         let reachable = {
@@ -2792,10 +2815,10 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2809,7 +2832,7 @@ impl MyceliumServer {
     async fn mycelium_batch_node_degree(
         &self,
         Parameters(req): Parameters<BatchNodeDegreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let store = self.store.read().await;
         let degrees: Vec<serde_json::Value> = req
             .paths
@@ -2838,10 +2861,10 @@ impl MyceliumServer {
         let count = degrees.len();
         drop(store);
         let value = serde_json::json!({ "degrees": degrees, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2855,10 +2878,10 @@ impl MyceliumServer {
     async fn mycelium_topological_sort(
         &self,
         Parameters(req): Parameters<TopologicalSortRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let TopologicalOrder {
             order,
@@ -2877,10 +2900,10 @@ impl MyceliumServer {
             "ordered_count": ordered_count,
             "cycle_count": cycle_count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2894,10 +2917,10 @@ impl MyceliumServer {
     async fn mycelium_find_articulation_points(
         &self,
         Parameters(req): Parameters<FindArticulationPointsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let points = {
             let store = self.store.read().await;
@@ -2907,10 +2930,10 @@ impl MyceliumServer {
         };
         let count = points.len();
         let value = serde_json::json!({ "points": points, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2924,10 +2947,10 @@ impl MyceliumServer {
     async fn mycelium_find_bridge_edges(
         &self,
         Parameters(req): Parameters<FindBridgeEdgesRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let bridges = {
             let store = self.store.read().await;
@@ -2941,10 +2964,10 @@ impl MyceliumServer {
             .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
             .collect();
         let value = serde_json::json!({ "bridges": bridge_list, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2959,10 +2982,10 @@ impl MyceliumServer {
     async fn mycelium_get_biconnected_components(
         &self,
         Parameters(req): Parameters<BiconnectedComponentsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let comps = {
             let store = self.store.read().await;
@@ -2977,10 +3000,10 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -2993,10 +3016,10 @@ impl MyceliumServer {
     async fn mycelium_get_degree_histogram(
         &self,
         Parameters(req): Parameters<DegreeHistogramRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let hist = {
             let store = self.store.read().await;
@@ -3020,10 +3043,10 @@ impl MyceliumServer {
             "out_degrees": out_list,
             "total_symbols": total_symbols
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3036,10 +3059,10 @@ impl MyceliumServer {
     async fn mycelium_get_graph_metrics(
         &self,
         Parameters(req): Parameters<GraphMetricsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let m = {
             let store = self.store.read().await;
@@ -3055,10 +3078,10 @@ impl MyceliumServer {
             "max_in_degree": m.max_in_degree,
             "max_out_degree": m.max_out_degree,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3072,19 +3095,21 @@ impl MyceliumServer {
     async fn mycelium_get_neighbor_similarity(
         &self,
         Parameters(req): Parameters<NeighborSimilarityRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id1) = store.lookup(&req.path1) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path1) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path1) }),
+            );
         };
         let Some(id2) = store.lookup(&req.path2) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path2) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path2) }),
+            );
         };
         let (similarity, shared, total) = store.neighbor_similarity_stats(id1, id2, kind);
         drop(store);
@@ -3093,10 +3118,10 @@ impl MyceliumServer {
             "shared": shared,
             "total": total,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3111,15 +3136,16 @@ impl MyceliumServer {
     async fn mycelium_get_clustering_coefficient(
         &self,
         Parameters(req): Parameters<ClusteringCoefficientRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path) }),
+            );
         };
         let (coefficient, neighbor_count, neighbor_edge_count) =
             store.clustering_coefficient_stats(id, kind);
@@ -3129,10 +3155,10 @@ impl MyceliumServer {
             "neighbor_count": neighbor_count,
             "neighbor_edge_count": neighbor_edge_count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3145,15 +3171,16 @@ impl MyceliumServer {
     async fn mycelium_get_eccentricity(
         &self,
         Parameters(req): Parameters<EccentricityRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path) }),
+            );
         };
         let (eccentricity, reachable_count) = store.eccentricity_stats(id, kind);
         drop(store);
@@ -3161,10 +3188,10 @@ impl MyceliumServer {
             "eccentricity": eccentricity,
             "reachable_count": reachable_count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3178,15 +3205,16 @@ impl MyceliumServer {
     async fn mycelium_get_harmonic_centrality(
         &self,
         Parameters(req): Parameters<HarmonicCentralityRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path) }),
+            );
         };
         let (harmonic_centrality, reachable_count, symbol_count) =
             store.harmonic_centrality_stats(id, kind);
@@ -3196,10 +3224,10 @@ impl MyceliumServer {
             "reachable_count": reachable_count,
             "symbol_count": symbol_count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3213,19 +3241,21 @@ impl MyceliumServer {
     async fn mycelium_get_mutual_reachability(
         &self,
         Parameters(req): Parameters<MutualReachabilityRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id1) = store.lookup(&req.path1) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path1) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path1) }),
+            );
         };
         let Some(id2) = store.lookup(&req.path2) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path2) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path2) }),
+            );
         };
         let result = store.mutual_reachability(id1, id2, kind);
         drop(store);
@@ -3236,10 +3266,10 @@ impl MyceliumServer {
             "forward_distance": result.forward_distance,
             "backward_distance": result.backward_distance,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3252,15 +3282,16 @@ impl MyceliumServer {
     async fn mycelium_get_reachable_set(
         &self,
         Parameters(req): Parameters<ReachableSetRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path) }),
+            );
         };
         let reachable = store.reachable_set(id, kind);
         drop(store);
@@ -3269,10 +3300,10 @@ impl MyceliumServer {
             "reachable": reachable,
             "count": count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3285,15 +3316,16 @@ impl MyceliumServer {
     async fn mycelium_get_reaches_into(
         &self,
         Parameters(req): Parameters<ReachesIntoRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path) }),
+            );
         };
         let callers = store.reaches_into(id, kind);
         drop(store);
@@ -3302,10 +3334,10 @@ impl MyceliumServer {
             "callers": callers,
             "count": count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3319,19 +3351,21 @@ impl MyceliumServer {
     async fn mycelium_get_common_reachable(
         &self,
         Parameters(req): Parameters<CommonReachableRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id1) = store.lookup(&req.path1) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path1) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path1) }),
+            );
         };
         let Some(id2) = store.lookup(&req.path2) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path2) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path2) }),
+            );
         };
         let common = store.common_reachable(id1, id2, kind);
         drop(store);
@@ -3340,10 +3374,10 @@ impl MyceliumServer {
             "common": common,
             "count": count,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3356,15 +3390,16 @@ impl MyceliumServer {
     async fn mycelium_get_k_hop_neighbors(
         &self,
         Parameters(req): Parameters<KHopNeighborsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return serde_json::json!({ "error": format!("unknown path: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown path: {}", req.path) }),
+            );
         };
         let neighbors = store.k_hop_neighbors(id, kind, req.k);
         drop(store);
@@ -3374,10 +3409,10 @@ impl MyceliumServer {
             "count": count,
             "k": req.k,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3391,10 +3426,10 @@ impl MyceliumServer {
     async fn mycelium_get_betweenness_centrality(
         &self,
         Parameters(req): Parameters<BetweennessCentralityRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let top_n = req.top_n.unwrap_or(10);
         let store = self.store.read().await;
@@ -3411,10 +3446,10 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3425,10 +3460,13 @@ impl MyceliumServer {
                        descending by score. File nodes excluded. \
                        Returns { nodes: [{path, score}], symbol_count, top_n } or { error }."
     )]
-    async fn mycelium_page_rank(&self, Parameters(req): Parameters<PageRankRequest>) -> String {
+    async fn mycelium_page_rank(
+        &self,
+        Parameters(req): Parameters<PageRankRequest>,
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let damping = req.damping.unwrap_or(0.85);
         let iterations = req.iterations.unwrap_or(20);
@@ -3447,10 +3485,10 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3461,10 +3499,10 @@ impl MyceliumServer {
                        mutual reachability). Use min_size=2 to hide singleton isolated nodes. \
                        Returns { components, component_count, total_symbols } or { error }."
     )]
-    async fn mycelium_get_wcc(&self, Parameters(req): Parameters<GetWccRequest>) -> String {
+    async fn mycelium_get_wcc(&self, Parameters(req): Parameters<GetWccRequest>) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let min_size = req.min_size.unwrap_or(1).max(1);
         let components: Vec<Vec<String>> = {
@@ -3480,10 +3518,10 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3496,10 +3534,10 @@ impl MyceliumServer {
     async fn mycelium_find_cycle_members(
         &self,
         Parameters(req): Parameters<FindCycleMembersRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let members = {
             let store = self.store.read().await;
@@ -3509,10 +3547,10 @@ impl MyceliumServer {
         };
         let count = members.len();
         let value = serde_json::json!({ "members": members, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3522,10 +3560,13 @@ impl MyceliumServer {
                        to refactor. k defaults to 2. k=0 returns all symbols. Returns { core, \
                        count, k } or { error } for unknown edge_kind."
     )]
-    async fn mycelium_get_k_core(&self, Parameters(req): Parameters<GetKCoreRequest>) -> String {
+    async fn mycelium_get_k_core(
+        &self,
+        Parameters(req): Parameters<GetKCoreRequest>,
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let k = req.k.unwrap_or(2);
         let core = {
@@ -3536,10 +3577,10 @@ impl MyceliumServer {
         };
         let count = core.len();
         let value = serde_json::json!({ "core": core, "count": count, "k": k });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3551,7 +3592,7 @@ impl MyceliumServer {
     async fn mycelium_rank_symbols(
         &self,
         Parameters(req): Parameters<RankSymbolsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let limit = req.limit.unwrap_or(10).min(100);
         let ranked = self.store.read().await.top_callee_symbols(limit);
         let symbols: Vec<serde_json::Value> = ranked
@@ -3561,10 +3602,10 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "symbols": symbols });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3575,7 +3616,7 @@ impl MyceliumServer {
     async fn mycelium_get_top_files(
         &self,
         Parameters(req): Parameters<GetTopFilesRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let limit = req.limit.unwrap_or(10);
         let entries = self.store.read().await.top_files(limit);
         let count = entries.len();
@@ -3586,10 +3627,10 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "files": files, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3602,10 +3643,10 @@ impl MyceliumServer {
     async fn mycelium_get_most_connected(
         &self,
         Parameters(req): Parameters<GetMostConnectedRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let limit = req.limit.unwrap_or(10);
         let entries = self.store.read().await.most_connected(limit, kind);
@@ -3615,10 +3656,10 @@ impl MyceliumServer {
             .map(|(path, degree)| serde_json::json!({ "path": path, "degree": degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3632,19 +3673,19 @@ impl MyceliumServer {
     async fn mycelium_get_leaf_symbols(
         &self,
         Parameters(req): Parameters<GetLeafSymbolsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let limit = req.limit.unwrap_or(10);
         let symbols = self.store.read().await.leaf_symbols(kind, limit);
         let count = symbols.len();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3656,22 +3697,24 @@ impl MyceliumServer {
     async fn mycelium_get_shortest_path(
         &self,
         Parameters(req): Parameters<GetShortestPathRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         // Two lookups then shortest_path — hold read guard for the whole block.
         #[allow(clippy::significant_drop_tightening)]
         let path_opt: Result<Option<Vec<String>>, String> = {
             let store = self.store.read().await;
             let Some(from_id) = store.lookup(&req.from) else {
-                return serde_json::json!({ "error": format!("path not found: {}", req.from) })
-                    .to_string();
+                return application_error(
+                    &serde_json::json!({ "error": format!("path not found: {}", req.from) }),
+                );
             };
             let Some(to_id) = store.lookup(&req.to) else {
-                return serde_json::json!({ "error": format!("path not found: {}", req.to) })
-                    .to_string();
+                return application_error(
+                    &serde_json::json!({ "error": format!("path not found: {}", req.to) }),
+                );
             };
             Ok(store.shortest_path(from_id, to_id, kind))
         };
@@ -3679,12 +3722,12 @@ impl MyceliumServer {
         path_opt.unwrap().map_or_else(
             || {
                 let value = serde_json::json!({ "path": null, "length": null });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
             |p| {
                 let length = p.len() - 1;
                 let value = serde_json::json!({ "path": p, "length": length });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
         )
     }
@@ -3697,7 +3740,7 @@ impl MyceliumServer {
     async fn mycelium_get_symbol_count_by_kind(
         &self,
         Parameters(req): Parameters<GetSymbolCountByKindRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let counts = self.store.read().await.symbol_count_by_kind();
         let total: usize = counts.iter().map(|(_, n)| n).sum();
         let kinds: Vec<serde_json::Value> = counts
@@ -3705,10 +3748,10 @@ impl MyceliumServer {
             .map(|(kind, count)| serde_json::json!({ "kind": kind, "count": count }))
             .collect();
         let value = serde_json::json!({ "kinds": kinds, "total": total });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3722,21 +3765,22 @@ impl MyceliumServer {
     async fn mycelium_get_common_callers(
         &self,
         Parameters(req): Parameters<GetCommonCallersRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         if req.paths.is_empty() {
-            return serde_json::json!({ "callers": [], "count": 0 }).to_string();
+            return ok_str(serde_json::json!({ "callers": [], "count": 0 }).to_string());
         }
         let callers_opt: Result<Vec<String>, String> = {
             let store = self.store.read().await;
             let mut ids = Vec::with_capacity(req.paths.len());
             for p in &req.paths {
                 let Some(id) = store.lookup(p) else {
-                    return serde_json::json!({ "error": format!("path not found: {p}") })
-                        .to_string();
+                    return application_error(
+                        &serde_json::json!({ "error": format!("path not found: {p}") }),
+                    );
                 };
                 ids.push(id);
             }
@@ -3745,10 +3789,10 @@ impl MyceliumServer {
         let callers = callers_opt.unwrap();
         let count = callers.len();
         let value = serde_json::json!({ "callers": callers, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3762,21 +3806,22 @@ impl MyceliumServer {
     async fn mycelium_get_common_callees(
         &self,
         Parameters(req): Parameters<GetCommonCalleesRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         if req.paths.is_empty() {
-            return serde_json::json!({ "callees": [], "count": 0 }).to_string();
+            return ok_str(serde_json::json!({ "callees": [], "count": 0 }).to_string());
         }
         let callees_opt: Result<Vec<String>, String> = {
             let store = self.store.read().await;
             let mut ids = Vec::with_capacity(req.paths.len());
             for p in &req.paths {
                 let Some(id) = store.lookup(p) else {
-                    return serde_json::json!({ "error": format!("path not found: {p}") })
-                        .to_string();
+                    return application_error(
+                        &serde_json::json!({ "error": format!("path not found: {p}") }),
+                    );
                 };
                 ids.push(id);
             }
@@ -3785,10 +3830,10 @@ impl MyceliumServer {
         let callees = callees_opt.unwrap();
         let count = callees.len();
         let value = serde_json::json!({ "callees": callees, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3802,10 +3847,10 @@ impl MyceliumServer {
     async fn mycelium_get_fan_out_rank(
         &self,
         Parameters(req): Parameters<GetFanOutRankRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let limit = req.limit.unwrap_or(10);
         let entries = self.store.read().await.fan_out_rank(kind, limit);
@@ -3815,10 +3860,10 @@ impl MyceliumServer {
             .map(|(path, out_degree)| serde_json::json!({ "path": path, "out_degree": out_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3832,10 +3877,10 @@ impl MyceliumServer {
     async fn mycelium_get_fan_in_rank(
         &self,
         Parameters(req): Parameters<GetFanInRankRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let limit = req.limit.unwrap_or(10);
         let entries = self.store.read().await.fan_in_rank(kind, limit);
@@ -3845,10 +3890,10 @@ impl MyceliumServer {
             .map(|(path, in_degree)| serde_json::json!({ "path": path, "in_degree": in_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3856,7 +3901,10 @@ impl MyceliumServer {
                        paths. An optional path_prefix filters results to files whose path starts \
                        with the given string (e.g. \"src/\")."
     )]
-    async fn mycelium_get_files(&self, Parameters(req): Parameters<GetFilesRequest>) -> String {
+    async fn mycelium_get_files(
+        &self,
+        Parameters(req): Parameters<GetFilesRequest>,
+    ) -> CallToolResult {
         let files = self.store.read().await.all_file_paths();
         let files: Vec<String> = match req.path_prefix {
             None => files,
@@ -3866,10 +3914,10 @@ impl MyceliumServer {
                 .collect(),
         };
         let value = serde_json::json!({ "files": files });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -3882,18 +3930,20 @@ impl MyceliumServer {
     async fn mycelium_find_call_path(
         &self,
         Parameters(req): Parameters<FindCallPathRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(10).min(20);
         let store_guard = self.store.read().await;
         let Some(from_id) = store_guard.lookup(&req.from_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.from_path) }),
+            );
         };
         let Some(to_id) = store_guard.lookup(&req.to_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.to_path) }),
+            );
         };
         let maybe_path = store_guard.find_call_path(from_id, to_id, max_depth);
         let path_strings: Option<Vec<String>> = maybe_path.as_ref().map(|ids| {
@@ -3910,12 +3960,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no call path found within depth {max_depth}"),
                 });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
         )
     }
@@ -3929,18 +3979,20 @@ impl MyceliumServer {
     async fn mycelium_find_import_path(
         &self,
         Parameters(req): Parameters<FindImportPathRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(8).min(20);
         let store_guard = self.store.read().await;
         let Some(from_id) = store_guard.lookup(&req.from_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.from_path) }),
+            );
         };
         let Some(to_id) = store_guard.lookup(&req.to_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.to_path) }),
+            );
         };
         let maybe_path = store_guard.find_import_path(from_id, to_id, max_depth);
         let path_strings: Option<Vec<String>> = maybe_path.as_ref().map(|ids| {
@@ -3957,12 +4009,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no import path found within max_depth={max_depth}"),
                 });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
         )
     }
@@ -3977,18 +4029,20 @@ impl MyceliumServer {
     async fn mycelium_find_extends_path(
         &self,
         Parameters(req): Parameters<FindExtendsPathRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(8).min(20);
         let store_guard = self.store.read().await;
         let Some(from_id) = store_guard.lookup(&req.from_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.from_path) }),
+            );
         };
         let Some(to_id) = store_guard.lookup(&req.to_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.to_path) }),
+            );
         };
         let maybe_path = store_guard.find_extends_path(from_id, to_id, max_depth);
         let path_strings: Option<Vec<String>> = maybe_path.as_ref().map(|ids| {
@@ -4005,12 +4059,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no extends path found within max_depth={max_depth}"),
                 });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+                ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
             },
         )
     }
@@ -4024,22 +4078,21 @@ impl MyceliumServer {
     async fn mycelium_get_extends_tree(
         &self,
         Parameters(req): Parameters<GetExtendsTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.extends_tree(id, max_depth);
         let json = extends_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4051,22 +4104,21 @@ impl MyceliumServer {
     async fn mycelium_get_subclasses_tree(
         &self,
         Parameters(req): Parameters<GetSubclassesTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.subclasses_tree(id, max_depth);
         let json = subclass_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4078,18 +4130,20 @@ impl MyceliumServer {
     async fn mycelium_find_implements_path(
         &self,
         Parameters(req): Parameters<FindImplementsPathRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(8).min(20);
         let store_guard = self.store.read().await;
         let Some(from_id) = store_guard.lookup(&req.from_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.from_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.from_path) }),
+            );
         };
         let Some(to_id) = store_guard.lookup(&req.to_path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.to_path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.to_path) }),
+            );
         };
         let fmt = req.output_format;
         if let Some(ids) = store_guard.find_implements_path(from_id, to_id, max_depth) {
@@ -4100,7 +4154,7 @@ impl MyceliumServer {
             let hops = path.len() - 1;
             drop(store_guard);
             let value = serde_json::json!({ "path": path, "hops": hops });
-            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         } else {
             drop(store_guard);
             let value = serde_json::json!({
@@ -4108,7 +4162,7 @@ impl MyceliumServer {
                 "hops": null,
                 "message": format!("no implements path found within max_depth={max_depth}")
             });
-            fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value))
+            ok_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
         }
     }
 
@@ -4122,22 +4176,21 @@ impl MyceliumServer {
     async fn mycelium_get_implements_tree(
         &self,
         Parameters(req): Parameters<GetImplementsTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.implements_tree(id, max_depth);
         let json = implements_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4150,22 +4203,21 @@ impl MyceliumServer {
     async fn mycelium_get_implementors_tree(
         &self,
         Parameters(req): Parameters<GetImplementorsTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.implementors_tree(id, max_depth);
         let json = implementor_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4178,22 +4230,21 @@ impl MyceliumServer {
     async fn mycelium_get_importers_tree(
         &self,
         Parameters(req): Parameters<GetImportersTreeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let tree = store_guard.importers_tree(id, max_depth);
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4206,10 +4257,10 @@ impl MyceliumServer {
     async fn mycelium_get_closeness_centrality(
         &self,
         Parameters(req): Parameters<ClosenessCentralityRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let top_n = req.top_n.unwrap_or(10);
         let store = self.store.read().await;
@@ -4226,10 +4277,10 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4238,19 +4289,19 @@ impl MyceliumServer {
     async fn mycelium_get_dependency_depth(
         &self,
         Parameters(req): Parameters<DependencyDepthRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return serde_json::json!({ "error": format!("path not found: {}", req.path) })
-                .to_string();
+            return not_found(&req.path);
         };
         let Some(depth) = store.dependency_depth(id, kind) else {
-            return serde_json::json!({ "error": format!("not a symbol node: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("not a symbol node: {}", req.path) }),
+            );
         };
         drop(store);
         let value = serde_json::json!({
@@ -4258,10 +4309,10 @@ impl MyceliumServer {
             "depth": depth,
             "edge_kind": req.edge_kind,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4275,15 +4326,16 @@ impl MyceliumServer {
     async fn mycelium_get_degree_centrality(
         &self,
         Parameters(req): Parameters<DegreeCentralityRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let sort_by = req.sort_by.as_deref().unwrap_or("in");
         if sort_by != "in" && sort_by != "out" {
-            return serde_json::json!({ "error": format!("unknown sort_by: {sort_by}") })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unknown sort_by: {sort_by}") }),
+            );
         }
         let top_n = req.top_n.unwrap_or(10);
         let store = self.store.read().await;
@@ -4322,10 +4374,10 @@ impl MyceliumServer {
             "top_n": top_n,
             "sort_by": sort_by,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4338,10 +4390,10 @@ impl MyceliumServer {
     async fn mycelium_get_strongly_connected_components(
         &self,
         Parameters(req): Parameters<StronglyConnectedComponentsRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         let kind = match parse_edge_kind(&req.edge_kind) {
             Ok(k) => k,
-            Err(e) => return serde_json::json!({ "error": e }).to_string(),
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let min_size = req.min_size.unwrap_or(1);
         let store = self.store.read().await;
@@ -4360,10 +4412,10 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "min_size": min_size,
         });
-        req.output_format.map_or_else(
+        ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
-        )
+        ))
     }
 
     #[tool(
@@ -4373,21 +4425,26 @@ impl MyceliumServer {
                        Returns { path, symbols_before, symbols_after, elapsed_us }. \
                        Unknown extension returns { error }."
     )]
-    async fn mycelium_sync_file(&self, Parameters(req): Parameters<SyncFileRequest>) -> String {
+    async fn mycelium_sync_file(
+        &self,
+        Parameters(req): Parameters<SyncFileRequest>,
+    ) -> CallToolResult {
         let ext = std::path::Path::new(&req.path)
             .extension()
             .and_then(|e| e.to_str())
             .map(ToOwned::to_owned);
         let Some(ext) = ext else {
-            return serde_json::json!({ "error": format!("no extension: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("no extension: {}", req.path) }),
+            );
         };
         if !matches!(
             ext.as_str(),
             "js" | "jsx" | "py" | "pyi" | "ts" | "tsx" | "rs"
         ) {
-            return serde_json::json!({ "error": format!("unsupported extension: {ext}") })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("unsupported extension: {ext}") }),
+            );
         }
 
         // Locate the file on disk relative to the workspace root.
@@ -4395,8 +4452,9 @@ impl MyceliumServer {
         let abs_path = std::env::current_dir().unwrap_or_default().join(&req.path);
 
         let Ok(src) = std::fs::read(&abs_path) else {
-            return serde_json::json!({ "error": format!("cannot read: {}", req.path) })
-                .to_string();
+            return application_error(
+                &serde_json::json!({ "error": format!("cannot read: {}", req.path) }),
+            );
         };
 
         let start = std::time::Instant::now();
@@ -4409,13 +4467,15 @@ impl MyceliumServer {
         drop(store_w);
         let elapsed_us = start.elapsed().as_micros();
 
-        serde_json::json!({
-            "path": req.path,
-            "symbols_before": symbols_before,
-            "symbols_after": symbols_after,
-            "elapsed_us": elapsed_us,
-        })
-        .to_string()
+        ok_str(
+            serde_json::json!({
+                "path": req.path,
+                "symbols_before": symbols_before,
+                "symbols_after": symbols_after,
+                "elapsed_us": elapsed_us,
+            })
+            .to_string(),
+        )
     }
 
     // ── RFC-0090: compact output ──────────────────────────────────────────────
@@ -4431,18 +4491,20 @@ impl MyceliumServer {
     async fn mycelium_set_compact_mode(
         &self,
         Parameters(req): Parameters<SetCompactModeRequest>,
-    ) -> String {
+    ) -> CallToolResult {
         self.compact_mode.store(req.enabled, Ordering::Relaxed);
         let msg = if req.enabled {
             "compact MessagePack hex output enabled"
         } else {
             "compact mode disabled; reverting to JSON output"
         };
-        serde_json::json!({
-            "compact_mode": req.enabled,
-            "message": msg,
-        })
-        .to_string()
+        ok_str(
+            serde_json::json!({
+                "compact_mode": req.enabled,
+                "message": msg,
+            })
+            .to_string(),
+        )
     }
 
     #[tool(
@@ -4451,7 +4513,7 @@ impl MyceliumServer {
                        Use this to verify the Charter §2 token-efficiency SLA (≤ 30 % of JSON). \
                        Returns { sample_query, json_bytes, msgpack_bytes, ratio }."
     )]
-    async fn mycelium_get_token_stats(&self) -> String {
+    async fn mycelium_get_token_stats(&self) -> CallToolResult {
         // Fixed sample payload — three representative symbol paths.
         let sample = serde_json::json!({
             "matches": [
@@ -4480,15 +4542,17 @@ impl MyceliumServer {
         let compact_chars = compact.to_string().len();
         #[allow(clippy::cast_precision_loss)]
         let token_ratio = compact_chars as f64 / json_bytes as f64;
-        serde_json::json!({
-            "sample_query": "top 3 symbols",
-            "json_bytes": json_bytes,
-            "msgpack_bytes": msgpack_bytes,
-            "ratio": ratio,
-            "compact_chars": compact_chars,
-            "token_ratio": token_ratio,
-        })
-        .to_string()
+        ok_str(
+            serde_json::json!({
+                "sample_query": "top 3 symbols",
+                "json_bytes": json_bytes,
+                "msgpack_bytes": msgpack_bytes,
+                "ratio": ratio,
+                "compact_chars": compact_chars,
+                "token_ratio": token_ratio,
+            })
+            .to_string(),
+        )
     }
 }
 
@@ -4809,6 +4873,14 @@ mod tests {
 
     use super::*;
 
+    fn result_str(r: &CallToolResult) -> &str {
+        r.content
+            .first()
+            .and_then(|c| c.raw.as_text())
+            .map(|t| t.text.as_str())
+            .expect("CallToolResult must have non-empty text content")
+    }
+
     async fn server_with_fixture() -> MyceliumServer {
         let server = MyceliumServer::new();
         {
@@ -4832,7 +4904,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let arr = val["matches"].as_array().unwrap();
         assert!(
             arr.iter().any(|v| v.as_str() == Some("src/greet.rs>greet")),
@@ -4855,7 +4927,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(
             val["matches"].as_array().unwrap().len(),
             1,
@@ -4872,7 +4944,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val["ancestors"]
                 .as_array()
@@ -4892,7 +4964,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val["ancestors"].as_array().unwrap().is_empty(),
             "unknown path should yield empty ancestors list"
@@ -4911,7 +4983,7 @@ mod tests {
                 path: tmp.path().to_string_lossy().into_owned(),
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["files"], 1, "should report one indexed file");
         assert_eq!(val["errors"], 0, "no errors expected");
         assert!(
@@ -4941,7 +5013,7 @@ mod tests {
                 path: tmp.path().to_string_lossy().into_owned(),
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["files"], 1, "should report one indexed file");
         assert!(
             val["languages"]
@@ -4967,7 +5039,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let arr = val["descendants"].as_array().unwrap();
         assert!(
             arr.iter().any(|v| v.as_str() == Some("src/greet.rs>greet")),
@@ -4990,7 +5062,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val["descendants"].as_array().unwrap().is_empty(),
             "leaf node should yield empty descendants list"
@@ -5007,7 +5079,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val["descendants"].as_array().unwrap().is_empty(),
             "unknown path should yield empty descendants list"
@@ -5056,7 +5128,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let inherited = val["inherited_descendants"]
             .as_array()
             .expect("include_inherited=true must produce an inherited_descendants array");
@@ -5086,7 +5158,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         // Without include_inherited, inherited_descendants must be absent or empty
         let inherited_absent = val["inherited_descendants"].is_null()
             || val["inherited_descendants"]
@@ -5123,7 +5195,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let search_val: serde_json::Value = serde_json::from_str(&search_raw).unwrap();
+        let search_val: serde_json::Value = serde_json::from_str(result_str(&search_raw)).unwrap();
         let matches: Vec<&str> = search_val["matches"]
             .as_array()
             .unwrap()
@@ -5144,7 +5216,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let anc_val: serde_json::Value = serde_json::from_str(&anc_raw).unwrap();
+        let anc_val: serde_json::Value = serde_json::from_str(result_str(&anc_raw)).unwrap();
         assert!(
             anc_val["ancestors"]
                 .as_array()
@@ -5197,7 +5269,7 @@ mod tests {
                 path: tmp.path().to_string_lossy().into_owned(),
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "load must not return error");
         assert!(
             val["nodes"].as_u64().unwrap() > 0,
@@ -5219,7 +5291,7 @@ mod tests {
                 path: tmp.path().to_string_lossy().into_owned(),
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_some(),
             "loading from a directory without a snapshot must return an error"
@@ -5279,7 +5351,7 @@ mod tests {
     async fn server_status_returns_node_and_edge_count() {
         let server = server_with_fixture().await;
         let raw = server.mycelium_server_status().await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val["node_count"].as_u64().unwrap() > 0,
             "node_count must be non-zero"
@@ -5304,7 +5376,7 @@ mod tests {
     async fn watch_status_not_watching_by_default() {
         let server = MyceliumServer::new();
         let raw = server.mycelium_watch_status().await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(
             val["watching"].as_bool(),
             Some(false),
@@ -5323,7 +5395,7 @@ mod tests {
             .unwrap();
 
         let raw = server.mycelium_watch_status().await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(
             val["watching"].as_bool(),
             Some(true),
@@ -5447,7 +5519,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let paths: Vec<&str> = val["callee_paths"]
             .as_array()
             .unwrap()
@@ -5474,7 +5546,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let paths: Vec<&str> = val["caller_paths"]
             .as_array()
             .unwrap()
@@ -5500,7 +5572,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_some(),
             "unknown path should return error"
@@ -5525,7 +5597,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["path"].as_str(), Some("src/lib.rs>foo"));
         assert!(
             val.get("ancestors").is_some(),
@@ -5564,7 +5636,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some(), "unknown path must return error");
     }
 
@@ -5582,7 +5654,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_none(),
             "direct path must not return error"
@@ -5614,7 +5686,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_none(),
             "transitive path must not return error"
@@ -5638,7 +5710,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_none(),
             "no-path result must not return error"
@@ -5668,7 +5740,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_some(),
             "unknown from_path must return error"
@@ -5686,7 +5758,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_some(),
             "unknown to_path must return error"
@@ -5706,7 +5778,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_none(),
             "known path must not return error"
@@ -5727,7 +5799,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some(), "unknown path must return error");
     }
 
@@ -5750,7 +5822,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = &val["root"];
         let b_node = &root["children"][0];
         assert_eq!(b_node["path"].as_str(), Some("b.rs>b"));
@@ -5773,7 +5845,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_none(),
             "known path must not return error"
@@ -5794,7 +5866,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some(), "unknown path must return error");
     }
 
@@ -5817,7 +5889,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = &val["root"];
         let b_node = &root["callers"][0];
         assert_eq!(b_node["path"].as_str(), Some("b.rs>b"));
@@ -5840,7 +5912,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let eps = val["entry_points"].as_array().unwrap();
         let ep_paths: Vec<&str> = eps.iter().map(|v| v.as_str().unwrap()).collect();
         assert!(ep_paths.contains(&"src/lib.rs>foo"), "foo has no callers");
@@ -5863,7 +5935,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let eps = val["entry_points"].as_array().unwrap();
         for ep in eps {
             let p = ep.as_str().unwrap();
@@ -5885,7 +5957,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let eps = val["entry_points"].as_array().unwrap();
         let ep_paths: Vec<&str> = eps.iter().map(|v| v.as_str().unwrap()).collect();
         assert!(ep_paths.contains(&"src/a.rs>fn_a"));
@@ -5913,7 +5985,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "known path must not error");
         let imports = val["imports"].as_array().unwrap();
         let imported_by = val["imported_by"].as_array().unwrap();
@@ -5930,7 +6002,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some(), "unknown path must return error");
     }
 
@@ -5947,7 +6019,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["imports"].as_array().unwrap().is_empty());
         assert!(val["imported_by"].as_array().unwrap().is_empty());
     }
@@ -5972,7 +6044,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "known path must not error");
         let root = &val["root"];
         assert_eq!(root["path"].as_str(), Some("a.rs"));
@@ -5994,7 +6066,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some(), "unknown path must return error");
     }
 
@@ -6016,7 +6088,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let b_node = &val["root"]["imports"][0];
         assert_eq!(b_node["path"].as_str(), Some("b.rs"));
         assert!(
@@ -6037,7 +6109,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
         assert_eq!(symbols.len(), 2);
         let foo = &symbols[0];
@@ -6061,7 +6133,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
         assert_eq!(symbols.len(), 2);
         assert!(symbols[0].get("error").is_none(), "foo is found");
@@ -6084,7 +6156,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
         assert_eq!(symbols[0]["path"].as_str(), Some("src/lib.rs>bar"));
         assert_eq!(symbols[1]["path"].as_str(), Some("src/lib.rs>foo"));
@@ -6103,7 +6175,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
         assert!(!symbols.is_empty(), "ranked list must be non-empty");
         // First symbol must have the highest caller_count
@@ -6127,7 +6199,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(
             val["symbols"].as_array().unwrap().len(),
             1,
@@ -6144,7 +6216,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val["symbols"].as_array().unwrap().is_empty(),
             "no call edges means empty ranking"
@@ -6163,7 +6235,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let files: Vec<&str> = val["files"]
             .as_array()
             .unwrap()
@@ -6192,7 +6264,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let files: Vec<&str> = val["files"]
             .as_array()
             .unwrap()
@@ -6228,7 +6300,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let files: Vec<&str> = val["files"]
             .as_array()
             .unwrap()
@@ -6325,7 +6397,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "rect is found");
         let extends = val["extends"].as_array().unwrap();
         let extended_by = val["extended_by"].as_array().unwrap();
@@ -6344,7 +6416,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["extends"].as_array().unwrap().is_empty());
         assert_eq!(val["extended_by"].as_array().unwrap().len(), 1);
     }
@@ -6358,7 +6430,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6371,7 +6443,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         let implements = val["implements"].as_array().unwrap();
         let implemented_by = val["implemented_by"].as_array().unwrap();
@@ -6389,7 +6461,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert!(val["implements"].as_array().unwrap().is_empty());
         let implemented_by = val["implemented_by"].as_array().unwrap();
@@ -6406,7 +6478,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6437,7 +6509,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert_eq!(val["hops"].as_u64(), Some(1));
         let path = val["path"].as_array().unwrap();
@@ -6457,7 +6529,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert_eq!(val["hops"].as_u64(), Some(2));
         let path = val["path"].as_array().unwrap();
@@ -6475,7 +6547,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert!(val["path"].as_array().unwrap().is_empty());
         assert!(val["hops"].is_null());
@@ -6493,7 +6565,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6509,7 +6581,8 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val_shallow: serde_json::Value = serde_json::from_str(&raw_shallow).unwrap();
+        let val_shallow: serde_json::Value =
+            serde_json::from_str(result_str(&raw_shallow)).unwrap();
         assert!(val_shallow["path"].as_array().unwrap().is_empty());
 
         let raw_deep = server
@@ -6520,7 +6593,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val_deep: serde_json::Value = serde_json::from_str(&raw_deep).unwrap();
+        let val_deep: serde_json::Value = serde_json::from_str(result_str(&raw_deep)).unwrap();
         assert_eq!(val_deep["hops"].as_u64(), Some(2));
     }
 
@@ -6548,7 +6621,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert_eq!(val["kind"].as_str(), Some("function"));
     }
@@ -6565,7 +6638,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert!(val["kind"].is_null());
     }
@@ -6579,7 +6652,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6593,7 +6666,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         let syms = val["symbols"].as_array().unwrap();
         assert_eq!(syms.len(), 2);
@@ -6618,7 +6691,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let syms = val["symbols"].as_array().unwrap();
         assert_eq!(syms.len(), 2, "only src/ functions");
         assert!(syms.iter().all(|s| s.as_str().unwrap().starts_with("src/")));
@@ -6634,7 +6707,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6669,7 +6742,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "should not error");
         assert_eq!(val["start_line"].as_u64(), Some(10));
         assert_eq!(val["start_col"].as_u64(), Some(0));
@@ -6692,7 +6765,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "should not error");
         assert!(val["span"].is_null(), "span must be null when unrecorded");
     }
@@ -6706,7 +6779,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(
             val.get("error").is_some(),
             "must return error for unknown path"
@@ -6741,7 +6814,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert_eq!(val["hops"].as_u64(), Some(1));
     }
@@ -6757,7 +6830,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert_eq!(val["hops"].as_u64(), Some(2));
     }
@@ -6773,7 +6846,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         assert!(val["hops"].is_null());
         assert!(val["path"].as_array().unwrap().is_empty());
@@ -6790,7 +6863,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6806,7 +6879,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none());
         let root = &val["root"];
         assert_eq!(root["path"].as_str(), Some("src/child.ts>Child"));
@@ -6824,7 +6897,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["root"]["parents"].as_array().unwrap().is_empty());
     }
 
@@ -6838,7 +6911,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6856,7 +6929,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").expect("root key present");
         assert_eq!(root["path"], "src/base.ts>Base");
         let subclasses = root["subclasses"].as_array().unwrap();
@@ -6877,7 +6950,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").expect("root key present");
         let subclasses = root["subclasses"].as_array().unwrap();
         assert!(subclasses.is_empty());
@@ -6893,7 +6966,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6927,7 +7000,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let path = val["path"].as_array().unwrap();
         assert_eq!(path.len(), 2);
         assert_eq!(path[0], "src/cls.ts>Cls");
@@ -6946,7 +7019,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["path"].as_array().unwrap().len(), 0);
         assert!(val["hops"].is_null());
     }
@@ -6962,7 +7035,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -6977,7 +7050,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let path = val["path"].as_array().unwrap();
         assert_eq!(path.len(), 3);
         assert_eq!(val["hops"], 2);
@@ -6996,7 +7069,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").expect("root key present");
         assert_eq!(root["path"], "src/cls.ts>Cls");
         let ifaces = root["interfaces"].as_array().unwrap();
@@ -7017,7 +7090,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").unwrap();
         assert!(root["interfaces"].as_array().unwrap().is_empty());
     }
@@ -7032,7 +7105,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -7050,7 +7123,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").expect("root key present");
         assert_eq!(root["path"], "src/base.ts>BaseIFace");
         let impls = root["implementors"].as_array().unwrap();
@@ -7071,7 +7144,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").unwrap();
         assert!(root["implementors"].as_array().unwrap().is_empty());
     }
@@ -7086,7 +7159,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -7118,7 +7191,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").expect("root key present");
         assert_eq!(root["path"], "src/core.ts>core");
         let importers = root["importers"].as_array().unwrap();
@@ -7139,7 +7212,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let root = val.get("root").unwrap();
         assert!(root["importers"].as_array().unwrap().is_empty());
     }
@@ -7154,7 +7227,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -7184,7 +7257,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let dead: Vec<String> = val["dead_symbols"]
             .as_array()
             .unwrap()
@@ -7209,7 +7282,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["dead_symbols"].as_array().unwrap().len(), 0);
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
@@ -7223,7 +7296,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let dead: Vec<String> = val["dead_symbols"]
             .as_array()
             .unwrap()
@@ -7254,7 +7327,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(
             val["isolated_symbols"].as_array().unwrap()[0]
@@ -7273,7 +7346,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -7291,7 +7364,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert!(
             val["isolated_symbols"].as_array().unwrap()[0]
@@ -7311,7 +7384,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["total_nodes"].as_u64().unwrap(), 0);
         assert_eq!(val["total_edges"].as_u64().unwrap(), 0);
         assert_eq!(val["nodes_by_kind"].as_object().unwrap().len(), 0);
@@ -7335,7 +7408,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["total_nodes"].as_u64().unwrap(), 2);
         assert_eq!(val["total_edges"].as_u64().unwrap(), 2);
         assert_eq!(val["nodes_by_kind"]["function"].as_u64().unwrap(), 2);
@@ -7367,7 +7440,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["callers"][0].as_str().unwrap(), "src/a.rs>caller");
         assert_eq!(val["importers"][0].as_str().unwrap(), "src/b.rs>importer");
         assert_eq!(val["extended_by"][0].as_str().unwrap(), "src/c.rs>Child");
@@ -7387,7 +7460,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["callers"].as_array().unwrap().len(), 0);
         assert_eq!(val["importers"].as_array().unwrap().len(), 0);
         assert_eq!(val["extended_by"].as_array().unwrap().len(), 0);
@@ -7403,7 +7476,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -7426,7 +7499,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let nodes: Vec<String> = val["cycle_nodes"]
             .as_array()
             .unwrap()
@@ -7455,7 +7528,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["cycle_nodes"].as_array().unwrap().len(), 0);
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
@@ -7470,7 +7543,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -7492,7 +7565,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["group_count"].as_u64().unwrap(), 1);
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 2);
         let group = val["groups"].as_array().unwrap()[0].as_array().unwrap();
@@ -7514,7 +7587,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["group_count"].as_u64().unwrap(), 0);
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 0);
     }
@@ -7528,7 +7601,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7552,7 +7625,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["layer_count"].as_u64().unwrap(), 3);
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 3);
         assert_eq!(val["cycle_excluded_count"].as_u64().unwrap(), 0);
@@ -7580,7 +7653,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["layer_count"].as_u64().unwrap(), 0);
         assert_eq!(val["cycle_excluded_count"].as_u64().unwrap(), 2);
     }
@@ -7594,7 +7667,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7619,7 +7692,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(
             val["neighbors"].as_array().unwrap()[0].as_str().unwrap(),
@@ -7637,7 +7710,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["neighbors"].as_array().unwrap().is_empty());
     }
@@ -7652,7 +7725,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7676,7 +7749,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["path"].as_str().unwrap(), "src/svc.rs>svc");
         assert_eq!(val["incoming_count"].as_u64().unwrap(), 1);
         assert_eq!(val["outgoing_count"].as_u64().unwrap(), 1);
@@ -7694,7 +7767,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["path"].as_str().unwrap(), "");
         assert_eq!(val["incoming_count"].as_u64().unwrap(), 0);
         assert_eq!(val["outgoing_count"].as_u64().unwrap(), 0);
@@ -7710,7 +7783,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7741,7 +7814,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(val["hubs"][0]["path"].as_str().unwrap(), "src/hub.rs>hub");
         assert_eq!(val["hubs"][0]["in_degree"].as_u64().unwrap(), 2);
@@ -7760,7 +7833,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7776,7 +7849,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["hubs"].as_array().unwrap().is_empty());
     }
@@ -7799,7 +7872,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         let syms = val["symbols"].as_array().unwrap();
         assert_eq!(syms[0]["path"].as_str().unwrap(), "src/util.rs>helper");
@@ -7819,7 +7892,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7833,7 +7906,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["symbols"].as_array().unwrap().is_empty());
     }
@@ -7857,7 +7930,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         let reachable = val["reachable"].as_array().unwrap();
         assert_eq!(reachable[0].as_str().unwrap(), "src/mid.rs>mid");
@@ -7874,7 +7947,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7889,7 +7962,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["reachable"].as_array().unwrap().is_empty());
     }
@@ -7915,7 +7988,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 3);
         assert_eq!(val["k"].as_u64().unwrap(), 2);
     }
@@ -7930,7 +8003,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -7944,7 +8017,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["core"].as_array().unwrap().is_empty());
     }
@@ -7968,7 +8041,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         let reachable = val["reachable"].as_array().unwrap();
         assert_eq!(reachable[0].as_str().unwrap(), "src/leaf.rs>leaf");
@@ -7985,7 +8058,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8000,7 +8073,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["reachable"].as_array().unwrap().is_empty());
     }
@@ -8022,7 +8095,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let degs = val["degrees"].as_array().unwrap();
         assert_eq!(degs[0]["out_calls"].as_u64().unwrap(), 1);
@@ -8038,7 +8111,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let degs = val["degrees"].as_array().unwrap();
         assert!(degs[0]["error"].as_str().is_some());
     }
@@ -8052,7 +8125,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["degrees"].as_array().unwrap().is_empty());
     }
@@ -8075,7 +8148,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let members: Vec<&str> = val["members"]
             .as_array()
@@ -8102,7 +8175,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert!(val["members"].as_array().unwrap().is_empty());
     }
@@ -8116,7 +8189,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8141,7 +8214,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["component_count"].as_u64().unwrap(), 2);
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 4);
     }
@@ -8163,7 +8236,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         // singleton lone filtered out
         assert_eq!(val["component_count"].as_u64().unwrap(), 1);
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 2);
@@ -8179,7 +8252,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8202,7 +8275,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["ordered_count"].as_u64().unwrap(), 3);
         assert_eq!(val["cycle_count"].as_u64().unwrap(), 0);
         let order: Vec<&str> = val["order"]
@@ -8233,7 +8306,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["ordered_count"].as_u64().unwrap(), 0);
         assert_eq!(val["cycle_count"].as_u64().unwrap(), 2);
     }
@@ -8247,7 +8320,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8270,7 +8343,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert!(
             val["points"]
@@ -8300,7 +8373,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -8313,7 +8386,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8337,7 +8410,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let arr = val["bridges"].as_array().unwrap();
         assert!(
@@ -8369,7 +8442,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -8382,7 +8455,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8407,7 +8480,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["component_count"].as_u64().unwrap(), 1);
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 3);
     }
@@ -8425,7 +8498,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["component_count"].as_u64().unwrap(), 0);
     }
 
@@ -8438,7 +8511,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8462,7 +8535,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 3);
         let in_arr = val["in_degrees"].as_array().unwrap();
         let in_sum: u64 = in_arr.iter().map(|e| e["count"].as_u64().unwrap()).sum();
@@ -8478,7 +8551,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["total_symbols"].as_u64().unwrap(), 0);
     }
 
@@ -8491,7 +8564,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8512,7 +8585,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["symbol_count"].as_u64().unwrap(), 2);
         assert_eq!(val["directed_edge_count"].as_u64().unwrap(), 1);
         assert_eq!(val["max_out_degree"].as_u64().unwrap(), 1);
@@ -8528,7 +8601,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["symbol_count"].as_u64().unwrap(), 0);
         assert!(val["density"].as_f64().unwrap().abs() < 1e-15);
     }
@@ -8542,7 +8615,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8568,7 +8641,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let sim = val["similarity"].as_f64().unwrap();
         assert!((sim - 1.0).abs() < 1e-9, "expected 1.0, got {sim}");
         assert_eq!(val["shared"].as_u64().unwrap(), 1);
@@ -8595,7 +8668,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let sim = val["similarity"].as_f64().unwrap();
         assert!(sim.abs() < 1e-9, "expected 0.0, got {sim}");
         assert_eq!(val["shared"].as_u64().unwrap(), 0);
@@ -8613,7 +8686,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8639,7 +8712,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let coeff = val["coefficient"].as_f64().unwrap();
         assert!((coeff - 1.0).abs() < 1e-9, "expected 1.0, got {coeff}");
         assert_eq!(val["neighbor_count"].as_u64().unwrap(), 2);
@@ -8656,7 +8729,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -8670,7 +8743,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8694,7 +8767,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["eccentricity"].as_u64().unwrap(), 2);
         assert_eq!(val["reachable_count"].as_u64().unwrap(), 2);
     }
@@ -8709,7 +8782,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -8723,7 +8796,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8747,7 +8820,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         // n=3, root reaches mid(d=1) and far(d=2)
         // HC = (1/2) * (1/1 + 1/2) = 0.5 * 1.5 = 0.75
         let hc = val["harmonic_centrality"].as_f64().unwrap();
@@ -8766,7 +8839,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -8780,7 +8853,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8803,7 +8876,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["forward"].as_bool().unwrap());
         assert!(!val["backward"].as_bool().unwrap());
         assert!(!val["mutual"].as_bool().unwrap());
@@ -8822,7 +8895,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -8837,7 +8910,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8861,7 +8934,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let reachable: Vec<&str> = val["reachable"]
             .as_array()
@@ -8883,7 +8956,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -8897,7 +8970,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8921,7 +8994,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let callers: Vec<&str> = val["callers"]
             .as_array()
@@ -8943,7 +9016,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -8957,7 +9030,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -8983,7 +9056,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
         let first_path = val["nodes"][0]["path"].as_str().unwrap();
         assert_eq!(first_path, "src/pr.rs>pr_hub");
@@ -9001,7 +9074,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9026,7 +9099,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(
             val["common"][0].as_str().unwrap(),
@@ -9045,7 +9118,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -9060,7 +9133,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9085,7 +9158,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["k"].as_u64().unwrap(), 2);
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(
@@ -9105,7 +9178,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown path"));
     }
 
@@ -9120,7 +9193,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9144,7 +9217,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
         let first_path = val["nodes"][0]["path"].as_str().unwrap();
         assert_eq!(first_path, "src/bw.rs>bw_mid");
@@ -9160,7 +9233,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9187,7 +9260,7 @@ mod tests {
                 },
             ))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["min_size"].as_u64().unwrap(), 2);
         assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
         let comps = val["components"].as_array().unwrap();
@@ -9207,7 +9280,7 @@ mod tests {
                 },
             ))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9232,7 +9305,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
         assert_eq!(val["sort_by"].as_str().unwrap(), "in");
         let nodes = val["nodes"].as_array().unwrap();
@@ -9254,7 +9327,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9269,7 +9342,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown sort_by"));
     }
 
@@ -9293,7 +9366,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["symbol_count"].as_u64().unwrap(), 3);
         // A reaches B and C with shortest total distance → highest closeness.
         assert_eq!(
@@ -9312,7 +9385,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9332,7 +9405,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["depth"].as_u64().unwrap(), 0);
         assert_eq!(val["path"].as_str().unwrap(), "src/dd_mcp.rs>mcp_dd_leaf");
         assert_eq!(val["edge_kind"].as_str().unwrap(), "calls");
@@ -9356,7 +9429,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["depth"].as_u64().unwrap(), 2);
     }
 
@@ -9370,8 +9443,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
-        assert!(val["error"].as_str().unwrap().contains("path not found"));
+        assert_eq!(raw.is_error, Some(true), "unknown path must set is_error");
     }
 
     #[tokio::test]
@@ -9388,7 +9460,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -9415,7 +9487,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["callees"][0].as_str().unwrap(), "src/a.rs>callee");
         assert_eq!(val["imports"][0].as_str().unwrap(), "src/b.rs>imported");
         assert_eq!(val["extends"][0].as_str().unwrap(), "src/c.rs>Parent");
@@ -9435,7 +9507,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["callees"].as_array().unwrap().len(), 0);
         assert_eq!(val["imports"].as_array().unwrap().len(), 0);
         assert_eq!(val["extends"].as_array().unwrap().len(), 0);
@@ -9451,7 +9523,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -9472,7 +9544,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
         assert!(!symbols.iter().any(|s| s.as_str().unwrap() == "src/a.rs"));
         assert!(
@@ -9497,7 +9569,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
         assert_eq!(symbols.len(), 1);
         assert_eq!(symbols[0].as_str().unwrap(), "src/a.rs>fn1");
@@ -9520,7 +9592,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let symbols = val["symbols"].as_array().unwrap();
         assert_eq!(symbols.len(), 1);
         assert_eq!(symbols[0].as_str().unwrap(), "src/a.rs>fn1");
@@ -9536,7 +9608,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
         assert!(val["error"].as_str().unwrap().contains("bogus_kind"));
     }
@@ -9556,7 +9628,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
     }
 
@@ -9581,7 +9653,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let reachable: Vec<&str> = val["reachable"]
             .as_array()
@@ -9611,7 +9683,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(val["reachable"][0].as_str().unwrap(), "src/b.rs>b");
     }
@@ -9627,7 +9699,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -9646,7 +9718,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -9667,7 +9739,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -9692,7 +9764,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let reachable: Vec<&str> = val["reachable"]
             .as_array()
@@ -9722,7 +9794,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(val["reachable"][0].as_str().unwrap(), "src/b.rs>b");
     }
@@ -9738,7 +9810,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -9757,7 +9829,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -9778,7 +9850,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -9800,7 +9872,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].is_null(), "did not expect error, got: {val}");
         let matches: Vec<&str> = val["matches"]
             .as_array()
@@ -9827,11 +9899,12 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let err = val["error"].as_str().unwrap_or("");
         assert!(
             err.to_lowercase().contains("hyphae") || err.to_lowercase().contains("parse"),
-            "expected parse error envelope, got: {raw}"
+            "expected parse error envelope, got: {}",
+            result_str(&raw)
         );
         // No partial-result leakage.
         assert!(val.get("matches").is_none());
@@ -9852,7 +9925,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
         let siblings: Vec<&str> = val["siblings"]
             .as_array()
@@ -9878,7 +9951,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert_eq!(val["siblings"].as_array().unwrap().len(), 0);
     }
@@ -9892,7 +9965,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -9911,7 +9984,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(val["siblings"][0].as_str().unwrap(), "src/a.rs>App>other");
     }
@@ -9931,7 +10004,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["in_calls"].as_u64().unwrap(), 0);
         assert_eq!(val["out_calls"].as_u64().unwrap(), 0);
         assert_eq!(val["in_imports"].as_u64().unwrap(), 0);
@@ -9956,7 +10029,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["in_calls"].as_u64().unwrap(), 2);
         assert_eq!(val["out_calls"].as_u64().unwrap(), 1);
     }
@@ -9970,7 +10043,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -9994,7 +10067,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let files = val["files"].as_array().unwrap();
         assert_eq!(files[0]["path"].as_str().unwrap(), "src/big.rs");
         assert_eq!(files[0]["symbol_count"].as_u64().unwrap(), 3);
@@ -10010,7 +10083,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
         assert_eq!(val["files"].as_array().unwrap().len(), 0);
     }
@@ -10033,7 +10106,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         // default limit is 10, so at most 10 files returned even though 15 exist
         assert!(val["files"].as_array().unwrap().len() <= 10);
     }
@@ -10058,7 +10131,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let syms = val["symbols"].as_array().unwrap();
         assert_eq!(syms[0]["path"].as_str().unwrap(), "src/hub.rs>hub");
         assert_eq!(syms[0]["degree"].as_u64().unwrap(), 2);
@@ -10074,7 +10147,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_some());
     }
 
@@ -10092,7 +10165,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -10114,7 +10187,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let syms = val["symbols"].as_array().unwrap();
         assert_eq!(syms.len(), 1);
         assert_eq!(syms[0].as_str().unwrap(), "src/b.rs>leaf");
@@ -10131,7 +10204,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -10145,7 +10218,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -10170,7 +10243,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["length"].as_u64().unwrap(), 1);
         let path = val["path"].as_array().unwrap();
         assert_eq!(path.len(), 2);
@@ -10192,7 +10265,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["path"].is_null());
         assert!(val["length"].is_null());
     }
@@ -10208,7 +10281,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -10223,7 +10296,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("path not found"));
     }
 
@@ -10248,7 +10321,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["total"].as_u64().unwrap(), 2);
         let kinds = val["kinds"].as_array().unwrap();
         assert_eq!(kinds.len(), 2);
@@ -10262,7 +10335,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["total"].as_u64().unwrap(), 0);
         assert_eq!(val["kinds"].as_array().unwrap().len(), 0);
     }
@@ -10290,7 +10363,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(
             val["callers"].as_array().unwrap()[0].as_str().unwrap(),
@@ -10308,7 +10381,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -10322,7 +10395,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("path not found"));
     }
 
@@ -10346,7 +10419,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 1);
         assert_eq!(
             val["callees"].as_array().unwrap()[0].as_str().unwrap(),
@@ -10364,7 +10437,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -10378,7 +10451,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("path not found"));
     }
 
@@ -10392,7 +10465,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -10416,7 +10489,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let syms = val["symbols"].as_array().unwrap();
         assert_eq!(syms[0]["path"].as_str().unwrap(), "src/hub.rs>hub");
         assert_eq!(syms[0]["out_degree"].as_u64().unwrap(), 2);
@@ -10432,7 +10505,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -10446,7 +10519,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -10471,7 +10544,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let syms = val["symbols"].as_array().unwrap();
         assert_eq!(syms[0]["path"].as_str().unwrap(), "src/hub.rs>hub");
         assert_eq!(syms[0]["in_degree"].as_u64().unwrap(), 2);
@@ -10487,7 +10560,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["error"].as_str().unwrap().contains("unknown edge_kind"));
     }
 
@@ -10501,7 +10574,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 0);
     }
 
@@ -10545,7 +10618,7 @@ mod tests {
         let raw = server
             .mycelium_set_compact_mode(Parameters(SetCompactModeRequest { enabled: true }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val["compact_mode"].as_bool().unwrap());
         assert!(
             server
@@ -10557,7 +10630,7 @@ mod tests {
         let raw = server
             .mycelium_set_compact_mode(Parameters(SetCompactModeRequest { enabled: false }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(!val["compact_mode"].as_bool().unwrap());
         assert!(
             !server
@@ -10582,7 +10655,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         // Compact response must have fmt = "msgpack_hex".
         assert_eq!(val["fmt"].as_str().unwrap(), "msgpack_hex");
         let hex = val["data"].as_str().unwrap();
@@ -10602,7 +10675,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         // Normal JSON response must have "matches" key.
         assert!(val["matches"].as_array().is_some());
     }
@@ -10611,7 +10684,7 @@ mod tests {
     async fn get_token_stats_returns_valid_shape() {
         let server = MyceliumServer::new();
         let raw = server.mycelium_get_token_stats().await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         // All expected fields must be present and positive.
         assert_eq!(val["sample_query"].as_str().unwrap(), "top 3 symbols");
         let json_bytes = val["json_bytes"].as_u64().unwrap();
@@ -10639,7 +10712,7 @@ mod tests {
     async fn get_token_stats_token_ratio_vs_byte_ratio() {
         let server = MyceliumServer::new();
         let raw = server.mycelium_get_token_stats().await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         let token_ratio = val["token_ratio"].as_f64().unwrap();
         // token_ratio is abbreviated-compact-text chars / verbose-JSON chars.
         // It must be strictly between 0 and 1 to satisfy the Charter §2
@@ -10697,10 +10770,11 @@ mod tests {
             }))
             .await;
         assert!(
-            raw.trim_start().starts_with('{'),
+            result_str(&raw).trim_start().starts_with('{'),
             "JSON format must start with {{"
         );
-        let _: serde_json::Value = serde_json::from_str(&raw).expect("must be valid JSON");
+        let _: serde_json::Value =
+            serde_json::from_str(result_str(&raw)).expect("must be valid JSON");
     }
 
     #[tokio::test]
@@ -10715,11 +10789,11 @@ mod tests {
             .await;
         // TOON text output starts with a key name, not a JSON brace
         assert!(
-            !raw.trim_start().starts_with('{'),
+            !result_str(&raw).trim_start().starts_with('{'),
             "Text format must not start with JSON brace; got: {raw:?}"
         );
         assert!(
-            raw.contains("matches"),
+            result_str(&raw).contains("matches"),
             "Text format must still contain the 'matches' key"
         );
     }
@@ -10734,11 +10808,11 @@ mod tests {
             }))
             .await;
         assert!(
-            !raw.trim_start().starts_with('{'),
+            !result_str(&raw).trim_start().starts_with('{'),
             "Text format must not start with JSON brace"
         );
         assert!(
-            raw.contains("ancestors"),
+            result_str(&raw).contains("ancestors"),
             "must contain the 'ancestors' key"
         );
     }
@@ -10754,11 +10828,11 @@ mod tests {
             }))
             .await;
         assert!(
-            !raw.trim_start().starts_with('{'),
+            !result_str(&raw).trim_start().starts_with('{'),
             "Text format must not start with JSON brace"
         );
         assert!(
-            raw.contains("descendants"),
+            result_str(&raw).contains("descendants"),
             "must contain the 'descendants' key"
         );
     }
@@ -10774,7 +10848,8 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let _: serde_json::Value = serde_json::from_str(&raw).expect("default must be valid JSON");
+        let _: serde_json::Value =
+            serde_json::from_str(result_str(&raw)).expect("default must be valid JSON");
     }
 
     // ── issue #246: virtual dispatch callers ──────────────────────────────────
@@ -10818,7 +10893,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "must not return error");
         let arr = val["caller_paths"].as_array().unwrap();
         assert!(
@@ -10838,7 +10913,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let val: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert!(val.get("error").is_none(), "must not return error");
         let arr = val["caller_paths"].as_array().unwrap();
         assert!(
@@ -10862,8 +10937,9 @@ mod tests {
             .await;
         // Text format must not start with a JSON brace.
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
     }
 
@@ -10878,8 +10954,9 @@ mod tests {
             }))
             .await;
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
     }
 
@@ -10893,11 +10970,12 @@ mod tests {
             }))
             .await;
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
         assert!(
-            result.contains("path"),
+            result_str(&result).contains("path"),
             "text output must contain 'path' key"
         );
     }
@@ -10913,8 +10991,9 @@ mod tests {
             }))
             .await;
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
     }
 
@@ -10928,11 +11007,12 @@ mod tests {
             }))
             .await;
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
         assert!(
-            result.contains("files"),
+            result_str(&result).contains("files"),
             "text output must contain 'files' key"
         );
     }
@@ -10947,8 +11027,9 @@ mod tests {
             }))
             .await;
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
     }
 
@@ -10977,8 +11058,9 @@ mod tests {
             }))
             .await;
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
     }
 
@@ -10992,8 +11074,9 @@ mod tests {
             }))
             .await;
         assert!(
-            !result.trim_start().starts_with('{'),
-            "expected text format, got JSON: {result}"
+            !result_str(&result).trim_start().starts_with('{'),
+            "expected text format, got JSON: {}",
+            result_str(&result)
         );
     }
 
@@ -11009,8 +11092,8 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let _: serde_json::Value =
-            serde_json::from_str(&raw).expect("None output_format must yield valid JSON");
+        let _: serde_json::Value = serde_json::from_str(result_str(&raw))
+            .expect("None output_format must yield valid JSON");
 
         let raw = server
             .mycelium_get_files(Parameters(GetFilesRequest {
@@ -11018,7 +11101,7 @@ mod tests {
                 output_format: None,
             }))
             .await;
-        let _: serde_json::Value =
-            serde_json::from_str(&raw).expect("None output_format must yield valid JSON");
+        let _: serde_json::Value = serde_json::from_str(result_str(&raw))
+            .expect("None output_format must yield valid JSON");
     }
 }
