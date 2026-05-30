@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 — **post-v0.1.11 security scan CLEAN** ✅; v0.1.12 kickoff — queue empty, awaiting founder issue triage |
-| Current sprint | **v0.1.12 — kickoff** |
-| Active release branch | none |
-| Next release target | **v0.1.12** — planning in progress |
+| Last updated | 2026-05-30 PM dispatch — PRs #317/#318/#319 processed; RFC-0096 TypeImports + SKILL doc backfill landing; v0.1.12 sprint has real content |
+| Current sprint | **v0.1.12 — in progress** |
+| Active release branch | none — cut release/v0.1.12 when sprint exits |
+| Next release target | **v0.1.12** — RFC-0096 TypeImports + SKILL backfill + Issues #292-#301 fixes |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.11 — Python cross-file Extends, MCP is_error, token-efficient output** (tag v0.1.11, crates.io / npm / PyPI published 2026-05-31) |
 
@@ -45,17 +45,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **v0.1.12 sprint kickoff** — develop has 9 fixes ready (Issues #292–#297, #293–#294, #301). Post-v0.1.11 security scan: **CLEAN ✅ (2026-05-31)**. Awaiting founder issue triage to define v0.1.12 exit criteria.
-2. **Issue #214 (Python reliability)** — CLOSED ✅ 2026-05-31. All 3 patterns verified fixed.
+1. **Cut release/v0.1.12** — develop has: Issues #292–#301 (9 fixes), RFC-0096 TypeImports (PR #318), SKILL doc backfill (PR #319). Sprint content complete; ready to cut when founder confirms scope done.
+2. **RFC-0096 TypeScript phase** — `import type { Foo } from 'mod'` tracking deferred. Low priority; Python phase landed and is the high-value use case.
 
 **P2 (v0.1.12 scope — develop ready):**
-3. **Issue #206** — CLOSED ✅. All sub-issues resolved: is_error sweep (#266), token output (RFC-0094), formatter bench (#288), runtime packs (RFC-0095 #279/#280).
-4. **Issue #212** — CLOSED ✅. Runtime pack loading shipped via RFC-0095 (PRs #279/#280).
-5. **Issues #292/#293/#294/#295/#296/#297/#298/#299/#301** — CLOSED ✅. All merged to develop 2026-05-31.
+3. **Issue #206** — CLOSED ✅. All sub-issues resolved.
+4. **Issue #212** — CLOSED ✅. Runtime pack loading via RFC-0095.
+5. **Issues #292–#301** — CLOSED ✅. All merged to develop 2026-05-31.
 
 **P3 (v0.2.0 backlog):**
-6. Skill marketplace submission metadata: icon, screenshots, category examples. ✅ Done (PR #284).
-7. End-to-end “first 5 minutes” walkthrough / asciinema recording. ✅ Code-complete (PR #285); asciinema deferred to founder.
+6. Skill marketplace metadata: icon, screenshots. ✅ Done (PR #284).
+7. Asciinema walkthrough recording: code-complete (PR #285); recording deferred to founder.
 
 ---
 
@@ -76,26 +76,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, v0.1.11 shipped — v0.1.12 kickoff)
+## Dispatch state (2026-05-30, PM dispatch — PRs #317/#318/#319)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **IDLE** | v0.1.11 ceremony complete ✅ (tag v0.1.11, crates.io/npm/PyPI, PR #315 back-merge). Next: cut release/v0.1.12 when sprint exits. |
-| rust-implementer | **IDLE** | **Zero open issues.** Awaiting new v0.1.12 sprint issues. |
-| pack-author | **IDLE** | Issue #214 closed — all Python alias patterns verified fixed. No pending pack work. |
-| architect | idle | RFC-0092 Phase 2/3 was fully implemented (PRs #277/#278/#283). No further scope needed. |
-| tech-writer | idle | Asciinema walkthrough recording. After v0.2.0. |
+| release | **NEXT UP** | Cut release/v0.1.12 — develop has RFC-0096, SKILL backfill, Issues #292-#301. Sprint content ready. |
+| rust-implementer | **IDLE** | Zero open issues. RFC-0096 TypeScript phase next if founder files issue. |
+| pack-author | **IDLE** | No pending pack work. RFC-0096 Python phase done. TypeScript phase deferred. |
+| architect | idle | No pending RFC scope work. |
+| tech-writer | idle | SKILL doc backfill complete (PRs #319/#273). Asciinema deferred to founder. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | **IDLE** | Post-v0.1.11 scan complete ✅ CLEAN — 2026-05-31. Next: post-v0.1.12. |
+| security-reviewer | **IDLE** | Post-v0.1.11 scan CLEAN ✅ (PR #317 merged this run). Next: post-v0.1.12. |
 | e2e-runner | idle | No pending regression tests. |
 
-### Open PRs (2026-05-31)
+### Open PRs (2026-05-30 PM dispatch)
 
-**None.** PR #275 merged to main 2026-05-31; PR #315 (back-merge) merged.
+- **PR #318** (feature/v0.1.12-next) — RFC-0096 TypeImports edge kind. CI running, all checks ✅ so far.
+- **PR #319** (docs/v0.1.12-skill-changelog-rfc-updates) — SKILL.md params + RFC status. Pending conflict resolution after #318 merges.
 
-### Open Issues (2026-05-31)
+### Open Issues (2026-05-30)
 
-**None.** All issues closed; Issue #214 closed 2026-05-31 after verification all 3 patterns fixed.
+**None.** All issues closed.
 
 ---
 
@@ -125,6 +126,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-30 PM dispatch — PRs #317/#318/#319 (RFC-0096 TypeImports + SKILL backfill)
+
+- Pre-flight: CHARTER.md, _orchestrator.md, PM state, decisions.jsonl tail-20, anti-patterns scanned.
+- Assessed: 3 open PRs (#317/#318/#319), 0 open issues. All PRs had 20/20 green CI on original commits.
+- Merged PR #317 (chore: post-v0.1.11 security scan CLEAN — zero open issues).
+- Resolved decisions.jsonl conflict: both #317 and #318 appended entries; kept all three (append-only).
+- Merged PR #318 (feat: RFC-0096 TypeImports edge kind — Python TYPE_CHECKING imports now emit TypeImports edges instead of being dropped; 3 TDD tests RED→GREEN; SKILL + RFC + CHANGELOG updated).
+- Resolved CHANGELOG conflict in PR #319: develop had RFC-0096+RFC-0097, branch had RFC-0097 only; accepted develop's version.
+- Merged PR #319 (docs: SKILL.md params for v0.1.11/v0.1.12 features + RFC-0091/0096/0097 status Implemented).
+- v0.1.12 develop now has: Issues #292-#301 (9 fixes) + RFC-0096 TypeImports + comprehensive SKILL docs.
+- Anti-pattern: None this run.
+- Next: release agent cuts release/v0.1.12.
 
 ### 2026-05-31 Issue #214 verified closed — zero open issues
 
