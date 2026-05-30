@@ -354,6 +354,43 @@ impl Extractor {
                         };
                         store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
                     }
+                    "reference.arg_callback" => {
+                        // Issue #247: identifier passed as a function argument
+                        // (positional or keyword-value). The identifier may be
+                        // a callback / higher-order function that is never
+                        // called with `()` syntax directly. Create a Calls
+                        // edge from the enclosing function to the identifier
+                        // so that `get-isolated-symbols` does not report it
+                        // as dead code.
+                        let cb_name = name_text.unwrap_or("_unknown");
+                        let caller_path =
+                            enclosing_function_path(anchor, source).and_then(|suffix| {
+                                TrunkPath::parse(&format!("{file_path}>{suffix}")).ok()
+                            });
+                        let caller_id = caller_path.map_or(file_id, |p| store.upsert_node(p));
+                        // Prefer intra-file definition; fall back to bare stub.
+                        let callee_id = {
+                            let intra = format!("{file_path}>{cb_name}");
+                            if let Some(id) = store.lookup(&intra) {
+                                id
+                            } else if let Some(resolved) = alias_table
+                                .get(cb_name)
+                                .map(|p| chain_resolve(&alias_table, p))
+                                .and_then(|q| {
+                                    store.lookup(&q).or_else(|| {
+                                        TrunkPath::parse(&q).ok().map(|p| store.upsert_node(p))
+                                    })
+                                })
+                            {
+                                resolved
+                            } else if let Ok(bare) = TrunkPath::parse(cb_name) {
+                                store.upsert_node(bare)
+                            } else {
+                                continue;
+                            }
+                        };
+                        store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
+                    }
                     "reference.extends" => {
                         // anchor = class_definition node; @name = base class identifier.
                         let base_name = name_text.unwrap_or("_unknown");

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Issue #247: Python callback / higher-order function false positives fixed**.
+  `packs/python/queries.scm` now captures identifiers passed as positional
+  or keyword-value arguments (`reference.arg_callback`). The extractor's
+  Pass 2 creates a `Calls` edge from the enclosing function to the argument
+  identifier, so `get-isolated-symbols` no longer reports callback functions
+  as dead code when they are only ever passed (not directly called). 525
+  false positives eliminated in the `tree-sitter-analyzer` dogfood project.
+  Also confirmed that Pattern 1 (import aliases: `from .mod import fn as
+  alias`) was already correctly resolved via the RFC-0092 alias table; a
+  regression-guard test is added. 2 TDD tests.
+
 - **Issue #245: Python class inheritance (Extends) edges extracted**.
   `packs/python/queries.scm` now captures `class Sub(Base):` superclass
   identifiers as `@reference.extends` matches. The extractor's Pass 2

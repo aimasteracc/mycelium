@@ -714,6 +714,54 @@ fn extractor_forward_reference_rust() {
     );
 }
 
+// ── issue #247 diagnostics: import-alias and callback false positives ────────
+
+/// Pattern 1 (issue #247): import alias resolution.
+/// Calling the aliased name must create a Calls edge to the original definition.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_import_alias_call_resolves_to_original() {
+    let ext = python_extractor();
+    let mut store = Store::new();
+    // Index the utility module first (definition side).
+    ext.extract("pkg/_utils.py", b"def helper(): pass", &mut store)
+        .unwrap();
+    // Then index the importer (alias + call site).
+    ext.extract(
+        "pkg/main.py",
+        b"from ._utils import helper as _helper\ndef do_work():\n    _helper()",
+        &mut store,
+    )
+    .unwrap();
+
+    let caller = store
+        .lookup("pkg/main.py>do_work")
+        .expect("do_work must exist");
+    let callee = store
+        .lookup("pkg/_utils.py>helper")
+        .expect("helper must exist in _utils.py");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "import alias `_helper` should resolve to pkg/_utils.py>helper"
+    );
+}
+
+/// Pattern 2: `run_with_cb(callback)` — callback passed as positional arg
+/// must produce a Calls edge so `callback` is NOT isolated.
+#[test]
+fn extractor_callback_arg_not_isolated() {
+    let source = "def callback(): pass\ndef caller():\n    run_with_cb(callback)";
+    let store = extract(source);
+    let cb = store
+        .lookup("test.py>callback")
+        .expect("callback must exist");
+    let degree = store.node_degree(cb);
+    assert!(
+        degree.in_calls > 0 || degree.out_calls > 0,
+        "callback passed as argument should have at least one Calls edge to avoid dead-code false positive"
+    );
+}
+
 // ── reference.extends (issue #245) ───────────────────────────────────────────
 
 #[test]
