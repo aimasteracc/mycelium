@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0096 — `EdgeKind::TypeImports` (Python phase)** — Imports inside
+  `if TYPE_CHECKING:` blocks are now emitted as `TypeImports` edges instead of
+  being silently dropped. This makes Python type-annotation-only imports
+  queryable (e.g. `get-imports --edge-kind type_imports`) while keeping the
+  default `Imports` graph — and therefore `detect-cycles --edge-kind imports` —
+  free of false-positive cycles (Issue #227 behaviour preserved). Three new TDD
+  tests covering edge emission, Imports/TypeImports segregation, and wire string
+  stability. Wire string: `"type_imports"`. (RFC-0096)
+
+
 - **RFC-0097 — MCP server filesystem boundary (`--allowed-roots` / `allowed_roots`)** —
   `mycelium serve --mcp` previously accepted arbitrary filesystem paths via
   `mycelium_index_workspace` and `mycelium_load_index` with no validation, allowing any path

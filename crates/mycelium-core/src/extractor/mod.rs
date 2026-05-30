@@ -286,13 +286,16 @@ impl Extractor {
 
                 match cap_name {
                     "reference.import" | "reference.import_from" => {
-                        // Issue #227: imports inside `if TYPE_CHECKING:` are
+                        // RFC-0096: imports inside `if TYPE_CHECKING:` are
                         // type-annotation-only (TYPE_CHECKING is always False
-                        // at runtime). Including them causes false-positive
-                        // cycle reports; skip them entirely.
-                        if is_inside_type_checking_block(anchor, source) {
-                            continue;
-                        }
+                        // at runtime). Emit TypeImports edges so they are
+                        // queryable but excluded from the default Imports graph,
+                        // keeping detect-cycles clean (Issue #227).
+                        let edge_kind = if is_inside_type_checking_block(anchor, source) {
+                            EdgeKind::TypeImports
+                        } else {
+                            EdgeKind::Imports
+                        };
                         let mod_name = name_text.unwrap_or("_unknown");
                         // Issue #204: Python relative imports (`.X` / `..X`)
                         // resolve to actual file paths relative to the
@@ -303,7 +306,7 @@ impl Extractor {
                         let edge_target = resolved.as_deref().unwrap_or(mod_name);
                         if let Ok(mod_path) = TrunkPath::parse(edge_target) {
                             let mod_id = store.upsert_node(mod_path);
-                            store.upsert_edge(EdgeKind::Imports, file_id, mod_id);
+                            store.upsert_edge(edge_kind, file_id, mod_id);
                         }
                     }
                     "reference.call" => {
