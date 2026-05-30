@@ -162,6 +162,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   using the importing file's own extension (`.ts` → `.ts`, `.js` → `.js`); package imports
   remain symbolic. Covered by 6 TDD tests (3 TypeScript + 3 JavaScript) in `extractor::tests`.
 
+<!-- next release goes here -->
+
+## [0.1.11] - 2026-05-30
+
+### Added
+
 - **RFC-0094 §206 S2: `crates/mycelium-mcp/README.md`** — documents the output format per
   transport (stdio default = `text`, CLI default = `json`), the text-format grammar, and the
   parity contract. Satisfies RFC-0094 acceptance criterion "Default-format logic per transport
