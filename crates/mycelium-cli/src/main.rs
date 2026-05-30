@@ -833,6 +833,115 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Return full per-edge-kind degree breakdown for a symbol.
+    GetNodeDegree {
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// List indexed file paths, optionally filtered by prefix.
+    GetFiles {
+        #[arg(long)]
+        path_prefix: Option<String>,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Per-kind symbol counts across the index.
+    GetSymbolCountByKind {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Symbols with out-degree 0 for the edge kind (leaf nodes).
+    GetLeafSymbols {
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Common callers across a set of target paths.
+    GetCommonCallers {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Common callees across a set of source paths.
+    GetCommonCallees {
+        #[arg(long)]
+        paths: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Intersection of two symbols' transitive reachable sets.
+    GetCommonReachable {
+        #[arg(long)]
+        path1: String,
+        #[arg(long)]
+        path2: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// Forward/backward reachability flags + BFS distances between two symbols.
+    GetMutualReachability {
+        #[arg(long)]
+        path1: String,
+        #[arg(long)]
+        path2: String,
+        #[arg(long)]
+        edge_kind: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// BFS call-path between two symbols.
+    FindCallPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long, default_value_t = 10)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
+    /// BFS import-dependency path between two file/module paths.
+    FindImportPath {
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long, default_value_t = 8)]
+        max_depth: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -1534,6 +1643,111 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 max_depth,
                 format.into(),
             )?;
+        }
+        Cmd::GetNodeDegree { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_node_degree(&canonical, &path, format.into())?;
+        }
+        Cmd::GetFiles {
+            path_prefix,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_files(&canonical, path_prefix.as_deref(), format.into())?;
+        }
+        Cmd::GetSymbolCountByKind { root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_symbol_count_by_kind(&canonical, format.into())?;
+        }
+        Cmd::GetLeafSymbols {
+            edge_kind,
+            limit,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_leaf_symbols(&canonical, &edge_kind, limit, format.into())?;
+        }
+        Cmd::GetCommonCallers {
+            paths,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_get_common_callers(&canonical, &paths, &edge_kind, format.into())?;
+        }
+        Cmd::GetCommonCallees {
+            paths,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            let paths: Vec<String> = paths
+                .split(',')
+                .filter(|t| !t.is_empty())
+                .map(str::to_owned)
+                .collect();
+            queries::run_get_common_callees(&canonical, &paths, &edge_kind, format.into())?;
+        }
+        Cmd::GetCommonReachable {
+            path1,
+            path2,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_common_reachable(
+                &canonical,
+                &path1,
+                &path2,
+                &edge_kind,
+                format.into(),
+            )?;
+        }
+        Cmd::GetMutualReachability {
+            path1,
+            path2,
+            edge_kind,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_get_mutual_reachability(
+                &canonical,
+                &path1,
+                &path2,
+                &edge_kind,
+                format.into(),
+            )?;
+        }
+        Cmd::FindCallPath {
+            from,
+            to,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_call_path(&canonical, &from, &to, max_depth, format.into())?;
+        }
+        Cmd::FindImportPath {
+            from,
+            to,
+            max_depth,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_find_import_path(&canonical, &from, &to, max_depth, format.into())?;
         }
         Cmd::Serve { mcp: true, root } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));

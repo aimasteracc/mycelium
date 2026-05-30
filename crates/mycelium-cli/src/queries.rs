@@ -1619,6 +1619,223 @@ pub(crate) fn run_batch_reachable_to(
     print_tree_value(&value, format)
 }
 
+// ── batch 10: 11 remaining cross-category commands ───────────────────────────
+
+pub(crate) fn run_get_node_degree(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let id = store
+        .lookup(path)
+        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let d = store.node_degree(id);
+    let value = serde_json::json!({
+        "in_calls":       d.in_calls,
+        "out_calls":      d.out_calls,
+        "in_imports":     d.in_imports,
+        "out_imports":    d.out_imports,
+        "in_extends":     d.in_extends,
+        "out_extends":    d.out_extends,
+        "in_implements":  d.in_implements,
+        "out_implements": d.out_implements,
+    });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_files(root: &Path, path_prefix: Option<&str>, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let mut files = store.all_file_paths();
+    if let Some(prefix) = path_prefix {
+        files.retain(|p| p.starts_with(prefix));
+    }
+    let value = serde_json::json!({ "files": files });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_symbol_count_by_kind(root: &Path, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let counts = store.symbol_count_by_kind();
+    let total: usize = counts.iter().map(|(_, n)| n).sum();
+    let kinds: Vec<serde_json::Value> = counts
+        .into_iter()
+        .map(|(k, c)| serde_json::json!({ "kind": k, "count": c }))
+        .collect();
+    let value = serde_json::json!({ "kinds": kinds, "total": total });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_leaf_symbols(
+    root: &Path,
+    edge_kind: &str,
+    limit: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let symbols = store.leaf_symbols(kind, limit);
+    let count = symbols.len();
+    let value = serde_json::json!({ "symbols": symbols, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_common_callers(
+    root: &Path,
+    paths: &[String],
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    if paths.is_empty() {
+        let value = serde_json::json!({ "callers": [], "count": 0 });
+        return print_tree_value(&value, format);
+    }
+    let mut ids = Vec::with_capacity(paths.len());
+    for p in paths {
+        let id = store
+            .lookup(p)
+            .ok_or_else(|| anyhow!("path not found: {p}"))?;
+        ids.push(id);
+    }
+    let callers = store.common_callers(&ids, kind);
+    let count = callers.len();
+    let value = serde_json::json!({ "callers": callers, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_common_callees(
+    root: &Path,
+    paths: &[String],
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    if paths.is_empty() {
+        let value = serde_json::json!({ "callees": [], "count": 0 });
+        return print_tree_value(&value, format);
+    }
+    let mut ids = Vec::with_capacity(paths.len());
+    for p in paths {
+        let id = store
+            .lookup(p)
+            .ok_or_else(|| anyhow!("path not found: {p}"))?;
+        ids.push(id);
+    }
+    let callees = store.common_callees(&ids, kind);
+    let count = callees.len();
+    let value = serde_json::json!({ "callees": callees, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_common_reachable(
+    root: &Path,
+    path1: &str,
+    path2: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id1 = store
+        .lookup(path1)
+        .ok_or_else(|| anyhow!("path not found: {path1}"))?;
+    let id2 = store
+        .lookup(path2)
+        .ok_or_else(|| anyhow!("path not found: {path2}"))?;
+    let common = store.common_reachable(id1, id2, kind);
+    let count = common.len();
+    let value = serde_json::json!({ "common": common, "count": count });
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_get_mutual_reachability(
+    root: &Path,
+    path1: &str,
+    path2: &str,
+    edge_kind: &str,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let kind = parse_edge_kind(edge_kind)?;
+    let id1 = store
+        .lookup(path1)
+        .ok_or_else(|| anyhow!("path not found: {path1}"))?;
+    let id2 = store
+        .lookup(path2)
+        .ok_or_else(|| anyhow!("path not found: {path2}"))?;
+    let result = store.mutual_reachability(id1, id2, kind);
+    let value = serde_json::json!({
+        "forward": result.forward,
+        "backward": result.backward,
+        "mutual": result.mutual,
+        "forward_distance": result.forward_distance,
+        "backward_distance": result.backward_distance,
+    });
+    print_tree_value(&value, format)
+}
+
+fn path_or_unreachable(
+    maybe: Option<Vec<mycelium_core::types::NodeId>>,
+    store: &Store,
+    max_depth: usize,
+    kind_label: &str,
+) -> serde_json::Value {
+    maybe.map_or_else(
+        || {
+            serde_json::json!({
+                "path": [],
+                "hops": serde_json::Value::Null,
+                "message": format!("no {kind_label} path found within depth {max_depth}"),
+            })
+        },
+        |ids| {
+            let path: Vec<String> = ids
+                .iter()
+                .filter_map(|&id| store.path_of(id).map(str::to_owned))
+                .collect();
+            let hops = path.len().saturating_sub(1);
+            serde_json::json!({ "path": path, "hops": hops })
+        },
+    )
+}
+
+pub(crate) fn run_find_call_path(
+    root: &Path,
+    from_path: &str,
+    to_path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let from_id = store
+        .lookup(from_path)
+        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+    let to_id = store
+        .lookup(to_path)
+        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+    let maybe = store.find_call_path(from_id, to_id, max_depth);
+    let value = path_or_unreachable(maybe, &store, max_depth, "call");
+    print_tree_value(&value, format)
+}
+
+pub(crate) fn run_find_import_path(
+    root: &Path,
+    from_path: &str,
+    to_path: &str,
+    max_depth: usize,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let from_id = store
+        .lookup(from_path)
+        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+    let to_id = store
+        .lookup(to_path)
+        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+    let maybe = store.find_import_path(from_id, to_id, max_depth);
+    let value = path_or_unreachable(maybe, &store, max_depth, "import");
+    print_tree_value(&value, format)
+}
+
 // ── shared output helper ──────────────────────────────────────────────────────
 
 fn print_string_list(items: &[String], format: Format) -> Result<()> {
