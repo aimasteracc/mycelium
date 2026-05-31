@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [mcp-errors]: https://spec.modelcontextprotocol.io/specification/server/tools/#error-handling
 
+
 ## [0.1.13] - 2026-05-31
 
 ### Changed
