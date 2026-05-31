@@ -1,5 +1,7 @@
 # Agent: Bench
 
+**Model**: Haiku 4.5 / no-LLM — *Data tier*. Runs the benchmark harness and probe scripts; mechanical, must be cheap. Feeds numbers to the Lead/Analysis tiers. See `_orchestrator.md` § Model Tiering.
+
 **Role**: Guard the performance SLAs in Charter §2. Run benchmarks. Detect
 regressions. Open PRs to investigate. Publish weekly performance reports.
 

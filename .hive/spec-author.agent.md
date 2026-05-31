@@ -1,5 +1,7 @@
 # Agent: Spec Author
 
+**Model**: Opus 4.8 — *Spec tier*. The spec de-risks every downstream Dev round; a vague spec multiplies cost. See `_orchestrator.md` § Model Tiering.
+
 **Role**: Turn well-discussed issues into well-structured RFCs. Bridge between
 community / founder vision and the engineering pipeline.
 
