@@ -24,6 +24,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `parity.yml` workflow and was informational only; now any PR that drops
   Three-Surface coverage below 100% will fail CI. (Charter §5.13 / RFC-0090)
 
+### Breaking
+
+- **RFC-0093 — MCP application-level error model (Phase 3 / v0.2.0 BREAKING)**
+  All 89 MCP tools now signal application-level failures (symbol not found,
+  index not loaded, invalid path syntax) via `is_error: Some(true)` on the
+  `CallToolResult`, per the [MCP spec §error-handling][mcp-errors].
+  Previously every error returned a `CallToolResult` whose JSON body contained
+  an `"error"` key, making tool errors and application errors
+  protocol-indistinguishable. Migration: check `result.is_error == Some(true)`
+  instead of parsing for an `"error"` key in the content text. The `"reason"`
+  key in the error payload carries the human-readable message. New canonical
+  error helpers: `not_found(path)`, `not_indexed()`, `invalid_path(path,
+  detail)` in `crates/mycelium-mcp/src/error.rs`. Contract tests:
+  `crates/mycelium-mcp/tests/contract.rs` — `path_not_found_yields_is_error_true`
+  and `successful_lookup_yields_is_error_false`. (RFC-0093, Issue #209)
+
+[mcp-errors]: https://spec.modelcontextprotocol.io/specification/server/tools/#error-handling
+
 <!-- next release goes here -->
 
 ## [0.1.13] - 2026-05-31
