@@ -53,8 +53,8 @@ it does not ship. CI gates them.
 | Engine | Rust 2024 edition | Performance, embeddability, ecosystem |
 | Parser | tree-sitter + declarative `.scm` queries | Language extensibility without core changes |
 | Reactivity | Salsa 3 | Same proven foundation as rust-analyzer |
-| Storage | Self-built: trunk (radix trie) + synapse (CSR) + Apache Arrow columnar attrs | See RFC-0001 |
-| Persistence | Single-file `.myc`: WAL + periodic snapshot; HAMT structural sharing | Time-travel queries free |
+| Storage | **redb** (pure-Rust mmap B-tree) backing the RCIG model: trunk (radix trie) + synapse (CSR) + Arrow columnar attrs | Not SQLite, not a graph DB; embedded KV engine. mmap bounds RAM; ACID txns make writes incremental. We own the logical model + value schema. *(Amended per RFC-0100, founder-authorized 2026-05-31; was: self-built, see RFC-0001.)* |
+| Persistence | redb single-file ACID (copy-on-write B-tree); MVCC read snapshots | Crash-safe by construction; per-file incremental writes; mmap residency; time-travel via MVCC. *(Amended per RFC-0100; was: `.myc` WAL + periodic snapshot + HAMT.)* |
 | MCP / CLI | One Rust binary, multiple subcommands | Three faces, one engine |
 | Bindings | napi-rs (npm) + maturin/pyo3 (PyPI) | Reach both ecosystems |
 | Unit/integration test | `cargo test` + `insta` (snapshot) + `proptest` (property) | Industry default |
