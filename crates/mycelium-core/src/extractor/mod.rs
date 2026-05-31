@@ -286,23 +286,35 @@ impl Extractor {
 
                 match cap_name {
                     "reference.import" | "reference.import_from" => {
-                        // RFC-0096: imports inside `if TYPE_CHECKING:` are
-                        // type-annotation-only (TYPE_CHECKING is always False
-                        // at runtime). Emit TypeImports edges so they are
-                        // queryable but excluded from the default Imports graph,
-                        // keeping detect-cycles clean (Issue #227).
-                        let edge_kind = if is_inside_type_checking_block(anchor, source) {
+                        // RFC-0096: type-annotation-only imports emit TypeImports
+                        // edges so they are queryable but excluded from the
+                        // default Imports graph, keeping detect-cycles clean.
+                        //   • Python: `if TYPE_CHECKING:` block (Issue #227)
+                        //   • TypeScript: `import type { Foo }` (Phase 2)
+                        let edge_kind = if is_inside_type_checking_block(anchor, source)
+                            || is_typescript_type_import_statement(anchor)
+                        {
                             EdgeKind::TypeImports
                         } else {
                             EdgeKind::Imports
                         };
                         let mod_name = name_text.unwrap_or("_unknown");
-                        // Issue #204: Python relative imports (`.X` / `..X`)
-                        // resolve to actual file paths relative to the
-                        // importing file. Absolute imports keep the symbolic
-                        // node (resolution requires package discovery, out of
-                        // scope for #204; tracked in #205 alias-table work).
-                        let resolved = resolve_python_relative_import(file_path, mod_name);
+                        // Issue #204 / RFC-0096: dispatch to the correct
+                        // relative-import resolver per language:
+                        //   • TypeScript / JavaScript → resolve_typescript_import
+                        //   • Python (and others)     → resolve_python_relative_import
+                        // Using the Python resolver for TS files produced wrong
+                        // nodes (e.g. `/foo.py` instead of `foo.ts`).
+                        let resolved = if matches!(
+                            std::path::Path::new(file_path)
+                                .extension()
+                                .and_then(|e| e.to_str()),
+                            Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs")
+                        ) {
+                            resolve_typescript_import(file_path, mod_name)
+                        } else {
+                            resolve_python_relative_import(file_path, mod_name)
+                        };
                         let edge_target = resolved.as_deref().unwrap_or(mod_name);
                         if let Ok(mod_path) = TrunkPath::parse(edge_target) {
                             let mod_id = store.upsert_node(mod_path);
@@ -844,6 +856,30 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
         .unwrap_or("_Unknown");
     // Strip generic parameters (e.g. "Vec<T>" → "Vec").
     text.split('<').next().unwrap_or(text)
+}
+
+/// Return `true` if `node` is a TypeScript `import type { ... }` statement.
+///
+/// TypeScript's `import type` syntax (`import type { Foo } from 'mod'`) is
+/// purely a type-annotation construct — the module is never loaded at runtime.
+/// It maps to `EdgeKind::TypeImports` (RFC-0096 Phase 2).
+///
+/// Detection: an `import_statement` node that has a direct anonymous child
+/// with kind `"type"` (the `type` keyword that follows `import`).
+fn is_typescript_type_import_statement(node: tree_sitter::Node<'_>) -> bool {
+    // Only import_statement nodes can be `import type`; skip anything else.
+    if node.kind() != "import_statement" {
+        return false;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        // The "type" keyword appears as an anonymous node (is_named() == false)
+        // with kind "type" — distinct from named nodes like `type_identifier`.
+        if !child.is_named() && child.kind() == "type" {
+            return true;
+        }
+    }
+    false
 }
 
 /// Return `true` if `node` is a direct child of an `if TYPE_CHECKING:` block.

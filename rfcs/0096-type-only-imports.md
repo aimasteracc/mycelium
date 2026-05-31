@@ -222,13 +222,27 @@ when investigating type-relationship cycles.
 - [x] Skill catalog updated: `skills/import-graph/SKILL.md` — TypeImports section
 - [x] CHANGELOG `[Unreleased]` Added entry
 
-TypeScript phase (`import type { Foo } from 'mod'`) tracked separately.
+## Acceptance criteria (TypeScript phase)
+
+- [x] TypeScript extractor: `import type { Foo }` detected via
+  `is_typescript_type_import_statement()` — checks for anonymous `"type"` child
+  of `import_statement` node
+- [x] Pre-existing bug fixed: TypeScript relative imports in `@reference.import`
+  handler now use `resolve_typescript_import` instead of `resolve_python_relative_import`,
+  preventing wrong `/foo.py` node paths for `.ts`/`.js` files
+- [x] `typescript_type_import_emits_type_imports_edge` test (RED confirmed)
+- [x] `typescript_regular_import_not_in_type_imports` test (RED confirmed)
+- [x] `typescript_mixed_imports_segregated` test (RED confirmed)
+- [x] CHANGELOG `[Unreleased]` Added entry
+
+Flow TypeScript (`import type Foo from 'mod'`) and per-binding TypeScript 4.5+
+(`import { type Foo }`) tracked as a potential Phase 3 if demand emerges.
 
 ## Rollout plan
 
-Single PR introducing the EdgeKind variant + Python pack +
-`detect-cycles` family update. TypeScript follows as a separate PR
-once Python is proven.
+- Phase 1 (Python): Python `if TYPE_CHECKING:` → TypeImports ✅ (v0.1.12)
+- Phase 2 (TypeScript): `import type` → TypeImports ✅ (v0.1.13)
+- Phase 3 (optional): Flow / per-binding TS 4.5+ / Rust `#[cfg(test)]` on demand
 
 Target release: **v0.2.0** (alongside the breaking-change wave).
 This is technically a non-breaking addition (existing `Imports`
