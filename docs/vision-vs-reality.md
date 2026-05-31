@@ -98,10 +98,11 @@
 
 | 计划 | 状态 | 现在的真相 |
 |---|---|---|
-| 10 万节点性能 SLA | ✅ | <30s，6 个 SLA 测试（Charter §2） |
+| 10 万节点**查询**性能 SLA | 🟡 | <30s，6 个 SLA 测试——但这是**合成内存图的查询延迟**，不是真实 index 吞吐。⚠️ 见 [scale-gap-analysis.md](scale-gap-analysis.md)：几十万真实文件的 index 全流程从未实测 |
 | 6+ 语言 | ✅ | 10 种（达标） |
 | 治理体系（CHARTER/RFC/ADR/CI） | ✅ | RFC 至 0097 + 7 ADR + 完整发布仪式 |
-| Salsa 框架 / 分层存储 / LSP | 🟡/❌ | Salsa 接入 Phase 1（cortex.rs，1 个 tracked query）；分层存储、LSP 未做（内存版够用） |
+| 大规模 index（几十万文件） | ❌ | **串行抽取 + 全量快照 + 无内存上界**——大型 Java 项目会卡。见 scale-gap-analysis.md（R1 并行 / R2 增量持久化 / R3 内存边界） |
+| Salsa 框架 / 分层存储 / LSP | 🟡/❌ | Salsa 接入 Phase 1（cortex.rs，符号抽取半步；边仍全量重抽）；分层存储、LSP 未做 |
 
 ---
 
