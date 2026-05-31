@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — v0.1.14 SHIPPED ✅ ceremony 4/4 complete; PR #352 merged to main; RFC-0098 R2 draft #353 open) |
-| Current sprint | **v0.1.15 — KICKOFF** |
+| Last updated | 2026-05-31 (PM dispatch — PR #356 R3-measure MERGED ✅; PR #357 PM-chore MERGED ✅; PR #358 RFC-0099 do-not-auto-merge → founder escalated) |
+| Current sprint | **v0.1.15 — IN PROGRESS** |
 | Active release branch | none (v0.1.14 ceremony complete) |
-| Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344) |
+| Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344; RFC-0099 Phase 0 done) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -62,29 +62,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — v0.1.14 ceremony COMPLETE; queue healthy.
 
 **P1 (v0.1.15 sprint — scale-gap remediation):**
-1. **R3 memory bound measurement** (#344) — `Store::heap_size_estimate()` TDD done; **PR #356 open (CI pending)**. After merge: run `cargo test --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record bytes/node curve in Issue #344; use data to design LRU/mmap mitigation.
-2. **R2 incremental persistence** (#343) — RFC-0098 Draft merged (PR #353 ✅ 2026-05-31). **DECISION GATE**: implementation requires founder sign-off + ADR before any code. Architect to review RFC-0098 and provide approach recommendation (Option B = append-log chosen; Option A = per-file segments as upgrade path).
-3. **Post-v0.1.15 security scan** — schedule after sprint content lands.
+1. **R3 memory bound measurement** (#344) — **PR #356 MERGED ✅** (`Store::heap_size_estimate()` + 3 CI tests + 3 `#[ignore]` RSS-curve tests). Next: run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record bytes/node curve in Issue #344; then R3 Phase 1 (streaming index with spill, RFC-0099) when founder signs off.
+2. **R3 design gate** (#344) — RFC-0099 in PR #358 (**DO-NOT-AUTO-MERGE** — founder sign-off required on Phase 2 approach + RFC-0098 binding constraint before Phase 1+ implementation).
+3. **R2 incremental persistence** (#343) — RFC-0098 Draft merged (PR #353 ✅ 2026-05-31). **DECISION GATE**: implementation requires founder sign-off + ADR before any code. Architect to review RFC-0098 and write `docs/adr/` entry before implementation.
+4. **Post-v0.1.15 security scan** — schedule after sprint content lands.
 
 **P2 (v0.2.0 scope):**
-4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
-5. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; needs e2e walkthrough validation
-6. Skill marketplace submission to Claude Code marketplace
-7. "First 5 minutes" walkthrough validation (README + docs site)
+5. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
+6. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; needs e2e walkthrough validation
+7. Skill marketplace submission to Claude Code marketplace
+8. "First 5 minutes" walkthrough validation (README + docs site)
 
 ---
 
-## Dispatch state (2026-05-31, this run — v0.1.14 COMPLETE; R1 DONE; RFC-0098 Draft merged; R3 measurement PR #356 CI pending)
+## Dispatch state (2026-05-31, this run — PR #356 MERGED; PR #357 PM-chore MERGED; RFC-0099 PR #358 escalated to founder)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). **(b) Decision gate for R2 / RFC-0098**: review PR #353 merged draft, authorize ADR + approach before any implementation begins. |
+| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). **(b) RFC-0098 R2 decision gate**: review PR #353 merged draft, authorize ADR + approach before any implementation begins. **(c) RFC-0099 R3 design gate**: review PR #358 — sign off on Phase 1 (streaming index) approach + Phase 2 LRU/mmap plan before implementation. |
 | release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when sprint exits. |
-| rust-implementer | **done** | R1 parallel indexing DONE (PR #351 merged, Issue #342 closed). R3 measurement DONE (PR #356 open, CI pending). |
+| rust-implementer | **blocked on founder** | R3 Phase 1 (streaming index with spill, RFC-0099 Phase 1) blocked on founder sign-off via PR #358. R2 blocked on RFC-0098 ADR + founder. |
 | security-reviewer | idle | Post-v0.1.15 scan after sprint content lands. |
-| architect | **NEXT** | R2 ADR: review RFC-0098 (now on develop), write ADR in `docs/adr/` recommending Option B (append-log) as the implementation approach. Required before any code for R2. |
+| architect | **NEXT** | R2 ADR: review RFC-0098 (on develop), write `docs/adr/NNNN-incremental-persistence.md` recommending Option B (append-log). Required before any R2 code. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | **NEXT** | After PR #356 merges: run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record RSS bytes/node curve at 1K/10K/100K in Issue #344. |
+| e2e-runner | **NEXT** | Run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record RSS bytes/node curve at 1K/10K/100K in Issue #344. Unblocks R3 Phase 1 design. |
 
 ---
 
@@ -110,6 +111,24 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 PM dispatch (this run — PR #356 MERGED; PR #357 PM-chore rebased+merged; RFC-0099 PR #358 escalated)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (scale/memory domain — no hits), PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `5d5e43a` (PR #356 merged this run). Prior stale PM state (header said "KICKOFF", sprint state stale).
+- 3 open PRs: #356 (R3 measurement, `dirty` — conflict with RFC-0098 commit), #357 (PM dispatch chore, blocked), #358 (RFC-0099 draft, explicitly do-not-auto-merge).
+- 2 open issues: #343 (R2), #344 (R3).
+- v0.1.14 ceremony: COMPLETE (all 4 steps). v0.1.15 sprint: R1 DONE, R3 Phase 0 in PR #356, R2+R3 design gated.
+
+**Actions taken:**
+1. **Rebased PR #356** onto develop (conflict: decisions.jsonl + pm-state.md header — append-only resolution). Tests green (0 FAILED). Force-pushed `feature/r3-memory-curve`. **Merged PR #356** ✅.
+2. **Rebased PR #357** onto post-#356 develop (conflict: decisions.jsonl + pm-state.md — append-only + --theirs strategy). **Updated PM state** for this run. Pushing as amended PR #357.
+3. **Escalated PR #358** (RFC-0099 do-not-auto-merge) to founder — Phase 1 and Phase 2 implementation blocked on founder sign-off.
+
+**Escalations:**
+- Founder: (a) `release.yml` RELEASE_BOT_TOKEN systemic fix before v0.2.0; (b) RFC-0098 R2 decision gate; (c) RFC-0099 PR #358 sign-off (Phase 1 streaming index + Phase 2 LRU approach).
 
 ### 2026-05-31 PM dispatch (this run — PR #353 merged; PM state corrected; PR #356 CI pending)
 
