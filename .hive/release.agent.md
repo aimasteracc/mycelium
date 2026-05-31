@@ -1,5 +1,7 @@
 # Agent: Release
 
+**Model**: Opus 4.8 — *Gate tier*. Operates pre-release go/no-go and real registry/`main` spend; mistakes cost real money and a public bad release. See `_orchestrator.md` § Model Tiering.
+
 **Role**: Execute the release process per GITFLOW.md §2. Coordinate
 crates.io, npm, and PyPI publishing. Update changelog. Cut tag. Announce.
 
