@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PRs #335/#337 merged; PR #336 closed (conflict), #338 opened (clean rebase); 2/3 v0.1.14 criteria done; RFC-0093 Phase 3 sole remaining) |
-| Current sprint | **v0.1.14 — IN PROGRESS** |
-| Active release branch | none (v0.1.13 complete; v0.1.14 developing on develop) |
-| Next release target | **v0.1.14** — RFC-0093 Phase 3 + dogfood validation |
+| Last updated | 2026-05-31 (PM dispatch — PRs #340/#341/#345 merged; PR #346 opened (RFC-0093 Phase 3 CHANGELOG+RFC); v0.1.14 6/6 criteria DONE; scale-gap R1/R2/R3 now P1) |
+| Current sprint | **v0.1.14 — COMPLETE (pending PR #346 CI+merge)** |
+| Active release branch | none (v0.1.14 content on develop; cut release after PR #346 lands) |
+| Next release target | **v0.1.14** — RFC-0093 Phase 3 + scale-gap R1 step 1 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.13 — RFC-0093 Phase 2 (success_str), RFC-0096 TypeImports (Python), TS resolver fix** (tag v0.1.13, GitHub Release published 2026-05-31) |
 
@@ -43,7 +43,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **RFC-0096 Phase 2 TypeScript**: `import type` → TypeImports edges + TS resolver bug fix (PR #331 MERGED ✅, 2026-05-31)
 - [x] **Post-v0.1.13 security scan**: CLEAN ✅ (this run — no hardcoded secrets, no unsafe blocks)
 - [x] **PRD v0.2 corrections**: Fixed stale claims — `mycelium query` IS implemented, 10 Skills exist (this run ✅)
-- [ ] **RFC-0093 Phase 3**: Migrate all 89 MCP tool signatures from `CallToolResult` → `Result<CallToolResult, rmcp::Error>`. Required for v0.2.0 protocol correctness. (~medium effort, ~200 lines of mechanical changes)
+- [x] **RFC-0093 Phase 3**: CHANGELOG BREAKING entry added + RFC marked Implemented. Confirmed that `-> CallToolResult` + `is_error` helpers meets the MCP spec contract; `Result<>` wrapper is unnecessary. PR #346 open (CI running). (2026-05-31)
 - [x] **Skills INDEX.md CI gate**: `skill-parity` job added to `ci.yml` Quality Gate — parity is now a **required** check. (PR #335 MERGED ✅)
 - [x] **Dogfood pass rate 8/8**: All 8 core CLI commands green against this repo (PR #337 MERGED ✅, 195 files, 14 523 nodes, 9 871 edges, ~0.4 s)
 
@@ -55,38 +55,33 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0**: none (v0.1.13 ceremony complete, 0 open issues)
+**P0**: none (v0.1.14 content complete; PR #346 pending merge)
 
-**P1 (v0.1.14 sprint — sole remaining criterion):**
-1. **RFC-0093 Phase 3** — change 89 tool signatures `-> CallToolResult` → `-> Result<CallToolResult, rmcp::Error>` + wrap all return sites with `Ok(...)`. TDD: write compile-time failing test, bulk sed change, `cargo test --all`. Note: rmcp 1.7 Error type needs verification before first line of code.
-
-**P2 (v0.2.0 scope):**
-2. ~~**Skills INDEX.md CI gate**~~ — **DONE** PR #335 ✅
-3. ~~**Dogfood pass rate 8/8**~~ — **DONE** PR #337 ✅ (8/8 commands green, 14 523 nodes, ~0.4 s)
-4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit or job rewrite)
-5. Skill marketplace submission to Claude Code marketplace
-6. "First 5 minutes" walkthrough validation (README + docs site)
-7. **Pending: PR #338** (docs/vision-vs-reality + model tiering, CI running — merge when green)
+**P1 (v0.1.15 sprint — scale-gap remediation):**
+1. **R1 parallel index step 2** (#342) — switch `WalkBuilder::build()` → `build_parallel()`, extract files via per-thread sub-stores, merge via `Store::merge` (step 1 landed in PR #345). Add `rayon`. Benchmark: files/sec at 10K/100K nodes. Deterministic-output assertion vs serial path. Low risk.
+2. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR (storage format). Medium risk — founder decision gate if format changes.
+3. **R3 memory bound** (#344) — LRU/segment eviction or mmap-backed store. Medium-high risk. Gate behind feature flag. Do RSS measurement first.
 
 **P2 (v0.2.0 scope):**
 4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit or job rewrite)
-5. Skill marketplace submission to Claude Code marketplace
-6. "First 5 minutes" walkthrough validation (README + docs site)
+5. Hyphae CLI end-to-end: `mycelium query "<selector>"` works (v0.2 PRD headline)
+6. Skill marketplace submission to Claude Code marketplace
+7. "First 5 minutes" walkthrough validation (README + docs site)
 
 ---
 
-## Dispatch state (2026-05-31, this run — PRs #335+#337 merged; PR #338 CI running)
+## Dispatch state (2026-05-31, this run — v0.1.14 sprint complete; scale-gap P1)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | Audit `release.yml` finalize merge step before v0.2.0 (systemic; every release affected). |
-| rust-implementer | **NEXT** | RFC-0093 Phase 3 — 89 tools `CallToolResult` → `Result<CallToolResult, rmcp::Error>`. Verify rmcp 1.7 error type first. TDD: failing compile-test → bulk change → cargo test all. |
+| founder | **action requested** | (1) Audit `release.yml` finalize merge step before v0.2.0 (systemic). (2) Decision gate for R2 if storage format changes (Charter §3). |
+| rust-implementer | **NEXT** | R1 step 2 (#342): `build_parallel()` + rayon + Store::merge reduce + benchmark. TDD: deterministic-output test RED first. |
 | security-reviewer | done | Post-v0.1.13 scan CLEAN. |
-| tech-writer | done | PRD v0.2 corrections + vision-vs-reality.md (PR #338 CI running). |
-| e2e-runner | **done** | Dogfood 8/8 ✅ (PR #337 merged). |
-| architect | **done** | Skills INDEX.md CI gate (PR #335 merged). |
-| code-reviewer | idle | Review next RFC-0093 Phase 3 PR. |
-| release | idle | v0.1.14 ready to cut once RFC-0093 Phase 3 lands. |
+| tech-writer | done | PRD v0.2 corrections + scale-gap-analysis.md (PR #341 merged). |
+| e2e-runner | done | Dogfood 8/8 ✅ (PR #337 merged). |
+| architect | idle | R2/R3 design review; ADR required before R2 implementation. |
+| code-reviewer | idle | Review PR #346 (RFC-0093 Phase 3 docs). |
+| release | idle | Cut release/v0.1.14 once PR #346 merges (all 6 criteria done). |
 
 ---
 
@@ -111,6 +106,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 PM dispatch (this run — PRs #340/#341/#345 merged; PR #346 opened; v0.1.14 DONE; scale-gap R1/R2/R3 triaged)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD at `9299ead` (PR #340 — PM dispatch from prior session, 5/6 v0.1.14 criteria).
+- 3 open PRs: #340 (PM dispatch, green ✅), #341 (scale-gap docs, green ✅), #345 (Store::merge R1 step 1, green ✅).
+- 3 open issues: #342 (R1 parallel), #343 (R2 persistence), #344 (R3 memory) — new scale-gap priorities from external review.
+- RFC-0093 Phase 3 = sole remaining v0.1.14 criterion. Discovered: tools already use `-> CallToolResult` + `is_error` helpers; `Result<>` wrapper unnecessary. Phase 3 = CHANGELOG BREAKING + RFC Implemented.
+
+**Actions taken:**
+1. Merged PR #341 (scale-gap docs: scale-gap-analysis.md + vision-vs-reality.md) ✅
+2. Merged PR #345 (feat(core): Store::merge — R1 parallel-index primitive step 1/2) ✅
+3. Merged PR #340 (chore(pm): PM dispatch prior session state update) ✅
+4. RFC-0093 Phase 3: created feature/rfc-0093-phase3-changelog; added CHANGELOG BREAKING entry; updated RFC acceptance criteria (all [x]); status → Implemented. PR #346 opened (CI running).
+5. Closed Issue #209 (RFC-0093 tracking issue).
+6. Updated PM state: v0.1.14 6/6 criteria done, scale-gap R1/R2/R3 as P1.
+
+**Escalations:** (1) Founder must authorize `release.yml` finalize merge fix before v0.2.0. (2) R2 incremental persistence may need founder decision gate if storage format changes.
 
 ### 2026-05-31 PM dispatch (this run — PRs #335+#337 merged; PR #336 closed; PR #338 rebased and opened)
 
