@@ -5,6 +5,13 @@
 
 Companion to [RFC-0100](../../rfcs/0100-unified-storage-redb.md). Unifies R2 (#343) + R3 (#344).
 
+> **Founder decision overrides (2026-05-31) — see [ADR-0007 §Founder Decisions](../adr/0007-redb-storage-engine.md).**
+> Mycelium is **not yet launched**, so two tasks are simplified ("稳中求创新"):
+> - **Migration tasks:** build only a **minimal full-RAM importer**; **no streaming importer**. Pre-redb `.rmp` migration is best-effort dev-continuity, not a supported user path. `--reindex` (bounded rebuild from source) is the primary escape for large repos.
+> - **Phase 4 / legacy reader:** **auto-migrate on first open, then drop the legacy `.rmp` reader entirely** after the Phase-3 flip — no multi-release retention window.
+> - **Cold-start SLA:** the cold-open number is **measured by the T1 spike**, then written into Charter §2 — not guessed.
+> All other tasks stand as generated.
+
 ## Lead go/no-go
 
 **Decision: `go-with-conditions`**

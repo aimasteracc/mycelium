@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed — awaiting founder sign-off. Supersedes the hand-rolled single-blob
+Accepted — founder decisions recorded 2026-05-31 (see **Founder Decisions** below);
+implementation may begin per the execution plan. Supersedes the hand-rolled single-blob
 MessagePack snapshot for the on-disk *graph* and retires the durability scheme of
 RFC-0098. Governs RFC-0100; resolves #343 (incremental writes / R2) and #344
 (bounded memory / R3). Depends on #356 (`Store::heap_size_estimate` + RSS-curve
@@ -11,6 +12,56 @@ harness) as a prerequisite for the R3 acceptance gate.
 Builds on ADR-0005 (MessagePack wire format): MessagePack remains the value
 encoder *inside* redb. This ADR changes the *container* and *residency*, not the
 logical model.
+
+## Founder Decisions (2026-05-31)
+
+Resolving the 8 open questions. Guiding principle from the founder: **Mycelium is
+not yet officially launched — there are no production indexes to protect — so we
+"稳中求创新" (innovate steadily): keep engineering rigor, but shed conservative
+backward-compat baggage we don't owe anyone yet.**
+
+1. **Schema → the canonical 8-table separate-table schema.** Rejected the
+   consolidated nodes-blob. Rationale: the hot path (3-hop traversal) touches only
+   adjacency; separate tables keep span/kind data out of the traversal's mmap
+   working set, protecting the Charter §2 `<1ms` 3-hop SLA.
+2. **Adjacency values → SORTED `Vec<u64>`.** Accepted the behavior change.
+   Determinism is *required* by the cross-backend equivalence contract; sorted
+   lists also delta+varint-compress → smaller values → fewer page faults. (Edge
+   order is already non-deterministic post-R1, so nothing real is lost.)
+3. **Migration RAM → minimal full-RAM importer + `--reindex` as the primary
+   escape; NO streaming importer.** *Adjusted for not-launched:* migration of any
+   pre-redb `.rmp` is **best-effort dev-continuity only**, not a supported user
+   path. Full-RAM import costs the same as today's `load` (no regression);
+   genuinely-too-large repos use `--reindex` (bounded rebuild from source).
+4. **Cold-start SLA → split Charter §2 into warm (steady-state, existing numbers)
+   + a separate cold-open budget; do a warm-up scan on open; the exact cold number
+   is set from the T1 mmap cold-page spike, NOT guessed.** mmap cold pages are disk
+   reads — `<1ms` 3-hop is physically impossible cold. We measure, then commit the
+   number to Charter. This is the one place "毫无压力 on 100K files" must be earned
+   with data.
+5. **redb version → no hard `=` pin.** Cargo.lock pins the tested version;
+   Cargo.toml allows patch updates; **every redb bump must pass a CI gate that opens
+   an old-format index file.** Hard-pinning would block security patches.
+6. **`migrate` Skill → `skills/index-management/SKILL.md`; CLI + MCP + Skill rows
+   land in the SAME PR** (RFC-0090 parity gate). No tradeoff; just correct.
+7. **Legacy `.rmp` reader → auto-migrate on first open, then DROP the legacy reader
+   entirely.** *Adjusted for not-launched:* no multi-release retention window is
+   owed. The one-shot importer runs transparently on first open of an old file;
+   after the Phase-3 flip the permanent read path is redb-only. Bolder + cleaner,
+   safe because there are no real users to strand.
+8. **Dev≠QA → approved.** The test-author (QA role) writes ALL suites (unit,
+   equivalence, crash, perf, mutation) RED-first, BEFORE the implementer writes
+   production code. Founder non-negotiable; also correct TDD.
+
+**Innovation hook (steady):** redb read transactions are MVCC snapshots, so
+near-free **time-travel queries** (the original Charter vision) become reachable.
+Not in v1 scope, but the schema and `StorageBackend` trait are designed so a later
+RFC can add it without a format break. Design the hooks now; build later.
+
+**Stability anchor:** the `StorageBackend` trait + the `InMemory` backend are kept
+**not** for backward compat but as (a) a fast unit-test path and (b) the parity
+*oracle* for the equivalence tests. This is what lets us innovate on the redb path
+without flying blind.
 
 ## Context
 
