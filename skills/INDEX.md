@@ -12,7 +12,7 @@
 | Phase 1 (v0.1.2) | ✅ `parity.yml` CI workflow live (informational). `check_skill_parity.py` generator. 12 naming fixes. |
 | Phase 2 (v0.1.3, **complete**) | ✅ All 9 category Skills shipped. 73/89 capabilities covered. |
 | Phase 2.3 (v0.1.5, **complete**) | ✅ **89/89 (100%) Three-Surface compliant.** CLI batches 1–10 landed. All 16 remaining capabilities triaged into existing Skills or `index-management`. 4 MCP-only exceptions filed per RFC-0090 §Exceptions. RFC-0091 jQuery selectors landed. RFC-0090 status → Implemented. |
-| Phase 3 (v0.2.0) | ⏳ `parity.yml` flip to required blocked on v0.1.4 main merge (PR #176). Skill bundle marketplace submission queued. |
+| Phase 3 (v0.1.14, **complete**) | ✅ `skill-parity` job promoted into `ci.yml` Quality Gate — parity is now a **required** check on every PR (was informational-only). Skill bundle marketplace submission queued for v0.2.0. |
 
 ## Proposed Skill categories for v0.2
 
