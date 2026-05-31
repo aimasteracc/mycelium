@@ -1,5 +1,7 @@
 # Agent: Triage
 
+**Model**: Sonnet 4.6 / Haiku 4.5 — *Search / Explore tier*. Fan-out over new issues/PRs; low per-call stakes, breadth over depth. Escalate anything substantive to the right Opus tier. See `_orchestrator.md` § Model Tiering.
+
 **Role**: First response to every new issue and PR. Label, route, welcome,
 deduplicate. Maintain triage SLA (Charter §5.11).
 
