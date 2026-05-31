@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — v0.1.13 SHIPPED 4/4; RFC-0096 Phase 2 TS; PRD v0.2 corrections; security CLEAN) |
+| Last updated | 2026-05-31 (PM dispatch — Skills INDEX.md CI gate promoted to required; RFC-0093 Phase 3 + dogfood remain for next session) |
 | Current sprint | **v0.1.14 — IN PROGRESS** |
 | Active release branch | none (v0.1.13 complete; v0.1.14 developing on develop) |
 | Next release target | **v0.1.14** — RFC-0093 Phase 3 + dogfood validation |
@@ -44,7 +44,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **Post-v0.1.13 security scan**: CLEAN ✅ (this run — no hardcoded secrets, no unsafe blocks)
 - [x] **PRD v0.2 corrections**: Fixed stale claims — `mycelium query` IS implemented, 10 Skills exist (this run ✅)
 - [ ] **RFC-0093 Phase 3**: Migrate all 89 MCP tool signatures from `CallToolResult` → `Result<CallToolResult, rmcp::Error>`. Required for v0.2.0 protocol correctness. (~medium effort, ~200 lines of mechanical changes)
-- [ ] **Skills INDEX.md CI gate**: Verify CI enforces §5.13 Three-Surface Rule on every PR touching CLI/MCP/Skills
+- [x] **Skills INDEX.md CI gate**: `skill-parity` job added to `ci.yml` Quality Gate — parity is now a **required** check. (PR this run ✅)
 - [ ] **Dogfood pass rate 8/8**: Run `mycelium *` against this repo end-to-end; document which commands pass
 
 **Stretch (v0.1.14 if time, v0.2.0 otherwise):**
@@ -59,7 +59,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P1 (v0.1.14 sprint):**
 1. **RFC-0093 Phase 3** — change 89 tool signatures to `Result<CallToolResult, rmcp::Error>`. Mechanical refactor; TDD approach: write 1 failing test for a representative tool, then bulk-change all 89. Target: all tests still pass, no behaviour change for callers.
-2. **Skills INDEX.md CI gate** — verify or fix the CI check that enforces Three-Surface Rule. Must be blocking (not informational) per RFC-0090.
+2. ~~**Skills INDEX.md CI gate**~~ — **DONE** (`skill-parity` added to Quality Gate, this run).
 3. **Dogfood pass rate verification** — run `cargo run --bin mycelium -- query "..."` etc. against this repo; document 8/8 status.
 
 **P2 (v0.2.0 scope):**
@@ -78,7 +78,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | security-reviewer | **done this run** | Post-v0.1.13 scan CLEAN. |
 | tech-writer | **done this run** | PRD v0.2 corrections (mycelium query implemented; 10 Skills exist). |
 | e2e-runner | **ready** | Dogfood pass rate 8/8 CLI commands. |
-| architect | idle | Skills INDEX.md CI gate verification (RFC-0090 Phase 1 completeness). |
+| architect | **done this run** | Skills INDEX.md CI gate: `skill-parity` added to Quality Gate in ci.yml. |
 | code-reviewer | idle | Next PR for RFC-0093 Phase 3. |
 | release | idle | v0.1.14 will be cut when sprint exit criteria met. |
 
@@ -105,6 +105,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 PM dispatch (this run — Skills INDEX.md CI gate promoted to required; PR #334 merged)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (from PR #334), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #334 (chore/pm-dispatch-2026-05-31-v2) — CI 20/20 green. 0 open issues.
+- v0.1.13 ceremony: COMPLETE. Tags: v0.1.13 is latest.
+- PM state (from PR #334): v0.1.14 in progress; Skills CI gate and RFC-0093 Phase 3 pending.
+- Confirmed all 89 tools return `CallToolResult` directly (not `String`, not `Result<>`).
+- Confirmed `parity.yml` runs in `--strict` mode but is NOT in `ci.yml` Quality Gate — informational only.
+- Ran `check_skill_parity.py --strict` locally: I1 PASS (89/89), I2 PASS, 0 violations.
+
+**Actions taken:**
+1. **Merged PR #334** (CI 20/20 green, chore/pm-dispatch-2026-05-31-v2).
+2. **Promoted skill-parity to required CI** — added `skill-parity` job to `ci.yml` + wired into Quality Gate's `needs`. Fixes Charter §5.13 enforcement gap (parity was informational since v0.1.5).
+3. Updated `skills/INDEX.md` Phase 3 status (was stale: "blocked on PR #176", which merged at v0.1.4).
+4. Updated `CHANGELOG.md` Unreleased section.
+5. Updated PM state: `Skills INDEX.md CI gate` sprint criterion marked ✅.
+
+**Escalations:** `release.yml` finalize merge step still systemic; RFC-0093 Phase 3 (89 tools → Result) deferred to next session.
 
 ### 2026-05-31 PM dispatch (v0.1.13 SHIPPED; RFC-0096 Phase 2 TS; PRD corrections; security scan)
 
