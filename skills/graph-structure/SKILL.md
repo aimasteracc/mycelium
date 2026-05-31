@@ -16,6 +16,15 @@ allowed-tools:
   - mcp__mycelium__get_wcc
   - mcp__mycelium__get_degree_histogram
   - mcp__mycelium__find_cycle_members
+category: analysis
+icon: 🕸️
+marketplace_examples:
+  - query: "Are there circular dependencies in my imports?"
+    tool: mcp__mycelium__detect_cycles
+  - query: "Find the strongly connected components in the call graph"
+    tool: mcp__mycelium__get_scc_groups
+  - query: "Topologically sort all modules by dependency order"
+    tool: mcp__mycelium__topological_sort
 ---
 
 # `graph-structure` — what shape is this graph?
@@ -36,6 +45,16 @@ Do **NOT** use when:
 
 - The user wants per-node scores → `centrality`.
 - The user wants single-symbol relationships → `call-graph` or `reachability`.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Are there circular dependencies in my imports?" | `mcp__mycelium__detect_cycles` |
+| "Find the strongly connected components in the call graph" | `mcp__mycelium__get_scc_groups` |
+| "Topologically sort all modules by dependency order" | `mcp__mycelium__topological_sort` |
+| "Which nodes are articulation points — removing one breaks the graph?" | `mcp__mycelium__find_articulation_points` |
+| "Give me overall graph metrics for this codebase" | `mcp__mycelium__get_graph_metrics` |
 
 ## Capabilities under this umbrella
 

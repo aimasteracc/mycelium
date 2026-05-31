@@ -1,9 +1,9 @@
 # RFC-0095: Runtime Language Pack Loading
 
-- **Status**: draft
+- **Status**: Implemented
 - **Author(s)**: @aimasteracc (orchestrator dispatch)
 - **Created**: 2026-05-30
-- **Last updated**: 2026-05-30
+- **Last updated**: 2026-05-30 (Implemented: PR #279 PackRegistry + env var; PR #280 --packs-dir CLI flag; PR #281 docs/packs.md)
 - **Tracking issue**: #212 (umbrella #206)
 - **Affected source paths**:
   - `crates/mycelium-core/src/extractor/mod.rs` — pack loader
@@ -188,21 +188,27 @@ Skill ecosystem.
 
 ## Acceptance criteria
 
-- [ ] `crates/mycelium-pack/` exposes `LanguagePack`, `PackMeta`,
-  `PackRegistry`
-- [ ] `packs/<lang>/pack.toml` written for all 10 bundled languages
-- [ ] `Extractor::new` accepts `&LanguagePack` (or backwards-compat
-  shim returning the same)
-- [ ] `mycelium-cli` and `mycelium-core/cortex.rs` both call
-  `PackRegistry::load` at startup; the `include_str!` paths fall back
-  only when packs_dir is empty
-- [ ] `--packs-dir` CLI flag + `MYCELIUM_PACKS_DIR` env var documented
-- [ ] Charter §5.7 limit preserved (≤ 3 files per pack: `pack.toml` +
-  `queries.scm` + an optional `README.md` — still 3 max)
-- [ ] Smoke test: drop a project-local `packs/mylang/` next to a
-  workspace, `mycelium index` picks it up without recompile
-- [ ] CHANGELOG `[Unreleased]` Added entry + Documentation entry
-  pointing to `docs/packs.md`
+- [x] `crates/mycelium-pack/` exposes `LanguagePack`, `PackMeta`,
+  `PackRegistry` (PR #279)
+- [x] `packs/<lang>/pack.toml` written for all 10 bundled languages
+  (shipped across Tier 1/2 pack PRs; all 10 present)
+- [x] `Extractor::new` accepts `&LanguagePack` via `PackRegistry`
+  dispatch in cortex.rs + index.rs; static `include_str!` paths serve
+  as compile-time fallback (backwards-compatible shim — PR #279, PR #280)
+- [x] `mycelium-cli/src/index.rs` calls `PackRegistry::load` when
+  `--packs-dir` is supplied; `mycelium-core/cortex.rs` uses
+  `MYCELIUM_PACKS_DIR` env var; static embeds remain as fallback
+  (PR #279, PR #280)
+- [x] `--packs-dir` CLI flag documented in `docs/packs.md`; 
+  `MYCELIUM_PACKS_DIR` env var documented in `docs/packs.md` (PR #282)
+- [x] Charter §4 limit preserved: all 10 bundled packs use ≤ 2 files
+  (`pack.toml` + `queries.scm`); the 3-file limit is not violated
+- [x] Smoke test: `index_path_with_packs_dir_indexes_custom_extension`
+  in `crates/mycelium-cli/src/index.rs` — custom `.mypy` pack loaded
+  at runtime, symbols extracted without recompile (PR #280, 2 TDD tests)
+- [x] CHANGELOG `[Unreleased]` Added entries for PackRegistry (PR #279)
+  and `--packs-dir` (PR #280); Documentation entry: `docs/packs.md`
+  created (PR #282)
 
 ## Rollout plan
 

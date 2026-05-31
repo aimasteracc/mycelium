@@ -68,7 +68,7 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::RwLock;
-use tracing::warn;
+use tracing::{debug, warn};
 
 use crate::error::{application_error, not_found};
 use crate::formatter::{OutputFormat, formatter_for};
@@ -222,6 +222,9 @@ pub struct LoadIndexRequest {
 pub struct GetCalleesRequest {
     /// Trunk path to look up callees for, e.g. `"src/lib.rs>process"`.
     pub path: String,
+    /// Edge kind to traverse: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -233,9 +236,12 @@ pub struct GetCalleesRequest {
 pub struct GetCallersRequest {
     /// Trunk path to look up callers for, e.g. `"src/lib.rs>helper"`.
     pub path: String,
+    /// Edge kind to traverse: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// When true, also include callers that reach this symbol via virtual dispatch —
     /// i.e., callers that call an ancestor (base class) method of the same name.
-    /// Default: false (backward-compatible).
+    /// Only applies when `edge_kind` is `"calls"` (the default). Default: false.
     #[serde(default)]
     pub include_virtual: Option<bool>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
@@ -499,6 +505,9 @@ pub struct GetEntryPointsRequest {
 pub struct RankSymbolsRequest {
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
+    /// Edge kind to rank by incoming-edge count: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -634,6 +643,12 @@ pub struct GetFilesRequest {
 pub struct GetDeadSymbolsRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
+    /// When set, return symbols with no incoming edges of this specific kind
+    /// (`"calls"`, `"imports"`, `"extends"`, `"implements"`).
+    /// When omitted (default), returns symbols with no incoming Calls AND no incoming Imports
+    /// — the classic "unreachable" definition.
+    #[serde(default)]
+    pub edge_kind: Option<String>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -1128,6 +1143,12 @@ pub struct GetAllSymbolsRequest {
     pub path_prefix: Option<String>,
     /// Optional kind filter: `"function"`, `"class"`, `"method"`, etc.
     pub kind: Option<String>,
+    /// Maximum number of symbols to return. `0` or omitted means no limit.
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Number of symbols to skip before returning results. Defaults to 0.
+    #[serde(default)]
+    pub offset: Option<usize>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -1265,6 +1286,12 @@ pub struct MyceliumServer {
     /// Wraps file content as [`Cortex`] inputs; the watch loop updates these
     /// on every file-system change so Salsa handles memoisation automatically.
     cortex: Arc<tokio::sync::Mutex<Cortex>>,
+    /// RFC-0097: filesystem access boundary.
+    ///
+    /// When non-empty, every path-based MCP call canonicalizes the input and
+    /// verifies it is prefixed by at least one of these roots. Empty = unrestricted
+    /// (used only in unit tests; CLI always sets this to `[CWD]` by default).
+    allowed_roots: Arc<Vec<PathBuf>>,
 }
 
 impl Default for MyceliumServer {
@@ -1274,7 +1301,10 @@ impl Default for MyceliumServer {
 }
 
 impl MyceliumServer {
-    /// Create a fresh server with an empty in-memory store.
+    /// Create a fresh server with an empty in-memory store and no path restrictions.
+    ///
+    /// **For unit tests only.** Production code should use [`Self::new_with_allowed_roots`]
+    /// or [`Self::with_root_and_allowed_roots`] so the server enforces RFC-0097 boundaries.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -1284,6 +1314,29 @@ impl MyceliumServer {
             watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
             compact_mode: Arc::new(AtomicBool::new(false)),
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
+            allowed_roots: Arc::new(vec![]),
+        }
+    }
+
+    /// Create a fresh server restricted to the given filesystem roots (RFC-0097).
+    ///
+    /// Any `mycelium_index_workspace` or `mycelium_load_index` call whose
+    /// canonicalized path does not fall under one of `roots` is rejected with
+    /// `is_error: true` before touching the filesystem.
+    #[must_use]
+    pub fn new_with_allowed_roots(roots: Vec<PathBuf>) -> Self {
+        let canonical_roots: Vec<PathBuf> = roots
+            .into_iter()
+            .filter_map(|r| std::fs::canonicalize(&r).ok().or(Some(r)))
+            .collect();
+        Self {
+            store: Arc::new(RwLock::new(Store::new())),
+            indexed_root: Arc::new(RwLock::new(None)),
+            watch_state: Arc::new(WatchState::default()),
+            watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
+            compact_mode: Arc::new(AtomicBool::new(false)),
+            cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
+            allowed_roots: Arc::new(canonical_roots),
         }
     }
 
@@ -1291,6 +1344,7 @@ impl MyceliumServer {
     ///
     /// If `<root>/.mycelium/index.rmp` exists, loads the snapshot.
     /// Otherwise runs a full live index and saves the snapshot.
+    /// Sets `root` as the sole allowed root (RFC-0097).
     ///
     /// # Errors
     ///
@@ -1298,8 +1352,21 @@ impl MyceliumServer {
     /// `root` is inaccessible). Snapshot load failures fall back to live
     /// indexing silently.
     pub async fn with_root(root: PathBuf) -> anyhow::Result<Self> {
+        let allowed = vec![root.clone()];
+        Self::with_root_and_allowed_roots(root, allowed).await
+    }
+
+    /// Create a server pre-loaded from `root`, restricted to `allowed_roots` (RFC-0097).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only if the live index cannot be initiated.
+    pub async fn with_root_and_allowed_roots(
+        root: PathBuf,
+        allowed_roots: Vec<PathBuf>,
+    ) -> anyhow::Result<Self> {
         let snap = root.join(".mycelium").join("index.rmp");
-        let server = Self::new();
+        let server = Self::new_with_allowed_roots(allowed_roots);
 
         if snap.exists() {
             match Store::load(&snap) {
@@ -1502,6 +1569,30 @@ impl MyceliumServer {
     }
 }
 
+/// RFC-0097: verify `raw_path` is under one of the `allowed_roots` after canonicalization.
+///
+/// Returns the canonicalized path on success, or an error string on rejection.
+/// When `allowed_roots` is empty, all paths are permitted (unit-test mode).
+fn check_path_in_allowed_roots(
+    raw_path: &str,
+    allowed_roots: &[PathBuf],
+) -> Result<PathBuf, String> {
+    if allowed_roots.is_empty() {
+        return Ok(PathBuf::from(raw_path));
+    }
+    let canonical =
+        std::fs::canonicalize(raw_path).map_err(|e| format!("path not accessible: {e}"))?;
+    if allowed_roots.iter().any(|root| canonical.starts_with(root)) {
+        Ok(canonical)
+    } else {
+        Err(format!(
+            "path '{}' is outside allowed roots: {:?}",
+            canonical.display(),
+            allowed_roots
+        ))
+    }
+}
+
 #[tool_router]
 impl MyceliumServer {
     #[tool(
@@ -1513,7 +1604,12 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<IndexWorkspaceRequest>,
     ) -> CallToolResult {
-        let root = PathBuf::from(&req.path);
+        // RFC-0097: enforce filesystem access boundary before touching disk.
+        let root = match check_path_in_allowed_roots(&req.path, &self.allowed_roots) {
+            Ok(p) => p,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
+        let root_save = root.clone();
         let result = tokio::task::spawn_blocking(move || run_index(&root)).await;
         match result {
             Err(e) => {
@@ -1521,13 +1617,13 @@ impl MyceliumServer {
             }
             Ok(Err(e)) => application_error(&serde_json::json!({ "error": e.to_string() })),
             Ok(Ok((new_store, files, errors, languages, stubs_resolved))) => {
-                // RFC-0006: auto-save snapshot alongside the workspace
-                let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
+                // RFC-0006: auto-save snapshot. Path derives from already-validated root.
+                let snap = root_save.join(".mycelium").join("index.rmp");
                 if let Err(e) = new_store.save(&snap) {
                     warn!("could not save index snapshot: {e}");
                 }
                 *self.store.write().await = new_store;
-                *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
+                *self.indexed_root.write().await = Some(root_save);
                 ok_str(
                     serde_json::json!({
                         "files": files,
@@ -1627,13 +1723,18 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<LoadIndexRequest>,
     ) -> CallToolResult {
-        let snap = PathBuf::from(&req.path).join(".mycelium").join("index.rmp");
+        // RFC-0097: validate path before reading from disk.
+        let root = match check_path_in_allowed_roots(&req.path, &self.allowed_roots) {
+            Ok(p) => p,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
+        let snap = root.join(".mycelium").join("index.rmp");
         match Store::load(&snap) {
             Err(e) => application_error(&serde_json::json!({ "error": e.to_string() })),
             Ok(loaded) => {
                 let nodes = loaded.node_count();
                 *self.store.write().await = loaded;
-                *self.indexed_root.write().await = Some(PathBuf::from(&req.path));
+                *self.indexed_root.write().await = Some(root);
                 ok_str(
                     serde_json::json!({
                         "nodes": nodes,
@@ -1705,6 +1806,10 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetCalleesRequest>,
     ) -> CallToolResult {
+        let kind = match parse_edge_kind(req.edge_kind.as_deref().unwrap_or("calls")) {
+            Ok(k) => k,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
         let store_guard = self.store.read().await;
         let lookup_result = store_guard.lookup(&req.path);
         let Some(id) = lookup_result else {
@@ -1712,7 +1817,7 @@ impl MyceliumServer {
             return not_found(&req.path);
         };
         let mut paths: Vec<String> = store_guard
-            .outgoing(id, mycelium_core::types::EdgeKind::Calls)
+            .outgoing(id, kind)
             .iter()
             .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
             .collect();
@@ -1738,6 +1843,10 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetCallersRequest>,
     ) -> CallToolResult {
+        let kind = match parse_edge_kind(req.edge_kind.as_deref().unwrap_or("calls")) {
+            Ok(k) => k,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
         let (direct, virtual_opt) = {
             let store_guard = self.store.read().await;
             let Some(id) = store_guard.lookup(&req.path) else {
@@ -1746,11 +1855,14 @@ impl MyceliumServer {
                 );
             };
             let d: Vec<String> = store_guard
-                .incoming(id, mycelium_core::types::EdgeKind::Calls)
+                .incoming(id, kind)
                 .iter()
                 .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
                 .collect();
-            let v = if req.include_virtual == Some(true) {
+            // virtual dispatch only makes sense for Calls edges
+            let v = if kind == mycelium_core::types::EdgeKind::Calls
+                && req.include_virtual == Some(true)
+            {
                 store_guard
                     .virtual_dispatch_callers_of_path(&req.path)
                     .unwrap_or_default()
@@ -2190,11 +2302,15 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetDeadSymbolsRequest>,
     ) -> CallToolResult {
-        let dead = self
-            .store
-            .read()
-            .await
-            .dead_symbols(req.path_prefix.as_deref());
+        let store = self.store.read().await;
+        let dead = match req.edge_kind.as_deref() {
+            None => store.dead_symbols(req.path_prefix.as_deref()),
+            Some(ek) => match parse_edge_kind(ek) {
+                Ok(kind) => store.dead_symbols_for_kind(kind, req.path_prefix.as_deref()),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
+        drop(store);
         let count = dead.len();
         let value = serde_json::json!({ "dead_symbols": dead, "count": count });
         ok_str(req.output_format.map_or_else(
@@ -2333,13 +2449,25 @@ impl MyceliumServer {
             .kind
             .as_deref()
             .and_then(mycelium_core::types::NodeKind::try_from_wire);
-        let symbols = self
+        let all_symbols = self
             .store
             .read()
             .await
             .all_symbols(req.path_prefix.as_deref(), kind);
-        let count = symbols.len();
-        let value = serde_json::json!({ "symbols": symbols, "count": count });
+        let total_count = all_symbols.len();
+        let offset = req.offset.unwrap_or(0);
+        let limit = req.limit.unwrap_or(0);
+        let page: Vec<String> = all_symbols
+            .into_iter()
+            .skip(offset)
+            .take(if limit == 0 { usize::MAX } else { limit })
+            .collect();
+        let count = page.len();
+        let value = serde_json::json!({
+            "symbols": page,
+            "count": count,
+            "total_count": total_count,
+        });
         ok_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -3593,13 +3721,21 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<RankSymbolsRequest>,
     ) -> CallToolResult {
+        let kind = match parse_edge_kind(req.edge_kind.as_deref().unwrap_or("calls")) {
+            Ok(k) => k,
+            Err(e) => return application_error(&serde_json::json!({ "error": e })),
+        };
         let limit = req.limit.unwrap_or(10).min(100);
-        let ranked = self.store.read().await.top_callee_symbols(limit);
+        let store = self.store.read().await;
+        let ranked = if kind == mycelium_core::types::EdgeKind::Calls {
+            store.top_callee_symbols(limit)
+        } else {
+            store.top_symbols_by_incoming(kind, limit)
+        };
+        drop(store);
         let symbols: Vec<serde_json::Value> = ranked
             .into_iter()
-            .map(|(path, caller_count)| {
-                serde_json::json!({ "path": path, "caller_count": caller_count })
-            })
+            .map(|(path, count)| serde_json::json!({ "path": path, "caller_count": count }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols });
         ok_str(req.output_format.map_or_else(
@@ -4647,6 +4783,12 @@ fn importer_node_to_json(node: &ImporterNode, store: &Store) -> serde_json::Valu
     serde_json::json!({ "path": path, "importers": importers })
 }
 
+/// Source-language extensions used by compound-extension detection (Issue #294).
+const SOURCE_EXTS: &[&str] = &[
+    "js", "jsx", "ts", "tsx", "py", "pyi", "rs", "go", "java", "c", "h", "cpp", "cc", "cxx", "hpp",
+    "rb", "cs",
+];
+
 // ── indexing helper (CPU-bound, run via spawn_blocking) ───────────────────────
 
 // ts_lang / tsx_lang differ only by one letter — similarity is intentional.
@@ -4727,6 +4869,21 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             continue;
         };
+
+        // Issue #294: skip files with compound source-language extensions like
+        // `module.ts.py` — artefacts/cache files that would be indexed under
+        // the wrong language and produce misleading results.
+        if let Some(stem_ext) = path
+            .file_stem()
+            .and_then(|s| std::path::Path::new(s).extension())
+            .and_then(|e| e.to_str())
+        {
+            if SOURCE_EXTS.contains(&stem_ext) && stem_ext != ext {
+                debug!("skipping compound-extension file: {}", path.display());
+                continue;
+            }
+        }
+
         let (extractor, lang_name) = match ext {
             "js" | "jsx" => (&js_ext, "javascript"),
             "py" | "pyi" => (&py_ext, "python"),
@@ -4741,11 +4898,19 @@ fn run_index(root: &std::path::Path) -> anyhow::Result<(Store, usize, usize, Vec
             "cs" => (&csharp_ext, "csharp"),
             _ => continue,
         };
-        let rel = path
-            .strip_prefix(root)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Issue #294: skip rather than fall back to the raw absolute path when
+        // strip_prefix fails — absolute paths produce `///`-prefixed Trunk paths
+        // that cannot be used for further queries.
+        let Ok(rel_path) = path.strip_prefix(root) else {
+            warn!(
+                "could not relativize {} against root {}; skipping",
+                path.display(),
+                root.display()
+            );
+            errors += 1;
+            continue;
+        };
+        let rel = rel_path.to_string_lossy().replace('\\', "/");
         match std::fs::read(path) {
             Err(e) => {
                 warn!("could not read {}: {e}", path.display());
@@ -4853,10 +5018,31 @@ fn encode_msgpack_hex(value: &serde_json::Value) -> String {
 ///
 /// Returns an error if pre-loading the index fails, the MCP handshake fails,
 /// or the transport encounters an I/O error.
-pub async fn serve_stdio(root: Option<PathBuf>) -> anyhow::Result<()> {
+/// Start the MCP server over stdio.
+///
+/// `allowed_roots` restricts which filesystem paths `mycelium_index_workspace`
+/// and `mycelium_load_index` may access (RFC-0097). When empty, all paths are
+/// permitted — **do not pass an empty vec from production CLI code**; use
+/// `[CWD]` as the minimum safe default.
+pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> anyhow::Result<()> {
     let server = match root {
-        Some(r) => MyceliumServer::with_root(r).await?,
-        None => MyceliumServer::new(),
+        Some(r) => {
+            MyceliumServer::with_root_and_allowed_roots(r.clone(), {
+                let mut roots = allowed_roots;
+                if roots.is_empty() {
+                    roots.push(r);
+                }
+                roots
+            })
+            .await?
+        }
+        None => {
+            if allowed_roots.is_empty() {
+                MyceliumServer::new()
+            } else {
+                MyceliumServer::new_with_allowed_roots(allowed_roots)
+            }
+        }
     };
     let transport = rmcp::transport::stdio();
     let running = server.serve(transport).await?;
@@ -5516,6 +5702,7 @@ mod tests {
         let raw = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "src/lib.rs>foo".to_string(),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -5542,6 +5729,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "src/lib.rs>bar".to_string(),
+                edge_kind: None,
                 include_virtual: None,
                 output_format: None,
             }))
@@ -5569,6 +5757,7 @@ mod tests {
         let raw = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "no/such/path".to_string(),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -6172,6 +6361,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -6196,6 +6386,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: Some(1),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -6213,6 +6404,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -7254,6 +7446,7 @@ mod tests {
         let raw = server
             .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
                 path_prefix: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -7279,6 +7472,7 @@ mod tests {
         let raw = server
             .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
                 path_prefix: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -7293,6 +7487,7 @@ mod tests {
         let raw = server
             .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
                 path_prefix: Some("src/lib.rs".to_owned()),
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -9541,6 +9736,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: None,
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9566,6 +9763,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: Some("src/".to_owned()),
                 kind: None,
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9589,6 +9788,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: Some("function".to_owned()),
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9605,6 +9806,8 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: Some("bogus_kind".to_owned()),
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
@@ -9625,11 +9828,67 @@ mod tests {
             .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
                 path_prefix: None,
                 kind: None,
+                limit: None,
+                offset: None,
                 output_format: None,
             }))
             .await;
         let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
         assert_eq!(val["count"].as_u64().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_limit_caps_result_count() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/x.rs>a").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>b").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>c").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>d").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>e").unwrap());
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: None,
+                limit: Some(3),
+                offset: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+        assert_eq!(val["symbols"].as_array().unwrap().len(), 3);
+        assert_eq!(val["count"].as_u64().unwrap(), 3);
+        assert_eq!(val["total_count"].as_u64().unwrap(), 5);
+    }
+
+    #[tokio::test]
+    async fn get_all_symbols_offset_skips_results() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            store.upsert_node(TrunkPath::parse("src/x.rs>a").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>b").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>c").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>d").unwrap());
+            store.upsert_node(TrunkPath::parse("src/x.rs>e").unwrap());
+        }
+        let raw = server
+            .mycelium_get_all_symbols(Parameters(GetAllSymbolsRequest {
+                path_prefix: None,
+                kind: None,
+                limit: None,
+                offset: Some(2),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+        // 5 symbols sorted: a, b, c, d, e → skip 2 → c, d, e
+        let syms = val["symbols"].as_array().unwrap();
+        assert_eq!(syms.len(), 3);
+        assert_eq!(syms[0].as_str().unwrap(), "src/x.rs>c");
+        assert_eq!(val["total_count"].as_u64().unwrap(), 5);
     }
 
     // ── RFC-0043: mycelium_get_reachable ─────────────────────────────────────
@@ -10889,6 +11148,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                edge_kind: None,
                 include_virtual: Some(true),
                 output_format: None,
             }))
@@ -10909,6 +11169,7 @@ mod tests {
         let raw = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
+                edge_kind: None,
                 include_virtual: None,
                 output_format: None,
             }))
@@ -10932,6 +11193,7 @@ mod tests {
         let result = server
             .mycelium_get_callees(Parameters(GetCalleesRequest {
                 path: "src/greet.rs>greet".to_owned(),
+                edge_kind: None,
                 output_format: Some(OutputFormat::Text),
             }))
             .await;
@@ -10949,6 +11211,7 @@ mod tests {
         let result = server
             .mycelium_get_callers(Parameters(GetCallersRequest {
                 path: "src/greet.rs>greet".to_owned(),
+                edge_kind: None,
                 include_virtual: None,
                 output_format: Some(OutputFormat::Text),
             }))
@@ -11054,6 +11317,7 @@ mod tests {
         let result = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: Some(OutputFormat::Text),
             }))
             .await;
@@ -11089,6 +11353,7 @@ mod tests {
         let raw = server
             .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
                 limit: None,
+                edge_kind: None,
                 output_format: None,
             }))
             .await;
@@ -11103,5 +11368,209 @@ mod tests {
             .await;
         let _: serde_json::Value = serde_json::from_str(result_str(&raw))
             .expect("None output_format must yield valid JSON");
+    }
+
+    // ── RFC-0097: filesystem access boundary ──────────────────────────────────
+
+    #[test]
+    fn check_path_allows_empty_roots() {
+        let result = check_path_in_allowed_roots("/etc", &[]);
+        assert!(result.is_ok(), "empty allowlist must permit all paths");
+    }
+
+    #[test]
+    fn check_path_rejects_nonexistent_with_populated_roots() {
+        let dir = tempfile::tempdir().unwrap();
+        let roots = vec![dir.path().to_path_buf()];
+        let result = check_path_in_allowed_roots("/nonexistent_path_xyz", &roots);
+        assert!(
+            result.is_err(),
+            "nonexistent path must be rejected when roots are set"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_rejects_path_outside_allowed_roots() {
+        let allowed = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let server = MyceliumServer::new_with_allowed_roots(vec![allowed.path().to_path_buf()]);
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: outside.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        assert!(
+            raw.is_error.unwrap_or(false),
+            "must reject path outside allowed roots"
+        );
+        let msg = result_str(&raw);
+        assert!(
+            msg.contains("outside allowed"),
+            "error message should mention allowed roots"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_rejects_path_traversal() {
+        let allowed = tempfile::tempdir().unwrap();
+        let server = MyceliumServer::new_with_allowed_roots(vec![allowed.path().to_path_buf()]);
+        // Construct a traversal path: <allowed>/subdir/../../etc
+        let traversal = format!("{}/subdir/../../etc", allowed.path().to_string_lossy());
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest { path: traversal }))
+            .await;
+        assert!(
+            raw.is_error.unwrap_or(false),
+            "path traversal must be rejected"
+        );
+    }
+
+    #[tokio::test]
+    async fn index_workspace_accepts_path_inside_allowed_roots() {
+        let allowed = tempfile::tempdir().unwrap();
+        let server = MyceliumServer::new_with_allowed_roots(vec![allowed.path().to_path_buf()]);
+        // Indexing the allowed root itself must not be rejected for boundary reasons
+        // (it may fail to index any files, but it must not be a security rejection)
+        let raw = server
+            .mycelium_index_workspace(Parameters(IndexWorkspaceRequest {
+                path: allowed.path().to_string_lossy().into_owned(),
+            }))
+            .await;
+        let msg = result_str(&raw);
+        assert!(
+            !msg.contains("outside allowed"),
+            "allowed path must not be rejected: {msg}"
+        );
+    }
+
+    // ── Issue #297: --edge-kind consistency ────────────────────────────────────
+
+    #[tokio::test]
+    async fn get_callees_edge_kind_imports_returns_import_targets() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>ModA").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>ModB").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, b);
+        }
+        let result = server
+            .mycelium_get_callees(Parameters(GetCalleesRequest {
+                path: "src/a.rs>ModA".to_string(),
+                edge_kind: Some("imports".to_string()),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
+        let paths = val["callee_paths"].as_array().unwrap();
+        assert!(
+            paths.iter().any(|p| p == "src/b.rs>ModB"),
+            "expected src/b.rs>ModB in callee_paths, got: {paths:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_callers_edge_kind_extends_returns_extenders() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let base = store.upsert_node(TrunkPath::parse("src/base.rs>Base").unwrap());
+            let child = store.upsert_node(TrunkPath::parse("src/child.rs>Child").unwrap());
+            store.upsert_edge(EdgeKind::Extends, child, base);
+        }
+        let result = server
+            .mycelium_get_callers(Parameters(GetCallersRequest {
+                path: "src/base.rs>Base".to_string(),
+                edge_kind: Some("extends".to_string()),
+                include_virtual: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
+        let paths = val["caller_paths"].as_array().unwrap();
+        assert!(
+            paths.iter().any(|p| p == "src/child.rs>Child"),
+            "expected src/child.rs>Child in caller_paths, got: {paths:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn rank_symbols_edge_kind_imports_ranks_most_imported_first() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let hub = store.upsert_node(TrunkPath::parse("src/hub.rs>Hub").unwrap());
+            let a = store.upsert_node(TrunkPath::parse("src/a.rs>A").unwrap());
+            let b = store.upsert_node(TrunkPath::parse("src/b.rs>B").unwrap());
+            let c = store.upsert_node(TrunkPath::parse("src/c.rs>C").unwrap());
+            store.upsert_edge(EdgeKind::Imports, a, hub);
+            store.upsert_edge(EdgeKind::Imports, b, hub);
+            store.upsert_edge(EdgeKind::Imports, c, hub);
+        }
+        let result = server
+            .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+                limit: Some(5),
+                edge_kind: Some("imports".to_string()),
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
+        let symbols = val["symbols"].as_array().unwrap();
+        assert!(!symbols.is_empty(), "expected ranked symbols");
+        assert_eq!(
+            symbols[0]["path"].as_str().unwrap(),
+            "src/hub.rs>Hub",
+            "most-imported symbol should rank first"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
+        let server = MyceliumServer::new();
+        {
+            let mut store = server.store.write().await;
+            let importer = store.upsert_node(TrunkPath::parse("src/importer.rs>A").unwrap());
+            let target = store.upsert_node(TrunkPath::parse("src/target.rs>B").unwrap());
+            // target has an incoming Imports edge but no incoming Calls edge
+            store.upsert_edge(EdgeKind::Imports, importer, target);
+        }
+        // Default (no edge_kind): checks Calls AND Imports → target NOT dead
+        let result_default = server
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
+                path_prefix: None,
+                edge_kind: None,
+                output_format: None,
+            }))
+            .await;
+        let val: serde_json::Value = serde_json::from_str(result_str(&result_default)).unwrap();
+        let dead: Vec<&str> = val["dead_symbols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(
+            !dead.contains(&"src/target.rs>B"),
+            "default dead check must NOT flag symbol that has an Imports edge; got: {dead:?}"
+        );
+        // With edge_kind "calls": target has no Calls → IS dead for calls
+        let result_calls = server
+            .mycelium_get_dead_symbols(Parameters(GetDeadSymbolsRequest {
+                path_prefix: None,
+                edge_kind: Some("calls".to_string()),
+                output_format: None,
+            }))
+            .await;
+        let val2: serde_json::Value = serde_json::from_str(result_str(&result_calls)).unwrap();
+        let dead_calls: Vec<&str> = val2["dead_symbols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(
+            dead_calls.contains(&"src/target.rs>B"),
+            "with edge_kind=calls, symbol with no Calls edge must appear as dead; got: {dead_calls:?}"
+        );
     }
 }

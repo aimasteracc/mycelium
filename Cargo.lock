@@ -1051,6 +1051,7 @@ dependencies = [
  "criterion",
  "hashbrown 0.17.1",
  "insta",
+ "mycelium-rcig-pack",
  "proptest",
  "rmp-serde",
  "salsa",
@@ -1061,6 +1062,7 @@ dependencies = [
  "tracing",
  "tree-sitter",
  "tree-sitter-go",
+ "tree-sitter-java",
  "tree-sitter-javascript",
  "tree-sitter-python",
  "tree-sitter-rust",
@@ -1085,6 +1087,7 @@ name = "mycelium-rcig-mcp"
 version = "0.1.10"
 dependencies = [
  "anyhow",
+ "criterion",
  "hex",
  "ignore",
  "mycelium-rcig-core",
@@ -1117,10 +1120,10 @@ dependencies = [
 name = "mycelium-rcig-pack"
 version = "0.1.10"
 dependencies = [
- "mycelium-rcig-core",
  "serde",
  "thiserror",
  "toml",
+ "tracing",
 ]
 
 [[package]]

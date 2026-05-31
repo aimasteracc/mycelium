@@ -308,6 +308,76 @@ fn extractor_keeps_regular_imports_alongside_type_checking_block() {
     );
 }
 
+// ── RFC-0096: TypeImports edge kind ─────────────────────────────────────────
+// TYPE_CHECKING imports must produce TypeImports edges (not be silently dropped).
+// This lets agents query type-only dependency graphs while keeping detect-cycles
+// clean (Imports-only by default, same as before).
+
+#[test]
+fn type_checking_import_emits_type_imports_edge() {
+    // `from collections import OrderedDict` inside `if TYPE_CHECKING:` must
+    // produce a TypeImports edge (RFC-0096) — not be dropped silently.
+    let source = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from collections import OrderedDict\n";
+    let store = extract(source);
+    let file_id = store.lookup("test.py").unwrap();
+    let collections_id = store
+        .lookup("collections")
+        .expect("collections node must exist (TypeImports)");
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&collections_id),
+        "import inside `if TYPE_CHECKING:` must produce a TypeImports edge"
+    );
+    // Must NOT appear as a regular Imports edge (would pollute cycle detection)
+    assert!(
+        !store
+            .outgoing(file_id, EdgeKind::Imports)
+            .contains(&collections_id),
+        "import inside `if TYPE_CHECKING:` must NOT produce a regular Imports edge"
+    );
+}
+
+#[test]
+fn regular_imports_not_in_type_imports() {
+    // Regular imports (`import os`) must stay as Imports, not TypeImports.
+    let source = "import os\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import typing_extensions\n";
+    let store = extract(source);
+    let file_id = store.lookup("test.py").unwrap();
+    let os_id = store.lookup("os").expect("os node must exist");
+    // Regular import: Imports edge present, TypeImports absent
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&os_id),
+        "regular `import os` must produce an Imports edge"
+    );
+    assert!(
+        !store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&os_id),
+        "regular `import os` must NOT produce a TypeImports edge"
+    );
+    // TYPE_CHECKING import: TypeImports present, Imports absent
+    let te_id = store
+        .lookup("typing_extensions")
+        .expect("typing_extensions node must exist (TypeImports)");
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&te_id),
+        "`typing_extensions` inside TYPE_CHECKING must produce a TypeImports edge"
+    );
+    assert!(
+        !store.outgoing(file_id, EdgeKind::Imports).contains(&te_id),
+        "`typing_extensions` inside TYPE_CHECKING must NOT produce an Imports edge"
+    );
+}
+
+#[test]
+fn type_imports_wire_string_is_type_imports() {
+    assert_eq!(EdgeKind::TypeImports.as_str(), "type_imports");
+    assert_eq!(EdgeKind::TypeImports.to_string(), "type_imports");
+}
+
 // ── alias-table dispatch (issue #205, RFC-0092) ──────────────────────────────
 
 #[test]
@@ -338,6 +408,71 @@ def bar():
     assert!(
         store.outgoing(bar_id, EdgeKind::Calls).contains(&resolved),
         "Calls edge must target the resolved alias path, not _query>fts_search_ranked"
+    );
+}
+
+#[test]
+fn from_relative_submodule_import_creates_correct_alias_and_call_edge() {
+    // Issue #214 Pattern 2: `from .models import AnalysisResult` should bind
+    // `AnalysisResult` → `pkg/sub/models.py>AnalysisResult` (a symbol inside
+    // a relative submodule), NOT `pkg/sub/models.py/AnalysisResult.py` (wrong
+    // file path). The latter was produced by the (true, None) arm in
+    // build_alias_target when src was non-bare (e.g. ".models").
+    //
+    // Consequence: code that calls `AnalysisResult()` after such an import
+    // must create a Calls edge to `pkg/sub/models.py>AnalysisResult`, not to
+    // a spurious bare stub.
+    let source = "\
+from .models import AnalysisResult
+
+def create():
+    return AnalysisResult()
+";
+    let store = extract_at("pkg/sub/consumer.py", source);
+
+    let create_id = store
+        .lookup("pkg/sub/consumer.py>create")
+        .expect("caller function must be indexed");
+
+    let target_id = store
+        .lookup("pkg/sub/models.py>AnalysisResult")
+        .expect("AnalysisResult must resolve to pkg/sub/models.py>AnalysisResult via alias table");
+
+    assert!(
+        store
+            .outgoing(create_id, EdgeKind::Calls)
+            .contains(&target_id),
+        "Calls edge must target pkg/sub/models.py>AnalysisResult, not a bare stub"
+    );
+}
+
+#[test]
+fn from_bare_relative_import_still_resolves_to_module_file() {
+    // Regression guard: `from . import sibling` must still resolve to
+    // `pkg/sub/sibling.py` (bare relative: local IS a module, not a symbol).
+    // This test ensures the Pattern 2 fix does not break the existing
+    // bare-relative behaviour.
+    let source = "\
+from . import sibling
+
+def caller():
+    return sibling.func()
+";
+    let store = extract_at("pkg/sub/consumer.py", source);
+
+    let caller_id = store
+        .lookup("pkg/sub/consumer.py>caller")
+        .expect("caller function must be indexed");
+
+    let target_id = store
+        .lookup("pkg/sub/sibling.py>func")
+        .expect("`from . import sibling; sibling.func()` must resolve to sibling.py>func");
+
+    assert!(
+        store
+            .outgoing(caller_id, EdgeKind::Calls)
+            .contains(&target_id),
+        "bare relative import must still resolve module file, not treat sibling as a symbol"
     );
 }
 
@@ -945,5 +1080,428 @@ fn extractor_cross_file_inherited_descendants_resolves_via_alias_table() {
     assert!(
         !inherited.iter().any(|(p, _)| p.ends_with(">method_a")),
         "method_a (overridden in Sub) must NOT appear in inherited descendants"
+    );
+}
+
+// ── RFC-0092 Phase 2: TypeScript import alias resolution ─────────────────────
+
+/// `import { foo as bar } from './module'; bar()` must emit a Calls edge to
+/// `src/module.ts>foo`, not to a bare stub `bar`.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_ts_named_import_alias_resolves_direct_call() {
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/module.ts",
+        b"export function foo(): void {}",
+        &mut store,
+    )
+    .unwrap();
+    ext.extract(
+        "src/consumer.ts",
+        b"import { foo as bar } from './module';\nfunction run(): void { bar(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.ts>run").expect("run must exist");
+    let callee = store.lookup("src/module.ts>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "bar() must resolve via alias table to src/module.ts>foo, not a bare stub"
+    );
+}
+
+/// `import * as ns from './module'; ns.greet()` must emit a Calls edge to
+/// `src/module.ts>greet`.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_ts_namespace_import_alias_resolves_method_call() {
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/module.ts",
+        b"export function greet(): void {}",
+        &mut store,
+    )
+    .unwrap();
+    ext.extract(
+        "src/consumer.ts",
+        b"import * as ns from './module';\nfunction run(): void { ns.greet(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.ts>run").expect("run must exist");
+    let callee = store
+        .lookup("src/module.ts>greet")
+        .expect("greet must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "ns.greet() must resolve via namespace alias to src/module.ts>greet"
+    );
+}
+
+/// `import { foo } from './module'; foo()` (no `as`) must emit a Calls edge to
+/// `src/module.ts>foo` via implicit alias binding.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_ts_named_import_no_alias_resolves_direct_call() {
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/module.ts",
+        b"export function foo(): void {}",
+        &mut store,
+    )
+    .unwrap();
+    ext.extract(
+        "src/consumer.ts",
+        b"import { foo } from './module';\nfunction run(): void { foo(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.ts>run").expect("run must exist");
+    let callee = store.lookup("src/module.ts>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo() (imported from './module') must resolve to src/module.ts>foo"
+    );
+}
+
+// ── RFC-0092 Phase 2: JavaScript alias resolution ─────────────────────────────
+
+fn js_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/javascript/queries.scm");
+    Extractor::new(language, query_src).expect("javascript extractor should build")
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_js_named_import_alias_resolves_direct_call() {
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("src/module.js", b"export function foo() {}", &mut store)
+        .unwrap();
+    ext.extract(
+        "src/consumer.js",
+        b"import { foo as bar } from './module';\nfunction run() { bar(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.js>run").expect("run must exist");
+    let callee = store.lookup("src/module.js>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "bar() must resolve via alias table to src/module.js>foo"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_js_namespace_import_alias_resolves_method_call() {
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("src/module.js", b"export function greet() {}", &mut store)
+        .unwrap();
+    ext.extract(
+        "src/consumer.js",
+        b"import * as ns from './module';\nfunction run() { ns.greet(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.js>run").expect("run must exist");
+    let callee = store
+        .lookup("src/module.js>greet")
+        .expect("greet must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "ns.greet() must resolve via namespace alias to src/module.js>greet"
+    );
+}
+
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_js_named_import_no_alias_resolves_direct_call() {
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("src/module.js", b"export function foo() {}", &mut store)
+        .unwrap();
+    ext.extract(
+        "src/consumer.js",
+        b"import { foo } from './module';\nfunction run() { foo(); }",
+        &mut store,
+    )
+    .unwrap();
+    let caller = store.lookup("src/consumer.js>run").expect("run must exist");
+    let callee = store.lookup("src/module.js>foo").expect("foo must exist");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "foo() (imported from './module') must resolve to src/module.js>foo"
+    );
+}
+
+#[test]
+fn from_relative_import_creates_symbol_level_imports_edge_for_dead_symbol_check() {
+    // Issue #286: `from .models import AnalysisResult` must create an Imports
+    // edge from consumer.py to models.py>AnalysisResult so that dead_symbols
+    // does NOT flag AnalysisResult as dead when it has no direct Calls edges.
+    let source = "from .models import AnalysisResult\n";
+    let store = extract_at("pkg/sub/consumer.py", source);
+
+    let consumer_id = store
+        .lookup("pkg/sub/consumer.py")
+        .expect("consumer file node must exist");
+    let symbol_id = store
+        .lookup("pkg/sub/models.py>AnalysisResult")
+        .expect("symbol node must be created via alias binding");
+
+    assert!(
+        store
+            .outgoing(consumer_id, EdgeKind::Imports)
+            .contains(&symbol_id)
+            || store
+                .incoming(symbol_id, EdgeKind::Imports)
+                .contains(&consumer_id),
+        "Imports edge consumer.py → models.py>AnalysisResult must exist (Issue #286)"
+    );
+
+    // Verify dead_symbols does not flag AnalysisResult.
+    let dead = store.dead_symbols(None);
+    assert!(
+        !dead.contains(&"pkg/sub/models.py>AnalysisResult".to_owned()),
+        "AnalysisResult must not appear in dead_symbols — it is imported by consumer.py"
+    );
+}
+
+#[test]
+fn from_absolute_import_creates_symbol_level_imports_edge() {
+    // Issue #286 (absolute case): `from output_manager import output_data`
+    // must create an Imports edge to output_manager>output_data so the symbol
+    // is excluded from get-dead-symbols output.
+    let source = "from output_manager import output_data\n";
+    let store = extract_at("pkg/cli.py", source);
+
+    let symbol_id = store
+        .lookup("output_manager>output_data")
+        .expect("symbol node must be created via alias binding");
+
+    let dead = store.dead_symbols(None);
+    assert!(
+        !dead.contains(&"output_manager>output_data".to_owned()),
+        "output_data must not appear in dead_symbols — it is imported by cli.py"
+    );
+    let _ = symbol_id; // silence unused warning
+}
+
+// ── Issue #293: JS function-expression definitions ───────────────────────────
+
+#[test]
+fn extractor_js_const_function_expression_creates_definition() {
+    // `const localize = function(key) { return key; }` must create a definition
+    // node for `localize` so callee-tree and call edges work.
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/nls.js",
+        b"const localize = function(key) { return key; };",
+        &mut store,
+    )
+    .unwrap();
+    assert!(
+        store.lookup("src/nls.js>localize").is_some(),
+        "const-assigned function expression must create a definition node"
+    );
+}
+
+#[test]
+fn extractor_js_const_function_expression_calls_edge() {
+    // A function defined via `const name = function(...) {...}` must emit Calls
+    // edges for calls made inside its body, just like arrow functions do.
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/nls.js",
+        b"function _format(k) {}\nconst localize = function(key) { return _format(key); };",
+        &mut store,
+    )
+    .unwrap();
+    let localize_id = store
+        .lookup("src/nls.js>localize")
+        .expect("localize must exist as a definition");
+    let format_id = store
+        .lookup("src/nls.js>_format")
+        .expect("_format must exist");
+    assert!(
+        store
+            .outgoing(localize_id, EdgeKind::Calls)
+            .contains(&format_id),
+        "localize must have a Calls edge to _format"
+    );
+}
+
+#[test]
+fn extractor_js_exported_function_expression_creates_definition() {
+    // `export const localize = function(...) {...}` must also create a definition.
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/nls.js",
+        b"export const localize = function(key) { return key; };",
+        &mut store,
+    )
+    .unwrap();
+    assert!(
+        store.lookup("src/nls.js>localize").is_some(),
+        "exported const-assigned function expression must create a definition node"
+    );
+}
+
+#[test]
+fn from_import_with_alias_creates_symbol_level_imports_edge() {
+    // Issue #286 (aliased case): `from ._ast_cache_schema import apply_migration_v3 as _apply`
+    // must create an Imports edge to _ast_cache_schema.py>apply_migration_v3.
+    let source = "from ._ast_cache_schema import apply_migration_v3 as _apply\n";
+    let store = extract_at("pkg/ast_cache.py", source);
+
+    let symbol_id = store
+        .lookup("pkg/_ast_cache_schema.py>apply_migration_v3")
+        .expect("symbol node must be created via alias binding");
+
+    let dead = store.dead_symbols(None);
+    assert!(
+        !dead.contains(&"pkg/_ast_cache_schema.py>apply_migration_v3".to_owned()),
+        "apply_migration_v3 must not appear in dead_symbols — it is imported by ast_cache.py"
+    );
+    let _ = symbol_id;
+}
+
+// ── Issue #295: Java Extends/Implements edges ─────────────────────────────────
+
+fn java_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_java::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/java/queries.scm");
+    Extractor::new(language, query_src).expect("java extractor should build")
+}
+
+#[test]
+fn extractor_java_extends_creates_extends_edge() {
+    // `class Sub extends Base` must create an Extends edge Sub → Base.
+    // Base is in a separate file so resolution requires resolve_bare_call_stubs().
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("src/Base.java", b"class Base {}", &mut store)
+        .unwrap();
+    ext.extract("src/Sub.java", b"class Sub extends Base {}", &mut store)
+        .unwrap();
+    store.resolve_bare_call_stubs();
+    let sub = store.lookup("src/Sub.java>Sub").expect("Sub must exist");
+    let base = store
+        .lookup("src/Base.java>Base")
+        .expect("Base must be resolved");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "Sub must have an Extends edge to src/Base.java>Base after stub resolution"
+    );
+}
+
+#[test]
+fn extractor_java_implements_creates_implements_edge() {
+    // `class Foo implements Runnable` must create an Implements edge Foo → Runnable.
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "src/Foo.java",
+        b"class Foo implements Runnable {}",
+        &mut store,
+    )
+    .unwrap();
+    let foo = store.lookup("src/Foo.java>Foo").expect("Foo must exist");
+    let runnable = store
+        .lookup("Runnable")
+        .expect("Runnable stub must be created");
+    assert!(
+        store
+            .outgoing(foo, EdgeKind::Implements)
+            .contains(&runnable),
+        "Foo must have an Implements edge to Runnable"
+    );
+}
+
+#[test]
+fn extractor_java_interface_extends_creates_extends_edge() {
+    // `interface Sub extends Base` must create an Extends edge Sub → Base.
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("src/Sub.java", b"interface Sub extends Base {}", &mut store)
+        .unwrap();
+    let sub = store
+        .lookup("src/Sub.java>Sub")
+        .expect("Sub interface must exist");
+    let base = store.lookup("Base").expect("Base stub must be created");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "Sub interface must have an Extends edge to Base"
+    );
+}
+
+// ── Issue #296: Python Extends edges for attribute-form base classes ───────────
+
+#[test]
+fn extractor_python_extends_dotted_base_creates_extends_edge() {
+    // `class SimpleTestCase(unittest.TestCase):` — attribute-form base class.
+    // Must create an Extends edge and a stub node for "unittest.TestCase".
+    let store = extract("class SimpleTestCase(unittest.TestCase):\n    pass");
+    let sub = store
+        .lookup("test.py>SimpleTestCase")
+        .expect("SimpleTestCase must exist");
+    let base = store
+        .lookup("unittest.TestCase")
+        .expect("unittest.TestCase stub must be created");
+    assert!(
+        store.outgoing(sub, EdgeKind::Extends).contains(&base),
+        "SimpleTestCase must have an Extends edge to unittest.TestCase"
+    );
+}
+
+#[test]
+fn extractor_python_extends_dotted_and_simple_mixed_inheritance() {
+    // `class Foo(bar.Base, LocalBase):` — mix of attribute and identifier forms.
+    // Both base classes must produce Extends edges.
+    let store = extract("class LocalBase:\n    pass\n\nclass Foo(bar.Base, LocalBase):\n    pass");
+    let foo = store.lookup("test.py>Foo").expect("Foo must exist");
+    let dotted = store
+        .lookup("bar.Base")
+        .expect("bar.Base stub must be created");
+    let local = store
+        .lookup("test.py>LocalBase")
+        .expect("LocalBase must exist");
+    assert!(
+        store.outgoing(foo, EdgeKind::Extends).contains(&dotted),
+        "Foo must extend bar.Base"
+    );
+    assert!(
+        store.outgoing(foo, EdgeKind::Extends).contains(&local),
+        "Foo must extend LocalBase"
+    );
+}
+
+#[test]
+fn extractor_python_extends_metaclass_kwarg_not_captured_as_base() {
+    // `class Foo(Base, metaclass=Meta):` — metaclass keyword argument must NOT
+    // produce an Extends edge (it is NOT a base class).
+    let store = extract("class Foo(Base, metaclass=Meta):\n    pass");
+    let foo = store.lookup("test.py>Foo").expect("Foo must exist");
+    let base = store.lookup("Base").expect("Base stub must exist");
+    assert!(
+        store.outgoing(foo, EdgeKind::Extends).contains(&base),
+        "Foo must extend Base"
+    );
+    // metaclass=Meta must NOT create an Extends edge
+    let meta = store.lookup("Meta");
+    let meta_extends = meta.is_some_and(|m| store.outgoing(foo, EdgeKind::Extends).contains(&m));
+    assert!(
+        !meta_extends,
+        "metaclass keyword argument must not produce an Extends edge"
     );
 }

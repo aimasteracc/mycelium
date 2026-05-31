@@ -5,27 +5,38 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #266 + #270 merged; #267/#268 triaged P1; release/v0.1.11 ready to cut) |
-| Current sprint | **v0.1.11 — COMPLETE ✅ (release/v0.1.11 to cut)** |
-| Active release branch | none — release agent should cut release/v0.1.11 now |
-| Next release target | **v0.1.11** — Python inheritance + RFC-0094 + MCP is_error + Pattern 3 fix |
+| Last updated | 2026-05-30 PM dispatch — PRs #317/#318/#319 processed; RFC-0096 TypeImports + SKILL doc backfill landing; v0.1.12 sprint has real content |
+| Current sprint | **v0.1.12 — in progress** |
+| Active release branch | none — cut release/v0.1.12 when sprint exits |
+| Next release target | **v0.1.12** — RFC-0096 TypeImports + SKILL backfill + Issues #292-#301 fixes |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.10 — TYPE_CHECKING guard + nested-attribute fallback** (tag v0.1.10, crates.io / npm / PyPI published 2026-05-30) |
+| Last shipped | **v0.1.11 — Python cross-file Extends, MCP is_error, token-efficient output** (tag v0.1.11, crates.io / npm / PyPI published 2026-05-31) |
 
 ---
 
-## 🚀 v0.1.10 — SHIPPED ✅
+## 🚀 v0.1.11 — SHIPPED ✅
 
 **What shipped:**
-- [x] `if TYPE_CHECKING:` imports no longer create `Imports` edges (PR closes #227). 2 TDD tests.
-- [x] Nested attribute call regression restored (`self.history.append(x)` and similar). 1 TDD test.
-- [x] Charter §5.12 release-gate rule codified in CHARTER.md, CLAUDE.md, GITFLOW.md (v0.1.9 governance).
+- [x] Python class inheritance (Extends edges, cross-file, attribute-form base classes)
+- [x] `get-callers --include-virtual`, `get-descendants --include-inherited`
+- [x] MCP `is_error` sweep — all 90 tool handlers (Issue #206 S1)
+- [x] Token-efficient `output_format: text/json` per transport — RFC-0094 Phase 2+3
+- [x] RFC-0092 alias resolution — TypeScript, JavaScript, Python
+- [x] RFC-0095 runtime pack loading via `MYCELIUM_PACKS_DIR`
+- [x] Charter §2 SLA 100K-node in <30s
+- [x] Issue #214 Pattern 3 (false callers eliminated); Issue #286 (dead-symbol false positives)
 
-**Post-v0.1.10 ceremony:**
-- [x] Tag v0.1.10 pushed, crates.io / npm / PyPI published.
-- [x] PR #240 (release/v0.1.10 → develop back-merge) merged — **ceremony complete**.
-- [x] PR #241 (RFC-0094 Phase 1 Formatter trait) merged to develop.
-- [~] `merge to main, tag, GitHub Release` finalize job failed again (same pattern as v0.1.6). The release was manually recovered. **Escalation to founder**: review `release.yml` finalize job for systemic failure (GitHub Release page creation / auto-merge to main) — happens repeatedly.
+**Post-v0.1.11 ceremony:**
+- [x] Tag v0.1.11 pushed (commit 6eb4a5c on main)
+- [x] crates.io / npm / PyPI published (CI confirmed green)
+- [x] GitHub Release page: https://github.com/aimasteracc/mycelium/releases/tag/v0.1.11
+- [x] PR #315 (release/v0.1.11 → develop back-merge) merged — **ceremony complete ✅**
+
+---
+
+## 🚀 v0.1.10 — SHIPPED ✅ (archived)
+
+- [x] `if TYPE_CHECKING:` guard, nested-attribute fallback, Charter §5.12 governance.
 
 ---
 
@@ -34,28 +45,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — no blocking issues.
 
 **P1 (action items):**
-1. **Cut release/v0.1.11** — all sprint exit criteria met + bonus PRs #266 and #270 landed.
-   Release agent task: `git checkout -b release/v0.1.11 develop`, bump version, seal CHANGELOG.
-2. **Issue #267** — `subclasses-tree` full-path only finds same-file subclasses. Root cause:
-   `resolve_bare_call_stubs()` stores Extends edge targets as bare names; reverse lookup expects
-   full-path nodes. rust-implementer TDD task for v0.1.12. Governs by RFC-0092.
-3. **Issue #268** — `get-descendants --include-inherited` returns 0 for cross-file base classes.
-   Same root cause as #267 (Extends edge target resolution). Same fix, same sprint. TDD task.
-4. **Issue #214 (Python reliability — Pattern 2)** — destructured imports file-level under-count.
-   Still open after Pattern 3 fixed by PR #270. Requires RFC-0092 Phase 2/3. v0.1.12 scope.
+1. **Cut release/v0.1.12** — develop has: Issues #292–#301 (9 fixes), RFC-0096 TypeImports (PR #318), SKILL doc backfill (PR #319). Sprint content complete; ready to cut when founder confirms scope done.
+2. **RFC-0096 TypeScript phase** — `import type { Foo } from 'mod'` tracking deferred. Low priority; Python phase landed and is the high-value use case.
 
-**P2 (v0.1.12 scope):**
-5. **Issue #206 S1 (MCP `is_error` sweep) — DONE** ✅ PR #266 merged this run. All 90 tools
-   now return `is_error: Some(true)` on error paths.
-6. **Issue #206 S2** — Token-efficient text output. RFC-0094 Phase 1+3 landed; per-transport
-   default config is the remaining work. Low effort.
-7. **Issue #212** — Runtime language pack loading. Medium effort, RFC-0095 drafted.
-8. **Issue #269** — Document autouse conftest fixture limitation in README / help text.
-   Low effort, high user-facing value.
+**P2 (v0.1.12 scope — develop ready):**
+3. **Issue #206** — CLOSED ✅. All sub-issues resolved.
+4. **Issue #212** — CLOSED ✅. Runtime pack loading via RFC-0095.
+5. **Issues #292–#301** — CLOSED ✅. All merged to develop 2026-05-31.
 
 **P3 (v0.2.0 backlog):**
-9. Skill marketplace submission metadata: icon, screenshots, category examples.
-10. End-to-end “first 5 minutes” walkthrough / asciinema recording.
+6. Skill marketplace metadata: icon, screenshots. ✅ Done (PR #284).
+7. Asciinema walkthrough recording: code-complete (PR #285); recording deferred to founder.
 
 ---
 
@@ -70,24 +70,33 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **Charter §2 SLA 100K-node row** — PR #262 merged. 6 SLA tests pass in <1s; limit 30s.
 - [x] **Issue #221 get-dependency-depth**: CLOSED 06:47 (completed — method dispatch improved enough to remove this as a separate issue).
 - [x] **Packs-sync CI gate** — PR #263 syncs stale embedded Python packs + adds `check_pack_parity.sh` + `pack-parity` CI job. PR #264 adds cross-file Extends regression guard.
-- [~] **Issue #214 Pattern 2 or 3**: Deferred to v0.1.12 (requires RFC-0092 Phase 2/3, significant effort). **Not blocking release.**
+- [x] **Issue #214**: All 3 Python reliability patterns verified fixed — CLOSED ✅ 2026-05-31. Pattern 1 (RFC-0092 #277/#278), Pattern 2 (#283/#289), Pattern 3 (#270).
 
-**Judgment**: 9 of 9 criteria met (counting issue #221 closure). Issue #214 is explicitly deferred — the sprint over-delivered on Python inheritance (Extends edges, virtual dispatch, `include-inherited`, `include-virtual`) which addresses the root of #214.
+**Judgment**: 10 of 10 criteria met. Issue #214 closed post-release after verification that all 3 patterns were already fixed by earlier PRs — sprint actually over-delivered.
 
 ---
 
-## Dispatch state (2026-05-30, PM run — v0.1.11 + #266 + #270 all on develop)
+## Dispatch state (2026-05-30, PM dispatch — PRs #317/#318/#319)
 
 | Agent | Status | Current item |
 |---|---|---|
-| release | **P0 NOW** | Cut release/v0.1.11 (develop has 9 sprint items + MCP is_error + Pattern 3). |
-| rust-implementer | **next-up** | Issues #267 + #268: cross-file Extends reverse lookup (bare-name → full-path upgrade in resolve_bare_call_stubs). After v0.1.11 ships. |
-| pack-author | **next-up** | Issue #214 Pattern 2: destructured imports file-level under-count (RFC-0092 Phase 2). After v0.1.11 ships. |
-| architect | idle | RFC-0092 Phase 2 scoping for #267/#268 root cause (edge target canonicalization). |
-| tech-writer | idle | Issue #269: document autouse conftest limitation. Low effort, after v0.1.11 ships. |
+| release | **NEXT UP** | Cut release/v0.1.12 — develop has RFC-0096, SKILL backfill, Issues #292-#301. Sprint content ready. |
+| rust-implementer | **IDLE** | Zero open issues. RFC-0096 TypeScript phase next if founder files issue. |
+| pack-author | **IDLE** | No pending pack work. RFC-0096 Python phase done. TypeScript phase deferred. |
+| architect | idle | No pending RFC scope work. |
+| tech-writer | idle | SKILL doc backfill complete (PRs #319/#273). Asciinema deferred to founder. |
 | code-reviewer | idle | Blocks on PR opens. |
-| security-reviewer | idle | Routine scan: post-v0.1.11. |
-| e2e-runner | idle | Regression tests for #267/#268 after rust-implementer fix. |
+| security-reviewer | **IDLE** | Post-v0.1.11 scan CLEAN ✅ (PR #317 merged this run). Next: post-v0.1.12. |
+| e2e-runner | idle | No pending regression tests. |
+
+### Open PRs (2026-05-30 PM dispatch)
+
+- **PR #318** (feature/v0.1.12-next) — RFC-0096 TypeImports edge kind. CI running, all checks ✅ so far.
+- **PR #319** (docs/v0.1.12-skill-changelog-rfc-updates) — SKILL.md params + RFC status. Pending conflict resolution after #318 merges.
+
+### Open Issues (2026-05-30)
+
+**None.** All issues closed.
 
 ---
 
@@ -118,27 +127,64 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-30 PM dispatch (this run — #266 + #270 merged; #267/#268 triaged; release/v0.1.11 unblocked)
+### 2026-05-30 PM dispatch — PRs #317/#318/#319 (RFC-0096 TypeImports + SKILL backfill)
 
-- Pre-flight: read CHARTER.md, _orchestrator.md, PM state, decisions.jsonl tail, anti-patterns.
-- Found PM state stale (local filesystem showed v0.1.6; develop HEAD is v0.1.11 complete).
-  Recovered by checking out develop HEAD. **Anti-pattern confirmed**: always `git fetch` + checkout
-  before reading files, not relying on initial clone state.
-- Assessed 2 open PRs (#266 all-green, #270 CI in-progress), 5 open issues (#267 #268 P1,
-  #214 P1, #206 P2, #269 P3).
-- **Merged PR #266** — MCP `is_error` sweep (all 90 tools). Closes #206 S1. Quality Gate: 20/20 ✅.
-- **Subscribed to PR #270** — nested-chain false callers fix (issue #214 Pattern 3). No review
-  comments. 2 remaining CI checks (Windows + integration) in-progress; all others ✅.
-- **PR #270 auto-merged** via webhook notification — all CI green. Closes #214 Pattern 3.
-- **Triaged new P1 issues #267 + #268** — cross-file Extends reverse lookup. Root cause:
-  `resolve_bare_call_stubs()` updates edge sources to full-path but leaves edge *targets* as bare
-  names. `subclasses-tree` and `get-descendants --include-inherited` reverse-walk Extends edges
-  and find only same-file subclasses because bare-name stub ≠ full-path definition node.
-  Dispatched to rust-implementer for v0.1.12.
-- **develop now has** v0.1.11 sprint (9 items) + MCP is_error (#266) + Pattern 3 (#270).
-  release/v0.1.11 is unblocked.
-- Updated PM state, dispatched release agent as P0.
-- Decisions.jsonl: appended this run's summary.
+- Pre-flight: CHARTER.md, _orchestrator.md, PM state, decisions.jsonl tail-20, anti-patterns scanned.
+- Assessed: 3 open PRs (#317/#318/#319), 0 open issues. All PRs had 20/20 green CI on original commits.
+- Merged PR #317 (chore: post-v0.1.11 security scan CLEAN — zero open issues).
+- Resolved decisions.jsonl conflict: both #317 and #318 appended entries; kept all three (append-only).
+- Merged PR #318 (feat: RFC-0096 TypeImports edge kind — Python TYPE_CHECKING imports now emit TypeImports edges instead of being dropped; 3 TDD tests RED→GREEN; SKILL + RFC + CHANGELOG updated).
+- Resolved CHANGELOG conflict in PR #319: develop had RFC-0096+RFC-0097, branch had RFC-0097 only; accepted develop's version.
+- Merged PR #319 (docs: SKILL.md params for v0.1.11/v0.1.12 features + RFC-0091/0096/0097 status Implemented).
+- v0.1.12 develop now has: Issues #292-#301 (9 fixes) + RFC-0096 TypeImports + comprehensive SKILL docs.
+- Anti-pattern: None this run.
+- Next: release agent cuts release/v0.1.12.
+
+### 2026-05-31 Issue #214 verified closed — zero open issues
+
+- PM scan found Issue #214 still open despite all 3 patterns being fixed in earlier PRs.
+- Ran full extractor test suite on develop HEAD: 60+ tests green, including:
+  - `alias_dispatch_resolves_to_real_module_via_from_import_as` — Pattern 1 ✅
+  - `from_relative_submodule_import_creates_correct_alias_and_call_edge` — Pattern 2 ✅
+  - Pattern 3 regression guard (depth-2+ chain suppression) — Pattern 3 ✅
+- Closed #214 with detailed per-pattern fix attribution.
+- **Zero open issues remain.** Dispatch protocol: STOP — queue empty.
+- Only actionable item: founder merges PR #275 (release/v0.1.11) to cut the release.
+
+### 2026-05-31 full-auto merge session (all PRs merged, all fixed issues closed)
+
+- User authorized full-auto mode: "使用我们的智能体团队全自动修改PR和Issues".
+- Spawned two parallel agents: (1) issue-closer, (2) PR-merger.
+- **PRs merged to develop** (9 total, squash+delete-branch):
+  - #304 — ci: GitHub token fallback
+  - #305 — RFC-0097 MCP filesystem boundary (Issue #301)
+  - #306 — --edge-kind flag for 4 tools (Issue #297)
+  - #307 — get-all-symbols pagination (Issue #292)
+  - #308 — Java Extends/Implements (Issue #295)
+  - #309 — Python attribute-form Extends (Issue #296)
+  - #310 — JS const-assigned function expressions (Issue #293)
+  - #311 — compound-extension skip + strip_prefix fix (Issue #294)
+  - #312 — PM state chore
+  - (PR #266 confirmed already merged 2026-05-30)
+- **Issues closed** (11 total): #206, #286, #292, #293, #294, #295, #296, #297, #298, #299, #301.
+- **Remaining**: #214 (deferred), #275 (release — blocked on founder auth).
+- Develop HEAD: 614d7c3 — all v0.1.12-ready fixes land in develop before release/v0.1.11 cuts.
+- Note: only `welcome + initial labels` CI job failed on each PR (first-interaction welcome bot, not a quality gate). All real quality gates (tests/clippy/coverage/security/DCO) passed.
+
+### 2026-05-31 PM dispatch (Issues #293/#294 implemented — rust-implementer queue exhausted)
+
+- Completed two full TDD cycles in a single session:
+  - **Issue #293** (JS `const name = function(){}` definitions): branch `feature/293-js-callee-arrow-functions`, PR #310.
+    - Fix 1: added `function_expression` patterns to `packs/javascript/queries.scm` (+ MCP/CLI copies).
+    - Fix 2: `enclosing_function_path` in `crates/mycelium-core/src/extractor/mod.rs` now falls back to parent `variable_declarator` name for anonymous `function_expression` nodes.
+    - 3 TDD tests; RED confirmed before each implementation; quality gates clean.
+  - **Issue #294** (compound-extension skip + strip_prefix fix): branch `feature/294-fix-mangled-paths`, PR #311.
+    - Fix 1: compound-extension guard skips files like `module.ts.py` in both CLI and MCP index paths.
+    - Fix 2: `strip_prefix` failure now skips the file with a `warn!` log instead of storing an absolute path.
+    - 3 TDD tests; quality gates clean (fixed `items_after_statements` clippy by moving `SOURCE_EXTS` to module level).
+- Issues #295/#296 were implemented in the prior session (PRs #308/#309).
+- rust-implementer queue now exhausted: 9 PRs open, all awaiting founder review.
+- Dispatch protocol: **STOP — no unblocked items.**
 
 ### 2026-05-30 PM dispatch (v0.1.11 sprint complete — release/v0.1.11 ready to cut)
 

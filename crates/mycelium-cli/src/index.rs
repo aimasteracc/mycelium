@@ -11,6 +11,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use ignore::WalkBuilder;
 use mycelium_core::{extractor::Extractor, store::Store};
+use mycelium_pack::PackRegistry;
 
 // ── embedded pack sources ─────────────────────────────────────────────────────
 
@@ -39,6 +40,41 @@ pub struct IndexStats {
     pub errors: usize,
 }
 
+/// Map a grammar string from `pack.toml` to the corresponding compiled-in
+/// `tree_sitter::Language`. Only languages bundled in this binary are
+/// supported; returns `None` for unknown grammars.
+fn grammar_language_for_name(grammar: &str) -> Option<tree_sitter::Language> {
+    if grammar.contains("tree-sitter-javascript") {
+        Some(tree_sitter_javascript::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-python") {
+        Some(tree_sitter_python::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-typescript") {
+        Some(tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
+    } else if grammar.contains("tree-sitter-rust") {
+        Some(tree_sitter_rust::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-go") {
+        Some(tree_sitter_go::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-java") {
+        Some(tree_sitter_java::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-c-sharp") || grammar.contains("tree-sitter-c_sharp") {
+        Some(tree_sitter_c_sharp::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-ruby") {
+        Some(tree_sitter_ruby::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-cpp") {
+        Some(tree_sitter_cpp::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-c") {
+        Some(tree_sitter_c::LANGUAGE.into())
+    } else {
+        None
+    }
+}
+
+/// Source-language extensions used by compound-extension detection (Issue #294).
+const SOURCE_EXTS: &[&str] = &[
+    "js", "jsx", "ts", "tsx", "py", "pyi", "rs", "go", "java", "c", "h", "cpp", "cc", "cxx", "hpp",
+    "rb", "cs",
+];
+
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
 /// Supported languages: JavaScript (`.js`, `.jsx`), Python (`.py`, `.pyi`),
@@ -46,13 +82,19 @@ pub struct IndexStats {
 /// Java (`.java`), C (`.c`, `.h`), Ruby (`.rb`),
 /// C++ (`.cpp`, `.cc`, `.cxx`, `.hpp`), C# (`.cs`).
 ///
+/// If `packs_dir` is provided, additional language packs are loaded from
+/// that directory via [`PackRegistry`]. Unknown file extensions are dispatched
+/// to the registry; packs whose grammar does not match a compiled-in
+/// tree-sitter grammar are silently skipped.
+///
 /// # Errors
 ///
 /// Returns an error only if `root` cannot be accessed. Individual file errors
 /// are counted in [`IndexStats::errors`] but do not stop the run.
 // ts_lang / tsx_lang differ only by one letter — similarity is intentional.
-#[allow(clippy::similar_names)]
-pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
+// index_path builds 11 static extractors + one optional registry in sequence.
+#[allow(clippy::similar_names, clippy::too_many_lines)]
+pub fn index_path(root: &Path, packs_dir: Option<&Path>) -> Result<(Store, IndexStats)> {
     let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
     let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
         .context("failed to compile JavaScript extractor")?;
@@ -96,6 +138,15 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
     let csharp_ext =
         Extractor::new(csharp_lang, CSHARP_QUERIES).context("failed to compile C# extractor")?;
 
+    // Load runtime pack registry when --packs-dir is provided.
+    let registry: Option<PackRegistry> = packs_dir.and_then(|dir| match PackRegistry::load(dir) {
+        Ok(r) => Some(r),
+        Err(e) => {
+            tracing::warn!("failed to load pack registry from {}: {e}", dir.display());
+            None
+        }
+    });
+
     let mut store = Store::new();
     let mut stats = IndexStats::default();
 
@@ -129,27 +180,77 @@ pub fn index_path(root: &Path) -> Result<(Store, IndexStats)> {
             continue;
         };
 
-        let extractor = match ext {
-            "js" | "jsx" => &js_ext,
-            "py" | "pyi" => &python_ext,
-            "ts" => &ts_ext,
-            "tsx" => &tsx_ext,
-            "rs" => &rs_ext,
-            "go" => &go_ext,
-            "java" => &java_ext,
-            "c" | "h" => &c_ext,
-            "rb" => &ruby_ext,
+        // Issue #294: skip files with compound source-language extensions like
+        // `module.ts.py`.  The stem (`module.ts`) ending in a recognised source
+        // extension that differs from `ext` (`py`) signals an artefact or cache
+        // file, not a real source file.  Indexing it would assign the wrong
+        // language and pollute the graph.
+        if let Some(stem_ext) = path
+            .file_stem()
+            .and_then(|s| std::path::Path::new(s).extension())
+            .and_then(|e| e.to_str())
+        {
+            if SOURCE_EXTS.contains(&stem_ext) && stem_ext != ext {
+                tracing::debug!("skipping compound-extension file: {}", path.display());
+                continue;
+            }
+        }
+
+        // Try static built-in extractors first; fall through to registry for
+        // unknown extensions when --packs-dir is provided.
+        let static_ext: Option<&Extractor> = match ext {
+            "js" | "jsx" => Some(&js_ext),
+            "py" | "pyi" => Some(&python_ext),
+            "ts" => Some(&ts_ext),
+            "tsx" => Some(&tsx_ext),
+            "rs" => Some(&rs_ext),
+            "go" => Some(&go_ext),
+            "java" => Some(&java_ext),
+            "c" | "h" => Some(&c_ext),
+            "rb" => Some(&ruby_ext),
             // C++ primary extensions only; `.h` is handled above by the C extractor.
-            "cpp" | "cc" | "cxx" | "hpp" => &cpp_ext,
-            "cs" => &csharp_ext,
-            _ => continue,
+            "cpp" | "cc" | "cxx" | "hpp" => Some(&cpp_ext),
+            "cs" => Some(&csharp_ext),
+            _ => None,
         };
 
-        let rel = path
-            .strip_prefix(root)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .replace('\\', "/");
+        // Build a dynamic extractor from the registry for non-static extensions.
+        let dynamic_ext: Option<Extractor>;
+        let extractor: &Extractor = if let Some(e) = static_ext {
+            e
+        } else if let Some(reg) = &registry {
+            let dotted = format!(".{ext}");
+            if let Some(pack) = reg.lookup_by_ext(&dotted) {
+                if let Some(lang) = grammar_language_for_name(&pack.manifest.meta.grammar) {
+                    dynamic_ext = Extractor::new(lang, &pack.queries).ok();
+                    match dynamic_ext.as_ref() {
+                        Some(e) => e,
+                        None => continue,
+                    }
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+        } else {
+            continue;
+        };
+
+        // Issue #294: if strip_prefix fails (e.g. due to symlink canonicalization
+        // mismatch), skip the file rather than storing the raw absolute path as
+        // a Trunk node path — absolute paths produce `///`-prefixed query results
+        // that cannot be used for further look-ups.
+        let Ok(rel_path) = path.strip_prefix(root) else {
+            tracing::warn!(
+                "could not relativize path {} against root {}; skipping",
+                path.display(),
+                root.display()
+            );
+            stats.errors += 1;
+            continue;
+        };
+        let rel = rel_path.to_string_lossy().replace('\\', "/");
 
         let source = match std::fs::read(path) {
             Ok(s) => s,
@@ -197,7 +298,7 @@ mod tests {
             "hello.py",
             "def greet(): pass\nclass World: pass",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one file");
         assert!(stats.errors == 0);
         assert!(store.lookup("hello.py").is_some(), "file node should exist");
@@ -210,7 +311,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_py(tmp.path(), "main.py", "x = 1");
         fs::write(tmp.path().join("README.md"), "# docs").unwrap();
-        let (_, stats) = index_path(tmp.path()).unwrap();
+        let (_, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "only .py file should be counted");
     }
 
@@ -220,7 +321,7 @@ mod tests {
         let sub = tmp.path().join("sub");
         fs::create_dir(&sub).unwrap();
         write_temp_py(&sub, "deep.py", "def deep(): pass");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         // On Unix, the relative path uses forward slash
         assert!(store.lookup("sub/deep.py").is_some());
@@ -229,7 +330,7 @@ mod tests {
     #[test]
     fn index_path_handles_empty_directory() {
         let tmp = tempfile::tempdir().unwrap();
-        let (_, stats) = index_path(tmp.path()).unwrap();
+        let (_, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 0);
         assert_eq!(stats.errors, 0);
     }
@@ -244,7 +345,7 @@ mod tests {
             "greet.ts",
             "function greet(name: string): void {}",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(store.lookup("greet.ts").is_some(), "module node must exist");
@@ -262,7 +363,7 @@ mod tests {
             "greeter.ts",
             "class Greeter { greet(): string { return ''; } }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(store.lookup("greeter.ts>Greeter").is_some());
         assert!(store.lookup("greeter.ts>Greeter>greet").is_some());
@@ -276,7 +377,7 @@ mod tests {
             "types.ts",
             "interface IGreeter { greet(): void; }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(store.lookup("types.ts>IGreeter").is_some());
     }
@@ -286,7 +387,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
         write_temp_ts(tmp.path(), "mod.ts", "function bar(): void {}");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 2);
         assert!(store.lookup("mod.py>foo").is_some());
         assert!(store.lookup("mod.ts>bar").is_some());
@@ -297,7 +398,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         // TSX is treated as TypeScript; JSX nodes are transparent to symbol extraction.
         write_temp_ts(tmp.path(), "app.tsx", "function App() { return null; }");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(
             stats.files, 1,
             "tsx should be indexed via the TypeScript extractor"
@@ -312,7 +413,7 @@ mod tests {
     fn index_path_indexes_jsx_as_javascript() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_ts(tmp.path(), "app.jsx", "function App() { return null; }");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(
             stats.files, 1,
             "jsx should be indexed via the JavaScript extractor"
@@ -331,7 +432,7 @@ mod tests {
             "utils.js",
             "function add(a, b) { return a + b; }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(store.lookup("utils.js>add").is_some());
     }
@@ -346,7 +447,7 @@ mod tests {
     fn index_path_extracts_rust_function() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_rs(tmp.path(), "lib.rs", "fn greet() {}");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(store.lookup("lib.rs").is_some());
@@ -361,7 +462,7 @@ mod tests {
             "model.rs",
             "struct Point { x: i32 } impl Point { fn new() -> Self { Point { x: 0 } } }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(store.lookup("model.rs>Point").is_some());
         assert!(store.lookup("model.rs>Point>new").is_some());
@@ -375,7 +476,7 @@ mod tests {
             "types.rs",
             "enum Color { Red } trait Drawable { fn draw(&self); }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(store.lookup("types.rs>Color").is_some());
         assert!(store.lookup("types.rs>Drawable").is_some());
@@ -394,7 +495,7 @@ mod tests {
         // Also write a non-ignored file
         write_temp_py(tmp.path(), "main.py", "def main(): pass");
 
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "only main.py should be indexed");
         assert!(
             store.lookup("main.py>main").is_some(),
@@ -415,7 +516,7 @@ mod tests {
         fs::write(target.join("artifact.rs"), "fn artifact() {}").unwrap();
         write_temp_rs(tmp.path(), "lib.rs", "fn real() {}");
 
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "only lib.rs should be indexed");
         assert!(
             store.lookup("target/artifact.rs").is_none(),
@@ -431,7 +532,7 @@ mod tests {
         fs::write(snap_dir.join("index.rmp"), b"not real").unwrap();
         write_temp_rs(tmp.path(), "lib.rs", "fn real() {}");
 
-        let (_store, stats) = index_path(tmp.path()).unwrap();
+        let (_store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, ".mycelium/ must not be indexed");
     }
 
@@ -444,7 +545,7 @@ mod tests {
         fs::write(vendor.join("third.py"), "def third(): pass").unwrap();
         write_temp_py(tmp.path(), "app.py", "def app(): pass");
 
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(
             stats.files, 1,
             "vendor/ should be excluded via .myceliumignore"
@@ -463,7 +564,7 @@ mod tests {
     fn index_path_extracts_go_function() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_go(tmp.path(), "main.go", "package main\n\nfunc greet() {}\n");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one .go file");
         assert_eq!(stats.errors, 0);
         assert!(store.lookup("main.go").is_some(), "module node must exist");
@@ -481,7 +582,7 @@ mod tests {
             "types.go",
             "package main\n\ntype Point struct { X int; Y int }\n",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(
@@ -498,7 +599,7 @@ mod tests {
             "geom.go",
             "package main\n\ntype Rect struct {}\nfunc (r Rect) Area() int { return 0 }\n",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(
@@ -517,7 +618,7 @@ mod tests {
         write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
         write_temp_rs(tmp.path(), "lib.rs", "fn bar() {}");
         write_temp_go(tmp.path(), "main.go", "package main\nfunc baz() {}");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 3, "all three languages should be indexed");
         assert!(store.lookup("mod.py>foo").is_some());
         assert!(store.lookup("lib.rs>bar").is_some());
@@ -532,7 +633,7 @@ mod tests {
             "iface.go",
             "package main\n\ntype Stringer interface { String() string }\n",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(
             store.lookup("iface.go>Stringer").is_some(),
@@ -553,7 +654,7 @@ mod tests {
             "Hello.java",
             "public class Hello { public void greet() {} }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one .java file");
         assert_eq!(stats.errors, 0);
         assert!(
@@ -574,7 +675,7 @@ mod tests {
             "Greeter.java",
             "public interface Greeter { void greet(); }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(
@@ -592,7 +693,7 @@ mod tests {
             "App.java",
             "public class App { public static void main(String[] args) {} }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 2, "both languages should be indexed");
         assert!(store.lookup("mod.py>foo").is_some());
         assert!(store.lookup("App.java>App").is_some());
@@ -608,7 +709,7 @@ mod tests {
     fn index_path_extracts_c_function() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_c(tmp.path(), "main.c", "int greet(void) { return 0; }");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one .c file");
         assert_eq!(stats.errors, 0);
         assert!(
@@ -621,7 +722,7 @@ mod tests {
     fn index_path_extracts_c_struct() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_c(tmp.path(), "types.c", "struct Point { int x; int y; };");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(
@@ -634,7 +735,7 @@ mod tests {
     fn index_path_extracts_c_header() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_c(tmp.path(), "api.h", "int compute(int a, int b);");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one .h file");
         assert_eq!(stats.errors, 0);
         assert!(
@@ -648,7 +749,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_rs(tmp.path(), "lib.rs", "fn bar() {}");
         write_temp_c(tmp.path(), "util.c", "void util(void) {}");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 2, "both languages should be indexed");
         assert!(store.lookup("lib.rs>bar").is_some());
         assert!(store.lookup("util.c>util").is_some());
@@ -668,7 +769,7 @@ mod tests {
             "greeter.rb",
             "class Greeter\n  def greet\n  end\nend\n",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one .rb file");
         assert_eq!(stats.errors, 0);
         assert!(
@@ -689,7 +790,7 @@ mod tests {
             "helpers.rb",
             "module Helpers\n  def help\n  end\nend\n",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(
@@ -703,7 +804,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
         write_temp_rb(tmp.path(), "app.rb", "class App\ndef run\nend\nend\n");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 2, "both languages should be indexed");
         assert!(store.lookup("mod.py>foo").is_some());
         assert!(store.lookup("app.rb>App").is_some());
@@ -719,7 +820,7 @@ mod tests {
     fn index_path_extracts_cpp_function() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_cpp(tmp.path(), "main.cpp", "int greet() { return 0; }");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one .cpp file");
         assert_eq!(stats.errors, 0);
         assert!(store.lookup("main.cpp").is_some(), "module node must exist");
@@ -737,7 +838,7 @@ mod tests {
             "shape.cpp",
             "class Shape { public: int area() { return 0; } };",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(
@@ -754,7 +855,7 @@ mod tests {
             "ns.cpp",
             "namespace MyNS { int helper() { return 0; } }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert_eq!(stats.errors, 0);
         assert!(
@@ -767,7 +868,7 @@ mod tests {
     fn index_path_extracts_cpp_hpp_header() {
         let tmp = tempfile::tempdir().unwrap();
         write_temp_cpp(tmp.path(), "point.hpp", "struct Point { int x; int y; };");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, ".hpp file should be indexed as C++");
         assert!(
             store.lookup("point.hpp>Point").is_some(),
@@ -783,7 +884,7 @@ mod tests {
             "util.cc",
             "int add(int a, int b) { return a + b; }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, ".cc file should be indexed as C++");
         assert!(
             store.lookup("util.cc>add").is_some(),
@@ -797,7 +898,7 @@ mod tests {
         write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
         write_temp_rs(tmp.path(), "lib.rs", "fn bar() {}");
         write_temp_cpp(tmp.path(), "main.cpp", "int baz() { return 0; }");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 3, "all three languages should be indexed");
         assert!(store.lookup("mod.py>foo").is_some());
         assert!(store.lookup("lib.rs>bar").is_some());
@@ -818,7 +919,7 @@ mod tests {
             "Hello.cs",
             "namespace App { public class Hello { public void Greet() {} } }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1, "should process one .cs file");
         assert_eq!(stats.errors, 0);
         assert!(store.lookup("Hello.cs").is_some(), "module node must exist");
@@ -836,7 +937,7 @@ mod tests {
             "IGreeter.cs",
             "public interface IGreeter { void Greet(); }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(
             store.lookup("IGreeter.cs>IGreeter").is_some(),
@@ -852,7 +953,7 @@ mod tests {
             "App.cs",
             "namespace MyApp { public class Service {} }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(
             store.lookup("App.cs>MyApp").is_some(),
@@ -872,7 +973,7 @@ mod tests {
             "Calc.cs",
             "public class Calc { public int Add(int a, int b) { return a + b; } }",
         );
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 1);
         assert!(
             store.lookup("Calc.cs>Calc").is_some(),
@@ -890,10 +991,120 @@ mod tests {
         write_temp_py(tmp.path(), "mod.py", "def foo(): pass");
         write_temp_cpp(tmp.path(), "main.cpp", "int bar() { return 0; }");
         write_temp_cs(tmp.path(), "App.cs", "public class Baz {}");
-        let (store, stats) = index_path(tmp.path()).unwrap();
+        let (store, stats) = index_path(tmp.path(), None).unwrap();
         assert_eq!(stats.files, 3, "all three languages should be indexed");
         assert!(store.lookup("mod.py>foo").is_some());
         assert!(store.lookup("main.cpp>bar").is_some());
         assert!(store.lookup("App.cs>Baz").is_some());
+    }
+
+    // ── --packs-dir tests ─────────────────────────────────────────────
+
+    fn write_custom_pack(packs_root: &Path, ext: &str, grammar: &str, queries_src: &str) {
+        let pack_subdir = packs_root.join("customlang");
+        fs::create_dir_all(&pack_subdir).unwrap();
+        let toml = format!(
+            "[meta]\nname = \"customlang\"\nextensions = [\"{ext}\"]\ngrammar = \"{grammar}\"\n"
+        );
+        fs::write(pack_subdir.join("pack.toml"), toml).unwrap();
+        fs::write(pack_subdir.join("queries.scm"), queries_src).unwrap();
+    }
+
+    #[test]
+    fn index_path_with_packs_dir_indexes_custom_extension() {
+        let root = tempfile::tempdir().unwrap();
+        let packs_dir = tempfile::tempdir().unwrap();
+
+        // A custom pack for .mypy using the Python grammar + real Python queries.
+        let python_queries = include_str!("../packs/python/queries.scm");
+        write_custom_pack(
+            packs_dir.path(),
+            ".mypy",
+            "npm:tree-sitter-python@^0.21",
+            python_queries,
+        );
+
+        // A .mypy file with Python-compatible source.
+        fs::write(root.path().join("hello.mypy"), b"def hello(): pass").unwrap();
+
+        let (store, stats) =
+            index_path(root.path(), Some(packs_dir.path())).expect("index must succeed");
+
+        assert_eq!(stats.files, 1, "custom extension file must be indexed");
+        assert_eq!(stats.errors, 0);
+        assert!(
+            store.lookup("hello.mypy>hello").is_some(),
+            "function from custom-ext file must appear in the store"
+        );
+    }
+
+    #[test]
+    fn index_path_without_packs_dir_ignores_custom_extension() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("hello.mypy"), b"def hello(): pass").unwrap();
+
+        let (_, stats) = index_path(root.path(), None).expect("index must succeed");
+
+        assert_eq!(
+            stats.files, 0,
+            "unknown extension must not be indexed without packs-dir"
+        );
+    }
+
+    // ── Issue #294: compound-extension / mangled-path guards ─────────────────
+
+    #[test]
+    fn index_path_skips_compound_extension_file() {
+        // A file named `module.ts.py` has last extension `py` but stem `module.ts`
+        // whose own extension is `ts` — a source-language extension that conflicts.
+        // The indexer must skip this file rather than index it as Python, because
+        // it is almost certainly a build artifact or cache file, not a real Python
+        // file.  Issue #294.
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("module.ts.py"), b"x = 1").unwrap();
+
+        let (store, stats) = index_path(root.path(), None).expect("index must succeed");
+
+        assert_eq!(stats.files, 0, "compound-extension file must be skipped");
+        assert!(
+            store.lookup("module.ts.py").is_none(),
+            "compound-extension file must not create a node in the store"
+        );
+    }
+
+    #[test]
+    fn index_path_does_not_skip_simple_named_py_file() {
+        // A file named `js.py` (stem `js`, no extension in stem) is a legitimate
+        // Python file — not a compound-extension artifact.  It must still be
+        // indexed as Python (Issue #294 — non-regression).
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("js.py"), b"def handle(): pass").unwrap();
+
+        let (store, stats) = index_path(root.path(), None).expect("index must succeed");
+
+        assert_eq!(stats.files, 1, "js.py must be indexed as Python");
+        assert!(
+            store.lookup("js.py>handle").is_some(),
+            "js.py>handle must be in the store"
+        );
+    }
+
+    #[test]
+    fn index_path_stored_paths_are_relative() {
+        // All paths stored in the index must be relative to the root, never
+        // absolute.  Absolute paths (mangled '///' prefix) indicate that
+        // path.strip_prefix(root) failed and the raw OS path leaked through.
+        // Issue #294.
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("app.py"), b"def run(): pass").unwrap();
+
+        let (store, _) = index_path(root.path(), None).expect("index must succeed");
+
+        for path in store.all_paths() {
+            assert!(
+                !path.starts_with('/'),
+                "stored path must be relative, got absolute: {path}"
+            );
+        }
     }
 }

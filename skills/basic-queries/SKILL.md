@@ -15,6 +15,19 @@ allowed-tools:
   - mcp__mycelium__get_files
   - mcp__mycelium__get_node_degree
   - mcp__mycelium__get_symbol_count_by_kind
+category: navigation
+icon: 🔍
+marketplace_examples:
+  - query: "Find all symbols named login"
+    tool: mcp__mycelium__search_symbol
+  - query: "What symbols are defined in src/auth/session.rs?"
+    tool: mcp__mycelium__get_all_symbols
+  - query: "What kind of symbol is AuthService?"
+    tool: mcp__mycelium__get_node_kind
+  - query: "What file and line range does render live at?"
+    tool: mcp__mycelium__get_source_span
+  - query: "List every function in the project"
+    tool: mcp__mycelium__get_symbols_by_kind
 ---
 
 # `basic-queries` — the foundation layer
@@ -36,6 +49,16 @@ Do **NOT** use when:
 - The user wants *set-based* matching by pattern → use the `hyphae-query` Skill.
 - The user asks "what calls X" → use the `call-graph` Skill.
 - The user wants ranking, centrality, or aggregate statistics → those are different Skills.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Find all symbols named login" | `mcp__mycelium__search_symbol` |
+| "What symbols are defined in src/auth/session.rs?" | `mcp__mycelium__get_all_symbols` |
+| "What kind of symbol is AuthService?" | `mcp__mycelium__get_node_kind` |
+| "What file and line range does render live at?" | `mcp__mycelium__get_source_span` |
+| "List every function in the project" | `mcp__mycelium__get_symbols_by_kind` |
 
 ## Capabilities under this umbrella
 
@@ -73,6 +96,13 @@ mcp__mycelium__get_ancestors({ "path": "src/a.rs>App>render" })
 ```
 mcp__mycelium__get_descendants({ "path": "src/a.rs>App" })
 → ["src/a.rs>App>init", "src/a.rs>App>render", ...]
+```
+
+Pass `"include_inherited": true` to also include methods inherited from parent classes (v0.1.11, Issue #248):
+
+```
+mcp__mycelium__get_descendants({ "path": "src/a.rs>App", "include_inherited": true })
+→ ["src/a.rs>App>init", "src/a.rs>App>render", "src/base.rs>Base>clone", ...]
 ```
 
 ### `get_node_kind` — what kind of symbol is this
@@ -119,6 +149,13 @@ mcp__mycelium__get_siblings({ "path": "src/a.rs>App>render" })
 mcp__mycelium__get_all_symbols({ "path_prefix": "src/auth/", "kind": null, "limit": 1000 })
 ```
 
+Use `"offset"` for pagination (v0.1.12, Issue #292). Set `"limit": 0` to return all results with no cap. When `limit > 0` the response includes a `total_count` field so callers can compute page counts:
+
+```
+mcp__mycelium__get_all_symbols({ "path_prefix": "src/", "kind": null, "limit": 500, "offset": 1000 })
+→ { "symbols": [...], "total_count": 3247 }
+```
+
 ### `server_status` — the index is healthy
 
 **When**: before starting any analysis, confirm the index loaded. Returns engine version, node/edge counts, last-load source.
@@ -136,6 +173,9 @@ Each capability has a matching `mycelium <cap>` subcommand with identical name, 
 mycelium search-symbol login --limit 20
 mycelium get-symbol-info "src/auth/session.rs>AuthService>login"
 mycelium get-descendants "src/a.rs>App" --format=json
+mycelium get-descendants "src/a.rs>App" --include-inherited --format=json
+mycelium get-all-symbols --prefix src/auth/ --limit 1000 --format=json
+mycelium get-all-symbols --prefix src/ --limit 500 --offset 1000 --format=json
 ```
 
 ## Parity contract

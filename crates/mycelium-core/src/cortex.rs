@@ -45,8 +45,9 @@
 #![allow(missing_docs)]
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
+use mycelium_pack::PackRegistry;
 use salsa::Storage;
 use tracing::warn;
 
@@ -243,9 +244,83 @@ pub fn index_file(db: &dyn CortexDb, file: InputFile) -> Arc<FileIndex> {
     Arc::new(FileIndex { symbols })
 }
 
+// ── runtime pack registry ─────────────────────────────────────────────────────
+
+static PACK_REGISTRY: OnceLock<Option<PackRegistry>> = OnceLock::new();
+
+/// Return the global `PackRegistry` if `MYCELIUM_PACKS_DIR` is set and valid.
+fn pack_registry() -> Option<&'static PackRegistry> {
+    PACK_REGISTRY
+        .get_or_init(|| {
+            let packs_dir = std::env::var_os("MYCELIUM_PACKS_DIR").map(PathBuf::from)?;
+            match PackRegistry::load(&packs_dir) {
+                Ok(reg) => {
+                    tracing::info!(
+                        packs_dir = %packs_dir.display(),
+                        count = reg.len(),
+                        "cortex: loaded runtime pack registry"
+                    );
+                    Some(reg)
+                }
+                Err(e) => {
+                    warn!(
+                        packs_dir = %packs_dir.display(),
+                        error = %e,
+                        "cortex: failed to load pack registry — using built-in packs"
+                    );
+                    None
+                }
+            }
+        })
+        .as_ref()
+}
+
+/// Map a grammar reference string (from `pack.toml`) to the compiled-in
+/// [`tree_sitter::Language`] for that grammar.
+///
+/// Only grammars bundled in this crate are resolvable.  Packs referencing
+/// an unknown grammar string are silently skipped and the extractor falls
+/// back to the static embed for that extension.
+pub(crate) fn grammar_language_for_name(grammar: &str) -> Option<tree_sitter::Language> {
+    if grammar.contains("tree-sitter-javascript") {
+        Some(tree_sitter_javascript::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-python") {
+        Some(tree_sitter_python::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-typescript") {
+        Some(tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())
+    } else if grammar.contains("tree-sitter-rust") {
+        Some(tree_sitter_rust::LANGUAGE.into())
+    } else if grammar.contains("tree-sitter-go") {
+        Some(tree_sitter_go::LANGUAGE.into())
+    } else {
+        None
+    }
+}
+
 /// Build a language [`Extractor`] for the given file extension, or `None`
-/// if the extension is not supported by any embedded language pack.
+/// if the extension is not supported.
+///
+/// When `MYCELIUM_PACKS_DIR` is set, queries are loaded from the runtime
+/// registry (disk).  Falls back to compile-time embedded queries when the
+/// env var is absent or the pack is not in the registry.
 fn build_extractor(ext: &str) -> Option<Extractor> {
+    // tsx uses LANGUAGE_TSX regardless of registry (no separate tsx pack.toml).
+    if ext == "tsx" {
+        let lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TSX.into();
+        return Extractor::new(lang, TYPESCRIPT_QUERIES).ok();
+    }
+
+    // Try runtime registry first.
+    if let Some(reg) = pack_registry() {
+        let dotted = format!(".{ext}");
+        if let Some(pack) = reg.lookup_by_ext(&dotted) {
+            if let Some(lang) = grammar_language_for_name(&pack.manifest.meta.grammar) {
+                return Extractor::new(lang, &pack.queries).ok();
+            }
+        }
+    }
+
+    // Static fallback (always available regardless of MYCELIUM_PACKS_DIR).
     match ext {
         "js" | "jsx" => {
             let lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
@@ -257,10 +332,6 @@ fn build_extractor(ext: &str) -> Option<Extractor> {
         }
         "ts" => {
             let lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
-            Extractor::new(lang, TYPESCRIPT_QUERIES).ok()
-        }
-        "tsx" => {
-            let lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TSX.into();
             Extractor::new(lang, TYPESCRIPT_QUERIES).ok()
         }
         "rs" => {
@@ -444,6 +515,36 @@ mod tests {
         assert!(
             !py_paths.iter().any(|p| p.contains("greet")),
             "python index must not contain `greet`",
+        );
+    }
+
+    // ── grammar resolver ─────────────────────────────────────────────────────
+
+    #[test]
+    fn grammar_language_resolves_known_names() {
+        assert!(
+            grammar_language_for_name("npm:tree-sitter-python@^0.21").is_some(),
+            "python grammar must resolve"
+        );
+        assert!(
+            grammar_language_for_name("npm:tree-sitter-javascript@^0.25").is_some(),
+            "javascript grammar must resolve"
+        );
+        assert!(
+            grammar_language_for_name("crates.io:tree-sitter-go@^0.25").is_some(),
+            "go grammar must resolve"
+        );
+        assert!(
+            grammar_language_for_name("crates.io:tree-sitter-rust@^0.24").is_some(),
+            "rust grammar must resolve"
+        );
+    }
+
+    #[test]
+    fn grammar_language_returns_none_for_unknown() {
+        assert!(
+            grammar_language_for_name("tree-sitter-brainfuck").is_none(),
+            "unknown grammar must return None"
         );
     }
 

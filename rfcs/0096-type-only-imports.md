@@ -1,6 +1,6 @@
 # RFC-0096: Type-Only Import Edge Kind
 
-- **Status**: draft
+- **Status**: Implemented (Python phase)
 - **Author(s)**: @aimasteracc (orchestrator dispatch)
 - **Created**: 2026-05-30
 - **Last updated**: 2026-05-30
@@ -206,19 +206,23 @@ when investigating type-relationship cycles.
    `if TYPE_CHECKING and SOMETHING_ELSE`?), and discards information
    downstream consumers may want.
 
-## Acceptance criteria
+## Acceptance criteria (Python phase)
 
-- [ ] `EdgeKind::TypeImports` variant + wire string
-- [ ] Python extractor: type-block detection Pass 1.5, dispatches
-  `Imports` vs `TypeImports` per anchor
-- [ ] Integration test: indexing `from typing import TYPE_CHECKING`
-  + `if TYPE_CHECKING: from foo import Bar` produces a `TypeImports`
-  edge (not `Imports`) targeting `foo>Bar`
-- [ ] `detect-cycles --edge-kind=imports` excludes type-only edges
-  (regression test: #227 fixture reports `0 cycles`)
-- [ ] `detect-cycles --edge-kind=type_imports` includes them
-- [ ] Skill catalog updates for `import-graph` family
-- [ ] CHANGELOG `[Unreleased]` Added entry
+- [x] `EdgeKind::TypeImports` variant + wire string `"type_imports"`
+- [x] Python extractor: imports inside `if TYPE_CHECKING:` emit `TypeImports`
+  edges instead of being dropped (`crates/mycelium-core/src/extractor/mod.rs`)
+- [x] Integration test: `type_checking_import_emits_type_imports_edge` — indexing
+  `from typing import TYPE_CHECKING` + `if TYPE_CHECKING: from foo import Bar`
+  produces a `TypeImports` edge and no `Imports` edge for `foo`
+- [x] `detect-cycles --edge-kind=imports` excludes type-only edges — existing
+  `extractor_skips_imports_inside_type_checking_block` test verifies this (no
+  Imports edge for TYPE_CHECKING imports)
+- [x] `regular_imports_not_in_type_imports` test verifies segregation
+- [x] `type_imports_wire_string_is_type_imports` test verifies wire string
+- [x] Skill catalog updated: `skills/import-graph/SKILL.md` — TypeImports section
+- [x] CHANGELOG `[Unreleased]` Added entry
+
+TypeScript phase (`import type { Foo } from 'mod'`) tracked separately.
 
 ## Rollout plan
 

@@ -71,6 +71,12 @@ enum Cmd {
         /// Root directory to index (defaults to current directory).
         #[arg(default_value = ".")]
         path: PathBuf,
+        /// Load additional language packs from this directory at runtime.
+        /// Each sub-directory must contain `pack.toml` and `queries.scm`.
+        /// Overrides the `MYCELIUM_PACKS_DIR` environment variable for
+        /// the `index` command.
+        #[arg(long, value_name = "DIR")]
+        packs_dir: Option<PathBuf>,
     },
     /// Execute a Hyphae DSL selector against the project's index.
     Query {
@@ -191,6 +197,12 @@ enum Cmd {
         /// Optional kind wire string to filter.
         #[arg(long)]
         kind: Option<String>,
+        /// Maximum number of symbols to return. 0 means no limit (default).
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+        /// Number of symbols to skip before returning results.
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -210,6 +222,9 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Edge kind to traverse: calls (default), imports, extends, implements.
+        #[arg(long, default_value = "calls")]
+        edge_kind: String,
     },
     /// Return the direct callers of a symbol (incoming `Calls` edges).
     GetCallers {
@@ -218,8 +233,12 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Edge kind to traverse: calls (default), imports, extends, implements.
+        #[arg(long, default_value = "calls")]
+        edge_kind: String,
         /// Also include callers that reach this symbol via virtual dispatch
         /// (i.e., callers of a base-class method of the same name).
+        /// Only applies when --edge-kind=calls (the default).
         #[arg(long, default_value_t = false)]
         include_virtual: bool,
     },
@@ -256,6 +275,11 @@ enum Cmd {
     GetDeadSymbols {
         #[arg(long)]
         prefix: Option<String>,
+        /// When set, return symbols with no incoming edges of this specific kind
+        /// (calls, imports, extends, implements).
+        /// Without this flag: no incoming Calls AND no incoming Imports (classic dead).
+        #[arg(long)]
+        edge_kind: Option<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -507,10 +531,13 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
-    /// Rank symbols by caller count.
+    /// Rank symbols by incoming edge count for a given edge kind.
     RankSymbols {
         #[arg(long, default_value_t = 10)]
         limit: usize,
+        /// Edge kind to rank by: calls (default), imports, extends, implements.
+        #[arg(long, default_value = "calls")]
+        edge_kind: String,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -800,9 +827,9 @@ enum Cmd {
     },
     /// Batch get-symbol-info for up to 50 paths.
     BatchSymbolInfo {
-        /// Comma-separated list of symbol paths.
-        #[arg(long)]
-        paths: String,
+        /// Symbol paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -810,8 +837,9 @@ enum Cmd {
     },
     /// Batch node-degree breakdown for up to 50 paths.
     BatchNodeDegree {
-        #[arg(long)]
-        paths: String,
+        /// Symbol paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
@@ -819,8 +847,9 @@ enum Cmd {
     },
     /// Batch forward reachability from up to 20 seeds.
     BatchReachableFrom {
-        #[arg(long)]
-        paths: String,
+        /// Seed paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value_t = 10)]
@@ -832,8 +861,9 @@ enum Cmd {
     },
     /// Batch reverse reachability into up to 20 targets.
     BatchReachableTo {
-        #[arg(long)]
-        paths: String,
+        /// Target paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value_t = 10)]
@@ -853,7 +883,7 @@ enum Cmd {
     },
     /// List indexed file paths, optionally filtered by prefix.
     GetFiles {
-        #[arg(long)]
+        #[arg(long, alias = "prefix")]
         path_prefix: Option<String>,
         #[arg(long, default_value = ".")]
         root: PathBuf,
@@ -880,8 +910,9 @@ enum Cmd {
     },
     /// Common callers across a set of target paths.
     GetCommonCallers {
-        #[arg(long)]
-        paths: String,
+        /// Target paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value = ".")]
@@ -891,8 +922,9 @@ enum Cmd {
     },
     /// Common callees across a set of source paths.
     GetCommonCallees {
-        #[arg(long)]
-        paths: String,
+        /// Source paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
+        #[arg(long, value_delimiter = ',')]
+        paths: Vec<String>,
         #[arg(long)]
         edge_kind: String,
         #[arg(long, default_value = ".")]
@@ -963,6 +995,13 @@ enum Cmd {
         /// and saves the snapshot before the server accepts connections.
         #[arg(long)]
         root: Option<PathBuf>,
+        /// Restrict MCP filesystem access to these directories (RFC-0097).
+        ///
+        /// `mycelium_index_workspace` and `mycelium_load_index` will reject any
+        /// path not under one of these roots. May be repeated.
+        /// Defaults to the current working directory when not specified.
+        #[arg(long = "allowed-roots", value_name = "DIR")]
+        allowed_roots: Vec<PathBuf>,
     },
 }
 
@@ -999,10 +1038,11 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 "`mycelium init` is not implemented yet — tracked under RFC-0001 follow-up"
             );
         }
-        Cmd::Index { path } => {
+        Cmd::Index { path, packs_dir } => {
             let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
             println!("Indexing {} …", canonical.display());
-            let (store, stats) = index::index_path(&canonical)?;
+            let packs_dir_canonical = packs_dir.as_deref();
+            let (store, stats) = index::index_path(&canonical, packs_dir_canonical)?;
             println!(
                 "Done.  {} file(s) indexed, {} error(s).",
                 stats.files, stats.errors
@@ -1071,6 +1111,8 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         Cmd::GetAllSymbols {
             prefix,
             kind,
+            limit,
+            offset,
             root,
             format,
         } => {
@@ -1079,6 +1121,8 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 &canonical,
                 prefix.as_deref(),
                 kind.as_deref(),
+                limit,
+                offset,
                 format.into(),
             )?;
         }
@@ -1086,18 +1130,30 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_server_status(&canonical, format.into())?;
         }
-        Cmd::GetCallees { path, root, format } => {
+        Cmd::GetCallees {
+            path,
+            root,
+            format,
+            edge_kind,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callees(&canonical, &path, format.into())?;
+            queries::run_get_callees(&canonical, &path, &edge_kind, format.into())?;
         }
         Cmd::GetCallers {
             path,
             root,
             format,
+            edge_kind,
             include_virtual,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callers(&canonical, &path, include_virtual, format.into())?;
+            queries::run_get_callers(
+                &canonical,
+                &path,
+                &edge_kind,
+                include_virtual,
+                format.into(),
+            )?;
         }
         Cmd::GetCalleeTree {
             path,
@@ -1127,11 +1183,17 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         }
         Cmd::GetDeadSymbols {
             prefix,
+            edge_kind,
             root,
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_dead_symbols(&canonical, prefix.as_deref(), format.into())?;
+            queries::run_get_dead_symbols(
+                &canonical,
+                prefix.as_deref(),
+                edge_kind.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetIsolatedSymbols {
             prefix,
@@ -1331,11 +1393,12 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         }
         Cmd::RankSymbols {
             limit,
+            edge_kind,
             root,
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_rank_symbols(&canonical, limit, format.into())?;
+            queries::run_rank_symbols(&canonical, limit, &edge_kind, format.into())?;
         }
         Cmd::GetTopFiles {
             limit,
@@ -1602,11 +1665,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_symbol_info(&canonical, &paths, format.into())?;
         }
         Cmd::BatchNodeDegree {
@@ -1615,11 +1673,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_node_degree(&canonical, &paths, format.into())?;
         }
         Cmd::BatchReachableFrom {
@@ -1630,11 +1683,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_reachable_from(
                 &canonical,
                 &paths,
@@ -1651,11 +1699,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_batch_reachable_to(
                 &canonical,
                 &paths,
@@ -1696,11 +1739,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_get_common_callers(&canonical, &paths, &edge_kind, format.into())?;
         }
         Cmd::GetCommonCallees {
@@ -1710,11 +1748,6 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            let paths: Vec<String> = paths
-                .split(',')
-                .filter(|t| !t.is_empty())
-                .map(str::to_owned)
-                .collect();
             queries::run_get_common_callees(&canonical, &paths, &edge_kind, format.into())?;
         }
         Cmd::GetCommonReachable {
@@ -1769,10 +1802,20 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_find_import_path(&canonical, &from, &to, max_depth, format.into())?;
         }
-        Cmd::Serve { mcp: true, root } => {
+        Cmd::Serve {
+            mcp: true,
+            root,
+            allowed_roots,
+        } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));
+            // RFC-0097: default allowed roots to CWD when none specified.
+            let allowed = if allowed_roots.is_empty() {
+                vec![std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))]
+            } else {
+                allowed_roots
+            };
             let rt = Runtime::new()?;
-            rt.block_on(mycelium_mcp::serve_stdio(root))?;
+            rt.block_on(mycelium_mcp::serve_stdio(root, allowed))?;
         }
         Cmd::Serve { mcp: false, .. } => {
             tracing::warn!("`mycelium serve` requires `--mcp` flag (other transports are v0.2)");

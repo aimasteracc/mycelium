@@ -203,13 +203,37 @@ impl Extractor {
                         None
                     }
                 });
-                let src = m.captures.iter().find_map(|c| {
+                // Primary: @alias.source in the match (Python-style patterns).
+                // Fallback: read source: field from the @reference.alias_binding
+                // anchor node at runtime. This covers TypeScript/JavaScript where
+                // the query validator rejects combining `source:` + `import_clause`
+                // in one pattern (inline-rule visibility limitation in ts 0.26).
+                let captured_src = m.captures.iter().find_map(|c| {
                     if names[c.index as usize] == "alias.source" {
                         c.node.utf8_text(source).ok()
                     } else {
                         None
                     }
                 });
+                let anchor_src: Option<&str> = if captured_src.is_none() {
+                    m.captures
+                        .iter()
+                        .find(|c| names[c.index as usize] == "reference.alias_binding")
+                        .and_then(|c| c.node.child_by_field_name("source"))
+                        .and_then(|string_node| {
+                            // string_fragment is the first named child of the string node.
+                            let count = string_node.named_child_count();
+                            (0..count).find_map(|i| {
+                                string_node
+                                    .named_child(i.try_into().unwrap_or(u32::MAX))
+                                    .filter(|n| n.kind() == "string_fragment")
+                                    .and_then(|n| n.utf8_text(source).ok())
+                            })
+                        })
+                } else {
+                    None
+                };
+                let src = captured_src.or(anchor_src);
                 let original = m.captures.iter().find_map(|c| {
                     if names[c.index as usize] == "alias.original_name" {
                         c.node.utf8_text(source).ok()
@@ -224,6 +248,16 @@ impl Extractor {
                     continue;
                 };
                 let resolved = build_alias_target(file_path, src, original, effective_local);
+                // Issue #286: when the resolved target is a symbol-level path
+                // (contains '>'), create both the Trunk node and an Imports edge
+                // from the importing file so that get-dead-symbols does not flag
+                // the imported symbol as dead just because it has no Calls edges.
+                if resolved.contains('>') {
+                    if let Ok(sym_path) = TrunkPath::parse(&resolved) {
+                        let sym_id = store.upsert_node(sym_path);
+                        store.upsert_edge(EdgeKind::Imports, file_id, sym_id);
+                    }
+                }
                 alias_table.insert(effective_local.to_string(), resolved);
             }
         }
@@ -252,13 +286,16 @@ impl Extractor {
 
                 match cap_name {
                     "reference.import" | "reference.import_from" => {
-                        // Issue #227: imports inside `if TYPE_CHECKING:` are
+                        // RFC-0096: imports inside `if TYPE_CHECKING:` are
                         // type-annotation-only (TYPE_CHECKING is always False
-                        // at runtime). Including them causes false-positive
-                        // cycle reports; skip them entirely.
-                        if is_inside_type_checking_block(anchor, source) {
-                            continue;
-                        }
+                        // at runtime). Emit TypeImports edges so they are
+                        // queryable but excluded from the default Imports graph,
+                        // keeping detect-cycles clean (Issue #227).
+                        let edge_kind = if is_inside_type_checking_block(anchor, source) {
+                            EdgeKind::TypeImports
+                        } else {
+                            EdgeKind::Imports
+                        };
                         let mod_name = name_text.unwrap_or("_unknown");
                         // Issue #204: Python relative imports (`.X` / `..X`)
                         // resolve to actual file paths relative to the
@@ -269,7 +306,7 @@ impl Extractor {
                         let edge_target = resolved.as_deref().unwrap_or(mod_name);
                         if let Ok(mod_path) = TrunkPath::parse(edge_target) {
                             let mod_id = store.upsert_node(mod_path);
-                            store.upsert_edge(EdgeKind::Imports, file_id, mod_id);
+                            store.upsert_edge(edge_kind, file_id, mod_id);
                         }
                     }
                     "reference.call" => {
@@ -437,6 +474,44 @@ impl Extractor {
                         };
                         store.upsert_edge(EdgeKind::Extends, subclass_id, base_id);
                     }
+                    "reference.implements" => {
+                        // anchor = class_declaration; @name = implemented interface identifier.
+                        let iface_name = name_text.unwrap_or("_unknown");
+                        let Some(class_name) = anchor
+                            .child_by_field_name("name")
+                            .and_then(|n| n.utf8_text(source).ok())
+                        else {
+                            continue;
+                        };
+                        let Ok(class_path) = TrunkPath::parse(&format!("{file_path}>{class_name}"))
+                        else {
+                            continue;
+                        };
+                        let class_id = store.upsert_node(class_path);
+                        let iface_id = {
+                            let intra = format!("{file_path}>{iface_name}");
+                            if let Some(id) = store.lookup(&intra) {
+                                id
+                            } else if let Some(id) = alias_table
+                                .get(iface_name)
+                                .map(|t| alias_target_to_file_path(t))
+                                .and_then(|qualified| {
+                                    store.lookup(&qualified).or_else(|| {
+                                        TrunkPath::parse(&qualified)
+                                            .ok()
+                                            .map(|p| store.upsert_node(p))
+                                    })
+                                })
+                            {
+                                id
+                            } else if let Ok(bare) = TrunkPath::parse(iface_name) {
+                                store.upsert_node(bare)
+                            } else {
+                                continue;
+                            }
+                        };
+                        store.upsert_edge(EdgeKind::Implements, class_id, iface_id);
+                    }
                     _ => {}
                 }
             }
@@ -530,12 +605,34 @@ fn enclosing_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<Stri
 /// for the source. Returns the symbolic source as a fallback when the
 /// resolver returns None (purely absolute paths with no leading dots).
 fn build_alias_target(file_path: &str, src: &str, original: Option<&str>, local: &str) -> String {
+    // TypeScript / JavaScript: specifiers are `./path`, `../path`, or bare package names.
+    // We only resolve relative specifiers; package imports stay symbolic.
+    if matches!(
+        std::path::Path::new(file_path)
+            .extension()
+            .and_then(|e| e.to_str()),
+        Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs")
+    ) {
+        let resolved = resolve_typescript_import(file_path, src).unwrap_or_else(|| src.to_string());
+        return match original {
+            Some(orig) => format!("{resolved}>{orig}"),
+            None => resolved,
+        };
+    }
+    // Python: existing logic unchanged.
     let is_relative = src.starts_with('.');
     let resolved_prefix =
         resolve_python_relative_import(file_path, src).unwrap_or_else(|| src.to_string());
     match (is_relative, original) {
-        // `from . import M` (no `as`)  →  pkg-dir/M.py
-        (true, None) => format!("{resolved_prefix}/{local}.py"),
+        // `from . import M` (bare dots, no `as`) → local is a sibling module  →  pkg-dir/M.py
+        // `from .submod import X` (non-bare, no `as`) → local is a symbol in submod  →  submod.py>X
+        (true, None) => {
+            if src.trim_start_matches('.').is_empty() {
+                format!("{resolved_prefix}/{local}.py")
+            } else {
+                format!("{resolved_prefix}>{local}")
+            }
+        }
         // `from . import M as N`  →  pkg-dir/M.py (use `original`, not `local`)
         (true, Some(orig)) if src == "." => format!("{resolved_prefix}/{orig}.py"),
         // `from .M import X as Y`  →  resolved>X
@@ -589,6 +686,59 @@ fn resolve_python_relative_import(importing_file: &str, mod_name: &str) -> Optio
     Some(target.to_string_lossy().replace('\\', "/"))
 }
 
+/// Resolve a TypeScript/JavaScript relative import specifier (`./foo`,
+/// `../bar`) to a file path relative to the workspace root.  When the
+/// specifier has no extension, appends the same extension as the importing
+/// file so that `.ts` consumers resolve to `.ts` modules and `.js` consumers
+/// resolve to `.js` modules (matching the source-extension convention).
+///
+/// Returns `None` for bare package imports (`react`, `lodash`, etc.) that
+/// have no leading `./` or `../` — those remain symbolic nodes.
+///
+/// Examples (importing file = `src/consumer.ts`):
+/// - `./module`      → `src/module.ts`
+/// - `../lib/util`   → `lib/util.ts`
+/// - `react`         → `None` (package import — stays symbolic)
+///
+/// Examples (importing file = `src/consumer.js`):
+///
+/// - `./module`      → `src/module.js`
+fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<String> {
+    if !specifier.starts_with("./") && !specifier.starts_with("../") {
+        return None;
+    }
+    let dir = std::path::Path::new(importing_file).parent()?;
+    // If the specifier already carries an extension, don't double-append one.
+    let has_ext = std::path::Path::new(specifier)
+        .extension()
+        .is_some_and(|e| !e.is_empty());
+    let target = if has_ext {
+        dir.join(specifier)
+    } else {
+        // Use the importer's own extension so .js files resolve to .js targets,
+        // .ts files to .ts targets, etc.  Fall back to "ts" if the importer
+        // has no extension (should not happen in practice).
+        let ext = std::path::Path::new(importing_file)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("ts");
+        dir.join(specifier).with_extension(ext)
+    };
+    // Normalise `a/b/../c` → `a/c` using component iteration (no fs access).
+    let mut components: Vec<_> = Vec::new();
+    for comp in target.components() {
+        match comp {
+            std::path::Component::ParentDir => {
+                components.pop();
+            }
+            std::path::Component::CurDir => {}
+            other => components.push(other),
+        }
+    }
+    let normalized: std::path::PathBuf = components.into_iter().collect();
+    Some(normalized.to_string_lossy().replace('\\', "/"))
+}
+
 /// Walk ancestors of `node` looking for the nearest enclosing function-like
 /// definition. Returns a path suffix like `"fn_name"` or `"ClassName>method_name"`
 /// that can be appended to `file_path>` to build the full caller path.
@@ -609,8 +759,19 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
             let fn_name = parent
                 .child_by_field_name("name")
                 .and_then(|n| n.utf8_text(source).ok())
-                .unwrap_or("_unknown")
-                .to_owned();
+                .map(str::to_owned)
+                .or_else(|| {
+                    // Anonymous function_expression assigned to a variable:
+                    // `const localize = function(...) {...}` — name lives in
+                    // the enclosing variable_declarator, not the function node.
+                    parent
+                        .parent()
+                        .filter(|p| p.kind() == "variable_declarator")
+                        .and_then(|p| p.child_by_field_name("name"))
+                        .and_then(|n| n.utf8_text(source).ok())
+                        .map(str::to_owned)
+                })
+                .unwrap_or_else(|| "_unknown".to_owned());
 
             // Collect enclosing class/impl containers (outermost first).
             let mut containers: Vec<String> = Vec::new();

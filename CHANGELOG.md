@@ -9,6 +9,187 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next release goes here -->
 
+## [0.1.12] - 2026-05-30
+
+### Added
+
+- **RFC-0096 — `EdgeKind::TypeImports` (Python phase)** — Imports inside
+  `if TYPE_CHECKING:` blocks are now emitted as `TypeImports` edges instead of
+  being silently dropped. This makes Python type-annotation-only imports
+  queryable (e.g. `get-imports --edge-kind type_imports`) while keeping the
+  default `Imports` graph — and therefore `detect-cycles --edge-kind imports` —
+  free of false-positive cycles (Issue #227 behaviour preserved). Three new TDD
+  tests covering edge emission, Imports/TypeImports segregation, and wire string
+  stability. Wire string: `"type_imports"`. (RFC-0096)
+
+
+- **RFC-0097 — MCP server filesystem boundary (`--allowed-roots` / `allowed_roots`)** —
+  `mycelium serve --mcp` previously accepted arbitrary filesystem paths via
+  `mycelium_index_workspace` and `mycelium_load_index` with no validation, allowing any path
+  (e.g. `/etc`, `../../etc`) to be indexed and its index written back to disk.
+  Fix: `MyceliumServer` gains an `allowed_roots: Arc<Vec<PathBuf>>` field. When non-empty, every
+  path-based MCP call canonicalises the input and verifies it is under at least one allowed root;
+  paths outside the allowlist (including traversal attempts) are rejected with `is_error: true`
+  without touching the filesystem. When launched via `mycelium serve --mcp`, the allowlist
+  defaults to `[CWD]`. An empty allowlist (unit-test mode) is unrestricted and preserves
+  backward compatibility. CLI flag: `mycelium serve --mcp [--allowed-roots <dir>]...`.
+  3 TDD tests: `index_workspace_rejects_path_outside_allowed_roots`,
+  `index_workspace_rejects_path_traversal`, `index_workspace_accepts_path_inside_allowed_roots`.
+  (Issue #301, RFC-0097)
+
+- **Issue #292 — `get-all-symbols` pagination (`--limit` / `--offset`)** — On large projects
+  (`vscode`: 194K nodes, `django`: 66K nodes) `get-all-symbols` could emit 14MB+ of output,
+  making it unusable without external truncation. Both CLI and MCP now accept `limit` and
+  `offset` parameters. `limit = 0` (default) preserves the original no-limit behaviour for
+  backward compatibility; `limit > 0` caps the sorted result list and returns a `total_count`
+  field alongside `count` so callers can detect truncation and paginate. MCP response envelope:
+  `{ "symbols": [...], "count": N, "total_count": T }`. CLI flag: `--limit N --offset K`.
+  2 TDD tests (`limit_caps_result_count`, `offset_skips_results`). (Issue #292)
+
+### Fixed
+
+- **Issue #297 — `--edge-kind` flag added to `get-callers`, `get-callees`, `rank-symbols`,
+  `get-dead-symbols`** — These four commands previously hardcoded `Calls` edges, making it
+  impossible to query `Imports`, `Extends`, or `Implements` relationships. All four now accept
+  `--edge-kind <calls|imports|extends|implements>` (default: `calls`, backward-compatible).
+  `get-dead-symbols --edge-kind imports` returns symbols with no incoming Imports edges;
+  without `--edge-kind`, the classic Calls+Imports dead definition is preserved.
+  `include_virtual` on `get-callers` is silently ignored when `--edge-kind` is not `calls`.
+  Same parameters added to the MCP tools (`mycelium_get_callers`, `mycelium_get_callees`,
+  `mycelium_rank_symbols`, `mycelium_get_dead_symbols`). New store methods:
+  `top_symbols_by_incoming` and `dead_symbols_for_kind`. 4 TDD tests. (Issue #297)
+
+- **Issue #296 — Python Extends edges not detected for dotted base classes** — Classes using
+  attribute-form superclasses (e.g., `class SimpleTestCase(unittest.TestCase):`) produced no
+  `Extends` edge because the Python query only captured `(identifier)` base classes, not
+  `(attribute)` nodes. Added `(class_definition superclasses: (argument_list (attribute) @name))`
+  to `packs/python/queries.scm`. The extractor's existing `"reference.extends"` handler treats the
+  full attribute text (e.g., `"unittest.TestCase"`) as the base-class name and creates a dotted
+  stub node if no in-file definition or import alias resolves it. Mixed inheritance
+  (`class Foo(bar.Base, LocalBase):`) produces Extends edges for both forms. Metaclass keyword
+  arguments (`metaclass=Meta`) are correctly excluded (they are `keyword_argument` nodes, not
+  plain `attribute`/`identifier` nodes). Syncs embedded packs. 3 TDD tests
+  (2 RED verified). (Issue #296)
+
+- **Issue #293 — `get-callee-tree` empty for JS `const name = function(...) {}` definitions** —
+  JavaScript functions defined via `const name = function(...) {...}` (function expressions
+  assigned to a `const` binding) were not captured as definition nodes. As a result, 4 000+
+  call sites in projects like VS Code that use this CommonJS/UMD pattern produced bare stubs
+  with no outgoing Calls edges, leaving `get-callee-tree` empty. Fix: added two new
+  `@definition.function` patterns to `packs/javascript/queries.scm` for `const`-assigned and
+  `export const`-assigned function expressions, mirroring the existing arrow-function patterns.
+  Also fixed `enclosing_function_path` in the extractor: anonymous `function_expression` nodes
+  have no `name` field, so the scope-tracking logic now falls back to the enclosing
+  `variable_declarator`'s name, ensuring Calls edges inside the body are attributed to the
+  correct definition. 3 TDD tests. (Issue #293, PR #310)
+
+- **Issue #294 — `search-symbol` mangled paths and mis-classified compound-extension files** —
+  Two defects in the file-system walker fixed:
+  (1) **Compound extension guard**: files like `module.ts.py` whose stem's extension is itself a
+  recognised source-language extension (e.g. `ts`) are now skipped rather than indexed under the
+  wrong language. A file named `js.py` (stem `js` has no extension) is NOT affected and continues
+  to be indexed correctly as Python.
+  (2) **Strip-prefix defensive fix**: when `path.strip_prefix(root)` fails (e.g. due to symlink
+  canonicalization mismatch), the indexer now skips the file and logs a warning instead of falling
+  back to the raw absolute path. Previously this fallback caused Trunk nodes with `///`-prefixed
+  paths that were unusable in subsequent queries. Both fixes apply to the CLI and MCP indexers.
+  3 TDD tests in CLI. (Issue #294, PR #311)
+
+- **Issue #298 — batch commands accept repeated `--paths` flags** — `batch-symbol-info`,
+  `batch-node-degree`, `batch-reachable-from`, `batch-reachable-to`, `get-common-callers`, and
+  `get-common-callees` previously accepted only a single `--paths` string value; passing
+  `--paths a --paths b` failed with "cannot be used multiple times". The argument is now
+  `Vec<String>` with `value_delimiter = ','`, so both the old comma-separated form
+  (`--paths a,b,c`) and the standard repeated-flag form (`--paths a --paths b`) work.
+  2 TDD tests. (Issue #298, PR #303)
+
+- **Issue #299 — `get-files` accepts `--prefix` as an alias for `--path-prefix`** — The
+  `get-files` command used `--path-prefix` while `get-all-symbols` used `--prefix` for the
+  same concept. Added `alias = "prefix"` so `--prefix` is accepted as a shorter alternative;
+  `--path-prefix` continues to work unchanged. 1 TDD test. (Issue #299, PR #303)
+
+- **`release.yml` finalize job robustness** — Decoupled tag creation and GitHub Release page
+  from the main-branch merge step. Tag is now created on the release branch first (branch
+  protection doesn't apply to tags; `GITHUB_TOKEN` is sufficient). The GitHub Release action
+  now uses `GITHUB_TOKEN` (`contents: write`) rather than `RELEASE_BOT_TOKEN`, so the release
+  page is always created even when the bot token is absent or expired. Main merge and develop
+  back-merge steps are `continue-on-error: true` with actionable `::warning::` messages
+  (including the exact `gh pr create / gh pr merge --admin` commands for the founder). A final
+  step fails the job when manual action is required, preserving CI RED visibility. Addresses
+  systemic failures on v0.1.6, v0.1.10, and v0.1.11 releases.
+
+- **Issue #286 — `get-dead-symbols` false positives for `from X import Y`** — Symbols
+  imported via Python `from X import Y` (no subsequent call in the importing file) were
+  incorrectly flagged as dead. The extractor's alias-binding pass (Pass 1) built the alias
+  table but never created symbol-level Imports edges; `dead_symbols()` only found file-level
+  edges and treated the symbols as unreachable. Fix: after `build_alias_target` resolves a
+  symbol-level path (contains `>`), immediately upsert the Trunk node and add an Imports
+  edge from the importing file. All three import forms are covered: relative with no alias,
+  relative with alias, absolute with or without alias. 3 TDD tests. (Issue #286, PR #289)
+
+- **Issue #214 Pattern 2 — `from .submod import Symbol` alias resolution** — When code uses
+  `from .models import AnalysisResult` (a relative-submodule import without `as`), mycelium
+  now correctly binds `AnalysisResult → pkg/sub/models.py>AnalysisResult` in the per-file
+  alias table. Previously the `(true, None)` arm of `build_alias_target` produced the wrong
+  target `pkg/sub/models.py/AnalysisResult.py` (a file path) by treating the imported name
+  as a module rather than a symbol. Calls to `AnalysisResult()` now resolve to the correct
+  definition node instead of a bare stub. 2 TDD tests (RED verified). (Issue #214)
+
+### Added
+
+- **Issue #295 — Java `Extends` and `Implements` edges** — The Java language pack
+  (`packs/java/queries.scm`) now captures `@reference.extends` for `class Sub extends Base`
+  and `interface Sub extends Base`, and `@reference.implements` for `class Foo implements Bar`.
+  The extractor core adds a `"reference.implements"` handler (identical resolution logic to the
+  existing `"reference.extends"` handler, producing `EdgeKind::Implements` edges instead).
+  Cross-file extends resolution works via `resolve_bare_call_stubs()`, matching Python
+  inheritance behaviour. Adds `tree-sitter-java` as a dependency of `mycelium-rcig-core` (was
+  only a workspace dep). 3 TDD tests (RED verified). (Issue #295)
+
+- **RFC-0094: Criterion formatter benchmark + byte-savings regression guard** — Adds
+  `crates/mycelium-mcp/benches/formatter.rs` with four Criterion benchmarks
+  (`json/50_node_callee_tree`, `text/50_node_callee_tree`, `msgpack/50_node_callee_tree`,
+  `byte_savings_ratio`) and a unit test that verifies text format bytes are < 80% of JSON
+  bytes for a 50-node callee tree. Clarifies that RFC-0094's ~73% savings headline is
+  **token savings** (not byte savings): LLM tokenisers split JSON punctuation into individual
+  tokens, so token savings exceed byte savings. (Issue #206 S3, PR #288)
+
+- **Skill marketplace metadata** — All 10 category Skill files now include `category`,
+  `icon`, and `marketplace_examples` frontmatter fields plus a `## Quick examples` table.
+  Enables Skill marketplace submission for v0.2.0. Template updated for future Skill authors.
+  Categories: `navigation` (basic-queries 🔍, hyphae-query 🌿), `analysis` (call-graph 📞,
+  import-graph 📦, inheritance 🌳, reachability 🔗, centrality ⭐, graph-structure 🕸️),
+  `operations` (batch-ops ⚡, index-management 🗃️). (PR #284)
+
+- **RFC-0095: `mycelium index --packs-dir <dir>`** — the CLI `index` subcommand now accepts
+  an optional `--packs-dir <dir>` flag. When provided, language packs are loaded from the
+  given directory via `PackRegistry`; file extensions not covered by the 10 built-in grammars
+  are dispatched to the registry. Packs whose grammar string does not match a compiled-in
+  tree-sitter grammar are silently skipped with a tracing warning. 2 new TDD tests in
+  `mycelium-cli/src/index.rs`. (Issue #212, RFC-0095 remaining item)
+
+- **RFC-0095: Language pack documentation** — `docs/packs.md` documents the full pack
+  system: bundled-pack table, `MYCELIUM_PACKS_DIR` env var, `--packs-dir` CLI flag,
+  `pack.toml` field reference (including `primary_extensions` / `secondary_extensions`),
+  grammar string format, `queries.scm` capture naming conventions, and an end-to-end
+  example for creating a custom pack. RFC-0095 status updated to **Implemented**. (RFC-0095)
+
+- **RFC-0095: Runtime pack registry (`PackRegistry`)** — `crates/mycelium-pack` now exposes
+  `PackRegistry::load(packs_dir)` which discovers all `packs/<lang>/pack.toml` + `queries.scm`
+  pairs at runtime. `PackRegistry::lookup_by_ext(".py")` returns the matching `LanguagePack`.
+  The cortex (`mycelium-core`) uses the registry when `MYCELIUM_PACKS_DIR` env var is set,
+  falling back to compile-time embedded queries otherwise. Circular dep eliminated:
+  `mycelium-pack` no longer depends on `mycelium-core`; `mycelium-core` depends on
+  `mycelium-pack`. 4 TDD tests in `mycelium-pack` + 2 in `mycelium-core`. (Issue #212)
+
+- **RFC-0092 Phase 2: TypeScript/JavaScript alias resolution** — `import { foo as bar }`,
+  `import * as ns`, `import { foo }`, and `import Foo` statements now build per-file alias
+  tables. Call edges such as `bar()` and `ns.greet()` are rewritten through the alias table
+  to resolve to the canonical `src/module.ts>foo` or `src/module.js>foo` path instead of
+  bare stubs. Relative specifiers (`./module`, `../lib/util`) are resolved to file paths
+  using the importing file's own extension (`.ts` → `.ts`, `.js` → `.js`); package imports
+  remain symbolic. Covered by 6 TDD tests (3 TypeScript + 3 JavaScript) in `extractor::tests`.
+
 ## [0.1.11] - 2026-05-30
 
 ### Added

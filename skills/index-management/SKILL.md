@@ -9,6 +9,19 @@ allowed-tools:
   - mcp__mycelium__sync_file
   - mcp__mycelium__set_compact_mode
   - mcp__mycelium__get_token_stats
+category: operations
+icon: 🗃️
+marketplace_examples:
+  - query: "Index this workspace"
+    tool: index_workspace
+  - query: "Check the file watcher status"
+    tool: watch_status
+  - query: "Sync a single changed file"
+    tool: sync_file
+  - query: "Get token usage stats"
+    tool: get_token_stats
+  - query: "Switch to compact output mode"
+    tool: set_compact_mode
 ---
 
 # `index-management` — keeping the symbol graph fresh
@@ -37,6 +50,16 @@ Do **NOT** use when:
 
 - The index is already loaded and you just want to query it — see `basic-queries`, `call-graph`, etc.
 - You need to query the file system without going through the index — this is not a file tool.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "Index this workspace" | `mcp__mycelium__index_workspace` |
+| "Check the file watcher status" | `mcp__mycelium__watch_status` |
+| "Sync a single changed file" | `mcp__mycelium__sync_file` |
+| "Get token usage stats" | `mcp__mycelium__get_token_stats` |
+| "Switch to compact output mode" | `mcp__mycelium__set_compact_mode` |
 
 ## Capabilities under this umbrella
 
@@ -103,12 +126,37 @@ mcp__mycelium__get_token_stats({})
 
 Computes byte ratio of MessagePack vs JSON on a fixed sample payload. Use to verify the Charter §2 ≤ 30 % token-efficiency SLA is satisfied for this deployment.
 
+## RFC-0097 — filesystem boundary enforcement (v0.1.12)
+
+`index_workspace` and `load_index` enforce a path allowlist when the MCP
+server is launched via `mycelium serve --mcp`. Every path argument is
+canonicalised and checked against the list of allowed roots before any
+filesystem access occurs.
+
+| Scenario | Behaviour |
+|---|---|
+| Path is under an allowed root | Normal operation |
+| Path is outside every allowed root | Rejected immediately — `is_error: true`, no filesystem access |
+| Path traversal attempt (`../../etc`) | Rejected after canonicalisation |
+| No `--allowed-roots` flag given | Defaults to the current working directory only |
+| Empty allowlist (unit-test mode) | Unrestricted — backward-compatible with direct API use |
+
+When a call is rejected the tool response is:
+
+```json
+{ "is_error": true, "content": [{ "type": "text", "text": "path ... is outside allowed roots" }] }
+```
+
+The agent should present this to the user as a configuration problem, not a
+code error.
+
 ## Common chains
 
 - **"Set up a new session"** → `server_status` (check is_loaded) → if false: `load_index` or `index_workspace`.
 - **"Get fresh results after editing"** → write file → `sync_file` → query.
 - **"Diagnose stale results"** → `watch_status` (check batches_processed) → `sync_file` to force refresh.
 - **"Reduce token cost on large codebases"** → `set_compact_mode({ "enabled": true })` → `get_token_stats` to verify.
+- **"index_workspace / load_index rejected with is_error"** → verify the target path is under `--allowed-roots`; restart the server with the correct roots if needed.
 
 ## Equivalent CLI
 
@@ -116,11 +164,22 @@ Computes byte ratio of MessagePack vs JSON on a fixed sample payload. Use to ver
 mycelium index /path/to/project            # index_workspace
 mycelium server-status                     # server_status
 mycelium sync-file src/auth.rs             # sync_file
+
+# Start the MCP server (RFC-0097: defaults allowed root to CWD)
+mycelium serve --mcp
+
+# Start the MCP server with an explicit set of allowed roots
+mycelium serve --mcp --root /project --allowed-roots /project /tmp/scratch
+
+# Multiple allowed roots (flag may be repeated)
+mycelium serve --mcp --allowed-roots /workspace --allowed-roots /tmp/scratch
 ```
 
 ## Parity contract
 
 Per [RFC-0090](../../rfcs/0090-cli-mcp-skill-parity.md): each CLI ↔ MCP pair is byte-identical in name, description, argument schema, and JSON output. CLI subcommands `load-index`, `watch-status`, `set-compact-mode`, and `get-token-stats` are in the parity-backfill epic (v0.1.4).
+
+The `--allowed-roots` security boundary (RFC-0097, Issue #301, v0.1.12) is a server-launch flag; it has no MCP tool equivalent — it is intentionally configured at startup, not at call time.
 
 ## Cross-references
 

@@ -6,6 +6,17 @@ allowed-tools:
   - mcp__mycelium__get_import_tree
   - mcp__mycelium__get_importers_tree
   - mcp__mycelium__find_import_path
+category: analysis
+icon: 📦
+marketplace_examples:
+  - query: "What does src/api/routes.rs import?"
+    tool: mcp__mycelium__get_imports
+  - query: "What imports src/auth/session.rs?"
+    tool: mcp__mycelium__get_importers_tree
+  - query: "Show the full import tree starting from src/main.rs"
+    tool: mcp__mycelium__get_import_tree
+  - query: "Are there circular imports in this project?"
+    tool: mcp__mycelium__get_import_tree
 ---
 
 # `import-graph` — module dependencies, in both directions
@@ -26,6 +37,15 @@ Do **NOT** use when:
 
 - The relationship is `Calls` (use `call-graph`), `Extends`/`Implements` (use `inheritance`).
 - The user wants symbol-level not module-level relationships — drop down to `call-graph`.
+
+## Quick examples
+
+| Developer question | Tool |
+|---|---|
+| "What does src/api/routes.rs import?" | `mcp__mycelium__get_imports` |
+| "What imports src/auth/session.rs?" | `mcp__mycelium__get_importers_tree` |
+| "Show the full import tree starting from src/main.rs" | `mcp__mycelium__get_import_tree` |
+| "Are there circular imports in this project?" | `mcp__mycelium__get_import_tree` |
 
 ## Capabilities under this umbrella
 
@@ -56,11 +76,35 @@ Returns a nested `{ path, children: [...] }` structure. Cycles render as `{ path
 mcp__mycelium__get_importers_tree({ "path": "src/auth/session.rs", "max_depth": 3 })
 ```
 
+## TypeImports — type-annotation-only imports (RFC-0096)
+
+Python's `if TYPE_CHECKING:` pattern and TypeScript's `import type` create
+`TypeImports` edges rather than `Imports` edges. This keeps the default graph
+runtime-only and prevents false-positive cycle reports (Issue #227).
+
+Wire string: `"type_imports"`.
+
+```python
+# These three calls produce TypeImports edges, not Imports:
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from mypackage.models import User   # → TypeImports edge: file → mypackage/models
+    import collections                  # → TypeImports edge: file → collections
+```
+
+| Goal | Tool / flag |
+|---|---|
+| Show only runtime imports (default) | `mcp__mycelium__get_imports` (no flag) |
+| Show type-annotation-only imports | `mcp__mycelium__get_imports { "edge_kind": "type_imports" }` |
+| Cycle detection — runtime only (default) | `mcp__mycelium__detect_cycles` |
+| Cycle detection — type-graph | `mcp__mycelium__detect_cycles { "edge_kind": "type_imports" }` |
+
 ## Common chains
 
 - **"Can I move this file?"** → `get_importers_tree` to see the full set of files that would need updating.
 - **"What's this module's external dependency surface?"** → `get_imports` and filter for external (non-path) entries.
 - **"Find a circular import"** → `get_import_tree` and look for `cycle: true` leaves.
+- **"Show only type-annotation dependencies"** → `get_imports { "edge_kind": "type_imports" }` to map the TYPE_CHECKING graph separately.
 
 ## Equivalent CLI
 

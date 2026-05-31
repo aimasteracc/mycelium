@@ -43,6 +43,22 @@
 (import_declaration
   (scoped_identifier) @name) @reference.import
 
+; ── Class inheritance (Synapse Extends edges) ────────────────────────────
+
+; class Sub extends Base
+(class_declaration
+  superclass: (superclass (type_identifier) @name)) @reference.extends
+
+; interface Sub extends Base, OtherBase
+(interface_declaration
+  (extends_interfaces (type_list (type_identifier) @name))) @reference.extends
+
+; ── Interface implementation (Synapse Implements edges) ──────────────────
+
+; class Foo implements Bar, Baz
+(class_declaration
+  interfaces: (super_interfaces (type_list (type_identifier) @name))) @reference.implements
+
 ; ── Method invocations (Synapse Calls edges) ─────────────────────────────
 
 ; Simple: foo()
