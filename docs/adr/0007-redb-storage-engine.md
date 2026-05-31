@@ -315,3 +315,47 @@ lib boundary; `anyhow` only at the binary boundary.
   `u16` chosen.
 - **Raw `>` path keys.** Rejected: 0x3E ordering is not tight; NUL-separator key
   encoding chosen.
+## Spike Results (Phase 1, 2026-05-31)
+
+### T0 — Key Encoding: VALIDATED
+
+20/20 tests green. QA adversarial harness (UTF-8, high-byte, control-byte,
+boundary-collision) found no ordering failure.
+
+- `u16 BE ++ u64 BE` adjacency key is order-preserving over the full `(u16, u64)` domain.
+- NUL (0x00) separator provably fixes the `>` (0x3E) defect identified in this ADR.
+
+Non-blocking hardening tasks before production: widen proptest to non-ASCII bytes;
+add negative tests for NUL-in-segment panic-vs-Result.
+
+**Verdict: KEY ENCODING DE-RISKED. Proceed to T3/T4.**
+
+### T1 — mmap Warm Performance: VALIDATED
+
+Real measurements (redb 2.6.3, macOS, `--release`, 100K-node synthetic graph):
+
+| Metric | Measured | SLA | Headroom |
+|---|---|---|---|
+| Point lookup p99 | 916 ns | < 5 ms warm | **5,400×** |
+| 3-hop traversal p99 | 5.4 µs | < 1 ms warm | **185×** |
+
+**Verdict: WARM PATH DE-RISKED. Charter §2 warm targets met with large margin.**
+
+### T1 — Cold SLA: INSUFFICIENT DATA
+
+QA finding: the cold-reader subprocess did not evict the OS page cache on macOS
+(no `posix_fadvise FADV_DONTNEED`; 100ms sleep is insufficient). The reported cold
+numbers (4.5–5.7ms open, 10–25µs first lookup) are warm-cache measurements.
+
+Required follow-up (T1b, non-blocking for T3/T4): cold re-run on Linux CI with
+`echo 3 > /proc/sys/vm/drop_caches` between write and read; n≥200 cold samples;
+edge kind consistency fix; run on CI runner storage, not local SSD.
+
+Charter §2 cold SLA row stays TBD until T1b produces honest numbers.
+
+### Lead Phase Gate: GO → proceed to T3/T4
+
+T3/T4 (`StorageBackend` trait + `InMemory`/`Redb` impls) depend only on the
+warm validation (which is de-risked). The cold SLA number is a non-blocking
+follow-up. Spike code: PR #361 (`spike/rfc0100-phase1-t0-t1`).
+

@@ -1,0 +1,28 @@
+# Standalone spike — explicitly excluded from the main workspace.
+# Adding [workspace] here tells Cargo this is its own root, not a member.
+[workspace]
+
+[package]
+name        = "key-encoding-spike"
+version     = "0.1.0"
+edition     = "2021"
+publish     = false
+description = "RFC-0100 / ADR-0007 de-risk spike T0 — order-preserving composite key encoding"
+
+[[bin]]
+name = "demo"
+path = "src/main.rs"
+
+[lib]
+name = "key_encoding"
+path = "src/lib.rs"
+
+[dependencies]
+# No redb yet — T0 is pure encoding correctness, no database I/O.
+
+[dev-dependencies]
+proptest = "1"
+
+[profile.release]
+opt-level = 3
+debug     = false
