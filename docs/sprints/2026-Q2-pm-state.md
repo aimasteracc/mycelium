@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PR #356 R3-measure MERGED ✅; PR #357 PM-chore MERGED ✅; PR #358 RFC-0099 do-not-auto-merge → founder escalated) |
-| Current sprint | **v0.1.15 — IN PROGRESS** |
-| Active release branch | none (v0.1.14 ceremony complete) |
-| Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344; RFC-0099 Phase 0 done) |
+| Last updated | 2026-05-31 (PM dispatch — v0.1.15 CUT: PR #361 →main founder-gated, PR #362 →develop pre-opened; RFC-0100 redb PR #360 founder decision gate; PM state refreshed) |
+| Current sprint | **v0.1.15 — BRANCH CUT (pending founder ceremony)** |
+| Active release branch | `release/v0.1.15` (PR #361 → main founder-gated; PR #362 → develop pre-opened) |
+| Next release target | **v0.1.15** — R1 parallel indexing + R3 Phase 0 measurement |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -59,13 +59,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0: none** — v0.1.14 ceremony COMPLETE; queue healthy.
+**P0: none** — queue healthy; all implementation blocked on RFC-0100 founder decisions.
 
-**P1 (v0.1.15 sprint — scale-gap remediation):**
-1. **R3 memory bound measurement** (#344) — **PR #356 MERGED ✅** (`Store::heap_size_estimate()` + 3 CI tests + 3 `#[ignore]` RSS-curve tests). Next: run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record bytes/node curve in Issue #344; then R3 Phase 1 (streaming index with spill, RFC-0099) when founder signs off.
-2. **R3 design gate** (#344) — RFC-0099 in PR #358 (**DO-NOT-AUTO-MERGE** — founder sign-off required on Phase 2 approach + RFC-0098 binding constraint before Phase 1+ implementation).
-3. **R2 incremental persistence** (#343) — RFC-0098 Draft merged (PR #353 ✅ 2026-05-31). **DECISION GATE**: implementation requires founder sign-off + ADR before any code. Architect to review RFC-0098 and write `docs/adr/` entry before implementation.
-4. **Post-v0.1.15 security scan** — schedule after sprint content lands.
+**P1 (v0.1.15 sprint — CONTENT COMPLETE; v0.1.16 = RFC-0100 redb):**
+1. **v0.1.15 ceremony** — PR #361 (→ main, founder auth) → tag v0.1.15 → crates.io → PR #362 (→ develop). **Founder action required.**
+2. **RFC-0100 redb founder decisions** (#343, #344) — PR #360 open; 8 questions must be answered before implementation. Unifies R2 (incremental) + R3 (memory bound) into one redb storage layer. Founder authorized "允许引入 redb 方案 A". **DECISION GATE: read PR #360 body, answer 8 checkbox questions, sign ADR-0007.**
+3. **R2/R3 full implementation** — blocked on PR #360 founder decisions. Once founder answers all 8, the execution plan in `docs/sprints/rfc-0100-execution-plan.md` kicks off.
+4. **Post-v0.1.15 security scan** — schedule after PR #361 ceremony completes.
 
 **P2 (v0.2.0 scope):**
 5. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
@@ -75,17 +75,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, this run — PR #356 MERGED; PR #357 PM-chore MERGED; RFC-0099 PR #358 escalated to founder)
+## Dispatch state (2026-05-31, this run — v0.1.15 CUT; RFC-0100 decision gate)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). **(b) RFC-0098 R2 decision gate**: review PR #353 merged draft, authorize ADR + approach before any implementation begins. **(c) RFC-0099 R3 design gate**: review PR #358 — sign off on Phase 1 (streaming index) approach + Phase 2 LRU/mmap plan before implementation. |
-| release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when sprint exits. |
-| rust-implementer | **blocked on founder** | R3 Phase 1 (streaming index with spill, RFC-0099 Phase 1) blocked on founder sign-off via PR #358. R2 blocked on RFC-0098 ADR + founder. |
-| security-reviewer | idle | Post-v0.1.15 scan after sprint content lands. |
-| architect | **NEXT** | R2 ADR: review RFC-0098 (on develop), write `docs/adr/NNNN-incremental-persistence.md` recommending Option B (append-log). Required before any R2 code. |
+| founder | **ACTION REQUIRED (critical path)** | **(a) v0.1.15 ceremony**: merge PR #361 (CI green → authorize) → push tag v0.1.15 → publish crates.io → merge PR #362. **(b) RFC-0100 8 decisions**: read PR #360 body → answer 8 checkbox questions → sign ADR-0007. All R2/R3 implementation is blocked until this. **(c) Systemic**: audit `release.yml` RELEASE_BOT_TOKEN before v0.2.0. |
+| release | **ACTIVE** | v0.1.15 CUT — PR #361 (→main, founder-gated) + PR #362 (→develop, pre-opened). Ceremony: await founder auth on PR #361. |
+| rust-implementer | **blocked on founder** | RFC-0100 redb implementation (R2+R3 unified) blocked on PR #360 8 decisions. Ready to begin Phase 1 (ADR-0007 + Table schema tests) once founder signs. |
+| security-reviewer | idle | Post-v0.1.15 scan after ceremony completes. |
+| architect | **blocked on founder** | RFC-0100 ADR-0007 is the plan; founder must sign before any implementation. If founder requests design changes, architect reviews RFC-0100 updates. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | **NEXT** | Run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record RSS bytes/node curve at 1K/10K/100K in Issue #344. Unblocks R3 Phase 1 design. |
+| e2e-runner | idle | RSS curve measurement (`--include-ignored`) — nice-to-have for R3 design; founder RFC-0100 decision is the critical path. |
 
 ---
 
@@ -96,7 +96,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **⚠️ R2 / RFC-0098**: incremental persistence implementation touches storage format (Charter §3 deviation from WAL/HAMT/time-travel row). Founder must sign off on ADR + approach before any implementation PR.
+- **⚠️ RFC-0100 redb (PR #360)**: Charter §3 amendment + new storage dependency + ADR-0007. Founder must answer 8 questions in PR body and sign ADR-0007 before implementation begins. Supersedes RFC-0098 (R2) and RFC-0099 (R3) into a single unified approach. Founder authorized the redb direction ("允许引入 redb 方案 A") — now needs the detailed architectural sign-off.
 - **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6–v0.1.14 all affected). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
 
 ---
@@ -111,6 +111,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 PM dispatch (this run — v0.1.15 CUT; PRs #361+#362 opened; RFC-0100 founder decision gate documented)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `9af17b9` (last PM dispatch merged). 1 open PR: #360 (RFC-0100 redb, CI pending, 8 founder decisions required). 2 open issues: #343 (R2), #344 (R3) — both blocked on RFC-0100.
+- v0.1.14 SHIPPED ✅ (4/4 ceremony: PR #352→main, tag v0.1.14, GitHub Release, PR #349 back-merge).
+- v0.1.15 content on develop: R1 parallel indexing (PR #351 ✅), R3 Phase 0 heap_size_estimate (PR #356 ✅), RFC-0098 docs (PR #353 ✅). CHANGELOG Unreleased had R3 entry; R1 entry was missing.
+- RFC-0100 (PR #360): supersedes RFC-0098 + RFC-0099; founder authorized redb direction; 8 architectural questions pending.
+
+**Actions taken:**
+1. Added R1 parallel indexing entry to CHANGELOG Unreleased.
+2. Cut `release/v0.1.15` from develop HEAD (version 0.1.14→0.1.15, CHANGELOG sealed).
+3. Opened PR #361 (`release/v0.1.15` → `main`, founder-gated, ceremony step 1).
+4. Opened PR #362 (`release/v0.1.15` → `develop`, pre-opened, ceremony step 4).
+5. Updated PM state: corrected sprint status, priorities, dispatch table, decision gates.
+6. Appended decisions.jsonl.
+
+**Escalations:**
+- Founder: **(a) v0.1.15 ceremony** — merge PR #361 when CI green → tag → crates.io → merge PR #362. **(b) RFC-0100 8 decisions** — PR #360 body has 8 checkbox questions; answer and sign ADR-0007 to unblock all R2/R3 implementation. **(c) Systemic** — `release.yml` RELEASE_BOT_TOKEN audit before v0.2.0.
 
 ### 2026-05-31 PM dispatch (this run — PR #356 MERGED; PR #357 PM-chore rebased+merged; RFC-0099 PR #358 escalated)
 
