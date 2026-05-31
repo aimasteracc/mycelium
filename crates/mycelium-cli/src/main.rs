@@ -1042,7 +1042,10 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
             println!("Indexing {} …", canonical.display());
             let packs_dir_canonical = packs_dir.as_deref();
-            let (store, stats) = index::index_path(&canonical, packs_dir_canonical)?;
+            // R1 (#342): parallel indexing — uses all cores for tree-sitter
+            // extraction. Semantically identical to the serial path (NodeIds
+            // are content hashes; sub-stores merge order-independently).
+            let (store, stats) = index::index_path_parallel(&canonical, packs_dir_canonical)?;
             println!(
                 "Done.  {} file(s) indexed, {} error(s).",
                 stats.files, stats.errors
