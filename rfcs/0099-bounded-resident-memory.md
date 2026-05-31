@@ -155,6 +155,12 @@ feature-gated; **Phase 2 is blocked on RFC-0098**.
 
 ### 5.0 Phase 0 — Measurement (ships first, no behaviour change)
 
+> **Already in flight: PR #356** (`feature/r3-memory-curve`) implements the measurement
+> core — `Store::heap_size_estimate()` plus opt-in RSS-curve integration tests at
+> 1K/10K/100K nodes (Linux `/proc/self/status`), per #356's own description. RFC-0099
+> adopts #356 as the Phase 0 implementation; the work remaining below is the higher curve
+> points (500K/1M) and a peak-RSS (`VmHWM`/`ru_maxrss`) reading committed to the doc.
+
 - New bench `benches/memory_curve.rs` (or `xtask mem-curve`): build synthetic graphs of
   100K / 500K / 1M nodes with a realistic edge:node ratio (measured from a real Java repo,
   not invented), record peak RSS (`/proc/self/status` `VmHWM` on Linux; `ru_maxrss` via
@@ -204,7 +210,7 @@ Every new knob ships on **all three surfaces** or none:
 ### 5.4 Long-term hook (out of scope, noted for continuity)
 
 The NodeId low-8-bit **shard-tag** (reserved at RFC-0001, always 0 today,
-`store/node.rs:56`) is the seam for future real sharding (segment routing by shard tag).
+`trunk/mod.rs:308`) is the seam for future real sharding (segment routing by shard tag).
 This RFC does **not** activate it (NG1); Phase 1/2 partition by *file*, not by shard tag.
 A future RFC may map files → shard tags to make Phase 2 segments self-routing.
 
