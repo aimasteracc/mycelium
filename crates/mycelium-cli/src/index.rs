@@ -75,6 +75,196 @@ const SOURCE_EXTS: &[&str] = &[
     "rb", "cs",
 ];
 
+/// The 11 compiled-in static extractors, built once and shared by `&` across
+/// indexing threads. `Extractor`'s fields (`tree_sitter::Language`, `Query`)
+/// are `Send + Sync`, so `&Extractors` is safe to hand to many threads; each
+/// `extract` call builds its own `Parser` internally (Issue #342 / R1).
+struct Extractors {
+    js: Extractor,
+    python: Extractor,
+    ts: Extractor,
+    tsx: Extractor,
+    rs: Extractor,
+    go: Extractor,
+    java: Extractor,
+    c: Extractor,
+    ruby: Extractor,
+    cpp: Extractor,
+    csharp: Extractor,
+}
+
+impl Extractors {
+    /// Compile all 11 static extractors. Done once per index run.
+    #[allow(clippy::similar_names)]
+    fn build() -> Result<Self> {
+        let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
+        let python_lang: tree_sitter::Language = tree_sitter_python::LANGUAGE.into();
+        let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+        let tsx_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TSX.into();
+        let rs_lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
+        let go_lang: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
+        let java_lang: tree_sitter::Language = tree_sitter_java::LANGUAGE.into();
+        let c_lang: tree_sitter::Language = tree_sitter_c::LANGUAGE.into();
+        let ruby_lang: tree_sitter::Language = tree_sitter_ruby::LANGUAGE.into();
+        let cpp_lang: tree_sitter::Language = tree_sitter_cpp::LANGUAGE.into();
+        let csharp_lang: tree_sitter::Language = tree_sitter_c_sharp::LANGUAGE.into();
+        Ok(Self {
+            js: Extractor::new(js_lang, JAVASCRIPT_QUERIES)
+                .context("failed to compile JavaScript extractor")?,
+            python: Extractor::new(python_lang, PYTHON_QUERIES)
+                .context("failed to compile Python extractor")?,
+            ts: Extractor::new(ts_lang, TYPESCRIPT_QUERIES)
+                .context("failed to compile TypeScript extractor")?,
+            tsx: Extractor::new(tsx_lang, TYPESCRIPT_QUERIES)
+                .context("failed to compile TSX extractor")?,
+            rs: Extractor::new(rs_lang, RUST_QUERIES)
+                .context("failed to compile Rust extractor")?,
+            go: Extractor::new(go_lang, GO_QUERIES).context("failed to compile Go extractor")?,
+            java: Extractor::new(java_lang, JAVA_QUERIES)
+                .context("failed to compile Java extractor")?,
+            c: Extractor::new(c_lang, C_QUERIES).context("failed to compile C extractor")?,
+            ruby: Extractor::new(ruby_lang, RUBY_QUERIES)
+                .context("failed to compile Ruby extractor")?,
+            cpp: Extractor::new(cpp_lang, CPP_QUERIES)
+                .context("failed to compile C++ extractor")?,
+            csharp: Extractor::new(csharp_lang, CSHARP_QUERIES)
+                .context("failed to compile C# extractor")?,
+        })
+    }
+
+    /// Pick the static extractor for a file extension, if any.
+    fn pick(&self, ext: &str) -> Option<&Extractor> {
+        match ext {
+            "js" | "jsx" => Some(&self.js),
+            "py" | "pyi" => Some(&self.python),
+            "ts" => Some(&self.ts),
+            "tsx" => Some(&self.tsx),
+            "rs" => Some(&self.rs),
+            "go" => Some(&self.go),
+            "java" => Some(&self.java),
+            "c" | "h" => Some(&self.c),
+            "rb" => Some(&self.ruby),
+            "cpp" | "cc" | "cxx" | "hpp" => Some(&self.cpp),
+            "cs" => Some(&self.csharp),
+            _ => None,
+        }
+    }
+}
+
+/// Outcome of indexing one file. Counts roll up into [`IndexStats`].
+enum FileOutcome {
+    /// Successfully extracted into the store.
+    Indexed,
+    /// Not a source file we handle (no extractor / compound extension). No-op.
+    Skipped,
+    /// A real error occurred (read failure, `strip_prefix`, extraction error).
+    Errored,
+}
+
+/// Index a single file into `store`. Pure with respect to `(path, contents)`:
+/// the extractor only resolves same-file definitions; cross-file calls become
+/// bare stubs resolved after all files are merged. This is what makes parallel
+/// extract-then-merge equivalent to the serial single-store build (Issue #342).
+fn index_file_into(
+    store: &mut Store,
+    exts: &Extractors,
+    registry: Option<&PackRegistry>,
+    root: &Path,
+    path: &Path,
+) -> FileOutcome {
+    let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+        return FileOutcome::Skipped;
+    };
+
+    // Issue #294: skip compound source-language extensions like `module.ts.py`.
+    if let Some(stem_ext) = path
+        .file_stem()
+        .and_then(|s| std::path::Path::new(s).extension())
+        .and_then(|e| e.to_str())
+    {
+        if SOURCE_EXTS.contains(&stem_ext) && stem_ext != ext {
+            tracing::debug!("skipping compound-extension file: {}", path.display());
+            return FileOutcome::Skipped;
+        }
+    }
+
+    // Static built-in extractor first; fall through to the registry for unknown
+    // extensions when --packs-dir is provided.
+    let dynamic_ext: Option<Extractor>;
+    let extractor: &Extractor = if let Some(e) = exts.pick(ext) {
+        e
+    } else if let Some(reg) = registry {
+        let dotted = format!(".{ext}");
+        if let Some(pack) = reg.lookup_by_ext(&dotted) {
+            if let Some(lang) = grammar_language_for_name(&pack.manifest.meta.grammar) {
+                dynamic_ext = Extractor::new(lang, &pack.queries).ok();
+                match dynamic_ext.as_ref() {
+                    Some(e) => e,
+                    None => return FileOutcome::Skipped,
+                }
+            } else {
+                return FileOutcome::Skipped;
+            }
+        } else {
+            return FileOutcome::Skipped;
+        }
+    } else {
+        return FileOutcome::Skipped;
+    };
+
+    // Issue #294: skip rather than store an absolute path if strip_prefix fails.
+    let Ok(rel_path) = path.strip_prefix(root) else {
+        tracing::warn!(
+            "could not relativize path {} against root {}; skipping",
+            path.display(),
+            root.display()
+        );
+        return FileOutcome::Errored;
+    };
+    let rel = rel_path.to_string_lossy().replace('\\', "/");
+
+    let source = match std::fs::read(path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("could not read {}: {e}", path.display());
+            return FileOutcome::Errored;
+        }
+    };
+
+    if let Err(e) = extractor.extract(&rel, &source, store) {
+        tracing::warn!("extraction failed for {}: {e}", path.display());
+        return FileOutcome::Errored;
+    }
+
+    FileOutcome::Indexed
+}
+
+/// Walk `root` and collect candidate source-file paths, honoring `.gitignore`,
+/// `.myceliumignore`, and the hard-coded `target/` + `.mycelium/` exclusions.
+/// Shared by the serial and parallel index paths so they see the same files.
+fn collect_source_files(root: &Path) -> Vec<std::path::PathBuf> {
+    let mut walk_builder = WalkBuilder::new(root);
+    walk_builder
+        .follow_links(false)
+        .add_custom_ignore_filename(".myceliumignore");
+    for name in &[".gitignore", ".myceliumignore"] {
+        let p = root.join(name);
+        if p.exists() {
+            walk_builder.add_ignore(&p);
+        }
+    }
+    walk_builder
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !matches!(name.as_ref(), "target" | ".mycelium")
+        })
+        .build()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
+        .map(|e| e.path().to_path_buf())
+        .collect()
+}
+
 /// Walk `root`, extract all recognised source files, and return stats.
 ///
 /// Supported languages: JavaScript (`.js`, `.jsx`), Python (`.py`, `.pyi`),
@@ -91,52 +281,8 @@ const SOURCE_EXTS: &[&str] = &[
 ///
 /// Returns an error only if `root` cannot be accessed. Individual file errors
 /// are counted in [`IndexStats::errors`] but do not stop the run.
-// ts_lang / tsx_lang differ only by one letter — similarity is intentional.
-// index_path builds 11 static extractors + one optional registry in sequence.
-#[allow(clippy::similar_names, clippy::too_many_lines)]
 pub fn index_path(root: &Path, packs_dir: Option<&Path>) -> Result<(Store, IndexStats)> {
-    let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
-    let js_ext = Extractor::new(js_lang, JAVASCRIPT_QUERIES)
-        .context("failed to compile JavaScript extractor")?;
-
-    let python_lang: tree_sitter::Language = tree_sitter_python::LANGUAGE.into();
-    let python_ext = Extractor::new(python_lang, PYTHON_QUERIES)
-        .context("failed to compile Python extractor")?;
-
-    let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
-    let ts_ext = Extractor::new(ts_lang, TYPESCRIPT_QUERIES)
-        .context("failed to compile TypeScript extractor")?;
-
-    // TSX uses a distinct grammar that extends TypeScript with JSX node types.
-    let tsx_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TSX.into();
-    let tsx_ext =
-        Extractor::new(tsx_lang, TYPESCRIPT_QUERIES).context("failed to compile TSX extractor")?;
-
-    let rs_lang: tree_sitter::Language = tree_sitter_rust::LANGUAGE.into();
-    let rs_ext =
-        Extractor::new(rs_lang, RUST_QUERIES).context("failed to compile Rust extractor")?;
-
-    let go_lang: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
-    let go_ext = Extractor::new(go_lang, GO_QUERIES).context("failed to compile Go extractor")?;
-
-    let java_lang: tree_sitter::Language = tree_sitter_java::LANGUAGE.into();
-    let java_ext =
-        Extractor::new(java_lang, JAVA_QUERIES).context("failed to compile Java extractor")?;
-
-    let c_lang: tree_sitter::Language = tree_sitter_c::LANGUAGE.into();
-    let c_ext = Extractor::new(c_lang, C_QUERIES).context("failed to compile C extractor")?;
-
-    let ruby_lang: tree_sitter::Language = tree_sitter_ruby::LANGUAGE.into();
-    let ruby_ext =
-        Extractor::new(ruby_lang, RUBY_QUERIES).context("failed to compile Ruby extractor")?;
-
-    let cpp_lang: tree_sitter::Language = tree_sitter_cpp::LANGUAGE.into();
-    let cpp_ext =
-        Extractor::new(cpp_lang, CPP_QUERIES).context("failed to compile C++ extractor")?;
-
-    let csharp_lang: tree_sitter::Language = tree_sitter_c_sharp::LANGUAGE.into();
-    let csharp_ext =
-        Extractor::new(csharp_lang, CSHARP_QUERIES).context("failed to compile C# extractor")?;
+    let extractors = Extractors::build()?;
 
     // Load runtime pack registry when --packs-dir is provided.
     let registry: Option<PackRegistry> = packs_dir.and_then(|dir| match PackRegistry::load(dir) {
@@ -150,127 +296,108 @@ pub fn index_path(root: &Path, packs_dir: Option<&Path>) -> Result<(Store, Index
     let mut store = Store::new();
     let mut stats = IndexStats::default();
 
-    // Build a walker that respects .gitignore, .ignore, and .myceliumignore.
-    // Hard-coded overrides ensure target/ and .mycelium/ are always excluded.
-    // We also explicitly add root-level .gitignore via add_ignore() so ignore
-    // rules work even when the root is not inside a git repository.
-    let mut walk_builder = WalkBuilder::new(root);
-    walk_builder
-        .follow_links(false)
-        .add_custom_ignore_filename(".myceliumignore");
-    for name in &[".gitignore", ".myceliumignore"] {
-        let p = root.join(name);
-        if p.exists() {
-            walk_builder.add_ignore(&p);
+    for path in collect_source_files(root) {
+        match index_file_into(&mut store, &extractors, registry.as_ref(), root, &path) {
+            FileOutcome::Indexed => stats.files += 1,
+            FileOutcome::Errored => stats.errors += 1,
+            FileOutcome::Skipped => {}
         }
-    }
-    let walker = walk_builder
-        .filter_entry(|e| {
-            let name = e.file_name().to_string_lossy();
-            !matches!(name.as_ref(), "target" | ".mycelium")
-        })
-        .build();
-
-    for entry in walker
-        .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
-    {
-        let path = entry.path();
-        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-            continue;
-        };
-
-        // Issue #294: skip files with compound source-language extensions like
-        // `module.ts.py`.  The stem (`module.ts`) ending in a recognised source
-        // extension that differs from `ext` (`py`) signals an artefact or cache
-        // file, not a real source file.  Indexing it would assign the wrong
-        // language and pollute the graph.
-        if let Some(stem_ext) = path
-            .file_stem()
-            .and_then(|s| std::path::Path::new(s).extension())
-            .and_then(|e| e.to_str())
-        {
-            if SOURCE_EXTS.contains(&stem_ext) && stem_ext != ext {
-                tracing::debug!("skipping compound-extension file: {}", path.display());
-                continue;
-            }
-        }
-
-        // Try static built-in extractors first; fall through to registry for
-        // unknown extensions when --packs-dir is provided.
-        let static_ext: Option<&Extractor> = match ext {
-            "js" | "jsx" => Some(&js_ext),
-            "py" | "pyi" => Some(&python_ext),
-            "ts" => Some(&ts_ext),
-            "tsx" => Some(&tsx_ext),
-            "rs" => Some(&rs_ext),
-            "go" => Some(&go_ext),
-            "java" => Some(&java_ext),
-            "c" | "h" => Some(&c_ext),
-            "rb" => Some(&ruby_ext),
-            // C++ primary extensions only; `.h` is handled above by the C extractor.
-            "cpp" | "cc" | "cxx" | "hpp" => Some(&cpp_ext),
-            "cs" => Some(&csharp_ext),
-            _ => None,
-        };
-
-        // Build a dynamic extractor from the registry for non-static extensions.
-        let dynamic_ext: Option<Extractor>;
-        let extractor: &Extractor = if let Some(e) = static_ext {
-            e
-        } else if let Some(reg) = &registry {
-            let dotted = format!(".{ext}");
-            if let Some(pack) = reg.lookup_by_ext(&dotted) {
-                if let Some(lang) = grammar_language_for_name(&pack.manifest.meta.grammar) {
-                    dynamic_ext = Extractor::new(lang, &pack.queries).ok();
-                    match dynamic_ext.as_ref() {
-                        Some(e) => e,
-                        None => continue,
-                    }
-                } else {
-                    continue;
-                }
-            } else {
-                continue;
-            }
-        } else {
-            continue;
-        };
-
-        // Issue #294: if strip_prefix fails (e.g. due to symlink canonicalization
-        // mismatch), skip the file rather than storing the raw absolute path as
-        // a Trunk node path — absolute paths produce `///`-prefixed query results
-        // that cannot be used for further look-ups.
-        let Ok(rel_path) = path.strip_prefix(root) else {
-            tracing::warn!(
-                "could not relativize path {} against root {}; skipping",
-                path.display(),
-                root.display()
-            );
-            stats.errors += 1;
-            continue;
-        };
-        let rel = rel_path.to_string_lossy().replace('\\', "/");
-
-        let source = match std::fs::read(path) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::warn!("could not read {}: {e}", path.display());
-                stats.errors += 1;
-                continue;
-            }
-        };
-
-        if let Err(e) = extractor.extract(&rel, &source, &mut store) {
-            tracing::warn!("extraction failed for {}: {e}", path.display());
-            stats.errors += 1;
-            continue;
-        }
-
-        stats.files += 1;
     }
 
     // Resolve cross-file call stubs after all files are processed.
+    store.resolve_bare_call_stubs();
+
+    Ok((store, stats))
+}
+
+/// Parallel variant of [`index_path`] (Issue #342 / R1).
+///
+/// Walks the tree serially (cheap), then extracts files **in parallel** across
+/// `available_parallelism()` OS threads, each folding into a thread-local
+/// [`Store`]. The sub-stores are reduced with `Store::merge`, an
+/// order-independent union (`NodeId`s are content hashes), so the result is
+/// **semantically identical** to [`index_path`] — same nodes, edges, kinds, and
+/// spans — regardless of thread scheduling. (Byte-identity of the snapshot is
+/// not a goal: even two serial runs differ byte-wise because `HashMap`
+/// iteration order is unstable.)
+///
+/// `packs_dir` (runtime registry) is not yet thread-verified and falls back to
+/// the serial [`index_path`]; the built-in languages cover the large-repo case
+/// this optimization targets.
+///
+/// # Errors
+///
+/// Returns an error only if the extractors fail to compile. Per-file errors are
+/// counted in [`IndexStats::errors`] and do not stop the run.
+pub fn index_path_parallel(root: &Path, packs_dir: Option<&Path>) -> Result<(Store, IndexStats)> {
+    if packs_dir.is_some() {
+        return index_path(root, packs_dir);
+    }
+
+    let extractors = Extractors::build()?;
+    let files = collect_source_files(root);
+
+    let workers = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+    if workers <= 1 || files.len() <= 1 {
+        let mut store = Store::new();
+        let mut stats = IndexStats::default();
+        for path in &files {
+            match index_file_into(&mut store, &extractors, None, root, path) {
+                FileOutcome::Indexed => stats.files += 1,
+                FileOutcome::Errored => stats.errors += 1,
+                FileOutcome::Skipped => {}
+            }
+        }
+        store.resolve_bare_call_stubs();
+        return Ok((store, stats));
+    }
+
+    let chunk_size = files.len().div_ceil(workers);
+    let extractors_ref = &extractors;
+
+    // Each thread folds its chunk into a thread-local (Store, IndexStats).
+    // `std::thread::scope` lets closures borrow `extractors_ref`, `root`, and
+    // their `files` slice without `'static` bounds or `Arc`.
+    let partials: Vec<(Store, IndexStats)> = std::thread::scope(|scope| {
+        // The `collect` here is load-bearing, NOT needless: every thread must
+        // be spawned (started) before we join any of them. Folding spawn+join
+        // into one lazy iterator chain would serialize the work (spawn, join,
+        // spawn, join, …), defeating the parallelism. Hence the explicit Vec.
+        #[allow(clippy::needless_collect)]
+        let handles: Vec<_> = files
+            .chunks(chunk_size)
+            .map(|chunk| {
+                scope.spawn(move || {
+                    let mut store = Store::new();
+                    let mut stats = IndexStats::default();
+                    for path in chunk {
+                        match index_file_into(&mut store, extractors_ref, None, root, path) {
+                            FileOutcome::Indexed => stats.files += 1,
+                            FileOutcome::Errored => stats.errors += 1,
+                            FileOutcome::Skipped => {}
+                        }
+                    }
+                    (store, stats)
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| h.join().expect("index worker thread panicked"))
+            .collect()
+    });
+
+    // Reduce: union all sub-stores, sum all stats. Order-independent (#345).
+    let mut store = Store::new();
+    let mut stats = IndexStats::default();
+    for (sub, sub_stats) in partials {
+        store.merge(&sub);
+        stats.files += sub_stats.files;
+        stats.errors += sub_stats.errors;
+    }
+
+    // Resolve cross-file call stubs once, after the full graph is merged —
+    // exactly as the serial path does after its loop.
     store.resolve_bare_call_stubs();
 
     Ok((store, stats))
