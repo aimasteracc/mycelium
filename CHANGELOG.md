@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- next release goes here -->
+### Added
+
+- **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
+  diagnostic method that returns a conservative lower-bound estimate of bytes
+  held by the store's Patricia trie and CSR synapse. Three TDD tests verify
+  the estimate is non-zero, grows monotonically with node count, and is
+  non-decreasing with edges. Three `#[ignore]`-gated tests measure actual
+  process RSS at 1 K / 10 K / 100 K nodes to generate the data needed to
+  design the LRU/mmap mitigation (Issue #344). Run with
+  `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture`.
 
 ## [0.1.14] - 2026-05-31
 
