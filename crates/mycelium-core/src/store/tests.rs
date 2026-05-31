@@ -5724,3 +5724,167 @@ fn heavy_graph_find_call_path_under_two_seconds() {
         "find_call_path took {elapsed:?}, want < 2 s"
     );
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Store::merge — union semantics for parallel indexing (Issue #342 / R1)
+//
+// NodeIds are content-hashes (BLAKE3 of path), so merging two stores is a
+// deterministic, order-independent union. This is the load-bearing primitive
+// that lets us extract files in parallel into per-thread sub-stores and then
+// reduce them into one final store byte-identically to the serial path.
+// ──────────────────────────────────────────────────────────────────────
+
+/// Helper: a store equals another iff same node-set (path+kind+span) and
+/// same edge-set across all kinds. Order-independent by construction.
+fn stores_equivalent(a: &Store, b: &Store) -> bool {
+    use std::collections::BTreeSet;
+    let a_nodes: BTreeSet<String> = a.all_paths().map(str::to_owned).collect();
+    let b_nodes: BTreeSet<String> = b.all_paths().map(str::to_owned).collect();
+    if a_nodes != b_nodes {
+        return false;
+    }
+    if a.node_count() != b.node_count() || a.edge_count() != b.edge_count() {
+        return false;
+    }
+    // Compare edges by resolved path triples so the check is id-stable.
+    let edges = |s: &Store| -> BTreeSet<(String, String, String)> {
+        let mut set = BTreeSet::new();
+        for ek in EVERY_EDGE_KIND {
+            for p in s.all_paths() {
+                if let Some(src) = s.lookup(p) {
+                    for &dst in s.outgoing(src, *ek) {
+                        if let Some(dp) = s.path_of(dst) {
+                            set.insert((format!("{ek:?}"), p.to_owned(), dp.to_owned()));
+                        }
+                    }
+                }
+            }
+        }
+        set
+    };
+    edges(a) == edges(b)
+}
+
+const EVERY_EDGE_KIND: &[EdgeKind] = &[
+    EdgeKind::Contains,
+    EdgeKind::Calls,
+    EdgeKind::Imports,
+    EdgeKind::TypeImports,
+    EdgeKind::Extends,
+    EdgeKind::Implements,
+];
+
+#[test]
+fn merge_empty_into_empty_is_empty() {
+    let mut a = Store::new();
+    let b = Store::new();
+    a.merge(&b);
+    assert_eq!(a.node_count(), 0);
+    assert_eq!(a.edge_count(), 0);
+}
+
+#[test]
+fn merge_disjoint_stores_unions_nodes_and_edges() {
+    // Store A: file a.rs with a Calls edge a>foo -> a>bar.
+    let mut a = Store::new();
+    let a_foo = a.upsert_node(path("a.rs>foo"));
+    let a_bar = a.upsert_node(path("a.rs>bar"));
+    a.set_kind(a_foo, NodeKind::Function);
+    a.upsert_edge(EdgeKind::Calls, a_foo, a_bar);
+
+    // Store B: file b.rs with an Imports edge b.rs -> a.rs.
+    let mut b = Store::new();
+    let b_file = b.upsert_node(path("b.rs"));
+    let b_a = b.upsert_node(path("a.rs"));
+    b.upsert_edge(EdgeKind::Imports, b_file, b_a);
+
+    a.merge(&b);
+
+    // All four distinct paths present.
+    assert!(a.lookup("a.rs>foo").is_some());
+    assert!(a.lookup("a.rs>bar").is_some());
+    assert!(a.lookup("b.rs").is_some());
+    assert!(a.lookup("a.rs").is_some());
+    // A's own edge survived.
+    assert!(a.outgoing(a_foo, EdgeKind::Calls).contains(&a_bar));
+    // B's edge transferred (NodeIds are global content-hashes).
+    let bf = a.lookup("b.rs").unwrap();
+    let ar = a.lookup("a.rs").unwrap();
+    assert!(a.outgoing(bf, EdgeKind::Imports).contains(&ar));
+    // Kind metadata carried over.
+    assert_eq!(a.kind_of(a_foo), Some(NodeKind::Function));
+}
+
+#[test]
+fn merge_equals_single_pass_build_order_independent() {
+    // Build the "serial" store: both files into one store.
+    let mut serial = Store::new();
+    {
+        let foo = serial.upsert_node(path("a.rs>foo"));
+        let bar = serial.upsert_node(path("b.rs>bar"));
+        serial.set_kind(foo, NodeKind::Function);
+        serial.set_kind(bar, NodeKind::Function);
+        serial.upsert_edge(EdgeKind::Calls, foo, bar); // cross-file edge
+    }
+
+    // Build via merge in one order...
+    let mut merged_ab = Store::new();
+    {
+        let mut sa = Store::new();
+        let foo = sa.upsert_node(path("a.rs>foo"));
+        sa.set_kind(foo, NodeKind::Function);
+        let bar_stub = sa.upsert_node(path("b.rs>bar"));
+        sa.upsert_edge(EdgeKind::Calls, foo, bar_stub);
+        let mut sb = Store::new();
+        let bar = sb.upsert_node(path("b.rs>bar"));
+        sb.set_kind(bar, NodeKind::Function);
+        merged_ab.merge(&sa);
+        merged_ab.merge(&sb);
+    }
+
+    // ...and the reverse order.
+    let mut merged_ba = Store::new();
+    {
+        let mut sa = Store::new();
+        let foo = sa.upsert_node(path("a.rs>foo"));
+        sa.set_kind(foo, NodeKind::Function);
+        let bar_stub = sa.upsert_node(path("b.rs>bar"));
+        sa.upsert_edge(EdgeKind::Calls, foo, bar_stub);
+        let mut sb = Store::new();
+        let bar = sb.upsert_node(path("b.rs>bar"));
+        sb.set_kind(bar, NodeKind::Function);
+        merged_ba.merge(&sb);
+        merged_ba.merge(&sa);
+    }
+
+    assert!(
+        stores_equivalent(&serial, &merged_ab),
+        "merge(A,B) must equal the single-pass build"
+    );
+    assert!(
+        stores_equivalent(&serial, &merged_ba),
+        "merge order must not matter (B,A == A,B)"
+    );
+}
+
+#[test]
+fn merge_is_idempotent() {
+    let mut a = Store::new();
+    let foo = a.upsert_node(path("a.rs>foo"));
+    let bar = a.upsert_node(path("a.rs>bar"));
+    a.upsert_edge(EdgeKind::Calls, foo, bar);
+
+    let snapshot_nodes = a.node_count();
+    let snapshot_edges = a.edge_count();
+
+    let b = {
+        let mut s = Store::new();
+        let f = s.upsert_node(path("a.rs>foo"));
+        let r = s.upsert_node(path("a.rs>bar"));
+        s.upsert_edge(EdgeKind::Calls, f, r);
+        s
+    };
+    a.merge(&b); // merging an identical store changes nothing
+    assert_eq!(a.node_count(), snapshot_nodes);
+    assert_eq!(a.edge_count(), snapshot_edges);
+}
