@@ -76,11 +76,11 @@ entire graph in memory with no bound.
 Three independent, Rust-only, low-risk workstreams — none requires a new
 dependency beyond `rayon`:
 
-| Workstream | Change | Risk | Payoff |
-|---|---|---|---|
-| **R1 Parallel index** | `WalkBuilder::build_parallel()` + per-file extract on a thread pool, merge into `Store` under a lock (or per-thread sub-stores merged at the end) | Low | Near-linear speedup on initial index |
-| **R2 Incremental persistence** | Stop full-snapshot-on-every-change. Either append-only edit log + periodic compaction, or per-file segment files keyed by path hash | Medium | Removes O(total-graph) write per edit — the thing that kills the reactive path at scale |
-| **R3 Memory bound** | Optional LRU/segment eviction or mmap-backed store behind a feature flag; activate the reserved NodeId shard-tag byte for sharding | Medium | Lets the graph exceed RAM; unblocks truly large repos |
+| Workstream | Issue | Change | Risk | Payoff |
+|---|---|---|---|---|
+| **R1 Parallel index** | [#342](https://github.com/aimasteracc/mycelium/issues/342) | `WalkBuilder::build_parallel()` + per-file extract on a thread pool, merge into `Store` under a lock (or per-thread sub-stores merged at the end) | Low | Near-linear speedup on initial index |
+| **R2 Incremental persistence** | [#343](https://github.com/aimasteracc/mycelium/issues/343) | Stop full-snapshot-on-every-change. Either append-only edit log + periodic compaction, or per-file segment files keyed by path hash | Medium | Removes O(total-graph) write per edit — the thing that kills the reactive path at scale |
+| **R3 Memory bound** | [#344](https://github.com/aimasteracc/mycelium/issues/344) | Optional LRU/segment eviction or mmap-backed store behind a feature flag; activate the reserved NodeId shard-tag byte for sharding | Medium | Lets the graph exceed RAM; unblocks truly large repos |
 
 Plus the already-scoped **Salsa Phase 2** (edge-level invalidation) which makes
 R2's incremental story actually incremental end-to-end.
