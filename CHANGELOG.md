@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- next release goes here -->
+
+## [0.1.15] - 2026-05-31
+
 ### Added
+
+- **R1 — Parallel indexing (`index_path_parallel`)** — `mycelium index` now
+  uses all available CPU cores for the tree-sitter parse + extract phase, the
+  dominant cost on large repositories. Files are walked serially (preserving
+  determinism), extracted in parallel via `std::thread::scope` into per-thread
+  sub-stores, then merged with `Store::merge` (NodeIds are BLAKE3 content
+  hashes → merge is order-independent). The serial path is preserved as a
+  fallback when `--packs-dir` is provided. Semantic equivalence asserted by
+  `index_path_parallel_matches_serial_semantically` (multi-file, multi-language,
+  cross-file calls; identical node set, edge set, and stats). No new runtime
+  dependencies. (Issue #342)
 
 - **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
   diagnostic method that returns a conservative lower-bound estimate of bytes
