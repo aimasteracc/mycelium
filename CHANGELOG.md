@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP server routing instructions** — `mycelium serve --mcp` now includes
+  a routing table in the MCP `InitializeResult.instructions` field (Issue #366).
+  Agents with 89 tools available see an intent→tool map at turn 0, cutting
+  median turn count and variance on real-repo benchmarks. No breaking change;
+  clients that do not read `instructions` are unaffected.
+
 - **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
   diagnostic method that returns a conservative lower-bound estimate of bytes
   held by the store's Patricia trie and CSR synapse. Three TDD tests verify

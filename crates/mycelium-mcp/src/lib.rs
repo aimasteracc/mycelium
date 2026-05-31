@@ -4704,12 +4704,46 @@ impl MyceliumServer {
     }
 }
 
+const MCP_INSTRUCTIONS: &str = "\
+## Mycelium — AI-native symbol graph (89 tools)
+
+**Setup (always first):**
+- Index a workspace → `mycelium_index_workspace`
+- Reload a saved index → `mycelium_load_index`
+- Check readiness → `mycelium_server_status`
+
+**Intent → tool:**
+- Find symbol by name/prefix → `mycelium_search_symbol`
+- Full symbol info (ancestors, callers, callees) → `mycelium_get_symbol_info`
+- Direct callers of a function → `mycelium_get_callers`
+- Direct callees of a function → `mycelium_get_callees`
+- Transitive callee tree → `mycelium_get_callee_tree`
+- Transitive caller tree → `mycelium_get_caller_tree`
+- Common callers of N symbols → `mycelium_get_common_callers`
+- Shortest call path between two symbols → `mycelium_find_call_path`
+- Direct import neighbors → `mycelium_get_imports`
+- Transitive import tree → `mycelium_get_import_tree`
+- Shortest import path → `mycelium_find_import_path`
+- Reverse-dependency forest → `mycelium_get_importers_tree`
+- Direct superclass/subclass → `mycelium_get_extends` / `mycelium_get_subclasses_tree`
+- Inheritance chain → `mycelium_get_extends_tree` / `mycelium_find_extends_path`
+- Interface implementations → `mycelium_get_implements` / `mycelium_get_implementors_tree`
+- All symbols of a kind (function/class/…) → `mycelium_get_symbols_by_kind`
+- Entry points / dead-code candidates → `mycelium_get_entry_points`
+- Hyphae DSL query → `mycelium_query`
+- Batch symbol info (up to 50) → `mycelium_batch_symbol_info`
+
+**Stop after 3–5 calls and synthesize. Do not loop `get_callers` or `search_symbol` repeatedly.**";
+
 #[tool_handler]
 impl ServerHandler for MyceliumServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_server_info(
-            Implementation::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
-        )
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new(
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION"),
+            ))
+            .with_instructions(MCP_INSTRUCTIONS)
     }
 }
 
@@ -11583,6 +11617,33 @@ mod tests {
         assert!(
             dead_calls.contains(&"src/target.rs>B"),
             "with edge_kind=calls, symbol with no Calls edge must appear as dead; got: {dead_calls:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod server_info_tests {
+    use super::*;
+
+    #[test]
+    fn get_info_includes_routing_instructions() {
+        let server = MyceliumServer::default();
+        let info = server.get_info();
+        let instructions = info
+            .instructions
+            .expect("get_info() must expose MCP server instructions for agent routing");
+        assert!(!instructions.is_empty(), "instructions must be non-empty");
+        assert!(
+            instructions.contains("mycelium_search_symbol"),
+            "routing table must mention mycelium_search_symbol; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("mycelium_get_callers"),
+            "routing table must mention mycelium_get_callers; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("mycelium_index_workspace"),
+            "routing table must mention mycelium_index_workspace as setup step; got: {instructions}"
         );
     }
 }
