@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — Skills INDEX.md CI gate promoted to required; RFC-0093 Phase 3 + dogfood remain for next session) |
+| Last updated | 2026-05-31 (PM dispatch — PRs #335/#337 merged; PR #336 closed (conflict), #338 opened (clean rebase); 2/3 v0.1.14 criteria done; RFC-0093 Phase 3 sole remaining) |
 | Current sprint | **v0.1.14 — IN PROGRESS** |
 | Active release branch | none (v0.1.13 complete; v0.1.14 developing on develop) |
 | Next release target | **v0.1.14** — RFC-0093 Phase 3 + dogfood validation |
@@ -44,8 +44,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **Post-v0.1.13 security scan**: CLEAN ✅ (this run — no hardcoded secrets, no unsafe blocks)
 - [x] **PRD v0.2 corrections**: Fixed stale claims — `mycelium query` IS implemented, 10 Skills exist (this run ✅)
 - [ ] **RFC-0093 Phase 3**: Migrate all 89 MCP tool signatures from `CallToolResult` → `Result<CallToolResult, rmcp::Error>`. Required for v0.2.0 protocol correctness. (~medium effort, ~200 lines of mechanical changes)
-- [x] **Skills INDEX.md CI gate**: `skill-parity` job added to `ci.yml` Quality Gate — parity is now a **required** check. (PR this run ✅)
-- [ ] **Dogfood pass rate 8/8**: Run `mycelium *` against this repo end-to-end; document which commands pass
+- [x] **Skills INDEX.md CI gate**: `skill-parity` job added to `ci.yml` Quality Gate — parity is now a **required** check. (PR #335 MERGED ✅)
+- [x] **Dogfood pass rate 8/8**: All 8 core CLI commands green against this repo (PR #337 MERGED ✅, 195 files, 14 523 nodes, 9 871 edges, ~0.4 s)
 
 **Stretch (v0.1.14 if time, v0.2.0 otherwise):**
 - [ ] `release.yml` finalize merge step fix (founder-escalated systemic issue)
@@ -55,12 +55,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0**: none (v0.1.13 ceremony complete, 0 open issues, 0 open PRs)
+**P0**: none (v0.1.13 ceremony complete, 0 open issues)
 
-**P1 (v0.1.14 sprint):**
-1. **RFC-0093 Phase 3** — change 89 tool signatures to `Result<CallToolResult, rmcp::Error>`. Mechanical refactor; TDD approach: write 1 failing test for a representative tool, then bulk-change all 89. Target: all tests still pass, no behaviour change for callers.
-2. ~~**Skills INDEX.md CI gate**~~ — **DONE** (`skill-parity` added to Quality Gate, this run).
-3. **Dogfood pass rate verification** — run `cargo run --bin mycelium -- query "..."` etc. against this repo; document 8/8 status.
+**P1 (v0.1.14 sprint — sole remaining criterion):**
+1. **RFC-0093 Phase 3** — change 89 tool signatures `-> CallToolResult` → `-> Result<CallToolResult, rmcp::Error>` + wrap all return sites with `Ok(...)`. TDD: write compile-time failing test, bulk sed change, `cargo test --all`. Note: rmcp 1.7 Error type needs verification before first line of code.
+
+**P2 (v0.2.0 scope):**
+2. ~~**Skills INDEX.md CI gate**~~ — **DONE** PR #335 ✅
+3. ~~**Dogfood pass rate 8/8**~~ — **DONE** PR #337 ✅ (8/8 commands green, 14 523 nodes, ~0.4 s)
+4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit or job rewrite)
+5. Skill marketplace submission to Claude Code marketplace
+6. "First 5 minutes" walkthrough validation (README + docs site)
+7. **Pending: PR #338** (docs/vision-vs-reality + model tiering, CI running — merge when green)
 
 **P2 (v0.2.0 scope):**
 4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit or job rewrite)
@@ -69,18 +75,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, this run)
+## Dispatch state (2026-05-31, this run — PRs #335+#337 merged; PR #338 CI running)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action requested** | Audit `release.yml` finalize merge step before v0.2.0 (systemic; every release affected). |
-| rust-implementer | **ready** | RFC-0093 Phase 3 (next session). |
-| security-reviewer | **done this run** | Post-v0.1.13 scan CLEAN. |
-| tech-writer | **done this run** | PRD v0.2 corrections (mycelium query implemented; 10 Skills exist). |
-| e2e-runner | **ready** | Dogfood pass rate 8/8 CLI commands. |
-| architect | **done this run** | Skills INDEX.md CI gate: `skill-parity` added to Quality Gate in ci.yml. |
-| code-reviewer | idle | Next PR for RFC-0093 Phase 3. |
-| release | idle | v0.1.14 will be cut when sprint exit criteria met. |
+| rust-implementer | **NEXT** | RFC-0093 Phase 3 — 89 tools `CallToolResult` → `Result<CallToolResult, rmcp::Error>`. Verify rmcp 1.7 error type first. TDD: failing compile-test → bulk change → cargo test all. |
+| security-reviewer | done | Post-v0.1.13 scan CLEAN. |
+| tech-writer | done | PRD v0.2 corrections + vision-vs-reality.md (PR #338 CI running). |
+| e2e-runner | **done** | Dogfood 8/8 ✅ (PR #337 merged). |
+| architect | **done** | Skills INDEX.md CI gate (PR #335 merged). |
+| code-reviewer | idle | Review next RFC-0093 Phase 3 PR. |
+| release | idle | v0.1.14 ready to cut once RFC-0093 Phase 3 lands. |
 
 ---
 
@@ -106,7 +112,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-31 PM dispatch (this run — Skills INDEX.md CI gate promoted to required; PR #334 merged)
+### 2026-05-31 PM dispatch (this run — PRs #335+#337 merged; PR #336 closed; PR #338 rebased and opened)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `88def9f` (after PR #337 merged). 3 open PRs: #335 (CI gate, green), #336 (conflicted), #337 (dogfood, CI in progress).
+- 0 open issues. v0.1.14 sprint: Skills gate + dogfood criteria both addressed in open PRs.
+- PR #336 `mergeable_state: dirty` — conflicts from PRs #335+#337 merges, CI never ran.
+- `docs/vision-model-tiering-clean` branch already existed as a clean rebase; only needed rebase onto post-#335/#337 develop.
+
+**Actions taken:**
+1. **Merged PR #335** (ci/skill-parity-quality-gate, Quality Gate SUCCESS) — closes Skills INDEX.md CI gate criterion.
+2. **Merged PR #337** (docs/v0.1.14-dogfood-report, Quality Gate SUCCESS) — closes Dogfood 8/8 criterion.
+3. **Closed PR #336** (conflicted) — superseded by PR #338.
+4. **Rebased** `docs/vision-model-tiering-clean` onto develop (clean, no conflicts). Force-pushed, PR #338 already existed and now has CI running.
+5. Updated PM state + decisions.jsonl.
+
+**Sprint status:** 5/6 v0.1.14 exit criteria done. Only RFC-0093 Phase 3 remains.
+
+**Escalations:** Founder must audit `release.yml` finalize merge step (systemic — every release).
+
+### 2026-05-31 PM dispatch (previous — Skills INDEX.md CI gate promoted to required; PR #334 merged)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (from PR #334), v0.2 PRD.
 
