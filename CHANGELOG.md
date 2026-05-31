@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resolver, producing incorrect node paths (`/foo.py` instead of `foo.ts`).
   Three TDD tests (RED confirmed before impl). (RFC-0096 Phase 2)
 
+<!-- next release goes here -->
+
+## [0.1.13] - 2026-05-31
+
 ### Changed
 
 - **RFC-0093 Phase 2 — `success_str` helper replaces local `ok_str`** — all
