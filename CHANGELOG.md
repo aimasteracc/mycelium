@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- next release goes here -->
+
+## [0.1.14] - 2026-05-31
+
 ### Added
 
 - **RFC-0096 Phase 2 — TypeScript `import type` → `TypeImports`** — TypeScript's
@@ -41,8 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `successful_lookup_yields_is_error_false`. (RFC-0093, Issue #209)
 
 [mcp-errors]: https://spec.modelcontextprotocol.io/specification/server/tools/#error-handling
-
-<!-- next release goes here -->
 
 ## [0.1.13] - 2026-05-31
 
