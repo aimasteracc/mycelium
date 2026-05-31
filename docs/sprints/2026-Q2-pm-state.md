@@ -5,12 +5,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-30 (PM dispatch — PR #323 merged ceremony step 4/4; PR #326 RFC-0093 Phase 2; security CLEAN) |
-| Current sprint | **v0.1.13 — KICKOFF 🚀** |
-| Active release branch | `release/v0.1.12` (recreated from tag; PRs #323/#324 open) |
-| Next release target | **v0.1.13** — ADR gaps + RFC-0093 Phase 2 + security scan |
+| Last updated | 2026-05-31 (PM dispatch — v0.1.13 cut; PR #328/329 opened; v0.1.14 sprint planned) |
+| Current sprint | **v0.1.14 — KICKOFF 🚀** |
+| Active release branch | `release/v0.1.13` (PRs #328 → main founder-gated, #329 → develop pending CI) |
+| Next release target | **v0.1.14** — RFC-0093 Phase 3 (first tool-family migration) + v0.2.0 foundations |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.12 — RFC-0092/0095/0096/0097, Java inheritance, 9 accuracy fixes** (tag v0.1.12, GitHub Release published 2026-05-30) |
+
+---
+
+## 🚀 v0.1.13 — CUT (ceremony in progress ⚠️)
+
+**What's in this release:**
+- [x] RFC-0093 Phase 2: `success_str` unified helper — 101 MCP success-return sites now all flow through `crate::error::success_str`. Internal refactor; no behaviour change.
+- [x] ADR-0004 (Patricia Trie for Trunk), ADR-0005 (MessagePack wire format), ADR-0006 (Hyphae CSS-selector grammar) — three ADR documentation gaps filled.
+- [x] Post-v0.1.12 security scan: CLEAN.
+
+**Post-v0.1.13 ceremony status:**
+- [~] **Step 1**: `release/v0.1.13` → `main` — PR #328 open. **⚠️ REQUIRES FOUNDER AUTHORIZATION** (Charter §5.12). Note: PR #324 (v0.1.12 → main) is also pending; founder may merge both together.
+- [~] **Step 2**: Tag `v0.1.13` pushed — pending release.yml on step 1 merge.
+- [~] **Step 3**: GitHub Release published — pending release.yml.
+- [~] **Step 4**: Back-merge `release/v0.1.13` → `develop` — PR #329 open, CI in progress.
 
 ---
 
@@ -39,54 +54,61 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0: Ceremony completion**
-1. **PR #324** (`release/v0.1.12` → `main`) — founder must authorize merge after CI green.
-2. **PR #323** (`release/v0.1.12` → `develop` back-merge) — merge after CI green; resolve conflicts per PR description.
+**P0: Ceremony completion (dual — v0.1.12 + v0.1.13)**
+1. **PR #324** (`release/v0.1.12` → `main`) — founder must authorize merge. **ESCALATION: pending since 2026-05-30.**
+2. **PR #328** (`release/v0.1.13` → `main`) — founder must authorize merge (can merge both #324 + #328 together, or #324 first then #328).
+3. **PR #329** (`release/v0.1.13` → `develop` back-merge) — merge autonomously when CI green. This PM run: CI in progress.
 
-**P1 (v0.1.13 sprint — kick off after ceremony):**
-3. **ADR-0004**: Patricia Trie for Trunk (`docs/adr/0004-patricia-trie-trunk.md`) — ADR gap from CLAUDE.md; pure docs, no code change.
-4. **ADR-0005**: MessagePack as wire format (`docs/adr/0005-messagepack-wire-format.md`) — ADR gap; pure docs.
-5. **ADR-0006**: Hyphae CSS-selector grammar style (`docs/adr/0006-hyphae-grammar.md`) — ADR gap; pure docs.
-6. **RFC-0093 Phase 2**: Migrate all 89 MCP tools to return `success_json`/`application_error` helpers (Phase 1 helpers shipped in v0.1.11). Medium effort, high quality gain.
-7. **Post-v0.1.12 security scan** — routine Charter §5 obligation post each release.
+**P1 (v0.1.14 sprint — active):**
+4. **RFC-0093 Phase 3** — first tool-family migration: change `basic-queries` tools (search-symbol, get-symbol-info, get-ancestors, get-descendants) from `-> CallToolResult` to `-> Result<CallToolResult, rmcp::Error>` with structured `not_found`/`not_indexed` responses. TDD: 4+ RED tests first. Target: v0.1.14 or v0.2.0 depending on blast radius assessment.
+5. **`mycelium query` dogfood validation** — `mycelium query` is FULLY IMPLEMENTED (not a placeholder). v0.2 PRD still says "marquee feature unreachable" — update PRD; run dogfood pass rate check on all 8 CLI commands.
+6. **Post-v0.1.13 security scan** — routine Charter §5 obligation.
 
-**P2 (v0.1.13 or v0.2.0 scope):**
-8. **Hyphae CLI end-to-end**: `mycelium query "<selector>"` works (v0.2 PRD headline feature). Check if RFC-0091 covers CLI wiring.
-9. **E2E dogfood pass rate**: bring 8/8 CLI commands to full green (v0.2 PRD metric).
-10. **`mycelium init`**: implement or keep hidden (Issue #154, v0.2 PRD).
+**P2 (v0.2.0 scope):**
+7. RFC-0093 Phase 4-5 — remaining tool-family migrations (call-graph, reachability, etc.).
+8. **`mycelium init`** — implement or keep hidden (Issue #154, v0.2 PRD).
+9. E2E dogfood pass rate: confirm 8/8 CLI commands fully green.
 
 **P3 (v0.2.0 backlog):**
-11. Skill marketplace submission (metadata done in v0.1.12; submit to Claude Code marketplace).
-12. End-to-end "first 5 minutes" walkthrough validation (PR #285 wrote docs; validate still works).
+10. Skill marketplace submission (metadata done in v0.1.12; submit to Claude Code marketplace).
+11. End-to-end "first 5 minutes" walkthrough validation.
 
 ---
 
-## v0.1.13 Sprint — Exit criteria (DRAFT)
+## v0.1.13 Sprint — Exit criteria — COMPLETE ✅
 
-- [x] **ADR-0004**: Patricia Trie for Trunk documented ✅ (written in prior session).
-- [x] **ADR-0005**: MessagePack wire format documented ✅ (written in prior session).
-- [x] **ADR-0006**: Hyphae grammar style documented ✅ (written in prior session).
-- [~] **RFC-0093 Phase 2**: `success_str` exported from error module; all 101 sites migrated. PR #326 open (CI pending). ← **this run**
-- [x] **Security scan clean** — post-v0.1.12: CLEAN ✅ (no secrets, no unsafe). ← **this run**
-- [~] **Ceremony complete**: PR #323 merged ✅; PR #324 blocked on founder auth.
+- [x] **ADR-0004**: Patricia Trie for Trunk documented ✅
+- [x] **ADR-0005**: MessagePack wire format documented ✅
+- [x] **ADR-0006**: Hyphae grammar style documented ✅
+- [x] **RFC-0093 Phase 2**: `success_str` unified helper; 101 sites migrated (PR #326 merged to develop).
+- [x] **Security scan clean** — post-v0.1.12: CLEAN ✅
+- [~] **Ceremony complete**: PR #323 merged ✅; PR #324 (v0.1.12→main) + PR #328 (v0.1.13→main) blocked on founder auth; PR #329 (v0.1.13→develop) CI in progress.
 
-**Stretch (if time allows):**
-- [ ] **Hyphae CLI PoC**: `mycelium query "<hyphae-selector>"` returns results end-to-end.
+**Finding this run**: `mycelium query` CLI is FULLY IMPLEMENTED (not a placeholder as stated in v0.2 PRD). RFC-0091 status: Implemented. Three-Surface Rule satisfied for `query`. PRD needs correction.
 
 ---
 
-## Dispatch state (2026-05-30, PM dispatch — v0.1.13 in progress)
+## v0.1.14 Sprint — Exit criteria (DRAFT)
+
+- [ ] **RFC-0093 Phase 3** — `basic-queries` tool family migrated to `Result<CallToolResult, rmcp::Error>`. TDD: RED tests first per Charter §5.1.
+- [ ] **v0.2 PRD updated** — remove false "mycelium query is unreachable" claim; update dogfood pass rate baseline.
+- [ ] **Post-v0.1.13 security scan** — CLEAN.
+- [ ] **Ceremony complete** — PRs #328 (→ main) + #329 (→ develop) both merged.
+
+---
+
+## Dispatch state (2026-05-31, PM dispatch — v0.1.13 cut; v0.1.14 kickoff)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | PR #324: authorize merge of `release/v0.1.12` → `main`. Also: investigate `release.yml` finalize merge failure (systemic). |
-| release | **watching** | PR #326 CI → admin-merge. PR #324 founder authorization → admin-merge to main. |
-| rust-implementer | **done this run** | RFC-0093 Phase 2 (PR #326 — success_str export, 101 sites migrated). |
-| security-reviewer | **done this run** | Post-v0.1.12 scan CLEAN. |
-| tech-writer | **done (prior)** | ADR-0004/0005/0006 all complete. |
-| architect | idle | RFC review for Hyphae CLI end-to-end (check RFC-0091 scope). |
-| code-reviewer | idle | Blocks on PR #326 review. |
-| e2e-runner | idle | Dogfood pass rate after v0.1.13 content lands. |
+| founder | **ACTION REQUIRED** | PR #324 (v0.1.12→main) + PR #328 (v0.1.13→main): authorize both merges. Also: investigate `release.yml` finalize merge failure (systemic — every release). |
+| release | **watching** | PR #329 CI green → admin-merge. PRs #324/#328 await founder auth. |
+| rust-implementer | **next-up** | RFC-0093 Phase 3: `basic-queries` tool family (search-symbol, get-symbol-info, get-ancestors, get-descendants) → `Result<CallToolResult, rmcp::Error>`. TDD first. |
+| tech-writer | **next-up** | Update v0.2 PRD: `mycelium query` is IMPLEMENTED (not a placeholder). Correct dogfood pass rate claim. |
+| security-reviewer | **next-up** | Post-v0.1.13 scan after ceremony complete. |
+| architect | idle | Assess RFC-0093 Phase 3 blast radius (breaking change for v0.2.0 vs incremental). |
+| code-reviewer | idle | Blocks on PR opens. |
+| e2e-runner | idle | Dogfood pass rate validation (8/8 CLI commands) after v0.1.13 lands. |
 
 ---
 
@@ -97,8 +119,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **⚠️ PR #324**: Merge `release/v0.1.12` → `main` (Charter §5.12 — GPG-signed founder approval required).
-- **⚠️ Systemic**: `release.yml` finalize merge step fails on every release. `RELEASE_BOT_TOKEN` or merge logic needs founder audit before v0.2.0.
+- **⚠️ PR #324**: Merge `release/v0.1.12` → `main` (Charter §5.12 — GPG-signed founder approval required). Pending since 2026-05-30.
+- **⚠️ PR #328**: Merge `release/v0.1.13` → `main` (Charter §5.12 — GPG-signed founder approval required). Opened 2026-05-31.
+- **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6, v0.1.10, v0.1.11, v0.1.12 confirmed). `RELEASE_BOT_TOKEN` or merge logic needs founder audit before v0.2.0.
 
 ---
 
@@ -112,6 +135,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 PM dispatch (this run — v0.1.13 cut; PR #328/#329; v0.1.14 kickoff)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD. Fetched develop from origin (local clone was at main/v0.1.11; developed advanced to 3ec82c5 RFC-0093 Phase 2).
+
+**Assessment:**
+- 0 open issues. 1 open PR: #324 (v0.1.12 → main, founder-gated, Quality Gate ✅).
+- develop HEAD: 3ec82c5 (RFC-0093 Phase 2 — `success_str` export, already merged from PR #326).
+- v0.1.13 sprint: all 6 criteria met (5 actionable + 1 founder-gated ceremony).
+- **Key finding**: `mycelium query` is FULLY IMPLEMENTED. CLI `query.rs` wired, MCP twin `mycelium_query` exists, `hyphae-query/SKILL.md` covers it. v0.2 PRD claim "marquee feature unreachable" is FALSE — update needed.
+- v0.2 PRD headline feature is done; Three-Surface Rule satisfied for `query`.
+
+**Actions taken:**
+1. **Cut release/v0.1.13** from develop HEAD: version bump 0.1.12 → 0.1.13 in workspace Cargo.toml + mycelium-cli dep pin, sealed CHANGELOG. Committed + pushed `release/v0.1.13`.
+2. **PR #328** opened: `release/v0.1.13` → `main` (founder auth required). Notes dual ceremony (#324 also pending).
+3. **PR #329** opened: `release/v0.1.13` → `develop` back-merge (step 4/4). CI in progress.
+4. Updated PM state: v0.1.13 sprint closed, v0.1.14 sprint opened with RFC-0093 Phase 3 as headline.
+5. Appended decisions.jsonl.
+
+**Escalations:** Founder must authorize PR #324 (v0.1.12→main) AND PR #328 (v0.1.13→main). Systemic `release.yml` finalize merge failure continues — needs audit before v0.2.0.
 
 ### 2026-05-30 PM dispatch (this run — PR #323 merged; RFC-0093 Phase 2; security CLEAN)
 
