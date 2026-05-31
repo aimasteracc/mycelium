@@ -1,0 +1,45 @@
+# This empty [workspace] table tells cargo this package is its OWN root workspace,
+# so the parent mycelium workspace does NOT pick it up.
+# The main workspace Cargo.toml is never modified.
+[workspace]
+
+[package]
+name        = "redb-perf-spike"
+version     = "0.0.1"
+edition     = "2021"
+description = "THROWAWAY SPIKE — RFC-0100 / T1: redb cold vs warm query latency"
+publish     = false
+
+# This is intentionally NOT a member of the mycelium workspace.
+# It has its own lock file and dependency tree so the main workspace
+# Cargo.toml / Cargo.lock is never touched.
+
+[[bin]]
+name = "spike"
+path = "src/main.rs"
+
+[[bin]]
+name = "cold-reader"
+path = "src/cold_reader.rs"
+
+[dependencies]
+# redb 2.x — the storage engine under evaluation
+redb        = "2"
+# rmp-serde: same serializer Mycelium uses for graph data
+rmp-serde   = "1"
+serde       = { version = "1", features = ["derive"] }
+# Used for random-access patterns
+rand        = "0.8"
+# Error handling
+anyhow      = "1"
+# Timing
+# (std Instant is sufficient; no criterion needed for a spike)
+
+[profile.release]
+opt-level   = 3
+lto         = "thin"
+codegen-units = 1
+
+[profile.dev]
+opt-level   = 0
+debug       = 2

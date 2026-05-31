@@ -51,6 +51,7 @@ fn build_synthetic_store_with_edges(n: usize) -> Store {
 }
 
 /// Returns current process RSS in kibibytes (Linux only; returns 0 elsewhere).
+#[allow(clippy::missing_const_for_fn)]
 fn resident_set_kb() -> u64 {
     #[cfg(target_os = "linux")]
     {
