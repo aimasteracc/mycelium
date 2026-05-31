@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PR #346 RFC-0093 Phase 3 docs MERGED ✅; RFC-0100 Phase 1 PR #365 open (CI transient Windows cancel); PR #367 Phase 2 T01 stacked; PR #368 MCP instructions opened; Issue #366 labeled P1) |
+| Last updated | 2026-05-31 (PM dispatch — PR #368 MCP instructions MERGED ✅ on develop; Issue #366 CLOSED ✅; PR #365 CI re-triggered (empty commit 6212c65, Windows transient); PR #367 Quality Gate SUCCESS stacked on #365; PR #369 replaced by this chore) |
 | Current sprint | **v0.1.15 — IN PROGRESS** |
 | Active release branch | none (v0.1.14 ceremony complete) |
-| Next release target | **v0.1.15** — RFC-0100 Unified Storage (redb Phase 1→4); MCP instructions (#366); security scan |
+| Next release target | **v0.1.15** — RFC-0100 Unified Storage (redb Phase 1→4); security scan |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -61,12 +61,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P0: none** — v0.1.14 ceremony COMPLETE; queue healthy.
 
-**P1 (v0.1.15 sprint — RFC-0100 Unified Storage + MCP quality):**
-1. **RFC-0100 Phase 1 — PR #365** (`StorageBackend` trait + `InMemoryBackend` + `RedbBackend`): CI has transient Windows-CANCELLED failure in latest run (earlier run fully green). **Next action: re-trigger CI** (push empty commit or re-run via GitHub UI) before merging.
-2. **RFC-0100 Phase 2 T01 — PR #367** (equivalence harness, stacked on #365): 12 matrix tests all GREEN locally. Merge after #365 lands.
-3. **MCP server instructions — PR #368** (Issue #366 MCP routing table): CI pending. Merge when green. Reduces agent turn count on real repos.
-4. **RFC-0100 Phase 2 T03** (crash-safety tests — RED-first per ADR-0007): next for `rust-implementer` after #365 merges.
-5. **Post-v0.1.15 security scan** — schedule after sprint content stabilizes.
+**P1 (v0.1.15 sprint — RFC-0100 Unified Storage):**
+1. **RFC-0100 Phase 1 — PR #365** (`StorageBackend` trait + `InMemoryBackend` + `RedbBackend`): CI re-triggered this session (empty commit 6212c65 — transient Windows cancel). **Merge when new CI run is green.** Feature-flagged OFF (zero behavior change).
+2. **RFC-0100 Phase 2 T01 — PR #367** (equivalence harness — 12 matrix tests GREEN, Quality Gate ✅): Merge immediately after #365 lands.
+3. **RFC-0100 Phase 2 T03** (crash-safety tests — RED-first per ADR-0007 §6): Write crash-injection tests exposing two-separate-txn bug in `upsert_edge`. Next `rust-implementer` task.
+4. **Post-v0.1.15 security scan** — after RFC-0100 Phase 1 merges.
+
+**Done this session (v0.1.15):**
+- ✅ PR #368 MERGED (MCP server routing instructions — Issue #366 fix; develop HEAD f003f65)
+- ✅ Issue #366 CLOSED
+- ✅ PR #365 CI re-triggered (Windows transient cancel)
+- ✅ PR #369 superseded by this chore (was dirty/mergeable:false)
 
 **P2 (v0.2.0 scope):**
 6. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
@@ -76,18 +81,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, this run — PR #346 merged; PR #368 opened (Issue #366); RFC-0100 Phase 1 PR #365 CI transient)
+## Dispatch state (2026-05-31, this run — PR #368 MERGED; Issue #366 CLOSED; PR #365 CI re-triggered; PR #367 awaiting #365)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0. **(b) PR #365 CI**: re-trigger CI on PR #365 (Windows runner cancelled, transient — earlier run fully green). **(c) ADR-0007 gated**: Review PR #365 (RFC-0100 Phase 1) for merge when CI is green. |
+| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0. **(b) PR #365**: Review RFC-0100 Phase 1 for merge when CI green (re-triggered this session — was transient Windows cancel). Feature-flagged OFF. |
 | release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when sprint exits. |
-| rust-implementer | **NEXT** | RFC-0100 Phase 2 T03: crash-safety tests (RED-first per ADR-0007 §6). Write crash-injection test that exposes the two-separate-txn bug in `upsert_edge`. Branch from `feature/rfc0100-storage-trait-and-inmemory` after #365 merges. |
-| code-reviewer | **NEXT** | Review PR #365 (RFC-0100 Phase 1) — 7-table redb schema, 634 tests green. Focus on: upsert_edge atomicity (cited CRITICAL in PR #367 PR body), adjacency sort correctness, `flush()` no-op. |
+| rust-implementer | **NEXT** | RFC-0100 Phase 2 T03: crash-safety tests RED-first (ADR-0007 §6). Expose two-separate-txn atomicity bug in `upsert_edge` before T05 (WriteBatch fix). Branch from `feature/rfc0100-storage-trait-and-inmemory`. |
+| code-reviewer | **NEXT** | Review PR #365 (RFC-0100 Phase 1) — 7-table redb schema, 634 tests. Focus: `upsert_edge` atomicity (two-txn CRITICAL bug), adjacency sort, `flush()` no-op. |
 | security-reviewer | idle | Post-v0.1.15 scan after RFC-0100 Phase 1 merges. |
-| architect | idle | RFC-0100 superseded RFC-0098 (R2) and RFC-0099 (R3). ADR-0007 Accepted. No new ADR needed for R2/R3 separately. |
+| architect | idle | RFC-0100 superseded RFC-0098/0099. ADR-0007 Accepted. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | idle | RSS-curve measurement (Issue #344) can wait — RFC-0100 mmap will bound memory; measuring old system is low-value now. |
+| e2e-runner | idle | RSS-curve measurement deferred — RFC-0100 mmap will bound memory; measuring old system is low-value. |
 
 ---
 
@@ -113,6 +118,24 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-05-31 PM dispatch (this run — Issue #366 CLOSED; PR #365 CI re-triggered; PR #369 replaced)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (via git show origin/develop), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `f003f65` (MCP server instructions PR #368 already MERGED). v0.1.14 ceremony: ALL 4 STEPS COMPLETE ✅. v0.1.15 IN PROGRESS.
+- 3 open PRs: #365 (RFC-0100 Phase 1, Quality Gate FAILURE — Windows runner CANCELLED, transient), #367 (Phase 2 T01, Quality Gate SUCCESS ✅, stacked on #365), #369 (PM dispatch, dirty/mergeable:false — 20-commit stale branch).
+- 3 open issues: #366 (OPEN despite PR #368 MERGED — auto-close failed), #343 (R2 decision-gate), #344 (R3 Phase 0 done).
+
+**Actions taken:**
+1. **Closed Issue #366** — resolved by PR #368 on develop HEAD.
+2. **Re-triggered CI on PR #365** — pushed empty DCO-signed commit (`6212c65`) to `feature/rfc0100-storage-trait-and-inmemory`. The prior "CI re-triggered" claim in PR #369 didn't materialize a new run (latest still 17:00 UTC with transient Windows cancel).
+3. **Replaced PR #369** (dirty, 20-commit stale branch) with this fresh chore branch from develop HEAD `f003f65`.
+4. **Updated PM state**: priorities corrected (PR #368 done, Issue #366 closed, PR #365 CI re-triggered, PR #367 awaiting #365).
+
+**Escalations:**
+- Founder: (a) `release.yml` RELEASE_BOT_TOKEN systemic fix; (b) Review + merge PR #365 once CI green (RFC-0100 Phase 1 — feature-flagged OFF, zero behavior change).
 
 ### 2026-05-31 PM dispatch (this run — PR #356 MERGED; PR #357 PM-chore rebased+merged; RFC-0099 PR #358 escalated)
 
