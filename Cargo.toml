@@ -91,6 +91,9 @@ proptest           = "1"
 criterion          = { version = "0.8", features = ["html_reports"] }
 tempfile           = "3"
 
+# Storage backend
+redb               = "=2.6.3"
+
 # Hashing / IDs
 blake3             = "1"
 uuid               = { version = "1", features = ["v4", "serde"] }

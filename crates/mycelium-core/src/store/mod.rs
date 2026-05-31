@@ -33,6 +33,15 @@
 #[cfg(test)]
 mod tests;
 
+pub mod backend;
+pub mod in_memory;
+#[cfg(feature = "redb-backend")]
+pub mod redb_backend;
+#[cfg(feature = "redb-backend")]
+pub mod redb_keys;
+#[cfg(feature = "redb-backend")]
+pub mod redb_tags;
+
 use std::collections::{HashSet, VecDeque};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;

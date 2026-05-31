@@ -16,11 +16,16 @@ readme        = "README.md"
 [lib]
 name = "mycelium_core"
 
+[features]
+default = []
+redb-backend = ["dep:redb"]
+
 [lints]
 workspace = true
 
 [dependencies]
 anyhow        = { workspace = true }
+redb          = { workspace = true, optional = true }
 blake3        = { workspace = true }
 hashbrown     = { workspace = true }
 mycelium-pack = { workspace = true }

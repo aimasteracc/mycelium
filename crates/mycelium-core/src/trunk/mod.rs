@@ -298,6 +298,17 @@ impl Iterator for AncestorIter<'_> {
 
 // ── NodeId 派生 ────────────────────────────────────────────────────────────────
 
+/// Compute the stable [`NodeId`] for a path string without creating a Trunk.
+///
+/// Mirrors the internal `path_to_id` logic. Useful for backends that store
+/// nodes without a Trunk trie (e.g. `RedbBackend`).
+///
+/// Low 8 bits are reserved as shard tag (always 0 in v0.1).
+#[must_use]
+pub fn path_to_node_id(path: &str) -> crate::types::NodeId {
+    crate::types::NodeId(path_to_id(path))
+}
+
 /// 从路径字符串派生稳定的 [`NodeId`]。
 ///
 /// 使用 BLAKE3 截断到 64 位。低 8 位保留为 shard tag（v0.1 均为 0）。
