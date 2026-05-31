@@ -7,7 +7,7 @@
 **Tracking issue:** [#344](https://github.com/aimasteracc/mycelium/issues/344) (R3 — scale-gap)
 **Supersedes / superseded by:** —
 **Depends on:**
-- RFC-0001 (NodeId = content hash; low-8-bit **shard-tag reserved, always 0** — `store/node.rs:56`, reservation comment `store/node.rs:40-43`)
+- RFC-0001 (NodeId = content hash; low-8-bit **shard-tag reserved, always 0** — `trunk/mod.rs:308`, reservation comment `trunk/mod.rs:303`)
 - **RFC-0098 (Incremental Persistence)** — Phase 2 (segment eviction) reuses RFC-0098's on-disk per-file segment format. **R3 Phase 2 MUST NOT be implemented until RFC-0098 is ratified and merged.** Phase 0 (measurement) and Phase 1 (streaming index) do **not** depend on RFC-0098.
 
 ---
