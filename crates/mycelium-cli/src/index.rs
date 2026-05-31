@@ -1234,4 +1234,77 @@ mod tests {
             );
         }
     }
+
+    // ── R1 (#342): parallel index == serial index, semantically ──────────
+
+    /// Build a multi-file, multi-language tree with cross-file calls, index it
+    /// both serially and in parallel, and assert the graphs are equivalent:
+    /// same node set, same edge set (by resolved path), same stats. `NodeId`s
+    /// are content hashes, so the parallel merge must reproduce the serial graph
+    /// exactly. Byte-identity of the snapshot is NOT expected (`HashMap`
+    /// iteration order is unstable) — the contract is the semantic graph.
+    #[test]
+    fn index_path_parallel_matches_serial_semantically() {
+        use std::collections::BTreeSet;
+
+        use mycelium_core::types::EdgeKind;
+
+        let tmp = tempfile::tempdir().unwrap();
+        // Multiple files across languages, including cross-file calls so the
+        // bare-stub resolution path is exercised on both sides.
+        write_temp_py(tmp.path(), "a.py", "def fa():\n    fb()\n");
+        write_temp_py(tmp.path(), "b.py", "def fb():\n    pass\n");
+        write_temp_rs(tmp.path(), "lib.rs", "fn one() { two(); }\nfn two() {}\n");
+        write_temp_ts(
+            tmp.path(),
+            "c.ts",
+            "function gc() { gd(); }\nfunction gd() {}\n",
+        );
+        write_temp_rs(
+            tmp.path(),
+            "more.rs",
+            "struct S; impl S { fn m(&self) {} }\n",
+        );
+
+        let (serial, s_stats) = index_path(tmp.path(), None).unwrap();
+        let (parallel, p_stats) = index_path_parallel(tmp.path(), None).unwrap();
+
+        assert_eq!(s_stats.files, p_stats.files, "file count must match");
+        assert_eq!(s_stats.errors, p_stats.errors, "error count must match");
+        assert_eq!(serial.node_count(), parallel.node_count(), "node count");
+        assert_eq!(serial.edge_count(), parallel.edge_count(), "edge count");
+
+        let s_nodes: BTreeSet<String> = serial.all_paths().map(str::to_owned).collect();
+        let p_nodes: BTreeSet<String> = parallel.all_paths().map(str::to_owned).collect();
+        assert_eq!(s_nodes, p_nodes, "node sets must be identical");
+
+        let edges = |store: &Store| -> BTreeSet<(String, String, String)> {
+            let kinds = [
+                EdgeKind::Contains,
+                EdgeKind::Calls,
+                EdgeKind::Imports,
+                EdgeKind::TypeImports,
+                EdgeKind::Extends,
+                EdgeKind::Implements,
+            ];
+            let mut set = BTreeSet::new();
+            for p in store.all_paths() {
+                if let Some(src) = store.lookup(p) {
+                    for ek in kinds {
+                        for &dst in store.outgoing(src, ek) {
+                            if let Some(dp) = store.path_of(dst) {
+                                set.insert((format!("{ek:?}"), p.to_owned(), dp.to_owned()));
+                            }
+                        }
+                    }
+                }
+            }
+            set
+        };
+        assert_eq!(
+            edges(&serial),
+            edges(&parallel),
+            "edge sets must be identical"
+        );
+    }
 }
