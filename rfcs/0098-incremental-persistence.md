@@ -2,7 +2,7 @@
 
 - **RFC**: 0098
 - **Title**: Incremental Persistence (base snapshot + append-only per-file delta journal)
-- **Status**: Draft
+- **Status**: **Superseded by [RFC-0100](0100-unified-storage-redb.md)** (2026-05-31). Founder chose to adopt redb (mmap ACID B-tree), which makes the hand-rolled delta journal unnecessary. The edge-ownership rule and per-file write unit from this RFC are carried into RFC-0100 §4.4.
 - **Author**: Spec Author (Hive)
 - **Created**: 2026-05-31
 - **Tracking issue**: #343 (scale-gap R2)
