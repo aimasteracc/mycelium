@@ -513,6 +513,43 @@ impl Store {
         self.synapse.add(kind, src, dst);
     }
 
+    /// Union `other` into `self` (Issue #342 / R1 — parallel indexing).
+    ///
+    /// Every node, kind, span, and edge in `other` is added to `self`.
+    /// Because [`NodeId`] is a content hash of the path (BLAKE3, see
+    /// [`crate::trunk`]), the same path always maps to the same id in both
+    /// stores, so the merge is a deterministic, **order-independent** union:
+    /// `a.merge(&b)` then `a.merge(&c)` yields the same store as building all
+    /// three sets of files into one store in any order. Both node and edge
+    /// insertion are idempotent, so merging overlapping stores is safe.
+    ///
+    /// This is the reduce step that lets the indexer extract files in parallel
+    /// into per-thread sub-stores and combine them without a shared lock.
+    ///
+    /// Kind/span metadata from `other` overwrites `self`'s for shared nodes;
+    /// since both are derived from the same source file content, they agree.
+    pub fn merge(&mut self, other: &Self) {
+        // 1. Union nodes + per-node metadata. Re-upserting `other`'s paths
+        //    reproduces identical NodeIds (content-hash), so `other`'s id-keyed
+        //    metadata maps onto the freshly-upserted nodes verbatim.
+        for path in other.trunk.all_paths() {
+            if let Ok(tp) = TrunkPath::parse(path) {
+                let id = self.trunk.upsert(tp);
+                if let Some(&kind) = other.kind_map.get(&id) {
+                    self.kind_map.insert(id, kind);
+                }
+                if let Some(&span) = other.span_map.get(&id) {
+                    self.span_map.insert(id, span);
+                }
+            }
+        }
+        // 2. Union edges. NodeIds are global, so endpoints are valid in `self`
+        //    once step 1 has upserted every node `other` knew about.
+        for (kind, src, dst) in other.synapse.all_edges() {
+            self.synapse.add(kind, src, dst);
+        }
+    }
+
     /// Remove the node `id` from both Trunk and Synapse.
     ///
     /// **Non-cascading**: descendants remain in the Trunk. Use
