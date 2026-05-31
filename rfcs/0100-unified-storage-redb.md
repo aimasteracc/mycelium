@@ -48,11 +48,11 @@ to adopt it rather than reinvent it.
 
 ## 2. Charter §3 Amendment (proposed text)
 
-Charter §3 (Tech Stack, *locked*) currently reads:
+Charter §3 (Tech Stack, *locked*) currently reads (verbatim, lines 56–57):
 
 ```
-| Storage     | **Custom RCIG engine** (Trunk + Synapse) | No SQLite, no graph DB — we own the format |
-| Persistence | Snapshot + WAL                            | Crash-safe, fast restart |
+| Storage     | Self-built: trunk (radix trie) + synapse (CSR) + Apache Arrow columnar attrs | See RFC-0001 |
+| Persistence | Single-file `.myc`: WAL + periodic snapshot; HAMT structural sharing         | Time-travel queries free |
 ```
 
 **Proposed replacement:**
