@@ -6,7 +6,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 |---|---|
 | PM | orchestrator (Hive AI agent) |
 | Last updated | 2026-05-31 (PM dispatch — v0.1.14 SHIPPED ✅ ceremony 4/4 complete; PR #352 merged to main; RFC-0098 R2 draft #353 open) |
-| Current sprint | **v0.1.15 — IN PROGRESS** |
+| Current sprint | **v0.1.15 — KICKOFF** |
 | Active release branch | none (v0.1.14 ceremony complete) |
 | Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -45,10 +45,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Dogfood pass rate 8/8: all 8 core CLI commands green
 
 **v0.1.14 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.14` → `main` — PR #352 MERGED ✅ (founder authorized 2026-05-31)
+- [x] **Step 1**: `release/v0.1.14` → `main` — PR #352 MERGED ✅ (founder authorized 2026-05-31; one-time --admin due to squash-trailer DCO artifact on cecb11f — all real quality gates green)
 - [x] **Step 2**: Tag `v0.1.14` pushed ✅
 - [x] **Step 3**: GitHub Release published ✅
 - [x] **Step 4**: Back-merge `release/v0.1.14` → `develop` — PR #349 MERGED ✅
+
+**Note also shipped in v0.1.14:**
+- [x] R1 parallel index step 2: `index_path_parallel` via `thread::scope` + `Store::merge` reduce — Issue #342 CLOSED (PR #351 merged)
 
 **⚠️ Systemic escalation (recurring):** `release.yml` finalize auto-closes the release-to-main PR on every release (v0.1.6, v0.1.10–v0.1.14 affected). Root cause: `RELEASE_BOT_TOKEN` not configured → merge step skipped → PR auto-closed and branch deleted. **Founder must fix before v0.2.0.**
 
@@ -59,35 +62,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0: none** — v0.1.14 ceremony COMPLETE; queue healthy.
 
 **P1 (v0.1.15 sprint — scale-gap remediation):**
-1. **R3 memory bound measurement** (#344) — `Store::heap_size_estimate()` added; sla_memory_curve tests written (3 fast CI + 3 `#[ignore]` RSS-curve tests). **PR open (this run)**. Next step after merge: run `--include-ignored` on a beefy machine to capture real RSS data; use data to design LRU/mmap mitigation.
-2. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR + founder decision gate if storage format changes (Charter §3). **Draft RFC-0098 in PR #353 — DECISION GATE: needs founder + ADR sign-off before any implementation.**
+1. **R3 memory bound measurement** (#344) — `Store::heap_size_estimate()` TDD done; **PR #356 open (CI pending)**. After merge: run `cargo test --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record bytes/node curve in Issue #344; use data to design LRU/mmap mitigation.
+2. **R2 incremental persistence** (#343) — RFC-0098 Draft merged (PR #353 ✅ 2026-05-31). **DECISION GATE**: implementation requires founder sign-off + ADR before any code. Architect to review RFC-0098 and provide approach recommendation (Option B = append-log chosen; Option A = per-file segments as upgrade path).
 3. **Post-v0.1.15 security scan** — schedule after sprint content lands.
 
 **P2 (v0.2.0 scope):**
 4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
-5. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; v0.2 PRD updated to reflect this
+5. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; needs e2e walkthrough validation
 6. Skill marketplace submission to Claude Code marketplace
 7. "First 5 minutes" walkthrough validation (README + docs site)
 
-**P2 (v0.2.0 scope):**
-6. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit)
-7. Hyphae CLI end-to-end: `mycelium query "<selector>"` works (v0.2 PRD headline)
-8. Skill marketplace submission to Claude Code marketplace
-9. "First 5 minutes" walkthrough validation (README + docs site)
-
 ---
 
-## Dispatch state (2026-05-31, this run — v0.1.14 ceremony COMPLETE; R3 measurement PR opened)
+## Dispatch state (2026-05-31, this run — v0.1.14 COMPLETE; R1 DONE; RFC-0098 Draft merged; R3 measurement PR #356 CI pending)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | **Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). Decision gate for R2 (#343) / RFC-0098 (PR #353): approve ADR + approach before implementation. |
+| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). **(b) Decision gate for R2 / RFC-0098**: review PR #353 merged draft, authorize ADR + approach before any implementation begins. |
 | release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when sprint exits. |
-| rust-implementer | **done this run** | R3 measurement: Store::heap_size_estimate() + sla_memory_curve tests (PR this run). |
+| rust-implementer | **done** | R1 parallel indexing DONE (PR #351 merged, Issue #342 closed). R3 measurement DONE (PR #356 open, CI pending). |
 | security-reviewer | idle | Post-v0.1.15 scan after sprint content lands. |
-| architect | **NEXT** | R2 ADR: review RFC-0098 (PR #353), provide recommendation on Option A vs Option B for incremental persistence. |
+| architect | **NEXT** | R2 ADR: review RFC-0098 (now on develop), write ADR in `docs/adr/` recommending Option B (append-log) as the implementation approach. Required before any code for R2. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | idle | Run `--include-ignored` sla_memory_curve tests on beefy machine; record RSS measurements in Issue #344. |
+| e2e-runner | **NEXT** | After PR #356 merges: run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record RSS bytes/node curve at 1K/10K/100K in Issue #344. |
 
 ---
 
@@ -98,7 +95,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **⚠️ R2 / RFC-0098 (PR #353)**: incremental persistence implementation touches storage format — founder must sign off on ADR + approach before implementation begins.
+- **⚠️ R2 / RFC-0098**: incremental persistence implementation touches storage format (Charter §3 deviation from WAL/HAMT/time-travel row). Founder must sign off on ADR + approach before any implementation PR.
 - **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6–v0.1.14 all affected). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
 
 ---
@@ -114,29 +111,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-31 PM dispatch (this run — v0.1.14 ceremony COMPLETE; R1 DONE; R3 measurement PR opened)
+### 2026-05-31 PM dispatch (this run — PR #353 merged; PM state corrected; PR #356 CI pending)
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, INDEX.md, anti-patterns, decisions.jsonl tail-20, PM state (stale), v0.2 PRD.
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (scale/parallel/memory domain), PM state, v0.2 PRD.
 
 **Assessment:**
-- PR #352 (`release/v0.1.14` → `main`) MERGED by founder 2026-05-31T07:03:49Z. v0.1.14 ceremony COMPLETE (4/4 ✅).
-- Issue #342 (R1 parallel indexing) CLOSED — `index_path_parallel` confirmed in codebase (commit e200857). PM state was stale.
-- 1 open PR: #353 (RFC-0098 draft, decision gate — Quality Gate SUCCESS, needs founder + ADR).
-- 2 open issues: #343 (R2 incremental persistence, decision gate), #344 (R3 memory bounds, measurement-first unblocked).
-- Highest-priority unblocked task: R3 measurement (no decision gate; creates data for mitigation design).
+- develop HEAD: `dd266ce` (RFC-0098 draft merged in this run). Prior HEAD: `c052e4a` (v0.1.14 ceremony commit).
+- 2 open PRs: #353 (RFC-0098 Draft, Quality Gate 21/21 SUCCESS — pure docs), #356 (R3 measurement, CI pending — state=pending, 0 commit statuses yet).
+- 2 open issues: #343 (R2 persistence, decision-gate), #344 (R3 memory, measurement-first).
+- v0.1.14 ceremony: COMPLETE (PR #352 merged to main by founder; commit 59521bd; all 4 steps done).
+- R1 parallel indexing: DONE — PR #351 merged, Issue #342 closed (`index_path_parallel` via `thread::scope` + `Store::merge`).
+- PM state body was stale (header updated by c052e4a but ceremony body still showed PR #352 open; priorities still showed P0 as ceremony, R1 as NEXT).
 
 **Actions taken:**
-1. **TDD RED**: wrote `crates/mycelium-core/tests/sla_memory_curve.rs` calling `store.heap_size_estimate()` → E0599 confirmed.
-2. **TDD GREEN**: added `Store::heap_size_estimate() -> usize` (node_count×256 + edge_count×24). All 3 fast tests pass; 3 `#[ignore]` RSS-curve tests added for 1K/10K/100K.
-3. **Clippy/fmt**: fixed `NodeId` backticks in doc, suppressed `cast_precision_loss` on display-only casts. All clean.
-4. **CHANGELOG** Unreleased entry added.
-5. **PM state updated** + decisions.jsonl appended.
-6. **PR opened** targeting develop.
+1. **Merged PR #353** (docs/rfc-0098-incremental-persistence — 1 file, 430 lines RFC-0098 Draft, Quality Gate 21/21 SUCCESS). Marks R2 design process advancing; implementation gated on founder sign-off + ADR.
+2. **Corrected PM state**: v0.1.14 ceremony body → ALL FOUR STEPS COMPLETE; R1 DONE; Live priorities updated; dispatch table updated.
+3. **Appended decisions.jsonl** (this run's summary).
+4. **Chore PR opened** targeting develop.
 
 **Escalations:**
-- Founder must (a) audit `release.yml` finalize merge step (systemic, every release since v0.1.6); (b) approve RFC-0098 / ADR before R2 implementation.
+- Founder must (a) audit `release.yml` finalize merge step (systemic, v0.1.6–v0.1.14); (b) sign off on RFC-0098 + ADR before R2 implementation begins.
 
-### 2026-05-31 PM dispatch (previous — PR #350 merged; release/v0.1.14 conflicts resolved; PR #352 opened; security CLEAN)
+**Note on PR #356:** CI was in `pending` state (0 commit statuses) at assessment time — neither failed nor queued. Will merge when green. Code is TDD-complete (Store::heap_size_estimate() + 3 CI tests + 3 #[ignore] RSS-curve tests).
+
+### 2026-05-31 PM dispatch (this run — PR #350 merged; release/v0.1.14 conflicts resolved; PR #352 opened; security CLEAN)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
 
