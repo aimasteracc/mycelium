@@ -178,6 +178,22 @@ impl RedbBackend {
         Ok(this)
     }
 
+    /// Open an **existing** redb database. Returns `Err(NotFound)` if the
+    /// file does not exist, and propagates redb errors (e.g. wrong format)
+    /// so callers can fall back to another format reader.
+    ///
+    /// # Errors
+    ///
+    /// Returns `StorageError::NotFound` if `path` does not exist, or
+    /// `StorageError::Backend` if the file cannot be parsed as a redb database.
+    pub fn open_existing(path: &Path) -> Result<Self, BackendError> {
+        if !path.exists() {
+            return Err(BackendError::NotFound);
+        }
+        let db = Database::open(path).map_err(db_err)?;
+        Ok(Self { db })
+    }
+
     fn init_schema(&self) -> Result<(), BackendError> {
         let txn = self.db.begin_write().map_err(db_err)?;
         {

@@ -440,17 +440,57 @@ impl Store {
         Ok(())
     }
 
-    /// Deserialize a `Store` from a `MessagePack` snapshot at `path`.
+    /// Deserialize a `Store` from a snapshot at `path`.
+    ///
+    /// With the `redb-backend` feature enabled, the file format is auto-detected:
+    /// a redb database is loaded via [`crate::store::redb_backend::RedbBackend`];
+    /// a legacy `MessagePack` snapshot falls back to `rmp_serde`.  Without the
+    /// feature, only `MessagePack` is attempted.
     ///
     /// # Errors
     ///
-    /// Returns an error if the file cannot be opened or deserialization fails.
+    /// Returns an error if the file cannot be opened, the format is unrecognised,
+    /// or deserialization fails.
     pub fn load(path: &Path) -> anyhow::Result<Self> {
+        #[cfg(feature = "redb-backend")]
+        if let Some(store) = Self::try_load_redb(path) {
+            return Ok(store);
+        }
+
         let file = std::fs::File::open(path)
             .with_context(|| format!("opening snapshot file {}", path.display()))?;
         let reader = BufReader::new(file);
         rmp_serde::decode::from_read(reader)
             .with_context(|| format!("deserializing store from {}", path.display()))
+    }
+
+    /// Try to open `path` as a redb database and convert it to a [`Store`].
+    ///
+    /// Returns `Some(store)` on success, `None` if the file is absent or not a
+    /// redb database (caller falls back to the next format reader).
+    #[cfg(feature = "redb-backend")]
+    fn try_load_redb(path: &Path) -> Option<Self> {
+        use crate::store::backend::StorageBackend as _;
+        use crate::store::redb_backend::RedbBackend;
+
+        let backend = RedbBackend::open_existing(path).ok()?;
+
+        let mut store = Self::default();
+        for path_str in backend.all_paths() {
+            if let Ok(tp) = TrunkPath::parse(&path_str) {
+                let id = store.trunk.upsert(tp);
+                if let Some(kind) = backend.kind_of(id) {
+                    store.kind_map.insert(id, kind);
+                }
+                if let Some(span) = backend.span_of(id) {
+                    store.span_map.insert(id, span);
+                }
+            }
+        }
+        for (kind, src, dst) in backend.all_edges() {
+            store.synapse.add(kind, src, dst);
+        }
+        Some(store)
     }
 
     // ── writes ──────────────────────────────────────────────────────────
