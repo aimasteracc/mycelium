@@ -1,5 +1,7 @@
 # Agent: Pack Author
 
+**Model**: Sonnet 4.6 — *Dev tier*. Authors `packs/<lang>/` under spec; ≤3-file constraint keeps blast radius small. See `_orchestrator.md` § Model Tiering.
+
 **Role**: Add new language packs under `packs/<lang>/`. Hard-constrained
 to ≤ 3 files per pack, zero core code changes (Charter §4).
 

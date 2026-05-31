@@ -13,21 +13,26 @@ loaded with a role brief from `.hive/<role>.agent.md`.
 
 ## Agents
 
-| Role | File | Triggered by |
-|---|---|---|
-| Orchestrator | `_orchestrator.md` (this file) | Default; dispatches others |
-| PM | `pm.agent.md` | Daily standup cron, milestone events |
-| Architect | `architect.agent.md` | RFC PR opened, design issue |
-| Spec Author | `spec-author.agent.md` | Issue with `proposal` label |
-| Test Author | `test-author.agent.md` | RFC accepted, feature branch created |
-| Rust Implementer | `rust-implementer.agent.md` | Test scaffold ready, implementation phase |
-| Pack Author | `pack-author.agent.md` | Issue with `language-pack` label |
-| Reviewer | `reviewer.agent.md` | PR opened or updated |
-| Doc Sync | `doc-sync.agent.md` | Code merged to develop |
-| Bench | `bench.agent.md` | Nightly cron, perf-touching PR |
-| Security | `security.agent.md` | Nightly cron, dependency change |
-| Release | `release.agent.md` | `release/*` or `hotfix/*` branch pushed |
-| Triage | `triage.agent.md` | New issue or PR |
+> The **Model** column is binding. It is set by the routing rule in
+> [§ Model tiering](#model-tiering--cost-of-being-wrong) below — route by *what
+> it costs when this agent is wrong*, not by how important the role sounds. Each
+> agent's own role file repeats its tier in a `**Model**:` line near the top.
+
+| Role | File | Model | Tier | Triggered by |
+|---|---|---|---|---|
+| Orchestrator | `_orchestrator.md` (this file) | **Opus 4.8 (1M)** | Lead | Default; dispatches others |
+| Architect | `architect.agent.md` | **Opus 4.8** | Analysis | RFC PR opened, design issue |
+| Spec Author | `spec-author.agent.md` | **Opus 4.8** | Spec | Issue with `proposal` label |
+| Reviewer | `reviewer.agent.md` | **Opus 4.8** | QA *(separate from Dev)* | PR opened or updated |
+| Security | `security.agent.md` | **Opus 4.8** | QA / Gate | Nightly cron, dependency change |
+| Release | `release.agent.md` | **Opus 4.8** | Gate | `release/*` or `hotfix/*` pushed |
+| Rust Implementer | `rust-implementer.agent.md` | **Sonnet 4.6 (1M)** | Dev | Test scaffold ready, impl phase |
+| Test Author | `test-author.agent.md` | **Sonnet 4.6** | Dev | RFC accepted, feature branch created |
+| Pack Author | `pack-author.agent.md` | **Sonnet 4.6** | Dev | Issue with `language-pack` label |
+| Triage | `triage.agent.md` | **Sonnet 4.6 / Haiku** | Search | New issue or PR |
+| PM | `pm.agent.md` | **Sonnet 4.6** | Coordination | Daily standup cron, milestone events |
+| Bench | `bench.agent.md` | **Haiku 4.5 / no-LLM** | Data | Nightly cron, perf-touching PR |
+| Doc Sync | `doc-sync.agent.md` | **Haiku 4.5** | Mechanical | Code merged to develop |
 
 ## The Mandatory Pre-flight (every agent, every invocation)
 
@@ -139,6 +144,64 @@ Only when the work is **truly independent**. Any dependency invalidates the patt
 - ❌ "Wait for SendMessage from X" in a subagent brief — no mechanism to wait
 - ❌ "SendMessage findings to Architect" in a subagent brief — Architect cannot receive
 - ❌ Spawning N dependent agents in one batch expecting them to chain — they won't
+
+## Model Tiering — Cost of Being Wrong
+
+> Route each agent's model by **what a mistake costs**, not by how important the
+> role sounds. Money goes where being wrong wastes multiple rounds, ships a bug,
+> or burns real API / release spend. Everything else runs on the cheapest model
+> that does the job. This was validated in a real run (see "canonical flow" below).
+
+### The routing rule (7 stages)
+
+| Stage | Work | Model | Why this tier |
+|---|---|---|---|
+| 0 | **Data / measurement** — benchmark harness, probe scripts | **Haiku 4.5 / no-LLM** | Mechanical; must be cheap. (Bench) |
+| 1 | **Lead** — orchestrate, verify each stage, go/no-go, write Spec | **Opus 4.8 (1M)** | Wrong here derails the whole run. = Orchestrator. |
+| 2 | **Analysis** — root-cause, architecture comparison | **Opus 4.8** | A wrong diagnosis wastes every round after it. (Architect, Spec Author) |
+| 3 | **Dev** — TDD implementation under a clear spec, refactor | **Sonnet 4.6 (1M)** | Spec is fixed → fast + cost-effective. (Rust Implementer, Test Author, Pack Author) |
+| 4 | **QA** — independent review, real-repo validation, vs-competitor | **Opus 4.8** | A miss here ships a bug to users. (Reviewer, Security) |
+| 5 | **Search / Explore** — fan-out reads, locate code/issues | **Sonnet 4.6 / Haiku** | Breadth, low per-call stakes. (Triage) |
+| 6 | **Mechanical** — single-file edits, changelog, doc sync, memory append | **Haiku 4.5 / direct Edit** | Trivial, deterministic. (Doc Sync) |
+
+### Spend policy (state it plainly)
+
+**Opus only where being wrong wastes multiple rounds, ships a bug, or spends real
+API / release money** — i.e. analysis, spec-writing, QA/review, security, and any
+pre-spend or pre-release go/no-go. Everything else uses **Sonnet** (spec'd
+implementation + search) or **Haiku / direct Edit** (mechanical). Do **not** put
+Opus on a task a clear spec has already de-risked.
+
+### Three non-negotiables (validated in real runs)
+
+1. **Dev team ≠ QA team.** QA must be a *different* agent. Self-review is theater —
+   it passes defects through. In the Hive: **Rust Implementer / Test Author / Pack
+   Author (Dev, Sonnet) never sign off their own work — the Reviewer / Security
+   (QA, Opus) do.** Already Charter law ("never merge your own work without an
+   independent reviewer").
+2. **QA validates on REAL input, not fixtures.** Dev unit tests can be green 3× on
+   a small fixture while the tool is actually broken. Reviewer / Security / Bench
+   must verify against real repositories (e.g. `gin`, `django`, `ripgrep`), not
+   only the in-repo fixtures.
+3. **Lead owns the go/no-go gate.** Before any spend or release, the Orchestrator
+   (Opus) independently re-verifies. Dev self-reports optimistically — the gate is
+   where that optimism gets checked.
+
+### Canonical flow (how a real fix runs)
+
+```
+Lead(Opus) ─ measure(Haiku) → Analysis(Opus) → write Spec(Opus, = Lead)
+   → Dev R1(Sonnet) → QA R1(Opus, separate)  ❌ FAIL
+   → Dev R2(Sonnet) → QA R2(Opus, separate)  ❌ FAIL
+   → Dev R3(Sonnet) → Lead go/no-go(Opus)     ✅ PASS
+   → re-benchmark / ship
+```
+
+The Dev→QA loop repeats until QA (a *different* Opus agent, on *real* input)
+passes. Only then does the Lead open the go/no-go gate. This ties into the
+**3-rounds-then-escalate** safety rail below.
+
+---
 
 ## Safety Rails (non-negotiable, from Charter §5.12)
 

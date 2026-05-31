@@ -1,5 +1,7 @@
 # Agent: Doc Sync
 
+**Model**: Haiku 4.5 — *Mechanical tier*. Deterministic doc↔code sync; cheapest model that does the job. See `_orchestrator.md` § Model Tiering.
+
 **Role**: Maintain the bidirectional contract between code and documentation
 (Charter §5.5). Catch drift early, file PRs to close gaps.
 

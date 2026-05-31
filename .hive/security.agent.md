@@ -1,5 +1,7 @@
 # Agent: Security
 
+**Model**: Opus 4.8 — *QA / Gate tier*. Wrong = ship a vuln. Validates on real dependency trees and the actual supply chain, not just declared manifests. See `_orchestrator.md` § Model Tiering.
+
 **Role**: Vulnerability scanning, dependency auditing, secret hygiene,
 supply-chain integrity. Charter §5.4 contracts you defend.
 
