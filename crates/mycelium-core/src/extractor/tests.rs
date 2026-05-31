@@ -378,6 +378,90 @@ fn type_imports_wire_string_is_type_imports() {
     assert_eq!(EdgeKind::TypeImports.to_string(), "type_imports");
 }
 
+// ── RFC-0096 Phase 2: TypeScript `import type` → TypeImports ────────────────
+// `import type { Foo } from 'mod'` must emit a TypeImports edge, not Imports.
+// This is the TypeScript analog of the Python TYPE_CHECKING implementation.
+
+#[test]
+fn typescript_type_import_emits_type_imports_edge() {
+    // `import type { Foo } from './foo'` is purely type-annotation syntax in
+    // TypeScript — never imported at runtime. Must produce a TypeImports edge.
+    let store = extract_ts("import type { Foo } from './foo';");
+    let file_id = store.lookup("test.ts").unwrap();
+    let foo_id = store
+        .lookup("foo.ts")
+        .or_else(|| store.lookup("./foo"))
+        .expect("foo module node must exist (TypeImports)");
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&foo_id),
+        "`import type` must produce a TypeImports edge"
+    );
+    assert!(
+        !store.outgoing(file_id, EdgeKind::Imports).contains(&foo_id),
+        "`import type` must NOT produce a regular Imports edge"
+    );
+}
+
+#[test]
+fn typescript_regular_import_not_in_type_imports() {
+    // Regular `import { Foo } from './foo'` must stay as Imports, not TypeImports.
+    let store = extract_ts("import { Foo } from './bar';");
+    let file_id = store.lookup("test.ts").unwrap();
+    let bar_id = store
+        .lookup("bar.ts")
+        .or_else(|| store.lookup("./bar"))
+        .expect("bar module node must exist");
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&bar_id),
+        "regular import must produce an Imports edge"
+    );
+    assert!(
+        !store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&bar_id),
+        "regular import must NOT produce a TypeImports edge"
+    );
+}
+
+#[test]
+fn typescript_mixed_imports_segregated() {
+    // File with both regular and type-only imports — each goes to the right edge kind.
+    let source = "import { readFile } from 'fs';\nimport type { ReadOptions } from './options';";
+    let store = extract_ts(source);
+    let file_id = store.lookup("test.ts").unwrap();
+    let fs_id = store.lookup("fs").expect("fs node must exist");
+    let opts_id = store
+        .lookup("options.ts")
+        .or_else(|| store.lookup("./options"))
+        .expect("options node must exist");
+    // 'fs' — regular import → Imports only
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&fs_id),
+        "'fs' must be in Imports"
+    );
+    assert!(
+        !store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&fs_id),
+        "'fs' must NOT be in TypeImports"
+    );
+    // './options' — type import → TypeImports only
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::TypeImports)
+            .contains(&opts_id),
+        "'./options' must be in TypeImports"
+    );
+    assert!(
+        !store
+            .outgoing(file_id, EdgeKind::Imports)
+            .contains(&opts_id),
+        "'./options' must NOT be in Imports"
+    );
+}
+
 // ── alias-table dispatch (issue #205, RFC-0092) ──────────────────────────────
 
 #[test]
