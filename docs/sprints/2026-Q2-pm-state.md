@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PRs #340/#341/#345 merged; PR #346 opened (RFC-0093 Phase 3 CHANGELOG+RFC); v0.1.14 6/6 criteria DONE; scale-gap R1/R2/R3 now P1) |
-| Current sprint | **v0.1.14 — COMPLETE (pending PR #346 CI+merge)** |
-| Active release branch | none (v0.1.14 content on develop; cut release after PR #346 lands) |
-| Next release target | **v0.1.14** — RFC-0093 Phase 3 + scale-gap R1 step 1 |
+| Last updated | 2026-05-31 (PM dispatch — PRs #346+#347 merged; release/v0.1.14 cut; PRs #348 (→main, founder-gated) + #349 (→develop, back-merge) opened; R1 step 2 deferred — cargo TDD cycle too slow for this session) |
+| Current sprint | **v0.1.15 — KICKOFF** |
+| Active release branch | `release/v0.1.14` (PRs #348/#349 open) |
+| Next release target | **v0.1.14** — ceremony pending founder auth on PR #348 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.13 — RFC-0093 Phase 2 (success_str), RFC-0096 TypeImports (Python), TS resolver fix** (tag v0.1.13, GitHub Release published 2026-05-31) |
 
@@ -55,33 +55,34 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0**: none (v0.1.14 content complete; PR #346 pending merge)
+**P0: v0.1.14 release ceremony (in progress)**
+1. **PR #348** (`release/v0.1.14` → `main`) — founder must authorize merge when CI green ⚠️
+2. **PR #349** (`release/v0.1.14` → `develop` back-merge) — can admin-merge when CI green, independent of #348
 
 **P1 (v0.1.15 sprint — scale-gap remediation):**
-1. **R1 parallel index step 2** (#342) — switch `WalkBuilder::build()` → `build_parallel()`, extract files via per-thread sub-stores, merge via `Store::merge` (step 1 landed in PR #345). Add `rayon`. Benchmark: files/sec at 10K/100K nodes. Deterministic-output assertion vs serial path. Low risk.
-2. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR (storage format). Medium risk — founder decision gate if format changes.
-3. **R3 memory bound** (#344) — LRU/segment eviction or mmap-backed store. Medium-high risk. Gate behind feature flag. Do RSS measurement first.
+3. **R1 parallel index step 2** (#342) — add `rayon` dep; collect eligible (path, rel, ext, source) tuples from serial walk; `rayon::par_iter` → per-thread sub-Store; `Store::merge` reduce; final `resolve_bare_call_stubs`. TDD: write deterministic-output test first (RED), implement (GREEN), assert byte-identical symbol sets vs serial. Low risk.
+4. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR. **Founder decision gate** if storage format changes (Charter §3).
+5. **R3 memory bound** (#344) — RSS measurement first; then LRU/mmap-backed store behind feature flag. Medium-high risk.
 
 **P2 (v0.2.0 scope):**
-4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit or job rewrite)
-5. Hyphae CLI end-to-end: `mycelium query "<selector>"` works (v0.2 PRD headline)
-6. Skill marketplace submission to Claude Code marketplace
-7. "First 5 minutes" walkthrough validation (README + docs site)
+6. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit)
+7. Hyphae CLI end-to-end: `mycelium query "<selector>"` works (v0.2 PRD headline)
+8. Skill marketplace submission to Claude Code marketplace
+9. "First 5 minutes" walkthrough validation (README + docs site)
 
 ---
 
-## Dispatch state (2026-05-31, this run — v0.1.14 sprint complete; scale-gap P1)
+## Dispatch state (2026-05-31, this run — v0.1.14 release cut; v0.1.15 kickoff)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Audit `release.yml` finalize merge step before v0.2.0 (systemic). (2) Decision gate for R2 if storage format changes (Charter §3). |
-| rust-implementer | **NEXT** | R1 step 2 (#342): `build_parallel()` + rayon + Store::merge reduce + benchmark. TDD: deterministic-output test RED first. |
-| security-reviewer | done | Post-v0.1.13 scan CLEAN. |
-| tech-writer | done | PRD v0.2 corrections + scale-gap-analysis.md (PR #341 merged). |
-| e2e-runner | done | Dogfood 8/8 ✅ (PR #337 merged). |
-| architect | idle | R2/R3 design review; ADR required before R2 implementation. |
-| code-reviewer | idle | Review PR #346 (RFC-0093 Phase 3 docs). |
-| release | idle | Cut release/v0.1.14 once PR #346 merges (all 6 criteria done). |
+| founder | **ACTION REQUIRED** | (1) Authorize PR #348 merge (`release/v0.1.14` → `main`) when CI green. (2) Audit `release.yml` finalize merge step before v0.2.0. (3) Decision gate for R2 (#343) if storage format changes. |
+| release | **watching** | PR #348 CI → founder auth → merge to main → tag + crates.io. PR #349 CI → admin-merge back to develop. |
+| rust-implementer | **NEXT** | R1 step 2 (#342): TDD test (RED) first; add rayon; par-extract; merge. Full TDD cycle requires ~5 min cargo build — reserve a full session window. |
+| security-reviewer | idle | Post-v0.1.14 scan (after ceremony complete). |
+| architect | idle | R2/R3 design review + ADR before R2 implementation. |
+| tech-writer | idle | Skill marketplace submission prep. |
+| e2e-runner | idle | Dogfood re-run after R1 lands (confirm determinism). |
 
 ---
 
@@ -107,7 +108,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-31 PM dispatch (this run — PRs #340/#341/#345 merged; PR #346 opened; v0.1.14 DONE; scale-gap R1/R2/R3 triaged)
+### 2026-05-31 PM dispatch (this run — PRs #346+#347 merged; release/v0.1.14 cut; PRs #348+#349 opened; R1 step 2 deferred)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
+
+**Assessment:**
+- Open PRs: #346 (RFC-0093 Phase 3 docs, CI ✅), #347 (PM dispatch v0.1.14 DONE, CI ✅). Both fully green.
+- Open issues: #342/#343/#344 (scale-gap R1/R2/R3). Latest tag: v0.1.13. v0.1.14 not yet released.
+- v0.1.14 sprint declared DONE (6/6 criteria) in PR #347. Release not yet cut.
+
+**Actions taken:**
+1. **Merged PR #346** (RFC-0093 Phase 3 docs) — green CI, squash merge. ✅
+2. **Merged PR #347** (PM dispatch v0.1.14 DONE) — green CI, squash merge. ✅
+3. **Cut release/v0.1.14**: bumped version 0.1.13→0.1.14 in Cargo.toml + cli dep pin; sealed CHANGELOG [Unreleased]→[0.1.14]-2026-05-31; committed + pushed branch.
+4. **Opened PR #348** (`release/v0.1.14` → `main`) — FOUNDER AUTHORIZATION REQUIRED (Charter §5.12).
+5. **Opened PR #349** (`release/v0.1.14` → `develop`) — back-merge (ceremony step 4), can admin-merge when CI green.
+6. **R1 step 2 deferred**: `cargo check` took 65s in this environment. Full TDD cycle (RED→GREEN→clippy→fmt) not feasible within 25-min window. Scheduled for next run (full session).
+7. Updated PM state + decisions.jsonl.
+
+**Escalations:** Founder must (a) authorize PR #348 (release→main); (b) audit `release.yml` merge step; (c) decision gate for R2 if storage format changes.
+
+### 2026-05-31 PM dispatch (previous — PRs #340/#341/#345 merged; PR #346 opened; v0.1.14 DONE; scale-gap R1/R2/R3 triaged)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
 
