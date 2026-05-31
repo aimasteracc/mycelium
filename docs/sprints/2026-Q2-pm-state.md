@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — v0.1.14 SHIPPED ✅ ceremony 4/4 complete; PR #352 merged to main; RFC-0098 R2 draft #353 open) |
+| Last updated | 2026-05-31 (PM dispatch — v0.1.14 SHIPPED ✅; scale-gap specs both drafted: RFC-0098 R2 #353 + RFC-0099 R3 #356, both Charter §3 gates awaiting founder) |
 | Current sprint | **v0.1.15 — KICKOFF** |
 | Active release branch | none (v0.1.14 ceremony complete) |
 | Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344) |
@@ -56,14 +56,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0: v0.1.14 release ceremony (step 1 blocked on founder)**
-1. **PR #352** (`release/v0.1.14` → `main`) — founder must authorize merge when CI green ⚠️ (recreated this run; conflicts resolved: CHANGELOG v0.1.14 section, Cargo.toml 0.1.14, cli dep pin 0.1.14)
+**P0: DONE — v0.1.14 SHIPPED ✅ (ceremony 4/4)**
+1. ~~PR #352 release/v0.1.14 → main~~ — MERGED (`59521bd`); tag + Release + back-merge done. (See ceremony note at top.)
 
 **P1 (v0.1.15 sprint — scale-gap remediation):**
-2. **Post-v0.1.14 security scan** — DONE THIS RUN ✅ CLEAN (no hardcoded secrets, no unsafe blocks)
-3. **R1 parallel index step 2** (#342) — add `rayon` dep; collect eligible (path, rel, ext, source) tuples from serial walk; `rayon::par_iter` → per-thread sub-Store; `Store::merge` reduce; final `resolve_bare_call_stubs`. TDD: write deterministic-output test first (RED), implement (GREEN), assert byte-identical symbol sets vs serial. Low risk.
-4. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR + founder decision gate if storage format changes (Charter §3). **Spike both Option A (per-file segment) and Option B (WAL/append-log).**
-5. **R3 memory bound** (#344) — RSS measurement spike first (100K/500K/1M nodes); then LRU/mmap behind feature flag. Medium-high risk. **Start with measurement only.**
+2. ~~Post-v0.1.14 security scan~~ — DONE ✅ CLEAN.
+3. ~~R1 parallel index (#342)~~ — **SHIPPED in v0.1.14** (`index_path_parallel` via `std::thread::scope` + `Store::merge` reduce; equivalence test green).
+4. **R2 incremental persistence** (#343) — **specced: RFC-0098 (PR #353, Draft)**. Recommends base snapshot + append-only per-file delta journal + compaction. ⚠️ **Charter §3 decision gate — awaiting founder.** Do not auto-merge.
+5. **R3 memory bound** (#344) — **specced: RFC-0099 (PR #356, Draft)**. Measurement-first; Phase 0 RSS curve + Phase 1 streaming index are independent of R2; Phase 2 segment eviction is **blocked on RFC-0098**. ⚠️ **Charter §3 decision gate — awaiting founder.** Do not auto-merge.
+   - **Actionable now without founder (lowest risk):** RFC-0099 **Phase 0** (RSS-vs-node-count measurement bench) — no behaviour change, no format change, no §3 dependency. Natural next implementation pick once founder is OK with measurement landing ahead of the eviction decision.
 
 **P2 (v0.2.0 scope):**
 6. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit)
@@ -93,6 +94,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Charter §5.X amendment or new commitment.
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
+- **⚠️ OPEN NOW — two scale-gap RFCs awaiting founder §3 decision:**
+  - **RFC-0098** (R2 incremental persistence, PR #353) — approve base+journal format; also proposes a Charter §3 amendment note.
+  - **RFC-0099** (R3 bounded resident memory, PR #356) — approve phased plan + choose Phase 2 approach (segment eviction vs mmap); confirm Phase 2 blocked until RFC-0098 Implemented. *(Phase 0 measurement needs no format decision and could land first.)*
 - Skill marketplace listing metadata sign-off.
 - **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6, v0.1.10, v0.1.11, v0.1.12, v0.1.13 confirmed). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
 
