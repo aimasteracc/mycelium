@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0100 Phase 2 T03 — crash-safety RED tests** — 4 TDD tests (all RED
+  against the current two-separate-txn `upsert_edge` implementation) that
+  document the atomicity invariant: `outgoing(src, kind).contains(dst) ↔
+  incoming(dst, kind).contains(src)` must hold after any partial write or crash.
+  Tests cover CRITICAL-1 (upsert_edge two-txn gap) and CRITICAL-2
+  (remove_node_edges dangling reverse pointer). Turn GREEN after T05
+  (`WriteBatch` single-txn fix). `#[cfg(all(test, feature = "redb-backend"))]`.
+
 - **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
   diagnostic method that returns a conservative lower-bound estimate of bytes
   held by the store's Patricia trie and CSR synapse. Three TDD tests verify

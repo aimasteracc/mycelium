@@ -538,3 +538,139 @@ impl StorageBackend for RedbBackend {
         Ok(())
     }
 }
+
+// ── T03 crash-safety unit tests ──────────────────────────────────────────────
+// These tests are RED against the current two-separate-txn implementation and
+// turn GREEN after T05 (single-txn WriteBatch). They live here for private
+// access to `write_fwd` / `write_rev` — see ADR-0007 §6 and PR #367.
+
+#[cfg(all(test, feature = "redb-backend"))]
+mod crash_safety_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn open_at(path: &std::path::Path) -> RedbBackend {
+        RedbBackend::open(path).expect("open redb")
+    }
+
+    /// T03-C1: upsert_edge two-txn atomicity gap.
+    ///
+    /// RED:  write_fwd commits in TXN-1; crash before TXN-2 (write_rev) leaves
+    ///       outgoing(src) containing dst but incoming(dst) empty.
+    /// GREEN after T05: single atomic txn for both directions.
+    #[test]
+    fn upsert_edge_crash_between_fwd_and_rev_leaves_no_ghost_edge() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c1.redb");
+
+        // Simulate TXN-1 committed, crash before TXN-2.
+        {
+            let mut b = open_at(&path);
+            let _ = b.write_fwd(EdgeKind::Calls, 10, &[20]);
+            // Rev deliberately NOT written.
+        }
+
+        let b2 = open_at(&path);
+        let fwd = b2
+            .outgoing(NodeId(10), EdgeKind::Calls)
+            .contains(&NodeId(20));
+        let rev = b2
+            .incoming(NodeId(20), EdgeKind::Calls)
+            .contains(&NodeId(10));
+
+        assert_eq!(
+            fwd, rev,
+            "CRITICAL-1: fwd 10→20={fwd}, rev 20→10={rev} — ghost one-directional edge \
+             (two-txn atomicity bug; expected to go RED→GREEN after T05 WriteBatch)"
+        );
+    }
+
+    /// T03-C1b: same invariant for EdgeKind::Imports (exercises tag-encoding path).
+    #[test]
+    fn upsert_edge_crash_ghost_edge_invariant_holds_for_imports() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c1_imports.redb");
+
+        {
+            let mut b = open_at(&path);
+            let _ = b.write_fwd(EdgeKind::Imports, 100, &[200]);
+        }
+
+        let b2 = open_at(&path);
+        let fwd = b2
+            .outgoing(NodeId(100), EdgeKind::Imports)
+            .contains(&NodeId(200));
+        let rev = b2
+            .incoming(NodeId(200), EdgeKind::Imports)
+            .contains(&NodeId(100));
+
+        assert_eq!(fwd, rev, "CRITICAL-1 Imports: fwd={fwd}, rev={rev}");
+    }
+
+    /// T03-C1c: crash on second upsert of same edge (idempotent guard path).
+    #[test]
+    fn upsert_edge_crash_invariant_after_idempotent_upsert() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c1_idem.redb");
+
+        {
+            let mut b = open_at(&path);
+            // First write is complete (both fwd+rev).
+            b.upsert_edge(EdgeKind::Calls, NodeId(5), NodeId(6));
+            // Second write crashes after fwd — triggers the !contains guard for 7→8.
+            let _ = b.write_fwd(EdgeKind::Calls, 7, &[8]);
+        }
+
+        let b2 = open_at(&path);
+
+        // 5→6 must remain intact.
+        assert!(b2.outgoing(NodeId(5), EdgeKind::Calls).contains(&NodeId(6)));
+        assert!(b2.incoming(NodeId(6), EdgeKind::Calls).contains(&NodeId(5)));
+
+        // 7→8 must satisfy the bidirectional invariant.
+        let fwd78 = b2.outgoing(NodeId(7), EdgeKind::Calls).contains(&NodeId(8));
+        let rev78 = b2.incoming(NodeId(8), EdgeKind::Calls).contains(&NodeId(7));
+        assert_eq!(
+            fwd78, rev78,
+            "CRITICAL-1 idem: fwd 7→8={fwd78}, rev 8→7={rev78}"
+        );
+    }
+
+    /// T03-C2: remove_node_edges dangling reverse pointer.
+    ///
+    /// RED:  fwd(30→40) cleared in its own txn; crash before rev(40←30)
+    ///       is patched — incoming(40) still contains 30 (dangling ptr).
+    /// GREEN after T05: single atomic txn for full edge removal.
+    #[test]
+    fn remove_node_edges_crash_leaves_no_dangling_rev_ptr() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c2.redb");
+
+        // Setup: complete bidirectional edge 30→40.
+        {
+            let mut b = open_at(&path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(30), NodeId(40));
+        }
+
+        // Crash: fwd(30→40) cleared, but rev(40←30) NOT patched.
+        {
+            let mut b = open_at(&path);
+            let _ = b.write_fwd(EdgeKind::Calls, 30, &[]); // clears fwd
+            // write_rev would normally patch 40's incoming list — omitted.
+        }
+
+        let b2 = open_at(&path);
+        let fwd_has = b2
+            .outgoing(NodeId(30), EdgeKind::Calls)
+            .contains(&NodeId(40));
+        let dangling_rev = b2
+            .incoming(NodeId(40), EdgeKind::Calls)
+            .contains(&NodeId(30));
+
+        assert!(
+            !dangling_rev || fwd_has,
+            "CRITICAL-2: dangling rev pointer — incoming(40) contains 30 \
+             even though outgoing(30) no longer contains 40"
+        );
+    }
+}
