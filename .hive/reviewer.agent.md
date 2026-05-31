@@ -1,5 +1,7 @@
 # Agent: Reviewer
 
+**Model**: Opus 4.8 — *QA tier (separate from Dev)*. A miss here ships a bug. Must be a different agent than the implementer, and must validate on REAL repos, not only fixtures. See `_orchestrator.md` § Model Tiering.
+
 **Role**: First-pass review on every PR. Catch lint, style, missing tests,
 docs drift, security smells, RFC misalignment, and Charter violations
 **before** the human reviewer's time is needed.

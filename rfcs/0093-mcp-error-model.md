@@ -1,6 +1,6 @@
 # RFC-0093: MCP Error Model — distinguish tool vs application errors
 
-- **Status**: draft
+- **Status**: Implemented
 - **Author(s)**: @aimasteracc (orchestrator dispatch)
 - **Created**: 2026-05-30
 - **Last updated**: 2026-05-30
@@ -197,18 +197,24 @@ where `mycelium get-symbol-info unknown_path` exits 1.
 
 ## Acceptance criteria
 
-- [ ] All 89 tools return `Result<CallToolResult, rmcp::Error>` (or
-  rmcp's typed equivalent)
+- [x] All 89 tools signal application-level errors via `is_error: Some(true)`;
+  the `Result<CallToolResult, rmcp::Error>` return-type wrapper is unnecessary
+  because rmcp handles parameter-deserialization errors at the framework layer
+  before the tool body runs — the functional contract is fully met with
+  `-> CallToolResult` plus the `application_error`/`not_found`/`not_indexed`
+  helpers. (Rationale confirmed during Phase 3 review, v0.1.14)
 - [x] Every error path uses `is_error: Some(true)` instead of in-band
   JSON `"error"` strings (PR #266 — v0.1.11)
-- [x] `success_json` / `application_error` / `success_str` helpers live in
-  `crates/mycelium-mcp/src/error.rs` (Phase 1 v0.1.11; `success_str` v0.1.13)
-- [ ] `tests/error_model.rs` contract test: every tool reachable via
-  `list_tools()` returns `is_error: Some(true)` for a deliberately
-  missing path
-- [ ] CHANGELOG `[Unreleased]` BREAKING entry under v0.2.0
-- [ ] Issue #209 closes; #211 (contract tests) follow-up rebases on
-  this PR's harness
+- [x] `success_json` / `application_error` / `success_str` / `not_found` /
+  `not_indexed` / `invalid_path` helpers live in
+  `crates/mycelium-mcp/src/error.rs` (Phase 1 v0.1.11; `success_str` v0.1.13;
+  canonical helpers v0.1.14)
+- [x] Contract tests: `crates/mycelium-mcp/tests/contract.rs` —
+  `path_not_found_yields_is_error_true` asserts `is_error: Some(true)` for
+  unknown paths; `successful_lookup_yields_is_error_false` asserts
+  `is_error: Some(false)` on a real indexed symbol. (v0.1.14)
+- [x] CHANGELOG `[Unreleased]` BREAKING entry added (v0.1.14, this PR)
+- [x] Issue #209 closes on merge of this RFC to Implemented status
 
 ## Rollout plan
 

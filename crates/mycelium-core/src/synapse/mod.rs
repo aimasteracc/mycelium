@@ -126,6 +126,16 @@ impl AdjacencyList {
     pub fn edge_count(&self) -> usize {
         self.forward.values().map(Vec::len).sum()
     }
+
+    /// Iterate every directed edge as `(src, dst)` from the forward map.
+    ///
+    /// Order is unspecified (`HashMap` iteration), but the *set* of pairs is
+    /// stable. Used by [`Synapse::all_edges`] for store merging (Issue #342).
+    pub fn forward_edges(&self) -> impl Iterator<Item = (NodeId, NodeId)> + '_ {
+        self.forward
+            .iter()
+            .flat_map(|(&src, dsts)| dsts.iter().map(move |&dst| (src, dst)))
+    }
 }
 
 /// A multi-kind synapse store.
@@ -164,6 +174,17 @@ impl Synapse {
     #[must_use]
     pub fn edge_count(&self) -> usize {
         self.by_kind.values().map(AdjacencyList::edge_count).sum()
+    }
+
+    /// Iterate every directed edge as `(kind, src, dst)`.
+    ///
+    /// Order is unspecified; the *set* of triples is stable. Used by
+    /// [`crate::store::Store::merge`] to union two stores (Issue #342 / R1
+    /// parallel indexing).
+    pub fn all_edges(&self) -> impl Iterator<Item = (EdgeKind, NodeId, NodeId)> + '_ {
+        self.by_kind
+            .iter()
+            .flat_map(|(&kind, adj)| adj.forward_edges().map(move |(s, d)| (kind, s, d)))
     }
 
     /// Returns an iterator of `(EdgeKind, edge_count)` pairs for all edge

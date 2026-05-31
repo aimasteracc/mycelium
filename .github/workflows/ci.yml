@@ -229,6 +229,19 @@ jobs:
           fi
 
   # ─────────────────────────────────────────────────────────────
+  # Three-Surface Rule parity (Charter §5.13 / RFC-0090).
+  # Promoted to required gate in v0.1.14 once 89/89 coverage landed.
+  # ─────────────────────────────────────────────────────────────
+  skill-parity:
+    name: Skill coverage check (I1 + I2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Three-Surface parity checker (strict)
+        run: python3 scripts/check_skill_parity.py --strict
+
+  # ─────────────────────────────────────────────────────────────
   # The single required check.
   # Branch protection rules require this and ONLY this to be green.
   # ─────────────────────────────────────────────────────────────
@@ -245,6 +258,7 @@ jobs:
       - build-validation
       - doc-build
       - dco-check
+      - skill-parity
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -262,6 +276,7 @@ jobs:
             [build-validation]="${{ needs.build-validation.result }}"
             [doc-build]="${{ needs.doc-build.result }}"
             [dco-check]="${{ needs.dco-check.result }}"
+            [skill-parity]="${{ needs.skill-parity.result }}"
           )
           for k in "${!results[@]}"; do
             v="${results[$k]}"
