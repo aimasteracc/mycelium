@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PR #356 R3-measure MERGED ✅; PR #357 PM-chore MERGED ✅; PR #358 RFC-0099 do-not-auto-merge → founder escalated) |
+| Last updated | 2026-05-31 (PM dispatch — RFC-0100 Phase 1 COMPLETE: PR #365 T3+T4+T10 pushed; PR #363 PM chore open; PR #360 RFC-0100 docs open) |
 | Current sprint | **v0.1.15 — IN PROGRESS** |
 | Active release branch | none (v0.1.14 ceremony complete) |
-| Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344; RFC-0099 Phase 0 done) |
+| Next release target | **v0.1.15** — RFC-0100 unified storage (redb backend), supersedes RFC-0098/RFC-0099 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -61,31 +61,36 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P0: none** — v0.1.14 ceremony COMPLETE; queue healthy.
 
-**P1 (v0.1.15 sprint — scale-gap remediation):**
-1. **R3 memory bound measurement** (#344) — **PR #356 MERGED ✅** (`Store::heap_size_estimate()` + 3 CI tests + 3 `#[ignore]` RSS-curve tests). Next: run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record bytes/node curve in Issue #344; then R3 Phase 1 (streaming index with spill, RFC-0099) when founder signs off.
-2. **R3 design gate** (#344) — RFC-0099 in PR #358 (**DO-NOT-AUTO-MERGE** — founder sign-off required on Phase 2 approach + RFC-0098 binding constraint before Phase 1+ implementation).
-3. **R2 incremental persistence** (#343) — RFC-0098 Draft merged (PR #353 ✅ 2026-05-31). **DECISION GATE**: implementation requires founder sign-off + ADR before any code. Architect to review RFC-0098 and write `docs/adr/` entry before implementation.
-4. **Post-v0.1.15 security scan** — schedule after sprint content lands.
+**P1 (v0.1.15 sprint — RFC-0100 unified storage, founder-gated):**
+
+> **Context**: Founder authorized redb (2026-05-31: "允许引入 redb（方案 A）"). RFC-0098 and RFC-0099 are superseded by RFC-0100. Phase 1 implementation is COMPLETE pending founder review.
+
+1. **RFC-0100 Phase 1 COMPLETE — awaiting founder review** — PR #365 (T3+T4+T10: `StorageBackend` trait + `InMemoryBackend` + `RedbBackend` + `Store::load` format detection). 39 TDD tests GREEN. CI ✅. **DO NOT AUTO-MERGE** per standing constraint.
+2. **RFC-0100 docs review** — PR #360 (RFC-0100 + ADR-0007 + Charter §3 amendment). Founder must approve Charter change before #365 can be finalized. CI ✅.
+3. **PR #363 PM chore** — CI ✅, trivial, can merge at any time.
+4. **PR #364 spike evidence** — T0/T1 de-risk code. Keep open as reference until #365 merges, then close.
+5. **RFC-0100 Phase 2** (after #360 + #365 merged) — equivalence harness, parity on real repos, crash-safety tests. Blocked on Phase 1 landing.
+6. **Post-v0.1.15 security scan** — schedule after sprint content lands.
 
 **P2 (v0.2.0 scope):**
-5. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
-6. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; needs e2e walkthrough validation
-7. Skill marketplace submission to Claude Code marketplace
-8. "First 5 minutes" walkthrough validation (README + docs site)
+7. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
+8. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; needs e2e walkthrough validation
+9. Skill marketplace submission to Claude Code marketplace
+10. "First 5 minutes" walkthrough validation (README + docs site)
 
 ---
 
-## Dispatch state (2026-05-31, this run — PR #356 MERGED; PR #357 PM-chore MERGED; RFC-0099 PR #358 escalated to founder)
+## Dispatch state (2026-05-31, this run — RFC-0100 Phase 1 COMPLETE; PR #365 open)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). **(b) RFC-0098 R2 decision gate**: review PR #353 merged draft, authorize ADR + approach before any implementation begins. **(c) RFC-0099 R3 design gate**: review PR #358 — sign off on Phase 1 (streaming index) approach + Phase 2 LRU/mmap plan before implementation. |
-| release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when sprint exits. |
-| rust-implementer | **blocked on founder** | R3 Phase 1 (streaming index with spill, RFC-0099 Phase 1) blocked on founder sign-off via PR #358. R2 blocked on RFC-0098 ADR + founder. |
+| founder | **ACTION REQUIRED** | **(a) RFC-0100**: review PR #360 (Charter §3 + ADR-0007) → then merge PR #365 (Phase 1 impl, CI ✅). **(b) PR #363**: trivial PM chore, merge when ready. **(c) Systemic**: audit `release.yml` RELEASE_BOT_TOKEN before v0.2.0. |
+| release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when RFC-0100 Phases 1+2 land. |
+| rust-implementer | **waiting on founder PR review** | PR #365 pushed — RFC-0100 Phase 1 (T3+T4+T10). Phase 2 blocked on #365 merge. |
 | security-reviewer | idle | Post-v0.1.15 scan after sprint content lands. |
-| architect | **NEXT** | R2 ADR: review RFC-0098 (on develop), write `docs/adr/NNNN-incremental-persistence.md` recommending Option B (append-log). Required before any R2 code. |
+| architect | idle | ADR-0007 in PR #360 (redb storage engine). No new ADRs needed until Phase 2. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | **NEXT** | Run `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture` on a beefy machine; record RSS bytes/node curve at 1K/10K/100K in Issue #344. Unblocks R3 Phase 1 design. |
+| e2e-runner | **NEXT (non-blocking)** | T1b cold SLA re-run on Linux CI (`echo 3 > /proc/sys/vm/drop_caches`, n≥200 cold samples). Charter §2 cold row stays TBD until done. Separate from RFC-0100 Phase 2 gate. |
 
 ---
 
@@ -96,7 +101,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **⚠️ R2 / RFC-0098**: incremental persistence implementation touches storage format (Charter §3 deviation from WAL/HAMT/time-travel row). Founder must sign off on ADR + approach before any implementation PR.
+- **✅ RFC-0100 founder authorization recorded** (2026-05-31): "允许引入 redb（方案 A）" + Charter §3 Storage/Persistence rows amended. Phase 1 implementation in PR #365. Supersedes RFC-0098 and RFC-0099.
+- **⚠️ PR #360 review required**: Charter §3 amendment + ADR-0007 must be approved before #365 is production-merged.
 - **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6–v0.1.14 all affected). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
 
 ---
