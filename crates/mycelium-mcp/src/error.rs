@@ -13,6 +13,16 @@ pub fn success_json(value: &Value) -> CallToolResult {
     CallToolResult::success(vec![Content::text(value.to_string())])
 }
 
+/// Return a successful `CallToolResult` from a pre-formatted string
+/// (JSON, text, or msgpack-hex) with `is_error: false`.
+///
+/// Use this instead of a local `ok_str` helper so all success returns
+/// flow through the same error-module helper (RFC-0093 Phase 2).
+#[must_use]
+pub fn success_str(s: String) -> CallToolResult {
+    CallToolResult::success(vec![Content::text(s)])
+}
+
 /// Return a `CallToolResult` that signals an application-level error
 /// (`is_error: true`) so MCP clients can branch without string-matching.
 #[must_use]
@@ -157,6 +167,21 @@ mod tests {
         assert_eq!(v["reason"], "invalid path syntax");
         assert_eq!(v["path"], "bad::path");
         assert_eq!(v["detail"], "double colon not allowed");
+    }
+
+    // ── success_str ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn success_str_sets_is_error_false() {
+        let result = success_str("{\"ok\":true}".to_string());
+        assert_eq!(result.is_error, Some(false));
+    }
+
+    #[test]
+    fn success_str_round_trips_arbitrary_string() {
+        let s = "plain text or pre-serialized JSON";
+        let result = success_str(s.to_string());
+        assert_eq!(payload_text(&result), s);
     }
 
     // ── cross-type distinguishability ─────────────────────────────────────────

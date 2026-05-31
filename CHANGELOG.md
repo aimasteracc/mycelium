@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- next release goes here -->
+## [0.1.13] - 2026-05-31
+
+### Changed
+
+- **RFC-0093 Phase 2 — `success_str` helper replaces local `ok_str`** — all
+  101 success return sites in `mycelium-mcp` now flow through
+  `crate::error::success_str` (exported from the RFC-0093 error-model module)
+  instead of a file-local `ok_str` function. Uniform helper coverage: every
+  success, error, not-found, not-indexed, and invalid-path return now comes
+  from the same module. No behaviour change; `is_error: Some(false)` was
+  already set by `CallToolResult::success`. (RFC-0093)
 
 ## [0.1.12] - 2026-05-30
 
