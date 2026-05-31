@@ -604,6 +604,18 @@ impl Store {
         self.synapse.edge_count()
     }
 
+    /// Conservative lower-bound estimate of bytes held by this store's
+    /// data structures. Intended for diagnostics and the R3 memory-bound
+    /// investigation (#344) — not a precise allocator report.
+    ///
+    /// The estimate uses structural heuristics:
+    /// - Patricia-trie nodes: ~256 bytes each (key fragment + child map + id).
+    /// - CSR synapse edges: ~24 bytes each (kind tag + src `NodeId` + dst `NodeId`).
+    #[must_use]
+    pub fn heap_size_estimate(&self) -> usize {
+        self.node_count() * 256 + self.edge_count() * 24
+    }
+
     /// Iterate all materialized path strings (delegates to the inner Trunk).
     pub fn all_paths(&self) -> impl Iterator<Item = &str> + '_ {
         self.trunk.all_paths()

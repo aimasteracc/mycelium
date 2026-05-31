@@ -6,7 +6,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 |---|---|
 | PM | orchestrator (Hive AI agent) |
 | Last updated | 2026-05-31 (PM dispatch — v0.1.14 SHIPPED ✅ ceremony 4/4 complete; PR #352 merged to main; RFC-0098 R2 draft #353 open) |
-| Current sprint | **v0.1.15 — KICKOFF** |
+| Current sprint | **v0.1.15 — IN PROGRESS** |
 | Active release branch | none (v0.1.14 ceremony complete) |
 | Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -44,8 +44,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Store::merge R1 parallel-index primitive (step 1/2)
 - [x] Dogfood pass rate 8/8: all 8 core CLI commands green
 
-**v0.1.14 ceremony status:**
-- [ ] **Step 1**: `release/v0.1.14` → `main` — **PR #352 OPEN** ⚠️ REQUIRES FOUNDER AUTHORIZATION. (PR #348 was auto-closed dirty by release.yml; recreated with conflicts resolved this run.)
+**v0.1.14 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
+- [x] **Step 1**: `release/v0.1.14` → `main` — PR #352 MERGED ✅ (founder authorized 2026-05-31)
 - [x] **Step 2**: Tag `v0.1.14` pushed ✅
 - [x] **Step 3**: GitHub Release published ✅
 - [x] **Step 4**: Back-merge `release/v0.1.14` → `develop` — PR #349 MERGED ✅
@@ -56,14 +56,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0: v0.1.14 release ceremony (step 1 blocked on founder)**
-1. **PR #352** (`release/v0.1.14` → `main`) — founder must authorize merge when CI green ⚠️ (recreated this run; conflicts resolved: CHANGELOG v0.1.14 section, Cargo.toml 0.1.14, cli dep pin 0.1.14)
+**P0: none** — v0.1.14 ceremony COMPLETE; queue healthy.
 
 **P1 (v0.1.15 sprint — scale-gap remediation):**
-2. **Post-v0.1.14 security scan** — DONE THIS RUN ✅ CLEAN (no hardcoded secrets, no unsafe blocks)
-3. **R1 parallel index step 2** (#342) — add `rayon` dep; collect eligible (path, rel, ext, source) tuples from serial walk; `rayon::par_iter` → per-thread sub-Store; `Store::merge` reduce; final `resolve_bare_call_stubs`. TDD: write deterministic-output test first (RED), implement (GREEN), assert byte-identical symbol sets vs serial. Low risk.
-4. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR + founder decision gate if storage format changes (Charter §3). **Spike both Option A (per-file segment) and Option B (WAL/append-log).**
-5. **R3 memory bound** (#344) — RSS measurement spike first (100K/500K/1M nodes); then LRU/mmap behind feature flag. Medium-high risk. **Start with measurement only.**
+1. **R3 memory bound measurement** (#344) — `Store::heap_size_estimate()` added; sla_memory_curve tests written (3 fast CI + 3 `#[ignore]` RSS-curve tests). **PR open (this run)**. Next step after merge: run `--include-ignored` on a beefy machine to capture real RSS data; use data to design LRU/mmap mitigation.
+2. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR + founder decision gate if storage format changes (Charter §3). **Draft RFC-0098 in PR #353 — DECISION GATE: needs founder + ADR sign-off before any implementation.**
+3. **Post-v0.1.15 security scan** — schedule after sprint content lands.
+
+**P2 (v0.2.0 scope):**
+4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
+5. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; v0.2 PRD updated to reflect this
+6. Skill marketplace submission to Claude Code marketplace
+7. "First 5 minutes" walkthrough validation (README + docs site)
 
 **P2 (v0.2.0 scope):**
 6. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit)
@@ -73,17 +77,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-05-31, this run — PR #352 opened; conflicts resolved; security CLEAN)
+## Dispatch state (2026-05-31, this run — v0.1.14 ceremony COMPLETE; R3 measurement PR opened)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | (1) Authorize PR #352 merge (`release/v0.1.14` → `main`) when CI green. (2) **Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). (3) Decision gate for R2 (#343) if storage format changes required. |
-| release | **watching** | PR #352 CI → founder auth → merge to main. |
-| rust-implementer | **NEXT** | R1 step 2 (#342): TDD test (RED) first; add rayon; par-extract; Store::merge reduce. Full TDD cycle requires ~5 min cargo build — reserve a full session window. |
-| security-reviewer | **done this run** | Post-v0.1.14 scan: CLEAN ✅ |
-| architect | idle | R2 ADR: spike Option A vs Option B for incremental persistence (#343). R3 measurement plan. |
-| tech-writer | idle | Skill marketplace submission prep. |
-| e2e-runner | idle | Dogfood re-run after R1 lands (confirm determinism). |
+| founder | **ACTION REQUIRED** | **Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0 (same failure on every release v0.1.6–v0.1.14). Decision gate for R2 (#343) / RFC-0098 (PR #353): approve ADR + approach before implementation. |
+| release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when sprint exits. |
+| rust-implementer | **done this run** | R3 measurement: Store::heap_size_estimate() + sla_memory_curve tests (PR this run). |
+| security-reviewer | idle | Post-v0.1.15 scan after sprint content lands. |
+| architect | **NEXT** | R2 ADR: review RFC-0098 (PR #353), provide recommendation on Option A vs Option B for incremental persistence. |
+| tech-writer | idle | Skill marketplace submission prep (P2). |
+| e2e-runner | idle | Run `--include-ignored` sla_memory_curve tests on beefy machine; record RSS measurements in Issue #344. |
 
 ---
 
@@ -94,7 +98,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6, v0.1.10, v0.1.11, v0.1.12, v0.1.13 confirmed). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
+- **⚠️ R2 / RFC-0098 (PR #353)**: incremental persistence implementation touches storage format — founder must sign off on ADR + approach before implementation begins.
+- **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6–v0.1.14 all affected). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
 
 ---
 
@@ -109,7 +114,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-31 PM dispatch (this run — PR #350 merged; release/v0.1.14 conflicts resolved; PR #352 opened; security CLEAN)
+### 2026-05-31 PM dispatch (this run — v0.1.14 ceremony COMPLETE; R1 DONE; R3 measurement PR opened)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, INDEX.md, anti-patterns, decisions.jsonl tail-20, PM state (stale), v0.2 PRD.
+
+**Assessment:**
+- PR #352 (`release/v0.1.14` → `main`) MERGED by founder 2026-05-31T07:03:49Z. v0.1.14 ceremony COMPLETE (4/4 ✅).
+- Issue #342 (R1 parallel indexing) CLOSED — `index_path_parallel` confirmed in codebase (commit e200857). PM state was stale.
+- 1 open PR: #353 (RFC-0098 draft, decision gate — Quality Gate SUCCESS, needs founder + ADR).
+- 2 open issues: #343 (R2 incremental persistence, decision gate), #344 (R3 memory bounds, measurement-first unblocked).
+- Highest-priority unblocked task: R3 measurement (no decision gate; creates data for mitigation design).
+
+**Actions taken:**
+1. **TDD RED**: wrote `crates/mycelium-core/tests/sla_memory_curve.rs` calling `store.heap_size_estimate()` → E0599 confirmed.
+2. **TDD GREEN**: added `Store::heap_size_estimate() -> usize` (node_count×256 + edge_count×24). All 3 fast tests pass; 3 `#[ignore]` RSS-curve tests added for 1K/10K/100K.
+3. **Clippy/fmt**: fixed `NodeId` backticks in doc, suppressed `cast_precision_loss` on display-only casts. All clean.
+4. **CHANGELOG** Unreleased entry added.
+5. **PM state updated** + decisions.jsonl appended.
+6. **PR opened** targeting develop.
+
+**Escalations:**
+- Founder must (a) audit `release.yml` finalize merge step (systemic, every release since v0.1.6); (b) approve RFC-0098 / ADR before R2 implementation.
+
+### 2026-05-31 PM dispatch (previous — PR #350 merged; release/v0.1.14 conflicts resolved; PR #352 opened; security CLEAN)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
 
