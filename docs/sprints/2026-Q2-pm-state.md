@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PR #350 merged; release/v0.1.14 recreated + conflicts resolved; PR #352 (→main, founder-gated) opened; post-v0.1.14 security scan CLEAN; issues #343/#344 P1/P2 confirmed) |
+| Last updated | 2026-05-31 (PM dispatch — v0.1.14 SHIPPED ✅ ceremony 4/4 complete; PR #352 merged to main; RFC-0098 R2 draft #353 open) |
 | Current sprint | **v0.1.15 — KICKOFF** |
-| Active release branch | `release/v0.1.14` (PR #352 open → main, founder-gated) |
-| Next release target | **v0.1.14** — ceremony pending founder auth on PR #352 |
+| Active release branch | none (v0.1.14 ceremony complete) |
+| Next release target | **v0.1.15** — scale-gap R2/R3 (RFC-0098 incremental persistence #353; R3 memory #344) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -35,7 +35,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## ✅ v0.1.14 — SHIPPED (ceremony step 1 pending founder)
+## ✅ v0.1.14 — SHIPPED (ceremony 4/4 COMPLETE — PR #352 merged to main, tag + Release + back-merge done)
 
 **What shipped:**
 - [x] RFC-0096 Phase 2 TypeScript: `import type` → TypeImports edges + TS resolver bug fix
