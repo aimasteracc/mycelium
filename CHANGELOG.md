@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0096 Phase 2 — TypeScript `import type` → `TypeImports`** — TypeScript's
+  `import type { Foo } from 'mod'` syntax now emits `TypeImports` edges instead
+  of `Imports` edges, keeping `detect-cycles` clean by default. Also fixes a
+  pre-existing bug where TypeScript relative imports were resolved via the Python
+  resolver, producing incorrect node paths (`/foo.py` instead of `foo.ts`).
+  Three TDD tests (RED confirmed before impl). (RFC-0096 Phase 2)
+
 ### Changed
 
 - **RFC-0093 Phase 2 — `success_str` helper replaces local `ok_str`** — all
