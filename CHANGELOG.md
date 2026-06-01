@@ -90,6 +90,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `heap_size_estimate()` edge path while keeping the backend feature-gated off
   by default.
 
+- **RFC-0100 Phase 2 T05c — redb single-file Store bridge** —
+  `RedbBackend::replace_file_from_store` converts a single-file in-memory
+  `Store` into file-owned redb nodes, metadata, and source-owned edges, then
+  persists them through the existing one-transaction `replace_file` path. This
+  gives watch-mode wiring a small core bridge toward O(changed-file)
+  persistence without changing CLI/MCP surfaces yet.
+
 ### Fixed
 
 - **Release pipeline hardening** — release prep now updates internal

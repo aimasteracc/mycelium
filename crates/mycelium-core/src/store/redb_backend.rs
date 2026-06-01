@@ -23,6 +23,7 @@ use std::path::Path;
 use redb::{Database, ReadableTable, ReadableTableMetadata, TableDefinition, WriteTransaction};
 use serde::{Deserialize, Serialize};
 
+use crate::store::Store;
 use crate::store::backend::{StorageBackend, StorageError as BackendError};
 use crate::store::redb_keys::{decode_adj_key, encode_adj_key, encode_path_key};
 use crate::store::redb_tags::{edge_kind_tag, tag_to_edge_kind};
@@ -728,6 +729,53 @@ impl RedbBackend {
         edges: &[FileEdge],
     ) -> Result<(), BackendError> {
         self.try_replace_file(file_path, nodes, edges)
+    }
+
+    /// Atomically replace `file_path` from an in-memory single-file [`Store`].
+    ///
+    /// This is the watch-mode bridge for RFC-0100/#343: callers can extract a
+    /// changed file into a temporary `Store`, then persist only that file's
+    /// owned graph through the same redb transaction as [`Self::replace_file`].
+    /// Nodes are owned when their path is exactly `file_path` or has
+    /// `file_path>` as a prefix; edges are owned when their source node is
+    /// owned by the file.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same backend errors as [`Self::replace_file`].
+    pub fn replace_file_from_store(
+        &mut self,
+        file_path: &str,
+        store: &Store,
+    ) -> Result<(), BackendError> {
+        let mut nodes = Vec::new();
+        let mut owned_sources = Vec::new();
+
+        for path in store
+            .all_paths()
+            .filter(|path| path_owned_by_file(file_path, path))
+        {
+            let Some(id) = store.lookup(path) else {
+                continue;
+            };
+            owned_sources.push(id);
+            nodes.push(FileNode {
+                path: path.to_owned(),
+                kind: store.kind_of(id),
+                span: store.span_of(id).filter(|span| !span.is_empty()),
+            });
+        }
+
+        let mut edges = Vec::new();
+        for src in owned_sources {
+            for &kind in ALL_EDGE_KINDS {
+                for &dst in store.outgoing(src, kind) {
+                    edges.push(FileEdge { kind, src, dst });
+                }
+            }
+        }
+
+        self.replace_file(file_path, &nodes, &edges)
     }
 
     // ── fwd adjacency helpers ─────────────────────────────────────────────────

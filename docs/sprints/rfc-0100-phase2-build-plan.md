@@ -102,6 +102,23 @@ Scope boundaries:
 - The default backend remains unchanged and `redb-backend` remains feature-gated
   off by default.
 
+### P2-T05c progress marker — 2026-06-01
+
+The third P2-T05 implementation slice adds
+`RedbBackend::replace_file_from_store`, a core-only bridge that converts a
+single-file in-memory `Store` into the `FileNode` and `FileEdge` payload expected
+by `replace_file`. It carries file-owned nodes, kind/span metadata, and
+source-owned edges into the existing one-transaction redb replacement path.
+
+Scope boundaries:
+
+- This is the watch-mode persistence bridge, not the MCP watch-loop flip.
+- It advances Issue #343 by removing the manual payload-construction gap between
+  extraction and redb `replace_file`.
+- CLI/MCP/Skill surfaces are intentionally untouched, so the Three-Surface Rule
+  is not triggered in this slice.
+- O(changed-file) watch benchmarks and default-backend migration remain open.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.
