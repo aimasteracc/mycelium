@@ -5278,7 +5278,7 @@ impl MyceliumServer {
 }
 
 const MCP_INSTRUCTIONS_BASE: &str = "\
-## Mycelium — AI-native symbol graph (89 tools)
+## Mycelium — AI-native symbol graph (90 tools)
 
 **Setup (always first):**
 - Index a workspace → `mycelium_index_workspace`
@@ -5287,7 +5287,7 @@ const MCP_INSTRUCTIONS_BASE: &str = "\
 
 ## Primary Tool Selection
 
-1. **How does X work / trace A to B / broad code-area understanding**
+1. **\"How does X work?\" / trace A to B / broad code-area understanding**
    → Use `mycelium_context` FIRST (one call returns entry points + graph + source).
    Do NOT chain `mycelium_search_symbol` → `mycelium_get_callers` → `mycelium_get_callees`.
 
