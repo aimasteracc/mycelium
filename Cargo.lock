@@ -1047,6 +1047,7 @@ name = "mycelium-rcig-core"
 version = "0.1.14"
 dependencies = [
  "anyhow",
+ "base64",
  "blake3",
  "criterion",
  "hashbrown 0.17.1",
@@ -1057,6 +1058,7 @@ dependencies = [
  "rmp-serde",
  "salsa",
  "serde",
+ "serde_json",
  "smol_str",
  "tempfile",
  "thiserror",

@@ -4,6 +4,7 @@
 //! or §Testing strategy.
 
 use super::{NodeDegree, Store};
+use crate::store::journal::Journal;
 use crate::trunk::TrunkPath;
 use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
 
@@ -5887,4 +5888,144 @@ fn merge_is_idempotent() {
     a.merge(&b); // merging an identical store changes nothing
     assert_eq!(a.node_count(), snapshot_nodes);
     assert_eq!(a.edge_count(), snapshot_edges);
+}
+
+// ── Journal (incremental persistence) tests ─────────────────────────────────
+
+#[test]
+fn journal_append_and_replay_restores_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let snap_path = dir.path().join("index.rmp");
+
+    let mut store = Store::new();
+    store.upsert_node(path("src/auth.rs"));
+    let auth = store.upsert_node(path("src/auth.rs>AuthService"));
+    store.set_kind(auth, NodeKind::Class);
+    store.upsert_node(path("src/utils.rs"));
+    let validate = store.upsert_node(path("src/utils.rs>validate"));
+    store.upsert_edge(EdgeKind::Calls, auth, validate);
+    store.save(&snap_path).unwrap();
+
+    let mut journal = Journal::open(&snap_path).unwrap();
+    let sub = store.extract_file_substore("src/auth.rs");
+    journal.append("src/auth.rs", &sub).unwrap();
+
+    let mut loaded = Store::load(&snap_path).unwrap();
+    let replayed = journal.replay(&mut loaded).unwrap();
+    assert_eq!(replayed, 1);
+    assert_eq!(loaded.node_count(), store.node_count());
+}
+
+#[test]
+fn extract_file_substore_contains_only_target_file() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs"));
+    let _a1 = store.upsert_node(path("src/a.rs>Foo"));
+    let _a2 = store.upsert_node(path("src/a.rs>Foo>bar"));
+    store.upsert_node(path("src/b.rs"));
+    let _b1 = store.upsert_node(path("src/b.rs>Baz"));
+
+    let sub = store.extract_file_substore("src/a.rs");
+    assert!(sub.lookup("src/a.rs").is_some(), "file node present");
+    assert!(sub.lookup("src/a.rs>Foo").is_some(), "Foo present");
+    assert!(sub.lookup("src/a.rs>Foo>bar").is_some(), "Foo>bar present");
+    assert!(sub.lookup("src/b.rs>Baz").is_none(), "b.rs>Baz absent");
+    assert_eq!(sub.node_count(), 3);
+}
+
+#[test]
+fn extract_file_substore_preserves_cross_file_edges() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs"));
+    let a_fn = store.upsert_node(path("src/a.rs>foo"));
+    store.upsert_node(path("src/b.rs"));
+    let b_fn = store.upsert_node(path("src/b.rs>bar"));
+    store.upsert_edge(EdgeKind::Calls, a_fn, b_fn);
+
+    let sub = store.extract_file_substore("src/a.rs");
+    assert!(sub.lookup("src/a.rs>foo").is_some());
+    assert!(
+        sub.lookup("src/b.rs>bar").is_some(),
+        "cross-file edge target preserved as leaf stub"
+    );
+    assert_eq!(sub.node_count(), 3);
+    let sub_foo = sub.lookup("src/a.rs>foo").unwrap();
+    let sub_bar = sub.lookup("src/b.rs>bar").unwrap();
+    assert!(
+        sub.synapse
+            .outgoing(sub_foo, EdgeKind::Calls)
+            .contains(&sub_bar),
+        "Calls edge from a.rs>foo -> b.rs>bar preserved"
+    );
+}
+
+#[test]
+fn compact_creates_fresh_snapshot() {
+    let dir = tempfile::tempdir().unwrap();
+    let snap_path = dir.path().join("index.rmp");
+
+    let mut store = Store::new();
+    store.upsert_node(path("src/main.rs"));
+    store.upsert_node(path("src/main.rs>App"));
+    store.save(&snap_path).unwrap();
+
+    let mut journal = Journal::open(&snap_path).unwrap();
+    journal.compact_threshold = 2;
+    let sub = store.extract_file_substore("src/main.rs");
+    journal.append("src/main.rs", &sub).unwrap();
+    journal.append("src/main.rs", &sub).unwrap();
+
+    assert!(journal.should_compact());
+    journal.compact(&store).unwrap();
+
+    let journal_path = dir.path().join("journal.jsonl");
+    assert!(journal_path.exists());
+    assert_eq!(journal.pending_count(), 0);
+
+    let loaded = Store::load(&snap_path).unwrap();
+    assert_eq!(loaded.node_count(), store.node_count());
+}
+
+#[test]
+fn load_with_journal_replays_deltas() {
+    let dir = tempfile::tempdir().unwrap();
+    let snap_path = dir.path().join("index.rmp");
+
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs"));
+    store.upsert_node(path("src/a.rs>A"));
+    store.save(&snap_path).unwrap();
+
+    let sub = store.extract_file_substore("src/a.rs");
+    let mut journal = Journal::open(&snap_path).unwrap();
+    journal.append("src/a.rs", &sub).unwrap();
+
+    let loaded = Store::load_with_journal(&snap_path).unwrap();
+    assert_eq!(loaded.node_count(), store.node_count());
+}
+
+#[test]
+fn delta_roundtrip_via_base64() {
+    let mut store = Store::new();
+    let id = store.upsert_node(path("lib.rs>func"));
+    store.set_kind(id, NodeKind::Function);
+    store.set_span(
+        id,
+        SourceSpan {
+            start_line: 1,
+            start_col: 0,
+            end_line: 5,
+            end_col: 0,
+            start_byte: 0,
+            end_byte: 30,
+        },
+    );
+
+    let encoded = Store::serialize_delta(&store);
+    let decoded = Store::deserialize_delta(&encoded).unwrap();
+    assert_eq!(decoded.node_count(), store.node_count());
+    assert_eq!(
+        decoded.kind_of(decoded.lookup("lib.rs>func").unwrap()),
+        Some(NodeKind::Function)
+    );
 }
