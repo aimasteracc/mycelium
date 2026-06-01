@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   median turn count and variance on real-repo benchmarks. No breaking change;
   clients that do not read `instructions` are unaffected.
 
+- **MCP Agent behavior instructions** — the MCP `instructions` payload now
+  includes a primary tool-selection decision tree, explicit anti-patterns for
+  avoiding expensive multi-tool loops, and a small-project mode hint for
+  indexes under 500 nodes. This advances Issue #382 without adding new tools
+  or triggering Three-Surface surface changes.
+
 - **RFC-0100 Phase 1 — `StorageBackend` + redb backend foundation** —
   introduces the feature-gated `redb-backend` storage path with an object-safe
   `StorageBackend` trait, `InMemoryBackend` oracle, redb key/tag helpers,
