@@ -104,6 +104,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only changed source files through `RedbBackend::replace_file_from_store`.
   The default build remains on legacy MessagePack snapshots.
 
+- **RFC-0100 Phase 2 T06a — redb persistence benchmark harness** —
+  Added a feature-gated `redb_sla` test target plus a
+  `redb_incremental_persistence` criterion benchmark comparing legacy full
+  MessagePack snapshots with redb single-file replacement. The default
+  benchmark covers 10K redb replacement and 10K/100K full snapshots, with
+  `MYCELIUM_REDB_BENCH_100K=1` enabling the slower 100K redb replacement run.
+
 ### Fixed
 
 - **Release pipeline hardening** — release prep now updates internal

@@ -138,6 +138,36 @@ Scope boundaries:
 - Large-repo O(changed-file) benchmarks, default-backend migration, and the
   public `migrate` CLI/MCP/Skill surface remain open.
 
+### P2-T06a progress marker — 2026-06-01
+
+The first P2-T06 measurement slice adds
+`crates/mycelium-core/tests/redb_sla.rs` and
+`crates/mycelium-core/benches/redb_incremental_persistence.rs`. The SLA test
+target is feature-gated on `redb-backend` and asserts Linux timing budgets for
+exact lookup and bounded 3-hop traversal on a 10K-symbol redb fixture; non-Linux
+platforms keep an advisory smoke path. The criterion benchmark compares legacy
+full `.rmp` snapshot rewrites with redb single-file replacement.
+
+Local benchmark sample from this slice on macOS/aarch64:
+
+| Scenario | Scale | Mean |
+|---|---:|---:|
+| full MessagePack snapshot | 10K symbols | ~1.26 ms |
+| full MessagePack snapshot | 100K symbols | ~28.2 ms |
+| redb single-file replacement | 10K symbols | ~18.4 ms |
+
+Scope boundaries:
+
+- This is a harness/measurement slice, not the final #343 closure.
+- 100K redb replacement is env-gated behind `MYCELIUM_REDB_BENCH_100K=1`
+  because the release-grade criterion run is slow enough to be unsuitable for
+  routine local checks.
+- The current data exposes the next optimization target: redb single-file
+  replacement already avoids rewriting a full MessagePack snapshot, but its
+  fixed transaction/write cost is still higher than a small 10K legacy snapshot.
+  Default-backend migration remains gated on the 100K redb run and follow-up
+  write-amplification work.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.
