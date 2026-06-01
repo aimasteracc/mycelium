@@ -217,6 +217,29 @@ fn redb_flush_is_ok() {
     assert!(r.flush().is_ok());
 }
 
+// ── mmap footprint estimate ──────────────────────────────────────────────────
+
+#[test]
+fn redb_heap_estimate_includes_empty_database_pages() {
+    let r = fresh_redb();
+
+    assert!(
+        r.heap_size_estimate() >= 4096,
+        "fresh redb schema must report real allocated mmap/storage pages, not a zero node formula"
+    );
+}
+
+#[test]
+fn redb_heap_estimate_is_not_inmemory_node_formula() {
+    let mut r = fresh_redb();
+    r.upsert_node("src/lib.rs>main");
+
+    assert!(
+        r.heap_size_estimate() > 256,
+        "redb estimate must come from redb page stats, not nodes*256 + edges*24"
+    );
+}
+
 // ── persistence across open/close ────────────────────────────────────────────
 
 #[test]

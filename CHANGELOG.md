@@ -45,6 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   design the LRU/mmap mitigation (Issue #344). Run with
   `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture`.
 
+- **RFC-0100 Phase 2 T04 — redb memory-footprint instrumentation** —
+  `RedbBackend::heap_size_estimate()` now reports redb allocated page bytes
+  instead of the in-memory node/edge formula, and `sla_memory_curve` includes
+  opt-in redb RSS/page-footprint measurements plus a Linux-only child-process
+  RSS comparison scaffold. This advances Issue #344's memory-bound proof while
+  keeping the redb backend feature-gated off by default.
+
 ### Fixed
 
 - **Release pipeline hardening** — release prep now updates internal
