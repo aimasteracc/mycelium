@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-01 (PM dispatch — PR #395 test fixed (1 failing assert), CI re-running; PRs #397-#401 merged (5 CI action bumps); PRs #402-#404 red (redb/logos/salsa — need RFC/analysis)) |
-| Current sprint | **v0.1.15 — CONTENT DONE; CEREMONY BROKEN (Issue #375)** |
-| Active release branch | none (release/v0.1.15 PRs #361/#362 closed unmerged — tag orphan) |
-| Next release target | **v0.1.16** — ceremony repair + PR #395 (mycelium_context + OutputBudget + import-aware stubs) |
+| Last updated | 2026-06-01 (PM dispatch v3 — PR #395 MERGED ✅ (90th MCP tool, OutputBudget, stubs); PR #405 MERGED ✅; Issue #375 escalated to founder; dep bumps #402-#404 deferred) |
+| Current sprint | **v0.1.16 — IN PROGRESS (ceremony repair + feature content ready)** |
+| Active release branch | none (Issue #375 ceremony repair pending founder GPG decision) |
+| Next release target | **v0.1.16** — ceremony repair (Issue #375) + mycelium_context + RFC-0100 redb + RFC-0101 CLI twin |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -82,12 +82,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 1. **Issue #375 — v0.1.15 ceremony BROKEN** (founder decision gate): Repair v0.1.15 OR supersede with v0.1.16. Dependencies: (a) configure/audit `CRATES_IO_TOKEN` in crates-io environment, (b) configure/audit `RELEASE_BOT_TOKEN`, (c) founder GPG-signed decision.
 
 **P1 (v0.1.16 scope):**
-2. **PR #395 — mycelium_context + OutputBudget + import-aware stubs**: Rebased onto develop (2026-06-01). `architecture-context` Skill added (I1 parity satisfied). Test fix pushed (2026-06-01): `get_info_includes_primary_tool_selection_rules` — item-1 label aligned with test assertion + header bumped 89→90. CI re-running. **Merge when green.**
-3. **Post-v0.1.15 security scan** — pending ceremony resolution.
-4. **RFC-0101 Phase 2 — `mycelium context` CLI twin**: Issue #379 is open. CLI subcommand not yet implemented (I4 deferred). Tracked in RFC-0101 Phase 2. Assign to rust-implementer after PR #395 merges.
+2. **RFC-0101 Phase 2 — `mycelium context` CLI twin**: PR #395 merged (90th MCP tool). CLI subcommand not yet implemented (I4 deferred). TDD: write failing `mycelium context` CLI integration test, implement `crates/mycelium-cli/src/context.rs`, wire into `main.rs`. Assign to rust-implementer next.
+3. **Post-v0.1.15/v0.1.16 security scan** — pending ceremony resolution (after Issue #375 closes).
 
-**Maintenance (merged this run):**
-- PRs #397–#401: CI action bumps (softprops/action-gh-release 2→3, checkout 4→6, upload-artifact 4→7, setup-python 5→6, stale 9→10) — all 5 merged ✅
+**Maintenance (merged this run and prior runs today):**
+- PR #395 MERGED ✅ (2026-06-01 v3): mycelium_context + OutputBudget + import-aware stubs (90 MCP tools, 22/22 CI checks green)
+- PR #405 MERGED ✅ (2026-06-01 v3): PM dispatch state chore
+- PRs #397–#401 MERGED ✅ (2026-06-01 v2): CI action bumps — all 5 merged
 
 **Deferred dependency bumps (red CI, needs RFC/analysis):**
 - PR #402: redb 2.6.3→4.1.0 — clippy + docs failure; redb 4.x is a major API break
@@ -103,16 +104,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-01, this run — PR #395 test fixed; PRs #397-#401 merged; dep bumps triaged)
+## Dispatch state (2026-06-01 v3 — PRs #395+#405 merged; v0.1.16 sprint defined)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED (P0)** | **(a) Issue #375**: Decide repair v0.1.15 or cut v0.1.16. Requires: `CRATES_IO_TOKEN` + `RELEASE_BOT_TOKEN` audit, GPG-signed decision on version. **(b) Systemic**: Fix `release.yml` before next release. **(c) RFC-0101 Phase 2**: Decide EXCEPTION: MCP-only for `mycelium_context` or authorize CLI twin implementation. |
-| release | **blocked** | Waiting on Issue #375 founder decision before cutting next release. |
-| rust-implementer | **NEXT** | RFC-0101 Phase 2: `mycelium context` CLI twin. TDD: write failing CLI integration test RED first, implement `crates/mycelium-cli/src/context.rs`, update `main.rs`. Branch from develop after PR #395 merges. |
-| code-reviewer | idle | Review PR #395 when CI goes green (newly rebased, 5 commits). |
-| security-reviewer | idle | Post-v0.1.15/v0.1.16 scan after ceremony resolves. |
-| architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). |
+| founder | **ACTION REQUIRED (P0)** | **(a) Issue #375**: Decide repair v0.1.15 or cut v0.1.16. All prerequisites done (PRs #374/#376 merged, `CRATES_IO_TOKEN`+`RELEASE_BOT_TOKEN` configured). Awaiting GPG-signed decision on version + crates.io publish authorization. **(b) Systemic**: Fix `release.yml` before next release. |
+| release | **blocked** | Waiting on Issue #375 founder decision before cutting release/v0.1.16 branch. |
+| rust-implementer | **NEXT** | RFC-0101 Phase 2: `mycelium context` CLI twin. TDD: write failing CLI integration test RED first, implement `crates/mycelium-cli/src/context.rs`, wire into `main.rs`. Branch from develop. |
+| security-reviewer | idle | Post-v0.1.16 scan after ceremony resolves. |
+| architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). Also: RFC for salsa 0.18→0.26 adoption if founder approves. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 | e2e-runner | idle | RSS-curve measurement — see Issue #344, benchmark harness exists (PR #391). |
 
@@ -140,6 +140,25 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-01 PM dispatch v3 (this run — PRs #395+#405 merged; v0.1.16 sprint defined)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest entry: `2026-06-01T21:30:00Z` second PM dispatch merging CI bumps #397-#401, fixing PR #395 test), anti-patterns (no relevant hits), PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `5f81d9f` (CI bump #401 merged). 5 open PRs: #395 (feature, 22/22 CI green after test fix), #402-#404 (dep bumps, red CI), #405 (PM chore, green CI). 3 open issues: #375 (P0 founder gate), #343 (R2), #344 (R3).
+- PR #395: all 22 CI checks SUCCESS (Quality Gate, rustfmt, clippy, DCO, skill coverage I1+I2, unit/integration tests linux/mac/windows/nightly, coverage, security, build, e2e dogfood + real projects). Ready.
+- PR #405: green CI. PM state chore from prior run. Mergeable.
+- Issue #375: prerequisites done (PRs #374/#376 merged, credentials configured). Blocked on founder GPG decision.
+- Dep bumps #402-#404: still deferred — all red CI (breaking API changes).
+
+**Actions taken:**
+1. **Merged PR #395** (feat: mycelium_context + OutputBudget + import-aware stubs, 22/22 CI green, squash). 90th MCP tool. Three-Surface Rule: I1/I2 pass (architecture-context Skill covers it). CLI twin deferred per RFC-0101 Phase 2.
+2. **Merged PR #405** (chore: PM dispatch state — v2, squash). PM memory updated.
+3. **Updated PM state v3**: sprint renamed v0.1.16, priorities and dispatch table updated.
+4. **Appended decisions.jsonl** for this run.
+
+**Escalations:** Issue #375 P0 — founder GPG-signed decision required (repair v0.1.15 or cut v0.1.16). All technical prerequisites are complete.
 
 ### 2026-06-01 PM dispatch (this run — PR #395 test fixed; PRs #397-#401 merged; dep bumps triaged)
 
