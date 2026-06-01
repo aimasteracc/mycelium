@@ -35,6 +35,7 @@ mod tests;
 
 pub mod backend;
 pub mod in_memory;
+pub mod journal;
 #[cfg(feature = "redb-backend")]
 pub mod redb_backend;
 #[cfg(feature = "redb-backend")]
@@ -491,6 +492,109 @@ impl Store {
             store.synapse.add(kind, src, dst);
         }
         Some(store)
+    }
+
+    /// Serialize a sub-store to a `Base64`-encoded `MessagePack` blob for journal deltas.
+    #[must_use]
+    pub fn serialize_delta(store: &Self) -> String {
+        use base64::Engine;
+        let mut buf = Vec::new();
+        rmp_serde::encode::write(&mut buf, store).unwrap_or_default();
+        base64::engine::general_purpose::STANDARD.encode(&buf)
+    }
+
+    /// Deserialize a sub-store from a `Base64`-encoded `MessagePack` blob.
+    ///
+    /// # Errors
+    /// Returns an error if the input is not valid `Base64` or `MessagePack`.
+    pub fn deserialize_delta(encoded: &str) -> anyhow::Result<Self> {
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .context("decoding base64 delta")?;
+        rmp_serde::decode::from_slice(&bytes).context("deserializing delta store")
+    }
+
+    /// Load the store from a base snapshot, then replay any journal deltas.
+    ///
+    /// If no journal exists, this is equivalent to `Store::load()`.
+    ///
+    /// # Errors
+    /// Returns an error if the base snapshot cannot be loaded or journal replay fails.
+    pub fn load_with_journal(path: &Path) -> anyhow::Result<Self> {
+        let mut store = Self::load(path)?;
+        let dot = Path::new(".");
+        let journal_path = path.parent().unwrap_or(dot).join("journal.jsonl");
+        if journal_path.exists() {
+            let journal = crate::store::journal::Journal::open(path)?;
+            journal.replay(&mut store)?;
+        }
+        Ok(store)
+    }
+
+    /// Extract a sub-Store containing only the nodes and edges belonging to
+    /// `file_path` and its descendants. Used for incremental journal deltas.
+    #[must_use]
+    pub fn extract_file_substore(&self, file_path: &str) -> Self {
+        let mut sub = Self::default();
+        let Some(root_id) = self.trunk.lookup_path(file_path) else {
+            return sub;
+        };
+        let ids: Vec<NodeId> = self
+            .trunk
+            .descendants(root_id)
+            .chain(std::iter::once(root_id))
+            .collect();
+        for &id in &ids {
+            if let Some(p) = self.trunk.path_of(id) {
+                if let Ok(tp) = TrunkPath::parse(p) {
+                    let new_id = sub.trunk.upsert(tp);
+                    if let Some(&kind) = self.kind_map.get(&id) {
+                        sub.kind_map.insert(new_id, kind);
+                    }
+                    if let Some(&span) = self.span_map.get(&id) {
+                        sub.span_map.insert(new_id, span);
+                    }
+                }
+            }
+        }
+        let edge_kinds: &[EdgeKind] = &[
+            EdgeKind::Contains,
+            EdgeKind::Calls,
+            EdgeKind::Imports,
+            EdgeKind::TypeImports,
+            EdgeKind::Exports,
+            EdgeKind::Extends,
+            EdgeKind::Implements,
+            EdgeKind::References,
+            EdgeKind::TypeOf,
+            EdgeKind::Returns,
+            EdgeKind::Instantiates,
+            EdgeKind::Overrides,
+            EdgeKind::Decorates,
+            EdgeKind::Aggregates,
+            EdgeKind::Composes,
+            EdgeKind::Uses,
+        ];
+        for &id in &ids {
+            for &ek in edge_kinds {
+                for &dst in self.synapse.outgoing(id, ek) {
+                    if ids.contains(&dst) {
+                        if let (Some(sp), Some(dp)) =
+                            (self.trunk.path_of(id), self.trunk.path_of(dst))
+                        {
+                            if let (Ok(stp), Ok(dtp)) = (TrunkPath::parse(sp), TrunkPath::parse(dp))
+                            {
+                                let s = sub.trunk.upsert(stp);
+                                let d = sub.trunk.upsert(dtp);
+                                sub.synapse.add(ek, s, d);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        sub
     }
 
     // ── writes ──────────────────────────────────────────────────────────

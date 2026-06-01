@@ -186,8 +186,17 @@ fn persist_watch_batch(root: &Path, store: &Store, changed_files: &[String]) -> 
 
     #[cfg(not(feature = "redb-backend"))]
     {
-        let _ = changed_files;
-        store.save(&legacy_index_path(root))
+        use mycelium_core::store::journal::Journal;
+        let snap = legacy_index_path(root);
+        let mut journal = Journal::open(&snap)?;
+        for file_path in changed_files {
+            let sub = store.extract_file_substore(file_path);
+            journal.append(file_path, &sub)?;
+        }
+        if journal.should_compact() {
+            journal.compact(store)?;
+        }
+        Ok(())
     }
 }
 
@@ -1480,7 +1489,7 @@ impl MyceliumServer {
         let server = Self::new_with_allowed_roots(allowed_roots);
 
         if let Some(snap) = existing_index_path(&root) {
-            match Store::load(&snap) {
+            match Store::load_with_journal(&snap) {
                 Ok(loaded) => {
                     tracing::info!(
                         nodes = loaded.node_count(),
@@ -1851,7 +1860,7 @@ impl MyceliumServer {
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
         let snap = root.join(".mycelium").join("index.rmp");
-        match Store::load(&snap) {
+        match Store::load_with_journal(&snap) {
             Err(e) => application_error(&serde_json::json!({ "error": e.to_string() })),
             Ok(loaded) => {
                 let nodes = loaded.node_count();
