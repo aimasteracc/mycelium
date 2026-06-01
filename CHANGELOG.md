@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a stable-tool-list policy that keeps dynamic tool hiding out of the first
   implementation unless a future RFC grants an explicit Three-Surface exception.
 
+- **RFC-0103 draft — import-aware cross-file reference resolution** — adds the
+  governance contract for Issue #381 before changing resolver semantics:
+  conservative per-edge bare-stub rewrites, import-evidence ranking, inheritance
+  correctness targets, watch-mode integration requirements, and ADR/migration
+  gates if new import-binding storage is introduced.
+
 - **RFC-0100 Phase 1 — `StorageBackend` + redb backend foundation** —
   introduces the feature-gated `redb-backend` storage path with an object-safe
   `StorageBackend` trait, `InMemoryBackend` oracle, redb key/tag helpers,
