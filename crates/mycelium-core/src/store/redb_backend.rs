@@ -486,6 +486,18 @@ impl RedbBackend {
         Ok(())
     }
 
+    fn clear_node_metadata_in(txn: &WriteTransaction, id: u64) -> Result<(), BackendError> {
+        {
+            let mut kind_tbl = txn.open_table(KIND_MAP).map_err(db_err)?;
+            kind_tbl.remove(id).map_err(db_err)?;
+        }
+        {
+            let mut span_tbl = txn.open_table(SPAN_MAP).map_err(db_err)?;
+            span_tbl.remove(id).map_err(db_err)?;
+        }
+        Ok(())
+    }
+
     fn set_kind_in(txn: &WriteTransaction, id: NodeId, kind: NodeKind) -> Result<(), BackendError> {
         let mut table = txn.open_table(KIND_MAP).map_err(db_err)?;
         table.insert(id.0, node_kind_tag(kind)).map_err(db_err)?;
@@ -674,6 +686,18 @@ impl RedbBackend {
 
         let txn = self.db.begin_write().map_err(db_err)?;
         let old_entry = Self::read_file_entry_in(&txn, file_path)?;
+        let retained_old_node_ids: BTreeSet<u64> = old_entry
+            .nodes
+            .iter()
+            .copied()
+            .filter(|old_node| new_node_ids.contains(old_node))
+            .collect();
+        let discarded_old_node_ids: Vec<u64> = old_entry
+            .nodes
+            .iter()
+            .copied()
+            .filter(|old_node| !new_node_ids.contains(old_node))
+            .collect();
 
         for old_edge in old_entry.edges {
             if let Some(kind) = tag_to_edge_kind(old_edge.kind) {
@@ -681,9 +705,12 @@ impl RedbBackend {
             }
         }
 
-        for old_node in old_entry.nodes {
+        for old_node in discarded_old_node_ids {
             Self::remove_node_edges_in(&txn, old_node)?;
             Self::remove_node_record_in(&txn, old_node)?;
+        }
+        for old_node in retained_old_node_ids {
+            Self::clear_node_metadata_in(&txn, old_node)?;
         }
 
         for node in nodes {

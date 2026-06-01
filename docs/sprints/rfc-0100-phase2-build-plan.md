@@ -168,6 +168,24 @@ Scope boundaries:
   Default-backend migration remains gated on the 100K redb run and follow-up
   write-amplification work.
 
+### P2-T05e progress marker — 2026-06-01
+
+The next replace-file correctness slice fixes the ownership boundary for
+external incoming edges. `RedbBackend::replace_file` now distinguishes old node
+ids that remain present in the replacement payload from stale old node ids:
+
+- stable old node ids keep external incoming edges owned by other files;
+- stale old node ids still have external references stripped so removed or
+  renamed symbols do not leave dangling graph edges;
+- stable old node metadata is cleared before new metadata is applied, so kind or
+  span removals do not leak from the previous version.
+
+This also reduces unnecessary replacement work for unchanged symbols, because
+the stale-node edge cleanup scans run only for node ids that actually disappear.
+On the local macOS/aarch64 criterion benchmark, the 10K-symbol redb
+single-file replacement mean improved from ~18.4 ms to ~9.70 ms after this
+change.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.
