@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PR #368 MCP instructions MERGED ✅ on develop; Issue #366 CLOSED ✅; PR #365 CI re-triggered (empty commit 6212c65, Windows transient); PR #367 Quality Gate SUCCESS stacked on #365; PR #369 replaced by this chore) |
-| Current sprint | **v0.1.15 — IN PROGRESS** |
-| Active release branch | none (v0.1.14 ceremony complete) |
-| Next release target | **v0.1.15** — RFC-0100 Unified Storage (redb Phase 1→4); security scan |
+| Last updated | 2026-06-01 (PM dispatch — PR #395 rebased + Skill added (architecture-context), awaiting CI; Issue #375 P0 ceremony escalated to founder) |
+| Current sprint | **v0.1.15 — CONTENT DONE; CEREMONY BROKEN (Issue #375)** |
+| Active release branch | none (release/v0.1.15 PRs #361/#362 closed unmerged — tag orphan) |
+| Next release target | **v0.1.16** — ceremony repair + PR #395 (mycelium_context + OutputBudget + import-aware stubs) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -57,42 +57,56 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
+## 🚀 v0.1.15 — CONTENT DONE; CEREMONY BROKEN (Issue #375)
+
+**Content shipped to develop (PRs #374–#394):**
+- [x] RFC-0100 governance guardrails + release secret config (#376, #377)
+- [x] RFC-0100 redb Phase 1: `StorageBackend` trait + `InMemoryBackend` + `RedbBackend` foundation
+- [x] RFC-0100 redb Phase 2: property equivalence, crash-safety, adjacency, file-scoped replacement, edge-count cache, RSS instrumentation, MCP watch persistence, SLA benchmarks (PRs #378-#394)
+- [x] RFC-0101/0102/0103 RFC drafts (PRs #385, #386, #387)
+- [x] MCP agent routing instructions strengthened (PR #384)
+
+**v0.1.15 ceremony status — BROKEN ⚠️:**
+- ❌ **Step 1**: `release/v0.1.15` → `main` — PR #361 CLOSED UNMERGED (release workflow created orphan tag)
+- ❌ **Step 2**: Tag `v0.1.15` exists but points to orphan commit not on main or develop
+- ❌ **Step 3**: GitHub Release published but at wrong commit
+- ❌ **Step 4**: `release/v0.1.15` → `develop` — PR #362 CLOSED UNMERGED
+- **Root cause**: `release.yml` used `cargo publish ... || true` masking CRATES_IO_TOKEN failures; tag created before main/develop merges. `crates.io` still at `0.1.10`.
+- **Decision gate (founder required)**: Repair v0.1.15 OR cut fresh v0.1.16. See Issue #375.
+
+---
+
 ## Live priorities (ordered)
 
-**P0: none** — v0.1.14 ceremony COMPLETE; queue healthy.
+**P0:**
+1. **Issue #375 — v0.1.15 ceremony BROKEN** (founder decision gate): Repair v0.1.15 OR supersede with v0.1.16. Dependencies: (a) configure/audit `CRATES_IO_TOKEN` in crates-io environment, (b) configure/audit `RELEASE_BOT_TOKEN`, (c) founder GPG-signed decision.
 
-**P1 (v0.1.15 sprint — RFC-0100 Unified Storage):**
-1. **RFC-0100 Phase 1 — PR #365** (`StorageBackend` trait + `InMemoryBackend` + `RedbBackend`): CI re-triggered this session (empty commit 6212c65 — transient Windows cancel). **Merge when new CI run is green.** Feature-flagged OFF (zero behavior change).
-2. **RFC-0100 Phase 2 T01 — PR #367** (equivalence harness — 12 matrix tests GREEN, Quality Gate ✅): Merge immediately after #365 lands.
-3. **RFC-0100 Phase 2 T03** (crash-safety tests — RED-first per ADR-0007 §6): Write crash-injection tests exposing two-separate-txn bug in `upsert_edge`. Next `rust-implementer` task.
-4. **Post-v0.1.15 security scan** — after RFC-0100 Phase 1 merges.
-
-**Done this session (v0.1.15):**
-- ✅ PR #368 MERGED (MCP server routing instructions — Issue #366 fix; develop HEAD f003f65)
-- ✅ Issue #366 CLOSED
-- ✅ PR #365 CI re-triggered (Windows transient cancel)
-- ✅ PR #369 superseded by this chore (was dirty/mergeable:false)
+**P1 (v0.1.16 scope):**
+2. **PR #395 — mycelium_context + OutputBudget + import-aware stubs**: Rebased onto develop (2026-06-01). `.claude/worktrees/` artifacts removed. `architecture-context` Skill added (I1 parity satisfied). Awaiting CI Quality Gate. **Merge when green.**
+3. **Post-v0.1.15 security scan** — pending ceremony resolution.
+4. **RFC-0101 Phase 2 — `mycelium context` CLI twin**: Issue #379 is open. CLI subcommand not yet implemented (I4 deferred). Tracked in RFC-0101 Phase 2. Assign to rust-implementer after PR #395 merges.
 
 **P2 (v0.2.0 scope):**
-6. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit before v0.2.0)
-7. Hyphae CLI end-to-end: `mycelium query "<selector>"` already implemented; needs e2e walkthrough validation
+5. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit — blocking every release since v0.1.6)
+6. R2 incremental persistence (#343) — founder decision gate if storage format changes
+7. R3 memory bound (#344) — measure RSS first; medium-high risk; gate behind feature flag
 8. Skill marketplace submission to Claude Code marketplace
 9. "First 5 minutes" walkthrough validation (README + docs site)
 
 ---
 
-## Dispatch state (2026-05-31, this run — PR #368 MERGED; Issue #366 CLOSED; PR #365 CI re-triggered; PR #367 awaiting #365)
+## Dispatch state (2026-06-01, this run — PR #395 rebased; Skill added; Issue #375 escalated)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED** | **(a) Systemic**: Audit `release.yml` finalize merge step — fix `RELEASE_BOT_TOKEN` before v0.2.0. **(b) PR #365**: Review RFC-0100 Phase 1 for merge when CI green (re-triggered this session — was transient Windows cancel). Feature-flagged OFF. |
-| release | **idle** | v0.1.14 ceremony COMPLETE (4/4 ✅). Next: v0.1.15 when sprint exits. |
-| rust-implementer | **NEXT** | RFC-0100 Phase 2 T03: crash-safety tests RED-first (ADR-0007 §6). Expose two-separate-txn atomicity bug in `upsert_edge` before T05 (WriteBatch fix). Branch from `feature/rfc0100-storage-trait-and-inmemory`. |
-| code-reviewer | **NEXT** | Review PR #365 (RFC-0100 Phase 1) — 7-table redb schema, 634 tests. Focus: `upsert_edge` atomicity (two-txn CRITICAL bug), adjacency sort, `flush()` no-op. |
-| security-reviewer | idle | Post-v0.1.15 scan after RFC-0100 Phase 1 merges. |
-| architect | idle | RFC-0100 superseded RFC-0098/0099. ADR-0007 Accepted. |
+| founder | **ACTION REQUIRED (P0)** | **(a) Issue #375**: Decide repair v0.1.15 or cut v0.1.16. Requires: `CRATES_IO_TOKEN` + `RELEASE_BOT_TOKEN` audit, GPG-signed decision on version. **(b) Systemic**: Fix `release.yml` before next release. **(c) RFC-0101 Phase 2**: Decide EXCEPTION: MCP-only for `mycelium_context` or authorize CLI twin implementation. |
+| release | **blocked** | Waiting on Issue #375 founder decision before cutting next release. |
+| rust-implementer | **NEXT** | RFC-0101 Phase 2: `mycelium context` CLI twin. TDD: write failing CLI integration test RED first, implement `crates/mycelium-cli/src/context.rs`, update `main.rs`. Branch from develop after PR #395 merges. |
+| code-reviewer | idle | Review PR #395 when CI goes green (newly rebased, 5 commits). |
+| security-reviewer | idle | Post-v0.1.15/v0.1.16 scan after ceremony resolves. |
+| architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | idle | RSS-curve measurement deferred — RFC-0100 mmap will bound memory; measuring old system is low-value. |
+| e2e-runner | idle | RSS-curve measurement — see Issue #344, benchmark harness exists (PR #391). |
 
 ---
 
@@ -118,6 +132,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-01 PM dispatch (this run — PR #395 rebased + architecture-context Skill; Issue #375 P0 escalated)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (stale — last updated 2026-05-31), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `d3cfaca` (PR #394 merged — RFC-0100 redb Phase 2 T06a SLA benchmarks). 20+ PRs merged since last PM state.
+- 1 open PR: #395 (`feature/mycelium-context-tool`, `mergeable_state: dirty`) — 3 new features: mycelium_context (90th MCP tool), OutputBudget, import-aware stub resolution. Three-Surface violation: MCP-only, no CLI twin, no Skill. Opened today 2026-06-01.
+- 3 open issues: #375 (v0.1.15 ceremony BROKEN — P0 founder gate), #343 (R2 persistence, founder gate), #344 (R3 memory, measurement first).
+- v0.1.15 ceremony status: BROKEN — `release.yml` used `|| true` on publish, CRATES_IO_TOKEN failures masked, orphan tag created before main/develop merges. PRs #361/#362 closed unmerged.
+
+**Actions taken:**
+1. **Rebased PR #395** onto develop HEAD (d3cfaca). Resolved two conflicts in `crates/mycelium-mcp/src/lib.rs`: (a) MCP_INSTRUCTIONS text (took feature branch's definitive version), (b) watch-loop structure (took develop's refactored version with extension filter via `source_extension()`).
+2. **Removed .claude/worktrees/ artifacts** from feature branch (two gitmodule subproject entries accidentally committed by Claude Code worktree feature).
+3. **Added `skills/architecture-context/SKILL.md`** covering `mcp__mycelium__context`. Satisfies RFC-0090 I1: parity check now 90/90 PASS (--strict).
+4. **Updated `skills/INDEX.md`** with `context` row (EXCEPTION: MCP-only pending BDFL sign-off, CLI tracked as RFC-0101 Phase 2).
+5. **Updated CHANGELOG Unreleased** with mycelium_context, OutputBudget, import-aware stubs, architecture-context Skill entries.
+6. **Force-pushed** to `feature/mycelium-context-tool` — PR #395 now clean, CI triggered.
+7. **Updated PM state** to reflect v0.1.15 content complete but ceremony broken, v0.1.16 scope.
+
+**Escalations:**
+- Issue #375 (P0): founder must decide repair v0.1.15 vs cut v0.1.16; audit CRATES_IO_TOKEN + RELEASE_BOT_TOKEN.
+- RFC-0101 Phase 2 (Three-Surface): `mycelium context` CLI twin needed; currently EXCEPTION: MCP-only pending BDFL sign-off.
 
 ### 2026-05-31 PM dispatch (this run — Issue #366 CLOSED; PR #365 CI re-triggered; PR #369 replaced)
 
