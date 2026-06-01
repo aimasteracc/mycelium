@@ -88,6 +88,17 @@ Please fill out the sections below. PRs without these fields may be auto-labeled
 - [ ] No forbidden dependencies introduced
 - [ ] Language-pack PRs: ≤ 3 files in `packs/<lang>/`, 0 changes in `crates/`
 
+## BDFL Override / Admin Merge
+
+<!-- Fill this out if the PR is merged with `gh pr merge --admin`. -->
+
+- [ ] N/A — normal review path
+- [ ] BDFL explicitly authorized the override in this PR, linked issue, or audited chat context
+- [ ] Bypassed gate named here: `review-count gate` / `other: ___`
+- [ ] Quality Gate is green before override.
+- [ ] `gh pr checks <number>` output reviewed immediately before merge
+- [ ] `.hive/memory/decisions.jsonl` entry will record the override, checks, and rationale
+
 ## Three-Surface Self-Check (Charter §5.13 / RFC-0090)
 
 <!-- Required for every `feat:` PR that adds/changes a capability.

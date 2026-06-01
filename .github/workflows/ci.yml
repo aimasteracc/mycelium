@@ -241,6 +241,18 @@ jobs:
       - name: Run Three-Surface parity checker (strict)
         run: python3 scripts/check_skill_parity.py --strict
 
+  governance:
+    name: governance guardrails
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run release and governance guardrail checks
+        run: |
+          bash scripts/test-release-prep.sh
+          bash scripts/test-release-workflow.sh
+          bash scripts/check_governance_guardrails.sh
+
   # ─────────────────────────────────────────────────────────────
   # The single required check.
   # Branch protection rules require this and ONLY this to be green.
@@ -259,6 +271,7 @@ jobs:
       - doc-build
       - dco-check
       - skill-parity
+      - governance
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -277,6 +290,7 @@ jobs:
             [doc-build]="${{ needs.doc-build.result }}"
             [dco-check]="${{ needs.dco-check.result }}"
             [skill-parity]="${{ needs.skill-parity.result }}"
+            [governance]="${{ needs.governance.result }}"
           )
           for k in "${!results[@]}"; do
             v="${results[$k]}"

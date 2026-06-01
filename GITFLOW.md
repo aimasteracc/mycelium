@@ -87,6 +87,32 @@ PRs to `develop` require:
 - DCO sign-off on every commit
 - Linked RFC reference if non-trivial
 
+### Admin Merge Override Protocol
+
+Admin merge may bypass a review-count gate only after Quality Gate is green.
+It is a BDFL override of human review latency, not a substitute for CI,
+DCO, release registry checks, or unresolved correctness concerns.
+
+Allowed use:
+
+- The BDFL explicitly authorizes the override in the PR, linked issue, or
+  current audited chat context.
+- The bypassed gate is named, for example `review-count gate`.
+- `gh pr checks <number>` shows every required check as `pass`, `skipped`, or
+  intentionally non-required.
+- The merge method preserves DCO evidence. Prefer merge commits for admin
+  overrides unless the squash body is known to retain `Signed-off-by:`.
+- The operator appends a `.hive/memory/decisions.jsonl` entry recording the
+  PR number, checks observed, bypassed gate, and rationale.
+
+Forbidden use:
+
+- Bypassing red, pending, or expired CI.
+- Bypassing the release gate for `release/*` -> `main`; Charter §5.12 has
+  no chat-based exception for red release CI.
+- Using admin merge to hide unresolved requested changes, missing RFCs, or
+  missing release/registry evidence.
+
 ### 2. Release Process (Registry-First)
 
 > **Release-gate rule (Charter §5.12, added 2026-05-30):** a `release/*`
@@ -97,6 +123,28 @@ PRs to `develop` require:
 > a substitute for green CI on release branches. This rule was added
 > after the v0.1.4 saga where red-CI admin-merges shipped broken
 > Windows binaries; the founder flagged it with "CI 错误".
+
+### Incomplete Release Incident Response
+
+A public tag or GitHub Release is not proof that a release completed. The
+release is complete only when all four ceremony steps in Charter §5.12 are
+true: release branch merged to `main`, tag pushed, all five crates published
+to crates.io, and release branch back-merged to `develop`.
+
+If a tag, GitHub Release, or registry artifact exists while any ceremony step
+is missing:
+
+1. Stop release activity immediately; do not cut a new release until the
+   incomplete one has an owner and issue.
+2. Verify branch reachability with `git merge-base --is-ancestor vX.Y.Z
+   origin/main` and `origin/develop`.
+3. Verify registry state for all five `mycelium-rcig-*` crates.
+4. Do not delete, retarget, or recreate public tags/releases without explicit
+   founder approval; prefer a superseding patch version once automation is
+   fixed if the public artifact already escaped.
+5. File or update an issue with the exact missing ceremony steps and append a
+   `.hive/memory/decisions.jsonl` entry.
+6. Fix the automation or credential problem before any retry.
 
 
 ```bash
@@ -127,16 +175,20 @@ git push origin release/v0.1.0
 #     (crates.io → npm → PyPI). If any fails, fix on the release
 #     branch and re-push. DO NOT proceed until all green.
 
-# 2e. After all registries confirm, merge to main and tag
+# 2e. After all registries confirm, merge to main and back-merge develop
 git checkout main
 git merge --no-ff release/v0.1.0
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin main --tags
+git push origin main
 
-# 2f. Merge back to develop
 git checkout develop
 git merge --no-ff release/v0.1.0
 git push origin develop
+
+# 2f. Tag the main commit after both branch merges succeed
+git checkout main
+git pull --ff-only origin main
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
 
 # 2g. Create GitHub Release with auto-generated notes
 gh release create v0.1.0 \

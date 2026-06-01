@@ -15,6 +15,17 @@ crates.io, npm, and PyPI publishing. Update changelog. Cut tag. Announce.
 
 Ship the artifact safely across all three registries, then close the loop on git and announcements.
 
+## Release Completion Invariant
+
+A release is not complete because a tag or GitHub Release exists. It is
+complete only when the four-step Charter §5.12 ceremony is true: release
+branch merged to `main`, tag pushed, all five crates visible on crates.io,
+and the release branch back-merged to `develop`.
+
+If a public tag or GitHub Release exists before all four steps are true,
+halt release work, file or update the repair issue, and escalate to the
+founder before deleting, retargeting, or recreating any public artifact.
+
 ## Workflow (Release)
 
 1. Pre-flight.
@@ -23,19 +34,19 @@ Ship the artifact safely across all three registries, then close the loop on git
 4. Verify Security agent has signed off on the release commit.
 5. Verify Bench agent confirmed no SLA regression.
 6. Sequence the publish (registry-first per GITFLOW):
-   1. `cargo publish -p mycelium-core --dry-run` — sanity
-   2. `cargo publish -p mycelium-core` — wait for index
-   3. Repeat for `mycelium-hyphae`, `mycelium-pack`, `mycelium-cli`, `mycelium-mcp` in dependency order
+   1. `cargo publish -p mycelium-rcig-pack --dry-run` — sanity
+   2. `cargo publish -p mycelium-rcig-pack` — wait for index
+   3. Repeat for `mycelium-rcig-core`, `mycelium-rcig-hyphae`,
+      `mycelium-rcig-mcp`, `mycelium-rcig-cli` in dependency order
    4. `npm publish --provenance` for bindings/node
    5. `maturin publish` (via Trusted Publishers OIDC) for bindings/python
 7. Verify on each registry that the version is fetchable.
 8. If any publish fails, **stop**, do not merge to main, file issue, escalate to founder.
 9. After all green:
    - Merge release branch to `main` with `--no-ff`
-   - Tag `vX.Y.Z` with annotated message
-   - Push `main --tags`
    - Merge release branch to `develop` with `--no-ff`
-   - Push `develop`
+   - Tag `vX.Y.Z` on the merged `main` commit with an annotated message
+   - Push `main`, `develop`, and the tag
 10. Create GitHub Release with auto-generated notes (from CHANGELOG).
 11. Delete release branch (local and remote).
 12. Announce:
