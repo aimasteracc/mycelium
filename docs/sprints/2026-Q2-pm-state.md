@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-01 (PM dispatch — PR #395 rebased + Skill added (architecture-context), awaiting CI; Issue #375 P0 ceremony escalated to founder) |
+| Last updated | 2026-06-01 (PM dispatch — PR #395 test fixed (1 failing assert), CI re-running; PRs #397-#401 merged (5 CI action bumps); PRs #402-#404 red (redb/logos/salsa — need RFC/analysis)) |
 | Current sprint | **v0.1.15 — CONTENT DONE; CEREMONY BROKEN (Issue #375)** |
 | Active release branch | none (release/v0.1.15 PRs #361/#362 closed unmerged — tag orphan) |
 | Next release target | **v0.1.16** — ceremony repair + PR #395 (mycelium_context + OutputBudget + import-aware stubs) |
@@ -82,9 +82,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 1. **Issue #375 — v0.1.15 ceremony BROKEN** (founder decision gate): Repair v0.1.15 OR supersede with v0.1.16. Dependencies: (a) configure/audit `CRATES_IO_TOKEN` in crates-io environment, (b) configure/audit `RELEASE_BOT_TOKEN`, (c) founder GPG-signed decision.
 
 **P1 (v0.1.16 scope):**
-2. **PR #395 — mycelium_context + OutputBudget + import-aware stubs**: Rebased onto develop (2026-06-01). `.claude/worktrees/` artifacts removed. `architecture-context` Skill added (I1 parity satisfied). Awaiting CI Quality Gate. **Merge when green.**
+2. **PR #395 — mycelium_context + OutputBudget + import-aware stubs**: Rebased onto develop (2026-06-01). `architecture-context` Skill added (I1 parity satisfied). Test fix pushed (2026-06-01): `get_info_includes_primary_tool_selection_rules` — item-1 label aligned with test assertion + header bumped 89→90. CI re-running. **Merge when green.**
 3. **Post-v0.1.15 security scan** — pending ceremony resolution.
 4. **RFC-0101 Phase 2 — `mycelium context` CLI twin**: Issue #379 is open. CLI subcommand not yet implemented (I4 deferred). Tracked in RFC-0101 Phase 2. Assign to rust-implementer after PR #395 merges.
+
+**Maintenance (merged this run):**
+- PRs #397–#401: CI action bumps (softprops/action-gh-release 2→3, checkout 4→6, upload-artifact 4→7, setup-python 5→6, stale 9→10) — all 5 merged ✅
+
+**Deferred dependency bumps (red CI, needs RFC/analysis):**
+- PR #402: redb 2.6.3→4.1.0 — clippy + docs failure; redb 4.x is a major API break
+- PR #403: logos 0.14.4→0.16.1 — clippy + unit test failures
+- PR #404: salsa 0.18.0→0.26.2 — clippy + unit + dogfood failures; salsa 0.26 is 8 major versions ahead; needs RFC before adopting
 
 **P2 (v0.2.0 scope):**
 5. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit — blocking every release since v0.1.6)
@@ -95,7 +103,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-01, this run — PR #395 rebased; Skill added; Issue #375 escalated)
+## Dispatch state (2026-06-01, this run — PR #395 test fixed; PRs #397-#401 merged; dep bumps triaged)
 
 | Agent | Status | Current item |
 |---|---|---|
@@ -133,7 +141,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-01 PM dispatch (this run — PR #395 rebased + architecture-context Skill; Issue #375 P0 escalated)
+### 2026-06-01 PM dispatch (this run — PR #395 test fixed; PRs #397-#401 merged; dep bumps triaged)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (from PR #396 — v0.1.15 ceremony broken), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `dc3e521` (PR #396 — PM dispatch chore from previous session today).
+- 9 open PRs: #395 (feature, CI failing), #397-#404 (7 dependabot bumps). 3 open issues: #375 (P0), #343/#344 (P1).
+- CI action bumps #397-#401: all Quality Gate SUCCESS — safe to merge.
+- Dep bumps #402-#404 (redb/logos/salsa): red CI — API breaking changes, need RFC.
+- PR #395: 1 failing test `server_info_tests::get_info_includes_primary_tool_selection_rules`. Root cause: item-1 label in `MCP_INSTRUCTIONS_BASE` used unquoted `How does X work /` but test asserted `"\"How does X work?\""` (literal quotes + `?`). Also header said "89 tools" vs actual 90.
+
+**Actions taken:**
+1. **Fixed PR #395 test failure**: changed `MCP_INSTRUCTIONS_BASE` item-1 label to `\"How does X work?\"` + header 89→90. Confirmed RED→GREEN locally (all 566 tests pass, fmt+clippy clean). Pushed to `feature/mycelium-context-tool`.
+2. **Merged PRs #397/#398/#399/#400/#401** (5 CI action bumps, all Quality Gate green): checkout 4→6, upload-artifact 4→7, setup-python 5→6, stale 9→10, action-gh-release 2→3.
+3. **Triaged deferred dep bumps** (#402 redb 4.x, #403 logos 0.16, #404 salsa 0.26): all red CI. Salsa 0.26 is the riskiest — 8 major versions ahead, core reactivity layer; needs dedicated RFC before adopting.
+4. Updated PM state + appended decisions.jsonl.
+
+**Escalations:** Issue #375 remains P0 (founder: decide repair v0.1.15 or cut v0.1.16). Salsa/redb/logos bumps need RFC/analysis before adoption.
+
+### 2026-06-01 PM dispatch (previous run — PR #395 rebased + architecture-context Skill; Issue #375 P0 escalated)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (stale — last updated 2026-05-31), v0.2 PRD.
 
