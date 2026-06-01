@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   natural-language candidate extraction, bounded graph expansion, source-snippet
   budgets, NOT_FOUND behavior, and RED-first acceptance tests.
 
+- **RFC-0102 draft — adaptive output budgets** — adds the governance contract
+  for Issue #380 before response-contract changes: shared CLI/MCP output
+  budgets, visible truncation metadata, structured truncation before formatting,
+  and a stable-tool-list policy that keeps dynamic tool hiding out of the first
+  implementation unless a future RFC grants an explicit Three-Surface exception.
+
 - **RFC-0100 Phase 1 — `StorageBackend` + redb backend foundation** —
   introduces the feature-gated `redb-backend` storage path with an object-safe
   `StorageBackend` trait, `InMemoryBackend` oracle, redb key/tag helpers,
