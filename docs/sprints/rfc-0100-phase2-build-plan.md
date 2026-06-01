@@ -119,6 +119,25 @@ Scope boundaries:
   is not triggered in this slice.
 - O(changed-file) watch benchmarks and default-backend migration remain open.
 
+### P2-T05d progress marker — 2026-06-01
+
+The fourth P2-T05 implementation slice wires the MCP watch persistence path to
+redb behind a new `mycelium-mcp/redb-backend` cargo feature. With that feature
+enabled, `with_root` prefers `.mycelium/index.redb` over the legacy
+`.mycelium/index.rmp`, imports the initial loaded or live-indexed in-memory
+graph into redb, and persists watch batches by calling
+`RedbBackend::replace_file_from_store` for each changed source file. The
+default build still uses MessagePack snapshots.
+
+Scope boundaries:
+
+- This is an internal cargo-feature storage path, not a new CLI command or MCP
+  tool, so the Three-Surface Rule is not triggered.
+- `RedbBackend::replace_file_from_store` now reads the file subtree via
+  `Store::descendants` rather than scanning every path in the graph.
+- Large-repo O(changed-file) benchmarks, default-backend migration, and the
+  public `migrate` CLI/MCP/Skill surface remain open.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.

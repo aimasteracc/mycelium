@@ -97,6 +97,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gives watch-mode wiring a small core bridge toward O(changed-file)
   persistence without changing CLI/MCP surfaces yet.
 
+- **RFC-0100 Phase 2 T05d — feature-gated MCP redb watch persistence** —
+  `mycelium-mcp` now exposes a `redb-backend` cargo feature that loads
+  `.mycelium/index.redb` before legacy `.mycelium/index.rmp`, imports the
+  initial in-memory graph into redb, and persists watch batches by replacing
+  only changed source files through `RedbBackend::replace_file_from_store`.
+  The default build remains on legacy MessagePack snapshots.
+
 ### Fixed
 
 - **Release pipeline hardening** — release prep now updates internal
