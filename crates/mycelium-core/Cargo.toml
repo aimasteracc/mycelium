@@ -63,3 +63,8 @@ required-features = []
 name    = "heavy_graph"
 harness = false
 required-features = []
+
+[[bench]]
+name    = "redb_incremental_persistence"
+harness = false
+required-features = ["redb-backend"]
