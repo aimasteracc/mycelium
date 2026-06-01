@@ -130,6 +130,9 @@ const fn tag_to_node_kind(tag: u8) -> Option<NodeKind> {
 // ── helper: pack/unpack adjacency lists ──────────────────────────────────────
 
 fn pack_ids(ids: &[u64]) -> Vec<u8> {
+    let mut ids = ids.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
     ids.iter().flat_map(|id| id.to_be_bytes()).collect()
 }
 
@@ -870,6 +873,44 @@ mod crash_safety_tests {
             !dangling_rev || fwd_has,
             "CRITICAL-2: dangling rev pointer — incoming(40) contains 30 \
              even though outgoing(30) no longer contains 40"
+        );
+    }
+
+    /// P2-T05/T02 invariant: persisted adjacency lists are canonical, sorted
+    /// sets, not insertion-order vectors. Public readers sort defensively, so
+    /// this checks the raw redb representation used for reopen/diff stability.
+    #[test]
+    fn redb_stores_adjacency_lists_sorted_on_disk() {
+        let dir = tempdir().expect("tempdir");
+        let descending_path = dir.path().join("sorted_adjacency_desc.redb");
+        let ascending_path = dir.path().join("sorted_adjacency_asc.redb");
+
+        {
+            let mut b = open_at(&descending_path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(30));
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(20));
+            b.upsert_edge(EdgeKind::Calls, NodeId(30), NodeId(40));
+            b.upsert_edge(EdgeKind::Calls, NodeId(20), NodeId(40));
+        }
+        {
+            let mut b = open_at(&ascending_path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(20));
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(30));
+            b.upsert_edge(EdgeKind::Calls, NodeId(20), NodeId(40));
+            b.upsert_edge(EdgeKind::Calls, NodeId(30), NodeId(40));
+        }
+
+        let descending = open_at(&descending_path);
+        let ascending = open_at(&ascending_path);
+        assert_eq!(descending.read_fwd(EdgeKind::Calls, 10), vec![20, 30]);
+        assert_eq!(descending.read_rev(EdgeKind::Calls, 40), vec![20, 30]);
+        assert_eq!(
+            descending.read_fwd(EdgeKind::Calls, 10),
+            ascending.read_fwd(EdgeKind::Calls, 10)
+        );
+        assert_eq!(
+            descending.read_rev(EdgeKind::Calls, 40),
+            ascending.read_rev(EdgeKind::Calls, 40)
         );
     }
 }
