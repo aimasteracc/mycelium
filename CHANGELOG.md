@@ -83,6 +83,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the replacement index in one redb write transaction. This advances Issue #343
   without flipping the default backend or adding CLI/MCP surface yet.
 
+- **RFC-0100 Phase 2 T05b — redb edge-count metadata cache** —
+  `RedbBackend` now persists a deduplicated `edge_count` value in the redb
+  `meta` table and updates it inside the same write transactions that mutate
+  adjacency. This removes the O(E) scan from `edge_count()` and the
+  `heap_size_estimate()` edge path while keeping the backend feature-gated off
+  by default.
+
 ### Fixed
 
 - **Release pipeline hardening** — release prep now updates internal

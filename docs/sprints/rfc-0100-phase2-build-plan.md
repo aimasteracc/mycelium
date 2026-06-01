@@ -84,6 +84,24 @@ Scope boundaries:
   migration command, so the Three-Surface Rule is not triggered in this slice.
 - Watch-mode wiring and large-repo O(changed-file) benchmarks remain open.
 
+### P2-T05b progress marker — 2026-06-01
+
+The second P2-T05 implementation slice caches `edge_count` in the redb `meta`
+table and updates it inside the same transactions as `upsert_edge`,
+`remove_node_edges`, `remove_edge`, and `replace_file`-driven stale-reference
+cleanup. Existing schema-v2 databases opened through `RedbBackend::open` seed
+the key from one compatibility scan; `open_existing` callers fall back to the
+scan until a write transaction creates the metadata key.
+
+Scope boundaries:
+
+- This fixes the P2 finding that `edge_count()` and the edge portion of
+  `heap_size_estimate()` performed O(E) scans.
+- It does not close Issue #343 or Issue #344 by itself; watch-mode wiring,
+  write batching, and large-repo SLA/memory proof remain open.
+- The default backend remains unchanged and `redb-backend` remains feature-gated
+  off by default.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.

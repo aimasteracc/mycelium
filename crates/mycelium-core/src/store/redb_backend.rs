@@ -50,6 +50,8 @@ const META: TableDefinition<'_, &str, u64> = TableDefinition::new("meta");
 
 /// Current schema version written into the `meta` table on first open.
 const SCHEMA_VERSION: u64 = 2;
+const META_SCHEMA_VERSION: &str = "schema_version";
+const META_EDGE_COUNT: &str = "edge_count";
 
 // ── file-scoped replacement payloads ─────────────────────────────────────────
 
@@ -279,12 +281,12 @@ impl RedbBackend {
             txn.open_table(SYNAPSE_REV).map_err(db_err)?;
             txn.open_table(FILE_INDEX).map_err(db_err)?;
             let mut meta = txn.open_table(META).map_err(db_err)?;
-            if meta.get("schema_version").map_err(db_err)?.is_none() {
-                meta.insert("schema_version", SCHEMA_VERSION)
+            if meta.get(META_SCHEMA_VERSION).map_err(db_err)?.is_none() {
+                meta.insert(META_SCHEMA_VERSION, SCHEMA_VERSION)
                     .map_err(db_err)?;
             } else {
                 let stored = meta
-                    .get("schema_version")
+                    .get(META_SCHEMA_VERSION)
                     .map_err(db_err)?
                     .map_or(0, |g| g.value());
                 if stored != SCHEMA_VERSION {
@@ -293,6 +295,10 @@ impl RedbBackend {
                         supported: u32::try_from(SCHEMA_VERSION).unwrap_or(u32::MAX),
                     });
                 }
+            }
+            if meta.get(META_EDGE_COUNT).map_err(db_err)?.is_none() {
+                let edge_count = Self::scan_edge_count_in(&txn)?;
+                meta.insert(META_EDGE_COUNT, edge_count).map_err(db_err)?;
             }
         }
         txn.commit().map_err(db_err)?;
@@ -304,7 +310,7 @@ impl RedbBackend {
         {
             let meta = txn.open_table(META).map_err(db_err)?;
             let stored = meta
-                .get("schema_version")
+                .get(META_SCHEMA_VERSION)
                 .map_err(db_err)?
                 .map_or(0, |g| g.value());
             if stored != SCHEMA_VERSION {
@@ -348,6 +354,55 @@ impl RedbBackend {
         if let Err(error) = result {
             self.remember_error(error);
         }
+    }
+
+    fn read_meta_u64_in(txn: &WriteTransaction, key: &str) -> Result<Option<u64>, BackendError> {
+        let table = txn.open_table(META).map_err(db_err)?;
+        table
+            .get(key)
+            .map_err(db_err)
+            .map(|value| value.map(|guard| guard.value()))
+    }
+
+    fn write_meta_u64_in(
+        txn: &WriteTransaction,
+        key: &str,
+        value: u64,
+    ) -> Result<(), BackendError> {
+        let mut table = txn.open_table(META).map_err(db_err)?;
+        table.insert(key, value).map_err(db_err)?;
+        Ok(())
+    }
+
+    fn scan_edge_count_in(txn: &WriteTransaction) -> Result<u64, BackendError> {
+        let table = txn.open_table(SYNAPSE_FWD).map_err(db_err)?;
+        let iter = table.iter().map_err(db_err)?;
+        let mut total = 0u64;
+        for entry in iter {
+            let (_, value) = entry.map_err(db_err)?;
+            let len = u64::try_from(unpack_ids(value.value()).len()).unwrap_or(u64::MAX);
+            total = total.saturating_add(len);
+        }
+        Ok(total)
+    }
+
+    fn adjust_edge_count_in(txn: &WriteTransaction, delta: i64) -> Result<(), BackendError> {
+        let Some(current) = Self::read_meta_u64_in(txn, META_EDGE_COUNT)? else {
+            return Self::write_meta_u64_in(txn, META_EDGE_COUNT, Self::scan_edge_count_in(txn)?);
+        };
+        let next = if delta.is_negative() {
+            current.saturating_sub(delta.unsigned_abs())
+        } else {
+            current.saturating_add(delta.unsigned_abs())
+        };
+        Self::write_meta_u64_in(txn, META_EDGE_COUNT, next)
+    }
+
+    fn read_edge_count_meta(&self) -> Option<usize> {
+        let txn = self.db.begin_read().ok()?;
+        let table = txn.open_table(META).ok()?;
+        let value = table.get(META_EDGE_COUNT).ok()??.value();
+        Some(usize::try_from(value).unwrap_or(usize::MAX))
     }
 
     fn allocated_page_bytes(&self) -> Option<usize> {
@@ -505,7 +560,8 @@ impl RedbBackend {
         dst: u64,
     ) -> Result<(), BackendError> {
         let mut fwd = Self::read_fwd_in(txn, kind, src)?;
-        if !fwd.contains(&dst) {
+        let inserted = !fwd.contains(&dst);
+        if inserted {
             fwd.push(dst);
             Self::write_fwd_in(txn, kind, src, &fwd)?;
         }
@@ -515,6 +571,9 @@ impl RedbBackend {
             rev.push(src);
             Self::write_rev_in(txn, kind, dst, &rev)?;
         }
+        if inserted {
+            Self::adjust_edge_count_in(txn, 1)?;
+        }
         Ok(())
     }
 
@@ -523,6 +582,7 @@ impl RedbBackend {
             let dsts = Self::read_fwd_in(txn, kind, id)?;
             if !dsts.is_empty() {
                 Self::write_fwd_in(txn, kind, id, &[])?;
+                Self::adjust_edge_count_in(txn, -i64::try_from(dsts.len()).unwrap_or(i64::MAX))?;
                 for dst in dsts {
                     let mut rev = Self::read_rev_in(txn, kind, dst)?;
                     rev.retain(|&src| src != id);
@@ -535,8 +595,16 @@ impl RedbBackend {
                 Self::write_rev_in(txn, kind, id, &[])?;
                 for src in srcs {
                     let mut fwd = Self::read_fwd_in(txn, kind, src)?;
+                    let before = fwd.len();
                     fwd.retain(|&dst| dst != id);
+                    let removed = before.saturating_sub(fwd.len());
                     Self::write_fwd_in(txn, kind, src, &fwd)?;
+                    if removed > 0 {
+                        Self::adjust_edge_count_in(
+                            txn,
+                            -i64::try_from(removed).unwrap_or(i64::MAX),
+                        )?;
+                    }
                 }
             }
         }
@@ -550,12 +618,16 @@ impl RedbBackend {
         dst: u64,
     ) -> Result<(), BackendError> {
         let mut fwd = Self::read_fwd_in(txn, kind, src)?;
+        let existed = fwd.contains(&dst);
         fwd.retain(|&old_dst| old_dst != dst);
         Self::write_fwd_in(txn, kind, src, &fwd)?;
 
         let mut rev = Self::read_rev_in(txn, kind, dst)?;
         rev.retain(|&old_src| old_src != src);
         Self::write_rev_in(txn, kind, dst, &rev)?;
+        if existed {
+            Self::adjust_edge_count_in(txn, -1)?;
+        }
         Ok(())
     }
 
@@ -933,6 +1005,9 @@ impl StorageBackend for RedbBackend {
     }
 
     fn edge_count(&self) -> usize {
+        if let Some(count) = self.read_edge_count_meta() {
+            return count;
+        }
         let Ok(txn) = self.db.begin_read() else {
             return 0;
         };
@@ -994,6 +1069,24 @@ mod crash_safety_tests {
 
     fn open_at(path: &std::path::Path) -> RedbBackend {
         RedbBackend::open(path).expect("open redb")
+    }
+
+    fn meta_edge_count(backend: &RedbBackend) -> Option<u64> {
+        let txn = backend.db.begin_read().expect("begin read");
+        let table = txn.open_table(META).expect("open meta");
+        table
+            .get("edge_count")
+            .expect("read edge_count")
+            .map(|g| g.value())
+    }
+
+    fn remove_meta_edge_count(backend: &RedbBackend) {
+        let txn = backend.db.begin_write().expect("begin write");
+        {
+            let mut table = txn.open_table(META).expect("open meta");
+            table.remove(META_EDGE_COUNT).expect("remove edge_count");
+        }
+        txn.commit().expect("commit");
     }
 
     /// T03-C1: `upsert_edge` two-txn atomicity gap.
@@ -1154,5 +1247,107 @@ mod crash_safety_tests {
             descending.read_rev(EdgeKind::Calls, 40),
             ascending.read_rev(EdgeKind::Calls, 40)
         );
+    }
+
+    /// P2-T05 follow-up: `edge_count` must be O(1) metadata, not an O(E) scan of
+    /// `synapse_fwd`. The meta key is the physical invariant that lets
+    /// `heap_size_estimate()` and SLA tests avoid scanning the whole graph.
+    #[test]
+    fn redb_meta_edge_count_tracks_deduped_writes_and_reopen() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("edge_count_meta_writes.redb");
+
+        {
+            let mut b = open_at(&path);
+            assert_eq!(meta_edge_count(&b), Some(0));
+
+            b.upsert_edge(EdgeKind::Calls, NodeId(1), NodeId(2));
+            b.upsert_edge(EdgeKind::Calls, NodeId(1), NodeId(2));
+            b.upsert_edge(EdgeKind::Imports, NodeId(1), NodeId(3));
+
+            assert_eq!(b.edge_count(), 2);
+            assert_eq!(meta_edge_count(&b), Some(2));
+        }
+
+        let reopened = open_at(&path);
+        assert_eq!(reopened.edge_count(), 2);
+        assert_eq!(meta_edge_count(&reopened), Some(2));
+    }
+
+    #[test]
+    fn redb_meta_edge_count_tracks_removal_and_replace_file() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("edge_count_meta_remove.redb");
+        let mut b = open_at(&path);
+
+        b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(20));
+        b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(30));
+        assert_eq!(meta_edge_count(&b), Some(2));
+
+        b.remove_node_edges(NodeId(10));
+        assert_eq!(b.edge_count(), 0);
+        assert_eq!(meta_edge_count(&b), Some(0));
+
+        b.replace_file(
+            "src/a.rs",
+            &[FileNode {
+                path: "src/a.rs>A".to_owned(),
+                kind: Some(NodeKind::Struct),
+                span: None,
+            }],
+            &[],
+        )
+        .expect("insert a");
+        b.replace_file(
+            "src/b.rs",
+            &[FileNode {
+                path: "src/b.rs>B".to_owned(),
+                kind: Some(NodeKind::Function),
+                span: None,
+            }],
+            &[FileEdge {
+                kind: EdgeKind::References,
+                src: path_to_node_id("src/b.rs>B"),
+                dst: path_to_node_id("src/a.rs>A"),
+            }],
+        )
+        .expect("insert b with external edge");
+        assert_eq!(b.edge_count(), 1);
+        assert_eq!(meta_edge_count(&b), Some(1));
+
+        b.replace_file(
+            "src/a.rs",
+            &[FileNode {
+                path: "src/a.rs>A2".to_owned(),
+                kind: Some(NodeKind::Struct),
+                span: None,
+            }],
+            &[],
+        )
+        .expect("replace a strips external edge");
+        assert_eq!(b.edge_count(), 0);
+        assert_eq!(meta_edge_count(&b), Some(0));
+    }
+
+    #[test]
+    fn redb_open_existing_without_edge_count_meta_seeds_from_current_graph_on_write() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("edge_count_meta_legacy.redb");
+
+        {
+            let mut b = open_at(&path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(1), NodeId(2));
+            assert_eq!(b.edge_count(), 1);
+            remove_meta_edge_count(&b);
+            assert_eq!(meta_edge_count(&b), None);
+        }
+
+        let mut reopened = RedbBackend::open_existing(&path).expect("open existing redb");
+        assert_eq!(reopened.edge_count(), 1);
+        assert_eq!(meta_edge_count(&reopened), None);
+
+        reopened.upsert_edge(EdgeKind::Calls, NodeId(2), NodeId(3));
+        assert_eq!(reopened.edge_count(), 2);
+        assert_eq!(meta_edge_count(&reopened), Some(2));
     }
 }
