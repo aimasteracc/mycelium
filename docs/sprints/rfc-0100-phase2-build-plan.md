@@ -48,6 +48,23 @@ Phase-1 durability claim didn't hold.
 | 5 | **P2-T04** | Memory-ceiling / heap-win proof (the R3 win). Needs a **real allocator stat** (dhat/jemalloc) — the current `nodes*256+edges*24` heuristic measures a formula, not heap. | Needs T01 equivalence guard + T05 batch (else 700K fsyncs = minutes). |
 | 6 | **P2-T06** | criterion bench + Linux-gated SLA `#[test]` (`tests/redb_sla.rs`): cold lookup `<5ms`, 3-hop `<1ms`. macOS cold numbers advisory-only (page-cache, per T1 spike). criterion never gates CI. | Needs T05 for a non-pathological write number. |
 
+### P2-T04 progress marker — 2026-06-01
+
+The first P2-T04 implementation slice replaces the `RedbBackend` memory
+estimate's in-memory formula with redb allocated-page accounting from
+`WriteTransaction::stats()` and adds opt-in redb RSS/page-footprint measurements
+to `crates/mycelium-core/tests/sla_memory_curve.rs`. It also adds
+`crates/mycelium-core/tests/redb_memory_ceiling.rs`, an ignored Linux-only
+child-process RSS comparison scaffold for the later hard cap/OOM gate.
+
+Scope boundaries:
+
+- This is a measurement foundation, not the full #344 closure.
+- `redb-backend` remains feature-gated off by default.
+- Full 10K/100K/500K proof and the "InMemory crosses cap while redb stays
+  under cap" gate remain open until the batched/file-scoped write path avoids
+  per-operation fsync costs.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.

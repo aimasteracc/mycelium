@@ -110,7 +110,9 @@ pub trait StorageBackend: Send + Sync {
     /// Estimated heap bytes consumed by the backend's in-memory structures.
     ///
     /// For `InMemoryBackend` this is the same heuristic as `Store::heap_size_estimate`.
-    /// For `RedbBackend` this returns the mmap resident size.
+    /// For `RedbBackend` this reports the redb allocated mmap/storage page
+    /// footprint so memory-curve tests can compare formula estimates with real
+    /// backend accounting.
     fn heap_size_estimate(&self) -> usize;
 
     // ── persistence ────────────────────────────────────────────────────────

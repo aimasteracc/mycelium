@@ -285,6 +285,14 @@ impl RedbBackend {
         }
     }
 
+    fn allocated_page_bytes(&self) -> Option<usize> {
+        let txn = self.db.begin_write().ok()?;
+        let stats = txn.stats().ok()?;
+        let page_size = u64::try_from(stats.page_size()).unwrap_or(u64::MAX);
+        let bytes = stats.allocated_pages().saturating_mul(page_size);
+        Some(usize::try_from(bytes).unwrap_or(usize::MAX))
+    }
+
     fn try_upsert_node(&self, path: &str) -> Result<NodeId, BackendError> {
         if crate::trunk::TrunkPath::parse(path).is_err() {
             return Ok(NodeId::NULL);
@@ -730,9 +738,11 @@ impl StorageBackend for RedbBackend {
     }
 
     fn heap_size_estimate(&self) -> usize {
-        let nodes = self.node_count();
-        let edges = self.edge_count();
-        nodes * 256 + edges * 24
+        self.allocated_page_bytes().unwrap_or_else(|| {
+            let nodes = self.node_count();
+            let edges = self.edge_count();
+            nodes * 256 + edges * 24
+        })
     }
 
     fn flush(&mut self) -> Result<(), BackendError> {
