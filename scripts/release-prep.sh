@@ -17,6 +17,21 @@ fi
 
 echo "Preparing release v$VERSION ($TODAY)..."
 
+update_version_pin() {
+    file="$1"
+    pattern="$2"
+
+    [ -f "$file" ] || return 0
+
+    awk -v v="$VERSION" -v p="$pattern" '
+        $0 ~ p {
+            sub(/version = "[^"]+"/, "version = \"" v "\"")
+        }
+        { print }
+    ' "$file" > "$file.new"
+    mv "$file.new" "$file"
+}
+
 # 1. Update CHANGELOG.md: move [Unreleased] to [vX.Y.Z]
 if [ -f CHANGELOG.md ]; then
     # Insert a new release header above the Unreleased section
@@ -43,9 +58,14 @@ if [ -f CHANGELOG.md ]; then
     echo "  ✓ .release-notes.md generated"
 fi
 
-# 3. Verify Cargo.toml has the version
+# 3. Update internal crate dependency pins used by cargo publish.
+update_version_pin Cargo.toml '^mycelium-(core|hyphae|pack)[[:space:]]*='
+update_version_pin crates/mycelium-cli/Cargo.toml '^mycelium-mcp[[:space:]]*='
+echo "  ✓ internal crate dependency pins updated"
+
+# 4. Verify Cargo.toml has the version
 if [ -f Cargo.toml ]; then
-    CARGO_VERSION=$(grep -m1 '^version =' Cargo.toml | sed -E 's/version = "(.*)"/\1/' || true)
+    CARGO_VERSION=$(grep -m1 -E '^version[[:space:]]*=' Cargo.toml | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/' || true)
     if [ "$CARGO_VERSION" != "$VERSION" ]; then
         echo "  ⚠ Cargo.toml version ($CARGO_VERSION) ≠ $VERSION"
         echo "    Run: cargo set-version --workspace $VERSION"
