@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   median turn count and variance on real-repo benchmarks. No breaking change;
   clients that do not read `instructions` are unaffected.
 
+- **RFC-0100 Phase 1 — `StorageBackend` + redb backend foundation** —
+  introduces the feature-gated `redb-backend` storage path with an object-safe
+  `StorageBackend` trait, `InMemoryBackend` oracle, redb key/tag helpers,
+  `RedbBackend`, and `Store::load` format auto-detection. The feature is off by
+  default, preserving existing MessagePack behavior while preparing the unified
+  redb storage migration. (RFC-0100)
+
 - **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
   diagnostic method that returns a conservative lower-bound estimate of bytes
   held by the store's Patricia trie and CSR synapse. Three TDD tests verify
@@ -1193,4 +1200,3 @@ First public release of **Mycelium** — the reactive, AI-native symbol graph th
 ---
 
 [Unreleased]: https://github.com/aimasteracc/mycelium/compare/v0.1.3...HEAD
-
