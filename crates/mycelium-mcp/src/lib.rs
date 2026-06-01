@@ -216,6 +216,60 @@ fn parse_edge_kind(s: &str) -> Result<EdgeKind, String> {
     }
 }
 
+const CONTEXT_STOP_WORDS: &[&str] = &[
+    "a", "an", "and", "are", "as", "at", "by", "call", "calls", "does", "flow", "for", "from",
+    "how", "in", "into", "is", "of", "on", "or", "through", "to", "trace", "what", "when", "where",
+    "which", "why", "with", "work", "works",
+];
+
+fn extract_symbol_candidates(task: &str) -> Vec<String> {
+    let pattern = concat!(
+        r"`[^`]+`",
+        r#"|"[^"]+""#,
+        r"|'[^']+'",
+        r"|[A-Za-z_][A-Za-z0-9_.]*",
+    );
+    let re = regex::Regex::new(pattern).unwrap();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for cap in re.captures_iter(task) {
+        let raw = cap[0].trim_matches(|c: char| c == '`' || c == '"' || c == '\'');
+        for part in raw.split(['.', ':', '-', '>']) {
+            let token = part.trim_matches(|c: char| c == '_' || c == '.' || c == ',' || c == ';');
+            if token.is_empty() || token.len() < 3 {
+                continue;
+            }
+            let lower = token.to_ascii_lowercase();
+            if CONTEXT_STOP_WORDS.contains(&lower.as_str()) {
+                continue;
+            }
+            let has_structure =
+                token.contains('_') || token.chars().any(char::is_uppercase) || token.len() >= 4;
+            if !has_structure {
+                continue;
+            }
+            if seen.insert(token.to_owned()) {
+                out.push(token.to_owned());
+            }
+        }
+    }
+    out
+}
+
+fn path_leaf_name(trunk_path: &str) -> &str {
+    trunk_path
+        .rsplit('>')
+        .next()
+        .unwrap_or(trunk_path)
+        .rsplit("::")
+        .next()
+        .unwrap_or(trunk_path)
+}
+
+fn path_part_before_gt(trunk_path: &str) -> &str {
+    trunk_path.split('>').next().unwrap_or(trunk_path)
+}
+
 #[cfg(test)]
 mod edge_kind_tests {
     use super::*;
@@ -1376,6 +1430,24 @@ pub struct SetCompactModeRequest {
     /// Set to `true` to enable compact `MessagePack` output, `false` to revert
     /// to human-readable JSON.
     pub enabled: bool,
+}
+
+/// Input parameters for `mycelium_context`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetContextRequest {
+    /// Natural-language task, for example "how does request routing work"
+    /// or "trace `handle_request` to `get_user`".
+    pub task: String,
+    /// Maximum graph nodes to return (default: 30).
+    #[serde(default)]
+    pub max_nodes: Option<usize>,
+    /// Maximum source snippets to return (default: 6).
+    #[serde(default)]
+    pub max_code_blocks: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
 }
 
 // ── server ────────────────────────────────────────────────────────────────────
@@ -4782,6 +4854,193 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "PRIMARY for understanding an area or tracing a flow. One call \
+                       returns entry points, related call-graph nodes, edges, and source \
+                       snippets from a natural-language task. Use before chaining \
+                       mycelium_search_symbol, callers, callees, and file reads."
+    )]
+    async fn mycelium_context(
+        &self,
+        Parameters(req): Parameters<GetContextRequest>,
+    ) -> CallToolResult {
+        let max_nodes = req.max_nodes.unwrap_or(30).min(100);
+        let max_code_blocks = req.max_code_blocks.unwrap_or(6).min(25);
+        let candidates = extract_symbol_candidates(&req.task);
+
+        let (entry_points, store_guard) = {
+            let store = self.store.read().await;
+            let mut eps: Vec<String> = Vec::new();
+            for candidate in candidates.iter().take(10) {
+                let matches = store.search_symbol(candidate, std::cmp::max(5, max_nodes / 3));
+                for m in matches {
+                    if !eps.contains(&m) {
+                        eps.push(m);
+                    }
+                    if eps.len() >= max_nodes {
+                        break;
+                    }
+                }
+                if eps.len() >= max_nodes {
+                    break;
+                }
+            }
+            (eps, store)
+        };
+
+        if entry_points.is_empty() {
+            let value = serde_json::json!({
+                "success": true,
+                "verdict": "NOT_FOUND",
+                "task": req.task,
+                "candidates": candidates,
+                "entry_points": [],
+                "nodes": [],
+                "edges": [],
+                "code_blocks": [],
+                "stats": { "entry_points": 0, "nodes": 0, "edges": 0, "code_blocks": 0 },
+                "agent_summary": {
+                    "summary_line": "codegraph_context: no entry points found",
+                    "verdict": "NOT_FOUND",
+                    "next_step": "Try mycelium_search_symbol with an exact symbol name or broaden the task."
+                }
+            });
+            return success_str(req.output_format.map_or_else(
+                || value.to_string(),
+                |fmt| formatter_for(fmt).format(&value),
+            ));
+        }
+
+        let mut nodes: Vec<serde_json::Value> = entry_points
+            .iter()
+            .take(max_nodes)
+            .map(|p| serde_json::json!({ "id": p, "name": path_leaf_name(p), "path": p }))
+            .collect();
+        let mut edges: Vec<serde_json::Value> = Vec::new();
+        let mut seen_edges: BTreeSet<(String, String)> = BTreeSet::new();
+
+        let calls_kind = mycelium_core::types::EdgeKind::Calls;
+        for ep in entry_points.iter().take(max_nodes) {
+            let Some(id) = store_guard.lookup(ep) else {
+                continue;
+            };
+            for &callee_id in store_guard.outgoing(id, calls_kind) {
+                if nodes.len() >= max_nodes {
+                    break;
+                }
+                let Some(callee_path) = store_guard.path_of(callee_id) else {
+                    continue;
+                };
+                let callee_owned = callee_path.to_owned();
+                if !nodes.iter().any(|n| n["path"] == callee_owned) {
+                    nodes.push(serde_json::json!({
+                        "id": callee_path,
+                        "name": path_leaf_name(callee_path),
+                        "path": callee_path
+                    }));
+                }
+                let edge_key = (ep.clone(), callee_owned.clone());
+                if seen_edges.insert(edge_key) {
+                    edges.push(serde_json::json!({
+                        "source": ep,
+                        "target": callee_path,
+                        "kind": "calls"
+                    }));
+                }
+            }
+            for &caller_id in store_guard.incoming(id, calls_kind) {
+                if nodes.len() >= max_nodes {
+                    break;
+                }
+                let Some(caller_path) = store_guard.path_of(caller_id) else {
+                    continue;
+                };
+                let caller_owned = caller_path.to_owned();
+                if !nodes.iter().any(|n| n["path"] == caller_owned) {
+                    nodes.push(serde_json::json!({
+                        "id": caller_path,
+                        "name": path_leaf_name(caller_path),
+                        "path": caller_path
+                    }));
+                }
+                let edge_key = (caller_owned.clone(), ep.clone());
+                if seen_edges.insert(edge_key) {
+                    edges.push(serde_json::json!({
+                        "source": caller_path,
+                        "target": ep,
+                        "kind": "calls"
+                    }));
+                }
+            }
+        }
+
+        let mut code_blocks: Vec<serde_json::Value> = Vec::new();
+        let mut seen_paths: BTreeSet<String> = BTreeSet::new();
+        for node in &nodes {
+            if code_blocks.len() >= max_code_blocks {
+                break;
+            }
+            let path_str = node["path"].as_str().unwrap_or("");
+            let file_part = path_part_before_gt(path_str).to_owned();
+            if seen_paths.contains(&file_part) {
+                continue;
+            }
+            seen_paths.insert(file_part.clone());
+            let Some(id) = store_guard.lookup(path_str) else {
+                continue;
+            };
+            let span = store_guard.span_of(id);
+            code_blocks.push(serde_json::json!({
+                "file": file_part,
+                "symbol": path_leaf_name(path_str),
+                "span": span.map_or(serde_json::Value::Null, |s| serde_json::json!({
+                    "start_line": s.start_line,
+                    "start_col": s.start_col,
+                    "end_line": s.end_line,
+                    "end_col": s.end_col,
+                }))
+            }));
+        }
+
+        let verdict = if entry_points.is_empty() {
+            "NOT_FOUND"
+        } else {
+            "INFO"
+        };
+        let value = serde_json::json!({
+            "success": true,
+            "verdict": verdict,
+            "task": req.task,
+            "candidates": candidates,
+            "entry_points": entry_points,
+            "nodes": nodes,
+            "edges": edges,
+            "code_blocks": code_blocks,
+            "stats": {
+                "entry_points": entry_points.len(),
+                "nodes": nodes.len(),
+                "edges": edges.len(),
+                "code_blocks": code_blocks.len(),
+            },
+            "agent_summary": {
+                "summary_line": format!(
+                    "codegraph_context: {} entry points, {} nodes, {} edges, {} code blocks",
+                    entry_points.len(), nodes.len(), edges.len(), code_blocks.len()
+                ),
+                "verdict": verdict,
+                "next_step": if code_blocks.is_empty() {
+                    "Use the nodes and edges to answer; code snippets were not available.".to_owned()
+                } else {
+                    "Answer from code_blocks and the graph now. Only call a narrower tool if a specific edge or symbol is missing.".to_owned()
+                }
+            }
+        });
+        success_str(req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        ))
+    }
+
+    #[tool(
         description = "Return a byte-count comparison between JSON and MessagePack serialisation \
                        for a fixed sample payload (three symbol search results). \
                        Use this to verify the Charter §2 token-efficiency SLA (≤ 30 % of JSON). \
@@ -4840,12 +5099,9 @@ const MCP_INSTRUCTIONS_BASE: &str = "\
 
 ## Primary Tool Selection
 
-1. **\"How does X work?\" / \"trace A to B\" / broad code-area understanding**
-   → If `mycelium_context` is listed by this server version, use it FIRST.
-   On servers without that tool, do at most one discovery call:
-   `mycelium_search_symbol` → `mycelium_get_symbol_info`,
-   `mycelium_find_call_path`, `mycelium_get_callee_tree`, or
-   `mycelium_get_caller_tree`.
+1. **How does X work / trace A to B / broad code-area understanding**
+   → Use `mycelium_context` FIRST (one call returns entry points + graph + source).
+   Do NOT chain `mycelium_search_symbol` → `mycelium_get_callers` → `mycelium_get_callees`.
 
 2. **\"Where is X defined?\" / \"find symbol\"**
    → Use `mycelium_search_symbol`, then `mycelium_get_symbol_info` only for

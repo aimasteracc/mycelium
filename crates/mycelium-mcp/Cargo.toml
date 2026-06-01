@@ -54,6 +54,7 @@ notify                  = { workspace = true }
 ignore                  = { workspace = true }
 rmp-serde               = { workspace = true }
 hex                     = "0.4"
+regex                   = "1"
 
 [dev-dependencies]
 tempfile  = { workspace = true }
