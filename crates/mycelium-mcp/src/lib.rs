@@ -4704,7 +4704,7 @@ impl MyceliumServer {
     }
 }
 
-const MCP_INSTRUCTIONS: &str = "\
+const MCP_INSTRUCTIONS_BASE: &str = "\
 ## Mycelium — AI-native symbol graph (89 tools)
 
 **Setup (always first):**
@@ -4712,7 +4712,33 @@ const MCP_INSTRUCTIONS: &str = "\
 - Reload a saved index → `mycelium_load_index`
 - Check readiness → `mycelium_server_status`
 
-**Intent → tool:**
+## Primary Tool Selection
+
+1. **\"How does X work?\" / \"trace A to B\" / broad code-area understanding**
+   → If `mycelium_context` is listed by this server version, use it FIRST.
+   On servers without that tool, do at most one discovery call:
+   `mycelium_search_symbol` → `mycelium_get_symbol_info`,
+   `mycelium_find_call_path`, `mycelium_get_callee_tree`, or
+   `mycelium_get_caller_tree`.
+
+2. **\"Where is X defined?\" / \"find symbol\"**
+   → Use `mycelium_search_symbol`, then `mycelium_get_symbol_info` only for
+   the best matching symbol.
+
+3. **\"What calls X?\" / \"what does X call?\"**
+   → Use `mycelium_get_callers` / `mycelium_get_callees` directly. Use
+   `mycelium_get_caller_tree` / `mycelium_get_callee_tree` only when the task
+   asks for transitive reachability.
+
+4. **Class hierarchy / inheritance / interface questions**
+   → Use `mycelium_get_subclasses_tree`, `mycelium_get_extends_tree`,
+   `mycelium_get_implementors_tree`, or `mycelium_get_implements_tree`.
+
+5. **Complex multi-hop graph queries**
+   → Use `mycelium_query` with Hyphae DSL. Prefer one precise query over a
+   loop of broad exploratory calls.
+
+**Intent → tool quick map:**
 - Find symbol by name/prefix → `mycelium_search_symbol`
 - Full symbol info (ancestors, callers, callees) → `mycelium_get_symbol_info`
 - Direct callers of a function → `mycelium_get_callers`
@@ -4733,17 +4759,49 @@ const MCP_INSTRUCTIONS: &str = "\
 - Hyphae DSL query → `mycelium_query`
 - Batch symbol info (up to 50) → `mycelium_batch_symbol_info`
 
-**Stop after 3–5 calls and synthesize. Do not loop `get_callers` or `search_symbol` repeatedly.**";
+## Anti-patterns
+
+- Do NOT chain `mycelium_search_symbol` → `mycelium_get_callers` →
+  `mycelium_get_callees` → `mycelium_get_symbol_info` for architecture
+  questions. Use the smallest composite/tree/path tool that answers the task.
+- Do NOT loop `mycelium_get_symbol_info` over many symbols. Use
+  `mycelium_batch_symbol_info` or a graph/tree tool.
+- Do NOT re-verify routine Mycelium graph results with grep or broad file reads.
+  Read source only when editing code, resolving a `NOT_FOUND`, or investigating
+  a Mycelium inconsistency.
+- Do NOT call broad enumeration tools without limits on large projects.
+
+## Sufficiency Check
+
+Stop after 3–5 calls and synthesize. If a response is truncated, follow up with
+one targeted symbol/file query, not another broad exploration.";
+
+fn build_mcp_instructions(node_count: Option<usize>) -> String {
+    let mut instructions = MCP_INSTRUCTIONS_BASE.to_owned();
+
+    if node_count.is_some_and(|count| count < 500) {
+        instructions.push_str(
+            "\n\n## Small Project Mode\n\n\
+This index has fewer than 500 nodes. Prefer the core direct tools \
+(`mycelium_search_symbol`, `mycelium_get_symbol_info`, `mycelium_query`, \
+`mycelium_server_status`) and avoid heavy batch/whole-graph exploration unless \
+the task explicitly asks for it.",
+        );
+    }
+
+    instructions
+}
 
 #[tool_handler]
 impl ServerHandler for MyceliumServer {
     fn get_info(&self) -> ServerInfo {
+        let node_count = self.store.try_read().ok().map(|store| store.node_count());
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new(
                 env!("CARGO_PKG_NAME"),
                 env!("CARGO_PKG_VERSION"),
             ))
-            .with_instructions(MCP_INSTRUCTIONS)
+            .with_instructions(build_mcp_instructions(node_count))
     }
 }
 
@@ -11624,6 +11682,7 @@ mod tests {
 #[cfg(test)]
 mod server_info_tests {
     use super::*;
+    use mycelium_core::trunk::TrunkPath;
 
     #[test]
     fn get_info_includes_routing_instructions() {
@@ -11644,6 +11703,86 @@ mod server_info_tests {
         assert!(
             instructions.contains("mycelium_index_workspace"),
             "routing table must mention mycelium_index_workspace as setup step; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_includes_primary_tool_selection_rules() {
+        let server = MyceliumServer::default();
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            instructions.contains("Primary Tool Selection"),
+            "instructions must include an explicit decision tree; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("\"How does X work?\""),
+            "decision tree must name architecture-understanding prompts; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("mycelium_query"),
+            "decision tree must route complex multi-hop prompts to Hyphae; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_includes_agent_anti_patterns() {
+        let server = MyceliumServer::default();
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            instructions.contains("Anti-patterns"),
+            "instructions must include an anti-pattern section; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("Do NOT chain"),
+            "instructions must discourage broad multi-tool chains; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("Do NOT re-verify"),
+            "instructions must discourage routine grep/file re-verification; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_includes_small_project_mode_for_empty_server() {
+        let server = MyceliumServer::default();
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            instructions.contains("Small Project Mode"),
+            "empty or tiny indexes must get small-project guidance; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_omits_small_project_mode_for_large_index() {
+        let server = MyceliumServer::default();
+        {
+            let mut store = server.store.try_write().expect("store lock must be free");
+            for i in 0..500 {
+                let path = TrunkPath::parse(&format!("src/file_{i}.rs")).unwrap();
+                store.upsert_node(path);
+            }
+        }
+
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            !instructions.contains("Small Project Mode"),
+            "large indexes must not receive small-project guidance; got: {instructions}"
         );
     }
 }
