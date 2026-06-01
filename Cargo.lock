@@ -1052,6 +1052,7 @@ dependencies = [
  "criterion",
  "hashbrown 0.17.1",
  "insta",
+ "libc",
  "mycelium-rcig-pack",
  "proptest",
  "redb",
