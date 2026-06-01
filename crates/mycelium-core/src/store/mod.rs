@@ -36,6 +36,8 @@ mod tests;
 pub mod backend;
 pub mod in_memory;
 pub mod journal;
+#[cfg(feature = "memory-bound")]
+pub mod memory_budget;
 #[cfg(feature = "redb-backend")]
 pub mod redb_backend;
 #[cfg(feature = "redb-backend")]
