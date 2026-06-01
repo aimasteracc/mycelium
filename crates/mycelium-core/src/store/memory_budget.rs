@@ -157,10 +157,14 @@ impl BoundedStore {
     /// Create a new bounded store with the given budget.
     #[must_use]
     pub fn new(store: Store, budget: MemoryBudget) -> Self {
+        let mut tracker = FileAccessTracker::default();
+        for file_path in store.all_file_paths() {
+            tracker.touch(&file_path);
+        }
         Self {
             store,
             budget,
-            tracker: FileAccessTracker::default(),
+            tracker,
         }
     }
 
@@ -246,6 +250,30 @@ mod tests {
             bs.store.lookup("src/a.rs>Foo").is_some(),
             "a.rs>Foo should survive (recently touched)"
         );
+    }
+
+    #[test]
+    fn bounded_store_seeds_tracker_from_existing_store() {
+        let mut store = Store::new();
+        store.upsert_node(path("src/a.rs"));
+        store.upsert_node(path("src/a.rs>Foo"));
+        store.upsert_node(path("src/b.rs"));
+        store.upsert_node(path("src/b.rs>Bar"));
+        store.upsert_node(path("src/c.rs"));
+        store.upsert_node(path("src/c.rs>Baz"));
+        store.upsert_node(path("src/d.rs"));
+        store.upsert_node(path("src/d.rs>Qux"));
+
+        let budget = MemoryBudget::new(3).with_eviction_batch(2);
+        let mut bs = BoundedStore::new(store, budget);
+        assert_eq!(
+            bs.tracked_file_count(),
+            4,
+            "tracker should be seeded with all 4 existing files"
+        );
+
+        let evicted = bs.after_upsert();
+        assert!(evicted >= 1, "should evict pre-existing files above budget");
     }
 
     #[test]
