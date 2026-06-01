@@ -6,8 +6,10 @@
 
 #![cfg(feature = "redb-backend")]
 
+use mycelium_core::store::Store;
 use mycelium_core::store::backend::StorageBackend;
 use mycelium_core::store::redb_backend::{FileEdge, FileNode, RedbBackend};
+use mycelium_core::trunk::TrunkPath;
 use mycelium_core::trunk::path_to_node_id;
 use mycelium_core::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
 
@@ -41,6 +43,10 @@ fn edge(kind: EdgeKind, src_path: &str, dst_path: &str) -> FileEdge {
 
 fn id(path: &str) -> NodeId {
     path_to_node_id(path)
+}
+
+fn trunk_path(path: &str) -> TrunkPath {
+    TrunkPath::parse(path).expect("valid trunk path")
 }
 
 fn sorted(mut ids: Vec<NodeId>) -> Vec<NodeId> {
@@ -172,4 +178,56 @@ fn replace_file_removes_external_edges_pointing_into_old_nodes() {
         "external references to removed src/a.rs nodes must be stripped"
     );
     assert_eq!(backend.lookup_path("src/b.rs>B"), Some(id("src/b.rs>B")));
+}
+
+#[test]
+fn replace_file_from_store_materializes_file_owned_graph() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_from_store.redb");
+    let mut backend = open_at(&path);
+
+    let mut file_store = Store::new();
+    let file = file_store.upsert_node(trunk_path("src/a.rs"));
+    let old = file_store.upsert_node(trunk_path("src/a.rs>old"));
+    let helper = file_store.upsert_node(trunk_path("src/a.rs>helper"));
+    file_store.set_kind(file, NodeKind::File);
+    file_store.set_kind(old, NodeKind::Function);
+    file_store.set_kind(helper, NodeKind::Function);
+    file_store.set_span(old, span());
+    file_store.upsert_edge(EdgeKind::Contains, file, old);
+    file_store.upsert_edge(EdgeKind::Contains, file, helper);
+    file_store.upsert_edge(EdgeKind::Calls, old, helper);
+
+    backend
+        .replace_file_from_store("src/a.rs", &file_store)
+        .expect("replace from file store");
+
+    assert_eq!(backend.lookup_path("src/a.rs>old"), Some(old));
+    assert_eq!(backend.kind_of(old), Some(NodeKind::Function));
+    assert_eq!(backend.span_of(old), Some(span()));
+    assert_eq!(
+        backend.outgoing(old, EdgeKind::Calls),
+        vec![helper],
+        "file-owned calls edge must persist into redb"
+    );
+
+    let mut updated_store = Store::new();
+    let updated_file = updated_store.upsert_node(trunk_path("src/a.rs"));
+    let new = updated_store.upsert_node(trunk_path("src/a.rs>new"));
+    updated_store.set_kind(updated_file, NodeKind::File);
+    updated_store.set_kind(new, NodeKind::Function);
+    updated_store.upsert_edge(EdgeKind::Contains, updated_file, new);
+
+    backend
+        .replace_file_from_store("src/a.rs", &updated_store)
+        .expect("replace updated file store");
+
+    assert_eq!(backend.lookup_path("src/a.rs>old"), None);
+    assert_eq!(backend.lookup_path("src/a.rs>helper"), None);
+    assert_eq!(backend.lookup_path("src/a.rs>new"), Some(new));
+    assert_eq!(
+        backend.outgoing(old, EdgeKind::Calls),
+        Vec::<NodeId>::new(),
+        "replacing from store must remove old file-owned edges"
+    );
 }
