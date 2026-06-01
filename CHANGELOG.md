@@ -111,6 +111,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   benchmark covers 10K redb replacement and 10K/100K full snapshots, with
   `MYCELIUM_REDB_BENCH_100K=1` enabling the slower 100K redb replacement run.
 
+- **`mycelium_context` MCP tool** (Issue #379 / RFC-0101) — one-shot
+  architecture-tracing tool that accepts a natural-language task, extracts
+  symbol candidates, expands a bounded call-graph neighborhood, and returns
+  `entry_points`, `nodes`, `edges`, `code_blocks`, `stats`, and
+  `agent_summary` in a single call. The 90th MCP tool. Replaces 5–20
+  chained `search_symbol` + callers/callees + `symbol_info` round-trips.
+
+- **`OutputBudget` adaptive output control** (Issue #380 / RFC-0102) —
+  3-tier size-based budget (`small <500 nodes`, `medium <5K`, `large`) that
+  caps `nodes`, `edges`, `paths`, `results`, `symbols`, `callers`,
+  `callees`, and `reachable` arrays with `truncated: true` +
+  `total_available: N` metadata. Applied to 8 high-traffic MCP tools.
+  7 unit tests.
+
+- **Import-aware stub resolution** (Issue #381 / RFC-0103) — second-pass
+  stub resolver that uses `Imports` edges to disambiguate bare call stubs
+  when multiple files define the same symbol name. The caller's import
+  graph is used to vote on which definition wins. Integrated into
+  `Store::resolve_bare_call_stubs()` as a supplementary pass after the
+  existing simple pass.
+
+- **`architecture-context` Skill** — new `skills/architecture-context/`
+  category Skill covering `mycelium_context`. Satisfies RFC-0090 I1
+  coverage for the 90th MCP tool. CLI twin tracked as RFC-0101 Phase 2.
+
 ### Fixed
 
 - **RFC-0100 redb replace-file external reference preservation** —
