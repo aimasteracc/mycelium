@@ -447,6 +447,25 @@ impl RedbBackend {
             .map_err(|e| BackendError::Backend(format!("invalid trunk path {path:?}: {e}")))?;
         let id = path_to_node_id(path);
         let path_key = encode_path_key(path);
+        let existing_path_id = {
+            let by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+            by_path
+                .get(path_key.as_slice())
+                .map_err(db_err)?
+                .map(|guard| guard.value())
+        };
+        if existing_path_id == Some(id.0) {
+            let existing_id_path_matches = {
+                let by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+                by_id
+                    .get(id.0)
+                    .map_err(db_err)?
+                    .is_some_and(|guard| guard.value() == path)
+            };
+            if existing_id_path_matches {
+                return Ok(id);
+            }
+        }
         {
             let mut by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
             by_id.insert(id.0, path).map_err(db_err)?;
