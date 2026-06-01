@@ -225,6 +225,88 @@ fn replace_file_preserves_external_edges_pointing_into_stable_nodes() {
 }
 
 #[test]
+fn replace_file_identical_payload_does_not_grow_page_footprint() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_identical_payload.redb");
+    let mut backend = open_at(&path);
+    let nodes = vec![
+        node("src/a.rs", NodeKind::File),
+        node_with_span("src/a.rs>A", NodeKind::Function, span()),
+        node("src/a.rs>B", NodeKind::Function),
+    ];
+    let edges = vec![
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A"),
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>B"),
+        edge(EdgeKind::Calls, "src/a.rs>A", "src/a.rs>B"),
+    ];
+
+    backend
+        .replace_file("src/a.rs", &nodes, &edges)
+        .expect("initial replace");
+    backend.flush().expect("flush initial replace");
+    let before = backend.heap_size_estimate();
+
+    for _ in 0..100 {
+        backend
+            .replace_file("src/a.rs", &nodes, &edges)
+            .expect("identical replace");
+    }
+    backend.flush().expect("flush repeated identical replaces");
+    let after = backend.heap_size_estimate();
+
+    assert_eq!(backend.node_count(), 3);
+    assert_eq!(backend.edge_count(), 3);
+    assert!(
+        after <= before,
+        "replacing an identical file payload should not allocate more redb pages: before={before} after={after}"
+    );
+}
+
+#[test]
+fn replace_file_identical_payload_repairs_missing_owned_adjacency() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir
+        .path()
+        .join("replace_file_repairs_missing_owned_adjacency.redb");
+    let mut backend = open_at(&path);
+    let file = node("src/a.rs", NodeKind::File);
+    let source_fn = node("src/a.rs>A", NodeKind::Function);
+    let target_fn = node("src/a.rs>B", NodeKind::Function);
+    let source_id = id("src/a.rs>A");
+    let target_id = id("src/a.rs>B");
+    let nodes = vec![file, source_fn, target_fn];
+    let edges = vec![
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A"),
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>B"),
+        edge(EdgeKind::Calls, "src/a.rs>A", "src/a.rs>B"),
+    ];
+
+    backend
+        .replace_file("src/a.rs", &nodes, &edges)
+        .expect("initial replace");
+    backend.remove_node_edges(source_id);
+    assert!(
+        backend.outgoing(source_id, EdgeKind::Calls).is_empty(),
+        "test setup should remove the owned call edge while file_index remains stale"
+    );
+
+    backend
+        .replace_file("src/a.rs", &nodes, &edges)
+        .expect("identical replace should repair adjacency");
+
+    assert_eq!(
+        backend.outgoing(source_id, EdgeKind::Calls),
+        vec![target_id],
+        "identical replace_file must not skip when actual adjacency is missing"
+    );
+    assert_eq!(
+        backend.incoming(target_id, EdgeKind::Calls),
+        vec![source_id],
+        "repair must restore reverse adjacency too"
+    );
+}
+
+#[test]
 fn replace_file_from_store_materializes_file_owned_graph() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("replace_file_from_store.redb");

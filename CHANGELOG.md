@@ -127,6 +127,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   additional redb pages, and local 10K single-file replacement improved further
   from ~9.70 ms to ~9.37 ms.
 
+- **RFC-0100 redb no-op file replacement write amplification** —
+  `RedbBackend::replace_file` now returns early when the persisted file index,
+  trunk indexes, kind metadata, span metadata, and forward/reverse adjacency
+  already match the incoming file payload. Replacing an identical file payload
+  100 times no longer grows allocated redb pages from 57KB to 77KB, while
+  identical replacements still repair missing owned adjacency when the persisted
+  edge tables drift from the file index.
+
 - **Release pipeline hardening** — release prep now updates internal
   `mycelium-rcig-*` dependency pins before publishing, and `release.yml` fails
   fast on missing crates.io credentials or cargo publish errors instead of
