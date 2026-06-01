@@ -1,6 +1,6 @@
 # RFC-0101: One-shot architecture context tool (`mycelium_context`)
 
-- **Status**: Draft
+- **Status**: Partially Implemented (MCP tool + Skill shipped; CLI Phase 2 pending)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-01
 - **Last updated**: 2026-06-01

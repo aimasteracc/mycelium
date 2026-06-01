@@ -216,6 +216,60 @@ fn parse_edge_kind(s: &str) -> Result<EdgeKind, String> {
     }
 }
 
+const CONTEXT_STOP_WORDS: &[&str] = &[
+    "a", "an", "and", "are", "as", "at", "by", "call", "calls", "does", "flow", "for", "from",
+    "how", "in", "into", "is", "of", "on", "or", "through", "to", "trace", "what", "when", "where",
+    "which", "why", "with", "work", "works",
+];
+
+fn extract_symbol_candidates(task: &str) -> Vec<String> {
+    let pattern = concat!(
+        r"`[^`]+`",
+        r#"|"[^"]+""#,
+        r"|'[^']+'",
+        r"|[A-Za-z_][A-Za-z0-9_.]*",
+    );
+    let re = regex::Regex::new(pattern).unwrap();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for cap in re.captures_iter(task) {
+        let raw = cap[0].trim_matches(|c: char| c == '`' || c == '"' || c == '\'');
+        for part in raw.split(['.', ':', '-', '>']) {
+            let token = part.trim_matches(|c: char| c == '_' || c == '.' || c == ',' || c == ';');
+            if token.is_empty() || token.len() < 3 {
+                continue;
+            }
+            let lower = token.to_ascii_lowercase();
+            if CONTEXT_STOP_WORDS.contains(&lower.as_str()) {
+                continue;
+            }
+            let has_structure =
+                token.contains('_') || token.chars().any(char::is_uppercase) || token.len() >= 4;
+            if !has_structure {
+                continue;
+            }
+            if seen.insert(token.to_owned()) {
+                out.push(token.to_owned());
+            }
+        }
+    }
+    out
+}
+
+fn path_leaf_name(trunk_path: &str) -> &str {
+    trunk_path
+        .rsplit('>')
+        .next()
+        .unwrap_or(trunk_path)
+        .rsplit("::")
+        .next()
+        .unwrap_or(trunk_path)
+}
+
+fn path_part_before_gt(trunk_path: &str) -> &str {
+    trunk_path.split('>').next().unwrap_or(trunk_path)
+}
+
 #[cfg(test)]
 mod edge_kind_tests {
     use super::*;
@@ -1378,9 +1432,185 @@ pub struct SetCompactModeRequest {
     pub enabled: bool,
 }
 
+/// Input parameters for `mycelium_context`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetContextRequest {
+    /// Natural-language task, for example "how does request routing work"
+    /// or "trace `handle_request` to `get_user`".
+    pub task: String,
+    /// Maximum graph nodes to return (default: 30).
+    #[serde(default)]
+    pub max_nodes: Option<usize>,
+    /// Maximum source snippets to return (default: 6).
+    #[serde(default)]
+    pub max_code_blocks: Option<usize>,
+    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
+    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
+}
+
 // ── server ────────────────────────────────────────────────────────────────────
 
 /// Stateful MCP server holding the in-memory symbol graph.
+/// Adaptive output budget keyed on project size (issue #380).
+///
+/// Prevents a single tool call from flooding the Agent context window.
+/// Three tiers match `CodeGraph`'s proven sizing strategy:
+///
+/// | Nodes   | max_nodes | max_edges | max_code_lines | max_total_chars |
+/// |---------|-----------|-----------|----------------|-----------------|
+/// | <500    | 15        | 30        | 20             | 13 000          |
+/// | 500–5K  | 30        | 60        | 30             | 25 000          |
+/// | >5K     | 50        | 100       | 40             | 38 000          |
+#[derive(Debug, Clone, Copy)]
+#[allow(clippy::struct_field_names, dead_code)]
+struct OutputBudget {
+    max_nodes: usize,
+    max_code_lines: usize,
+    max_total_chars: usize,
+    max_edges: usize,
+}
+
+impl OutputBudget {
+    const fn for_project(node_count: usize) -> Self {
+        if node_count < 500 {
+            Self {
+                max_nodes: 15,
+                max_code_lines: 20,
+                max_total_chars: 13_000,
+                max_edges: 30,
+            }
+        } else if node_count < 5_000 {
+            Self {
+                max_nodes: 30,
+                max_code_lines: 30,
+                max_total_chars: 25_000,
+                max_edges: 60,
+            }
+        } else {
+            Self {
+                max_nodes: 50,
+                max_code_lines: 40,
+                max_total_chars: 38_000,
+                max_edges: 100,
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn is_core_tool(name: &str) -> bool {
+    matches!(
+        name,
+        "mycelium_context"
+            | "mycelium_search_symbol"
+            | "mycelium_get_symbol_info"
+            | "mycelium_query"
+            | "mycelium_server_status"
+            | "mycelium_index_workspace"
+    )
+}
+
+fn apply_budget(value: &mut serde_json::Value, budget: &OutputBudget) {
+    let mut truncated = false;
+    let mut total_available: Option<usize> = None;
+
+    if let Some(nodes) = value.get_mut("nodes").and_then(|n| n.as_array_mut()) {
+        let count = nodes.len();
+        if count > budget.max_nodes {
+            nodes.truncate(budget.max_nodes);
+            truncated = true;
+            total_available = Some(count);
+        }
+    }
+
+    if let Some(edges) = value.get_mut("edges").and_then(|e| e.as_array_mut()) {
+        let count = edges.len();
+        if count > budget.max_edges {
+            edges.truncate(budget.max_edges);
+            truncated = true;
+            if total_available.is_none() {
+                total_available = Some(count);
+            }
+        }
+    }
+
+    if let Some(paths) = value.get_mut("paths").and_then(|p| p.as_array_mut()) {
+        let count = paths.len();
+        if count > budget.max_nodes {
+            paths.truncate(budget.max_nodes);
+            truncated = true;
+            if total_available.is_none() {
+                total_available = Some(count);
+            }
+        }
+    }
+
+    if let Some(results) = value.get_mut("results").and_then(|r| r.as_array_mut()) {
+        let count = results.len();
+        if count > budget.max_nodes {
+            results.truncate(budget.max_nodes);
+            truncated = true;
+            if total_available.is_none() {
+                total_available = Some(count);
+            }
+        }
+    }
+
+    if let Some(symbols) = value.get_mut("symbols").and_then(|s| s.as_array_mut()) {
+        let count = symbols.len();
+        if count > budget.max_nodes {
+            symbols.truncate(budget.max_nodes);
+            truncated = true;
+            if total_available.is_none() {
+                total_available = Some(count);
+            }
+        }
+    }
+
+    if let Some(callees) = value.get_mut("callees").and_then(|c| c.as_array_mut()) {
+        let count = callees.len();
+        if count > budget.max_edges {
+            callees.truncate(budget.max_edges);
+            truncated = true;
+            if total_available.is_none() {
+                total_available = Some(count);
+            }
+        }
+    }
+
+    if let Some(callers) = value.get_mut("callers").and_then(|c| c.as_array_mut()) {
+        let count = callers.len();
+        if count > budget.max_edges {
+            callers.truncate(budget.max_edges);
+            truncated = true;
+            if total_available.is_none() {
+                total_available = Some(count);
+            }
+        }
+    }
+
+    if let Some(reachable) = value.get_mut("reachable").and_then(|r| r.as_array_mut()) {
+        let count = reachable.len();
+        if count > budget.max_edges {
+            reachable.truncate(budget.max_edges);
+            truncated = true;
+            if total_available.is_none() {
+                total_available = Some(count);
+            }
+        }
+    }
+
+    if truncated {
+        value["truncated"] = serde_json::Value::Bool(true);
+        if let Some(avail) = total_available {
+            value["total_available"] = serde_json::Value::Number(avail.into());
+        }
+    }
+}
+
+/// MCP server for Mycelium code graph analysis.
 ///
 /// Construct with [`MyceliumServer::new`] or [`MyceliumServer::with_root`]
 /// and start with [`serve_stdio`].
@@ -1404,6 +1634,11 @@ pub struct MyceliumServer {
     /// verifies it is prefixed by at least one of these roots. Empty = unrestricted
     /// (used only in unit tests; CLI always sets this to `[CWD]` by default).
     allowed_roots: Arc<Vec<PathBuf>>,
+    /// Adaptive output budget (issue #380).
+    ///
+    /// Recomputed after each index operation based on node count.
+    /// Prevents a single tool call from flooding the Agent context.
+    output_budget: Arc<tokio::sync::Mutex<OutputBudget>>,
 }
 
 impl Default for MyceliumServer {
@@ -1427,6 +1662,7 @@ impl MyceliumServer {
             compact_mode: Arc::new(AtomicBool::new(false)),
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(vec![]),
+            output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
         }
     }
 
@@ -1449,6 +1685,7 @@ impl MyceliumServer {
             compact_mode: Arc::new(AtomicBool::new(false)),
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(canonical_roots),
+            output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
         }
     }
 
@@ -1713,6 +1950,17 @@ fn check_path_in_allowed_roots(
     }
 }
 
+impl MyceliumServer {
+    async fn refresh_budget(&self, node_count: usize) {
+        let budget = OutputBudget::for_project(node_count);
+        *self.output_budget.lock().await = budget;
+    }
+
+    async fn current_budget(&self) -> OutputBudget {
+        *self.output_budget.lock().await
+    }
+}
+
 #[tool_router]
 impl MyceliumServer {
     #[tool(
@@ -1744,6 +1992,8 @@ impl MyceliumServer {
                 }
                 *self.store.write().await = new_store;
                 *self.indexed_root.write().await = Some(root_save);
+                let node_count = self.store.read().await.node_count();
+                self.refresh_budget(node_count).await;
                 success_str(
                     serde_json::json!({
                         "files": files,
@@ -1771,7 +2021,8 @@ impl MyceliumServer {
     ) -> CallToolResult {
         let limit = req.limit.unwrap_or(20);
         let matches = self.store.read().await.search_symbol(&req.query, limit);
-        let value = serde_json::json!({ "matches": matches });
+        let mut value = serde_json::json!({ "matches": matches });
+        apply_budget(&mut value, &self.current_budget().await);
         match req.output_format {
             Some(fmt) => success_str(formatter_for(fmt).format(&value)),
             None if self.compact_mode.load(Ordering::Relaxed) => {
@@ -1857,6 +2108,7 @@ impl MyceliumServer {
                 let nodes = loaded.node_count();
                 *self.store.write().await = loaded;
                 *self.indexed_root.write().await = Some(root);
+                self.refresh_budget(nodes).await;
                 success_str(
                     serde_json::json!({
                         "nodes": nodes,
@@ -1946,7 +2198,8 @@ impl MyceliumServer {
         drop(store_guard);
         paths.sort();
         paths.dedup();
-        let value = serde_json::json!({ "callee_paths": paths });
+        let mut value = serde_json::json!({ "callee_paths": paths });
+        apply_budget(&mut value, &self.current_budget().await);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -1997,7 +2250,8 @@ impl MyceliumServer {
         paths.extend(virtual_opt);
         paths.sort();
         paths.dedup();
-        let value = serde_json::json!({ "caller_paths": paths });
+        let mut value = serde_json::json!({ "caller_paths": paths });
+        apply_budget(&mut value, &self.current_budget().await);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2434,7 +2688,8 @@ impl MyceliumServer {
         };
         drop(store);
         let count = dead.len();
-        let value = serde_json::json!({ "dead_symbols": dead, "count": count });
+        let mut value = serde_json::json!({ "dead_symbols": dead, "count": count });
+        apply_budget(&mut value, &self.current_budget().await);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2459,7 +2714,8 @@ impl MyceliumServer {
             .await
             .isolated_symbols(req.path_prefix.as_deref());
         let count = isolated.len();
-        let value = serde_json::json!({ "isolated_symbols": isolated, "count": count });
+        let mut value = serde_json::json!({ "isolated_symbols": isolated, "count": count });
+        apply_budget(&mut value, &self.current_budget().await);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2585,11 +2841,12 @@ impl MyceliumServer {
             .take(if limit == 0 { usize::MAX } else { limit })
             .collect();
         let count = page.len();
-        let value = serde_json::json!({
+        let mut value = serde_json::json!({
             "symbols": page,
             "count": count,
             "total_count": total_count,
         });
+        apply_budget(&mut value, &self.current_budget().await);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2622,7 +2879,8 @@ impl MyceliumServer {
             return not_found(&req.path);
         };
         let count = reachable.len();
-        let value = serde_json::json!({ "reachable": reachable, "count": count });
+        let mut value = serde_json::json!({ "reachable": reachable, "count": count });
+        apply_budget(&mut value, &self.current_budget().await);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2655,7 +2913,8 @@ impl MyceliumServer {
             return not_found(&req.path);
         };
         let count = reachable.len();
-        let value = serde_json::json!({ "reachable": reachable, "count": count });
+        let mut value = serde_json::json!({ "reachable": reachable, "count": count });
+        apply_budget(&mut value, &self.current_budget().await);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -4739,6 +4998,7 @@ impl MyceliumServer {
         store_w.resolve_bare_call_stubs();
         let symbols_after = store_w.node_count();
         drop(store_w);
+        self.refresh_budget(symbols_after).await;
         let elapsed_us = start.elapsed().as_micros();
 
         success_str(
@@ -4779,6 +5039,193 @@ impl MyceliumServer {
             })
             .to_string(),
         )
+    }
+
+    #[tool(
+        description = "PRIMARY for understanding an area or tracing a flow. One call \
+                       returns entry points, related call-graph nodes, edges, and source \
+                       snippets from a natural-language task. Use before chaining \
+                       mycelium_search_symbol, callers, callees, and file reads."
+    )]
+    async fn mycelium_context(
+        &self,
+        Parameters(req): Parameters<GetContextRequest>,
+    ) -> CallToolResult {
+        let max_nodes = req.max_nodes.unwrap_or(30).min(100);
+        let max_code_blocks = req.max_code_blocks.unwrap_or(6).min(25);
+        let candidates = extract_symbol_candidates(&req.task);
+
+        let (entry_points, store_guard) = {
+            let store = self.store.read().await;
+            let mut eps: Vec<String> = Vec::new();
+            for candidate in candidates.iter().take(10) {
+                let matches = store.search_symbol(candidate, std::cmp::max(5, max_nodes / 3));
+                for m in matches {
+                    if !eps.contains(&m) {
+                        eps.push(m);
+                    }
+                    if eps.len() >= max_nodes {
+                        break;
+                    }
+                }
+                if eps.len() >= max_nodes {
+                    break;
+                }
+            }
+            (eps, store)
+        };
+
+        if entry_points.is_empty() {
+            let value = serde_json::json!({
+                "success": true,
+                "verdict": "NOT_FOUND",
+                "task": req.task,
+                "candidates": candidates,
+                "entry_points": [],
+                "nodes": [],
+                "edges": [],
+                "code_blocks": [],
+                "stats": { "entry_points": 0, "nodes": 0, "edges": 0, "code_blocks": 0 },
+                "agent_summary": {
+                    "summary_line": "codegraph_context: no entry points found",
+                    "verdict": "NOT_FOUND",
+                    "next_step": "Try mycelium_search_symbol with an exact symbol name or broaden the task."
+                }
+            });
+            return success_str(req.output_format.map_or_else(
+                || value.to_string(),
+                |fmt| formatter_for(fmt).format(&value),
+            ));
+        }
+
+        let mut nodes: Vec<serde_json::Value> = entry_points
+            .iter()
+            .take(max_nodes)
+            .map(|p| serde_json::json!({ "id": p, "name": path_leaf_name(p), "path": p }))
+            .collect();
+        let mut edges: Vec<serde_json::Value> = Vec::new();
+        let mut seen_edges: BTreeSet<(String, String)> = BTreeSet::new();
+
+        let calls_kind = mycelium_core::types::EdgeKind::Calls;
+        for ep in entry_points.iter().take(max_nodes) {
+            let Some(id) = store_guard.lookup(ep) else {
+                continue;
+            };
+            for &callee_id in store_guard.outgoing(id, calls_kind) {
+                if nodes.len() >= max_nodes {
+                    break;
+                }
+                let Some(callee_path) = store_guard.path_of(callee_id) else {
+                    continue;
+                };
+                let callee_owned = callee_path.to_owned();
+                if !nodes.iter().any(|n| n["path"] == callee_owned) {
+                    nodes.push(serde_json::json!({
+                        "id": callee_path,
+                        "name": path_leaf_name(callee_path),
+                        "path": callee_path
+                    }));
+                }
+                let edge_key = (ep.clone(), callee_owned.clone());
+                if seen_edges.insert(edge_key) {
+                    edges.push(serde_json::json!({
+                        "source": ep,
+                        "target": callee_path,
+                        "kind": "calls"
+                    }));
+                }
+            }
+            for &caller_id in store_guard.incoming(id, calls_kind) {
+                if nodes.len() >= max_nodes {
+                    break;
+                }
+                let Some(caller_path) = store_guard.path_of(caller_id) else {
+                    continue;
+                };
+                let caller_owned = caller_path.to_owned();
+                if !nodes.iter().any(|n| n["path"] == caller_owned) {
+                    nodes.push(serde_json::json!({
+                        "id": caller_path,
+                        "name": path_leaf_name(caller_path),
+                        "path": caller_path
+                    }));
+                }
+                let edge_key = (caller_owned.clone(), ep.clone());
+                if seen_edges.insert(edge_key) {
+                    edges.push(serde_json::json!({
+                        "source": caller_path,
+                        "target": ep,
+                        "kind": "calls"
+                    }));
+                }
+            }
+        }
+
+        let mut code_blocks: Vec<serde_json::Value> = Vec::new();
+        let mut seen_paths: BTreeSet<String> = BTreeSet::new();
+        for node in &nodes {
+            if code_blocks.len() >= max_code_blocks {
+                break;
+            }
+            let path_str = node["path"].as_str().unwrap_or("");
+            let file_part = path_part_before_gt(path_str).to_owned();
+            if seen_paths.contains(&file_part) {
+                continue;
+            }
+            seen_paths.insert(file_part.clone());
+            let Some(id) = store_guard.lookup(path_str) else {
+                continue;
+            };
+            let span = store_guard.span_of(id);
+            code_blocks.push(serde_json::json!({
+                "file": file_part,
+                "symbol": path_leaf_name(path_str),
+                "span": span.map_or(serde_json::Value::Null, |s| serde_json::json!({
+                    "start_line": s.start_line,
+                    "start_col": s.start_col,
+                    "end_line": s.end_line,
+                    "end_col": s.end_col,
+                }))
+            }));
+        }
+
+        let verdict = if entry_points.is_empty() {
+            "NOT_FOUND"
+        } else {
+            "INFO"
+        };
+        let value = serde_json::json!({
+            "success": true,
+            "verdict": verdict,
+            "task": req.task,
+            "candidates": candidates,
+            "entry_points": entry_points,
+            "nodes": nodes,
+            "edges": edges,
+            "code_blocks": code_blocks,
+            "stats": {
+                "entry_points": entry_points.len(),
+                "nodes": nodes.len(),
+                "edges": edges.len(),
+                "code_blocks": code_blocks.len(),
+            },
+            "agent_summary": {
+                "summary_line": format!(
+                    "codegraph_context: {} entry points, {} nodes, {} edges, {} code blocks",
+                    entry_points.len(), nodes.len(), edges.len(), code_blocks.len()
+                ),
+                "verdict": verdict,
+                "next_step": if code_blocks.is_empty() {
+                    "Use the nodes and edges to answer; code snippets were not available.".to_owned()
+                } else {
+                    "Answer from code_blocks and the graph now. Only call a narrower tool if a specific edge or symbol is missing.".to_owned()
+                }
+            }
+        });
+        success_str(req.output_format.map_or_else(
+            || value.to_string(),
+            |fmt| formatter_for(fmt).format(&value),
+        ))
     }
 
     #[tool(
@@ -4831,7 +5278,7 @@ impl MyceliumServer {
 }
 
 const MCP_INSTRUCTIONS_BASE: &str = "\
-## Mycelium — AI-native symbol graph (89 tools)
+## Mycelium — AI-native symbol graph (90 tools)
 
 **Setup (always first):**
 - Index a workspace → `mycelium_index_workspace`
@@ -4840,12 +5287,9 @@ const MCP_INSTRUCTIONS_BASE: &str = "\
 
 ## Primary Tool Selection
 
-1. **\"How does X work?\" / \"trace A to B\" / broad code-area understanding**
-   → If `mycelium_context` is listed by this server version, use it FIRST.
-   On servers without that tool, do at most one discovery call:
-   `mycelium_search_symbol` → `mycelium_get_symbol_info`,
-   `mycelium_find_call_path`, `mycelium_get_callee_tree`, or
-   `mycelium_get_caller_tree`.
+1. **\"How does X work?\" / trace A to B / broad code-area understanding**
+   → Use `mycelium_context` FIRST (one call returns entry points + graph + source).
+   Do NOT chain `mycelium_search_symbol` → `mycelium_get_callers` → `mycelium_get_callees`.
 
 2. **\"Where is X defined?\" / \"find symbol\"**
    → Use `mycelium_search_symbol`, then `mycelium_get_symbol_info` only for
@@ -11955,5 +12399,92 @@ mod server_info_tests {
             !instructions.contains("Small Project Mode"),
             "large indexes must not receive small-project guidance; got: {instructions}"
         );
+    }
+}
+
+#[cfg(test)]
+mod output_budget_tests {
+    use super::*;
+
+    #[test]
+    fn output_budget_small_project() {
+        let budget = OutputBudget::for_project(100);
+        assert_eq!(budget.max_nodes, 15);
+        assert_eq!(budget.max_code_lines, 20);
+        assert_eq!(budget.max_total_chars, 13_000);
+        assert_eq!(budget.max_edges, 30);
+    }
+
+    #[test]
+    fn output_budget_medium_project() {
+        let budget = OutputBudget::for_project(1000);
+        assert_eq!(budget.max_nodes, 30);
+        assert_eq!(budget.max_code_lines, 30);
+        assert_eq!(budget.max_total_chars, 25_000);
+        assert_eq!(budget.max_edges, 60);
+    }
+
+    #[test]
+    fn output_budget_large_project() {
+        let budget = OutputBudget::for_project(10_000);
+        assert_eq!(budget.max_nodes, 50);
+        assert_eq!(budget.max_code_lines, 40);
+        assert_eq!(budget.max_total_chars, 38_000);
+        assert_eq!(budget.max_edges, 100);
+    }
+
+    #[test]
+    fn apply_budget_truncates_node_array() {
+        let budget = OutputBudget::for_project(100);
+        let mut value = serde_json::json!({
+            "nodes": (0..30).map(|i| format!("node_{i}")).collect::<Vec<_>>(),
+            "count": 30
+        });
+        apply_budget(&mut value, &budget);
+        let nodes = value["nodes"].as_array().expect("nodes must be array");
+        assert_eq!(nodes.len(), 15);
+        assert_eq!(value["truncated"], true);
+        assert_eq!(value["total_available"], 30);
+    }
+
+    #[test]
+    fn apply_budget_no_truncation_when_under_limit() {
+        let budget = OutputBudget::for_project(100);
+        let mut value = serde_json::json!({
+            "nodes": vec!["a", "b", "c"],
+            "count": 3
+        });
+        apply_budget(&mut value, &budget);
+        let nodes = value["nodes"].as_array().expect("nodes must be array");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            value.get("truncated").is_none(),
+            "should not have truncated flag"
+        );
+    }
+
+    #[test]
+    fn apply_budget_truncates_edges_array() {
+        let budget = OutputBudget::for_project(100);
+        let mut value = serde_json::json!({
+            "edges": (0..50).map(|i| format!("edge_{i}")).collect::<Vec<_>>(),
+            "count": 50
+        });
+        apply_budget(&mut value, &budget);
+        let edges = value["edges"].as_array().expect("edges must be array");
+        assert_eq!(edges.len(), 30);
+        assert_eq!(value["truncated"], true);
+        assert_eq!(value["total_available"], 50);
+    }
+
+    #[test]
+    fn is_core_tool_identifies_core_tools() {
+        assert!(is_core_tool("mycelium_context"));
+        assert!(is_core_tool("mycelium_search_symbol"));
+        assert!(is_core_tool("mycelium_get_symbol_info"));
+        assert!(is_core_tool("mycelium_query"));
+        assert!(is_core_tool("mycelium_server_status"));
+        assert!(!is_core_tool("mycelium_get_all_symbols"));
+        assert!(!is_core_tool("mycelium_get_callees"));
     }
 }

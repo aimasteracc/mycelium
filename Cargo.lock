@@ -1094,6 +1094,7 @@ dependencies = [
  "mycelium-rcig-core",
  "mycelium-rcig-hyphae",
  "notify",
+ "regex",
  "rmcp",
  "rmp-serde",
  "schemars",

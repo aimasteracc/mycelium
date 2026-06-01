@@ -19,7 +19,7 @@ use rmcp::{
 
 /// Expected number of registered MCP tools.
 /// Update this constant when you add or remove a tool.
-const EXPECTED_TOOL_COUNT: usize = 89;
+const EXPECTED_TOOL_COUNT: usize = 90;
 
 /// Minimal no-op client handler — only needs to exist for the MCP handshake.
 #[derive(Debug, Clone, Default)]
@@ -61,6 +61,7 @@ fn catch_all_args() -> serde_json::Map<String, serde_json::Value> {
         // ── string-based classifiers ──────────────────────────────────────
         "query":     "phantom_query",
         "symbol":    "phantom_symbol",
+        "task":      "phantom_task",
         "kind":      "function",
         // valid values for parse_edge_kind(): calls | imports | extends | implements
         "edge_kind": "calls",
