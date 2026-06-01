@@ -113,6 +113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **RFC-0100 redb replace-file external reference preservation** —
+  `RedbBackend::replace_file` now preserves external incoming edges that point
+  to nodes whose paths remain stable across a file replacement, while still
+  stripping external edges to removed or renamed nodes. This fixes a
+  watch-persistence correctness bug in the feature-gated redb path and avoids
+  unnecessary stale-node edge scans for unchanged symbols; local 10K
+  single-file replacement improved from ~18.4 ms to ~9.70 ms.
+
 - **Release pipeline hardening** — release prep now updates internal
   `mycelium-rcig-*` dependency pins before publishing, and `release.yml` fails
   fast on missing crates.io credentials or cargo publish errors instead of

@@ -181,6 +181,50 @@ fn replace_file_removes_external_edges_pointing_into_old_nodes() {
 }
 
 #[test]
+fn replace_file_preserves_external_edges_pointing_into_stable_nodes() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_external_stable_edges.redb");
+    let mut backend = open_at(&path);
+
+    backend
+        .replace_file(
+            "src/a.rs",
+            &[
+                node("src/a.rs", NodeKind::File),
+                node("src/a.rs>A", NodeKind::Struct),
+            ],
+            &[edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A")],
+        )
+        .expect("insert a");
+    backend
+        .replace_file(
+            "src/b.rs",
+            &[node("src/b.rs>B", NodeKind::Function)],
+            &[edge(EdgeKind::References, "src/b.rs>B", "src/a.rs>A")],
+        )
+        .expect("insert b");
+
+    backend
+        .replace_file(
+            "src/a.rs",
+            &[
+                node("src/a.rs", NodeKind::File),
+                node("src/a.rs>A", NodeKind::Class),
+            ],
+            &[edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A")],
+        )
+        .expect("replace a with stable symbol id");
+
+    assert_eq!(backend.lookup_path("src/a.rs>A"), Some(id("src/a.rs>A")));
+    assert_eq!(backend.kind_of(id("src/a.rs>A")), Some(NodeKind::Class));
+    assert_eq!(
+        backend.outgoing(id("src/b.rs>B"), EdgeKind::References),
+        vec![id("src/a.rs>A")],
+        "external references to stable src/a.rs nodes must survive replacement"
+    );
+}
+
+#[test]
 fn replace_file_from_store_materializes_file_owned_graph() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("replace_file_from_store.redb");
