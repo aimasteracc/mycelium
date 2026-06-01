@@ -39,7 +39,7 @@ pub struct DeltaRecord {
     pub seq: u64,
     /// Relative file path that was re-indexed.
     pub file_path: String,
-    /// `Base64`-encoded `MessagePack` of the per-file sub-[`Store`] to merge in.
+    /// `Base64`-encoded `MessagePack` of the per-file sub-[`super::Store`] to merge in.
     /// Empty if the file was deleted (remove-only).
     pub delta_store: String,
 }
