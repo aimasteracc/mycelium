@@ -5934,6 +5934,32 @@ fn extract_file_substore_contains_only_target_file() {
 }
 
 #[test]
+fn extract_file_substore_preserves_cross_file_edges() {
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs"));
+    let a_fn = store.upsert_node(path("src/a.rs>foo"));
+    store.upsert_node(path("src/b.rs"));
+    let b_fn = store.upsert_node(path("src/b.rs>bar"));
+    store.upsert_edge(EdgeKind::Calls, a_fn, b_fn);
+
+    let sub = store.extract_file_substore("src/a.rs");
+    assert!(sub.lookup("src/a.rs>foo").is_some());
+    assert!(
+        sub.lookup("src/b.rs>bar").is_some(),
+        "cross-file edge target preserved as leaf stub"
+    );
+    assert_eq!(sub.node_count(), 3);
+    let sub_foo = sub.lookup("src/a.rs>foo").unwrap();
+    let sub_bar = sub.lookup("src/b.rs>bar").unwrap();
+    assert!(
+        sub.synapse
+            .outgoing(sub_foo, EdgeKind::Calls)
+            .contains(&sub_bar),
+        "Calls edge from a.rs>foo -> b.rs>bar preserved"
+    );
+}
+
+#[test]
 fn compact_creates_fresh_snapshot() {
     let dir = tempfile::tempdir().unwrap();
     let snap_path = dir.path().join("index.rmp");

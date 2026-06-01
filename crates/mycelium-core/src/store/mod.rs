@@ -576,19 +576,28 @@ impl Store {
             EdgeKind::Composes,
             EdgeKind::Uses,
         ];
+        let id_set: HashSet<NodeId> = ids.iter().copied().collect();
         for &id in &ids {
             for &ek in edge_kinds {
                 for &dst in self.synapse.outgoing(id, ek) {
-                    if ids.contains(&dst) {
-                        if let (Some(sp), Some(dp)) =
-                            (self.trunk.path_of(id), self.trunk.path_of(dst))
-                        {
-                            if let (Ok(stp), Ok(dtp)) = (TrunkPath::parse(sp), TrunkPath::parse(dp))
-                            {
-                                let s = sub.trunk.upsert(stp);
-                                let d = sub.trunk.upsert(dtp);
-                                sub.synapse.add(ek, s, d);
-                            }
+                    let Some(sp) = self.trunk.path_of(id) else {
+                        continue;
+                    };
+                    let Some(dp) = self.trunk.path_of(dst) else {
+                        continue;
+                    };
+                    let (Ok(stp), Ok(dtp)) = (TrunkPath::parse(sp), TrunkPath::parse(dp)) else {
+                        continue;
+                    };
+                    let s = sub.trunk.upsert(stp);
+                    let d = sub.trunk.upsert(dtp);
+                    sub.synapse.add(ek, s, d);
+                    if !id_set.contains(&dst) {
+                        if let Some(&kind) = self.kind_map.get(&dst) {
+                            sub.kind_map.insert(d, kind);
+                        }
+                        if let Some(&span) = self.span_map.get(&dst) {
+                            sub.span_map.insert(d, span);
                         }
                     }
                 }
