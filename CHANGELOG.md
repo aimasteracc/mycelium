@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failures are retained and surfaced through `StorageBackend::flush()` instead
   of being silently discarded.
 
+- **RFC-0100 Phase 2 T02 — property equivalence guard** — adds randomized
+  operation-sequence equivalence tests over `InMemoryBackend` and `RedbBackend`,
+  including node metadata, all edge kinds, removals, re-insertion, reopen
+  durability, and per-prefix `edge_count`/incoming/outgoing consistency checks.
+  Redb adjacency lists are now canonicalized as sorted unique sets before
+  persistence so insertion order cannot affect on-disk graph shape.
+
 - **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
   diagnostic method that returns a conservative lower-bound estimate of bytes
   held by the store's Patricia trie and CSR synapse. Three TDD tests verify

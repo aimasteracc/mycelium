@@ -1,4 +1,4 @@
-//! P2-T01 — RFC-0100 Phase 2 equivalence harness.
+//! P2-T01/P2-T02 — RFC-0100 Phase 2 equivalence harness.
 //!
 //! Drives the same op-sequence against `InMemoryBackend` (the oracle) and
 //! `RedbBackend` (the subject under test), then asserts a set-based 3-layer
@@ -7,10 +7,9 @@
 //! ## TDD status (Charter §5.1 / Dev≠QA)
 //!
 //! Authored test-author-first, before any implementer touches `redb_backend.rs`.
-//! Cases that pass today verify happy-path equivalence of the shipped code.
-//! Cases marked `#[ignore = "RED spec …"]` document a *confirmed* divergence
-//! (see `docs/sprints/rfc-0100-phase2-build-plan.md`) and are un-ignored as the
-//! P2-T05 batched-atomic-transaction + sorted-adjacency fix lands.
+//! Matrix cases verify curated happy-path equivalence of the shipped code.
+//! P2-T02 adds randomized property sequences that mix node metadata, all edge
+//! kinds, removals, re-insertion, and explicit flushes.
 //!
 //! Per the expert synthesis (`wf_21a3635f-0e6`): this harness does NOT catch
 //! the crash-only half-edge bug under normal operation — that is P2-T03's job
@@ -32,6 +31,7 @@ use mycelium_core::store::backend::StorageBackend;
 use mycelium_core::store::in_memory::InMemoryBackend;
 use mycelium_core::store::redb_backend::RedbBackend;
 use mycelium_core::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
+use proptest::prelude::*;
 
 /// All edge kinds, kept in sync with `redb_tags`.
 const ALL_EDGE_KINDS: &[EdgeKind] = &[
@@ -52,6 +52,154 @@ const ALL_EDGE_KINDS: &[EdgeKind] = &[
     EdgeKind::Composes,
     EdgeKind::Uses,
 ];
+
+const PROP_PATHS: &[&str] = &[
+    "src/alpha.rs>Alpha",
+    "src/alpha.rs>Alpha::new",
+    "src/alpha.rs>Alpha::run",
+    "src/beta.rs>Beta",
+    "src/beta.rs>helper",
+    "src/gamma/mod.rs>Gamma",
+    "src/gamma/mod.rs>Gamma::tick",
+    "src/io.rs>read",
+    "src/io.rs>write",
+    "src/main.rs>main",
+    "tests/equivalence.rs>case",
+    "packs/rust/lib.rs>Extractor",
+];
+
+const PROP_NODE_KINDS: &[NodeKind] = &[
+    NodeKind::File,
+    NodeKind::Module,
+    NodeKind::Class,
+    NodeKind::Struct,
+    NodeKind::Function,
+    NodeKind::Method,
+    NodeKind::Variable,
+    NodeKind::Import,
+    NodeKind::Export,
+    NodeKind::Component,
+];
+
+#[derive(Debug, Clone)]
+enum Op {
+    UpsertNode {
+        path_idx: u8,
+    },
+    SetKind {
+        path_idx: u8,
+        kind_idx: u8,
+    },
+    SetSpan {
+        path_idx: u8,
+        seed: u16,
+    },
+    UpsertEdge {
+        kind_idx: u8,
+        src_idx: u8,
+        dst_idx: u8,
+    },
+    RemoveNodeEdges {
+        path_idx: u8,
+    },
+    RemoveNode {
+        path_idx: u8,
+    },
+    Flush,
+}
+
+fn any_op() -> impl Strategy<Value = Op> {
+    prop_oneof![
+        3 => (0u8..24).prop_map(|path_idx| Op::UpsertNode { path_idx }),
+        3 => (0u8..24, 0u8..32).prop_map(|(path_idx, kind_idx)| Op::SetKind {
+            path_idx,
+            kind_idx,
+        }),
+        3 => (0u8..24, 0u16..4096).prop_map(|(path_idx, seed)| Op::SetSpan {
+            path_idx,
+            seed,
+        }),
+        6 => (0u8..32, 0u8..24, 0u8..24).prop_map(|(kind_idx, src_idx, dst_idx)| {
+            Op::UpsertEdge {
+                kind_idx,
+                src_idx,
+                dst_idx,
+            }
+        }),
+        2 => (0u8..24).prop_map(|path_idx| Op::RemoveNodeEdges { path_idx }),
+        2 => (0u8..24).prop_map(|path_idx| Op::RemoveNode { path_idx }),
+        1 => Just(Op::Flush),
+    ]
+}
+
+fn prop_path(path_idx: u8) -> &'static str {
+    PROP_PATHS[usize::from(path_idx) % PROP_PATHS.len()]
+}
+
+fn prop_node_kind(kind_idx: u8) -> NodeKind {
+    PROP_NODE_KINDS[usize::from(kind_idx) % PROP_NODE_KINDS.len()]
+}
+
+fn prop_edge_kind(kind_idx: u8) -> EdgeKind {
+    ALL_EDGE_KINDS[usize::from(kind_idx) % ALL_EDGE_KINDS.len()]
+}
+
+fn prop_span(seed: u16) -> SourceSpan {
+    let base = u32::from(seed);
+    let start_line = (base % 200) + 1;
+    let width = (base % 5) + 1;
+    SourceSpan {
+        start_line,
+        start_col: base % 80,
+        end_line: start_line + (base % 3),
+        end_col: (base % 80) + width,
+        start_byte: base * 3,
+        end_byte: (base * 3) + width,
+    }
+}
+
+fn ensure_node(b: &mut dyn StorageBackend, path_idx: u8) -> NodeId {
+    let path = prop_path(path_idx);
+    b.lookup_path(path).unwrap_or_else(|| b.upsert_node(path))
+}
+
+fn apply_op(b: &mut dyn StorageBackend, op: &Op) {
+    match *op {
+        Op::UpsertNode { path_idx } => {
+            let _ = b.upsert_node(prop_path(path_idx));
+        }
+        Op::SetKind { path_idx, kind_idx } => {
+            let id = ensure_node(b, path_idx);
+            b.set_kind(id, prop_node_kind(kind_idx));
+        }
+        Op::SetSpan { path_idx, seed } => {
+            let id = ensure_node(b, path_idx);
+            b.set_span(id, prop_span(seed));
+        }
+        Op::UpsertEdge {
+            kind_idx,
+            src_idx,
+            dst_idx,
+        } => {
+            let src = ensure_node(b, src_idx);
+            let dst = ensure_node(b, dst_idx);
+            b.upsert_edge(prop_edge_kind(kind_idx), src, dst);
+        }
+        Op::RemoveNodeEdges { path_idx } => {
+            if let Some(id) = b.lookup_path(prop_path(path_idx)) {
+                b.remove_node_edges(id);
+            }
+        }
+        Op::RemoveNode { path_idx } => {
+            if let Some(id) = b.lookup_path(prop_path(path_idx)) {
+                b.remove_node(id);
+            }
+        }
+        Op::Flush => {
+            b.flush().expect("property sequence flush");
+        }
+    }
+}
 
 type SpanTuple = (u32, u32, u32, u32, u32, u32);
 
@@ -145,10 +293,37 @@ fn capture(b: &dyn StorageBackend) -> Snapshot {
     }
 }
 
+fn assert_snapshot_consistent(label: &str, backend_name: &str, s: &Snapshot) {
+    assert_eq!(
+        s.node_count,
+        s.paths.len(),
+        "{backend_name} snapshot [{label}] has node_count={} but {} paths",
+        s.node_count,
+        s.paths.len()
+    );
+    assert_eq!(
+        s.edge_count,
+        s.edges_via_all.len(),
+        "{backend_name} snapshot [{label}] has edge_count={} but {} unique all_edges",
+        s.edge_count,
+        s.edges_via_all.len()
+    );
+    assert_eq!(
+        s.edges_via_all, s.edges_via_outgoing,
+        "{backend_name} snapshot [{label}] all_edges and outgoing disagree"
+    );
+    assert_eq!(
+        s.edges_via_all, s.edges_via_incoming,
+        "{backend_name} snapshot [{label}] all_edges and incoming disagree"
+    );
+}
+
 /// Assert two backends are observably equivalent; panic with a minimal diff.
 fn assert_equivalent(label: &str, mem: &dyn StorageBackend, redb: &dyn StorageBackend) {
     let a = capture(mem);
     let b = capture(redb);
+    assert_snapshot_consistent(label, "inmemory", &a);
+    assert_snapshot_consistent(label, "redb", &b);
     if a == b {
         return;
     }
@@ -247,6 +422,43 @@ fn run_matrix(label: &str, body: impl Fn(&mut dyn StorageBackend)) {
     body(&mut redb);
 
     assert_equivalent(label, &mem, &redb);
+}
+
+fn run_op_sequence_equivalence(label: &str, ops: &[Op]) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join(format!("{label}.redb"));
+
+    let mut mem = InMemoryBackend::new();
+    let mut redb = RedbBackend::open(&db_path).expect("open redb");
+
+    for (idx, op) in ops.iter().enumerate() {
+        apply_op(&mut mem, op);
+        apply_op(&mut redb, op);
+        assert_equivalent(&format!("{label}:prefix_{idx}:{op:?}"), &mem, &redb);
+    }
+
+    mem.flush().expect("inmemory final flush");
+    redb.flush().expect("redb final flush");
+    assert_equivalent(&format!("{label}:final"), &mem, &redb);
+}
+
+fn run_op_sequence_reopen_equivalence(label: &str, ops: &[Op]) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join(format!("{label}.redb"));
+
+    let mut mem = InMemoryBackend::new();
+    {
+        let mut redb = RedbBackend::open(&db_path).expect("open redb");
+        for op in ops {
+            apply_op(&mut mem, op);
+            apply_op(&mut redb, op);
+        }
+        mem.flush().expect("inmemory final flush");
+        redb.flush().expect("redb final flush");
+    }
+
+    let redb = RedbBackend::open(&db_path).expect("reopen redb");
+    assert_equivalent(&format!("{label}:reopen"), &mem, &redb);
 }
 
 // ── Layer-0 sanity: the comparator agrees with itself ────────────────────────
@@ -402,4 +614,29 @@ fn matrix_reopen_equivalence() {
     }
     let redb = RedbBackend::open(&db_path).expect("reopen redb");
     assert_equivalent("reopen", &mem, &redb);
+}
+
+// ── P2-T02 property equivalence: randomized op sequences ────────────────────
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 32,
+        max_shrink_iters: 128,
+        failure_persistence: None,
+        ..ProptestConfig::default()
+    })]
+
+    #[test]
+    fn prop_backend_equivalence_for_op_sequences(
+        ops in prop::collection::vec(any_op(), 1..64)
+    ) {
+        run_op_sequence_equivalence("prop_backend_equivalence", &ops);
+    }
+
+    #[test]
+    fn prop_reopen_equivalence_for_op_sequences(
+        ops in prop::collection::vec(any_op(), 1..64)
+    ) {
+        run_op_sequence_reopen_equivalence("prop_reopen_equivalence", &ops);
+    }
 }
