@@ -45,6 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   design the LRU/mmap mitigation (Issue #344). Run with
   `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture`.
 
+### Fixed
+
+- **Release pipeline hardening** — release prep now updates internal
+  `mycelium-rcig-*` dependency pins before publishing, and `release.yml` fails
+  fast on missing crates.io credentials or cargo publish errors instead of
+  creating an orphan GitHub tag/Release. Crates publish dependency-first
+  (`pack → core → hyphae → mcp → cli`) and tag creation now waits until main
+  and develop merges succeed.
+
 ## [0.1.14] - 2026-05-31
 
 ### Added
