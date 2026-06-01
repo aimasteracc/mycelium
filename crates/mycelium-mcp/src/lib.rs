@@ -49,7 +49,7 @@ pub mod formatter;
 
 use std::collections::BTreeSet;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
@@ -72,6 +72,124 @@ use tracing::{debug, warn};
 
 use crate::error::{application_error, not_found, success_str};
 use crate::formatter::{OutputFormat, formatter_for};
+
+fn legacy_index_path(root: &Path) -> PathBuf {
+    root.join(".mycelium").join("index.rmp")
+}
+
+#[cfg(feature = "redb-backend")]
+fn redb_index_path(root: &Path) -> PathBuf {
+    root.join(".mycelium").join("index.redb")
+}
+
+fn existing_index_path(root: &Path) -> Option<PathBuf> {
+    #[cfg(feature = "redb-backend")]
+    {
+        let redb = redb_index_path(root);
+        if redb.exists() {
+            return Some(redb);
+        }
+    }
+
+    let legacy = legacy_index_path(root);
+    legacy.exists().then_some(legacy)
+}
+
+fn source_extension(path: &Path) -> Option<&str> {
+    let ext = path.extension().and_then(|e| e.to_str())?;
+    matches!(
+        ext,
+        "js" | "jsx"
+            | "py"
+            | "pyi"
+            | "ts"
+            | "tsx"
+            | "rs"
+            | "go"
+            | "java"
+            | "c"
+            | "h"
+            | "rb"
+            | "cpp"
+            | "cc"
+            | "cxx"
+            | "hpp"
+            | "cs"
+    )
+    .then_some(ext)
+}
+
+#[cfg(feature = "redb-backend")]
+fn is_supported_source_rel(path: &str) -> bool {
+    source_extension(Path::new(path)).is_some()
+}
+
+#[cfg(feature = "redb-backend")]
+fn persist_full_redb_index(root: &Path, store: &Store) -> anyhow::Result<()> {
+    use mycelium_core::store::redb_backend::RedbBackend;
+
+    let redb = redb_index_path(root);
+    if let Some(parent) = redb.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating redb index dir {}", parent.display()))?;
+    }
+    let mut backend = RedbBackend::open(&redb)
+        .map_err(|e| anyhow::anyhow!("opening redb index {}: {e}", redb.display()))?;
+
+    for file_path in store
+        .all_file_paths()
+        .into_iter()
+        .filter(|path| is_supported_source_rel(path))
+    {
+        backend
+            .replace_file_from_store(&file_path, store)
+            .map_err(|e| anyhow::anyhow!("persisting {file_path} to redb: {e}"))?;
+    }
+    Ok(())
+}
+
+#[cfg(feature = "redb-backend")]
+fn persist_redb_watch_batch(
+    root: &Path,
+    store: &Store,
+    changed_files: &[String],
+) -> anyhow::Result<()> {
+    use mycelium_core::store::redb_backend::RedbBackend;
+
+    let redb = redb_index_path(root);
+    if let Some(parent) = redb.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating redb index dir {}", parent.display()))?;
+    }
+    let mut backend = RedbBackend::open(&redb)
+        .map_err(|e| anyhow::anyhow!("opening redb index {}: {e}", redb.display()))?;
+
+    let mut files = changed_files.to_vec();
+    files.sort_unstable();
+    files.dedup();
+    for file_path in files
+        .into_iter()
+        .filter(|path| is_supported_source_rel(path))
+    {
+        backend
+            .replace_file_from_store(&file_path, store)
+            .map_err(|e| anyhow::anyhow!("persisting {file_path} to redb: {e}"))?;
+    }
+    Ok(())
+}
+
+fn persist_watch_batch(root: &Path, store: &Store, changed_files: &[String]) -> anyhow::Result<()> {
+    #[cfg(feature = "redb-backend")]
+    {
+        persist_redb_watch_batch(root, store, changed_files)
+    }
+
+    #[cfg(not(feature = "redb-backend"))]
+    {
+        let _ = changed_files;
+        store.save(&legacy_index_path(root))
+    }
+}
 
 /// Shared state for the background watch loop.
 #[derive(Debug, Default)]
@@ -1359,10 +1477,9 @@ impl MyceliumServer {
         root: PathBuf,
         allowed_roots: Vec<PathBuf>,
     ) -> anyhow::Result<Self> {
-        let snap = root.join(".mycelium").join("index.rmp");
         let server = Self::new_with_allowed_roots(allowed_roots);
 
-        if snap.exists() {
+        if let Some(snap) = existing_index_path(&root) {
             match Store::load(&snap) {
                 Ok(loaded) => {
                     tracing::info!(
@@ -1370,6 +1487,10 @@ impl MyceliumServer {
                         path = %snap.display(),
                         "loaded index from snapshot"
                     );
+                    #[cfg(feature = "redb-backend")]
+                    if let Err(e) = persist_full_redb_index(&root, &loaded) {
+                        tracing::warn!("could not persist redb index after load: {e}");
+                    }
                     *server.store.write().await = loaded;
                     *server.indexed_root.write().await = Some(root.clone());
                     server.start_watch(root).await?;
@@ -1388,8 +1509,12 @@ impl MyceliumServer {
                 .await
                 .map_err(|e| anyhow::anyhow!("indexing task panicked: {e}"))??;
         tracing::info!(files, errors, "live index completed");
-        if let Err(e) = new_store.save(&snap) {
+        if let Err(e) = new_store.save(&legacy_index_path(&root)) {
             tracing::warn!("could not save snapshot after live index: {e}");
+        }
+        #[cfg(feature = "redb-backend")]
+        if let Err(e) = persist_full_redb_index(&root, &new_store) {
+            tracing::warn!("could not persist redb index after live index: {e}");
         }
         *server.store.write().await = new_store;
         *server.indexed_root.write().await = Some(root.clone());
@@ -1433,7 +1558,6 @@ impl MyceliumServer {
         let store = Arc::clone(&self.store);
         let watch_state = Arc::clone(&self.watch_state);
         let cortex = Arc::clone(&self.cortex);
-        let snap = root.join(".mycelium").join("index.rmp");
 
         // Build ignore matcher from root .gitignore / .myceliumignore.
         let gitignore = {
@@ -1474,6 +1598,7 @@ impl MyceliumServer {
 
                 let mut store_w = store.write().await;
                 let mut changed = false;
+                let mut changed_files = Vec::new();
 
                 for abs_path in &batch {
                     // Skip paths that match the ignore rules or are always excluded.
@@ -1500,42 +1625,40 @@ impl MyceliumServer {
                         .to_string_lossy()
                         .replace('\\', "/");
 
+                    let Some(ext) = source_extension(abs_path) else {
+                        continue;
+                    };
+
                     // Remove old data for this file regardless of event kind.
                     store_w.remove_file(&rel);
 
                     // Re-index if the file still exists and is a known type.
                     if abs_path.is_file() {
-                        if let Some(ext) = abs_path.extension().and_then(|e| e.to_str()) {
-                            if matches!(
-                                ext,
-                                "js" | "jsx" | "py" | "pyi" | "ts" | "tsx" | "rs" | "go"
-                            ) {
-                                if let Ok(src) = std::fs::read(abs_path) {
-                                    let rel_owned = rel.clone();
-                                    let src_owned = src;
-                                    // ── Cortex (RFC-0003 Phase 1) ─────────────────────────
-                                    // Set the file in the Salsa database and retrieve the
-                                    // memoised FileIndex.  If content is unchanged, Salsa
-                                    // returns the cached result without re-running the
-                                    // extractor.  The FileIndex is then applied to the main
-                                    // Store via its bridge method.
-                                    {
-                                        let file = cortex
-                                            .lock()
-                                            .await
-                                            .set_file(abs_path.clone(), src_owned.clone());
-                                        let idx = cortex.lock().await.query_file(file);
-                                        idx.apply_to_store(&rel_owned, &mut store_w);
-                                    }
-                                    // Fallback: also run reindex_file for edge kinds that
-                                    // FileIndex does not yet propagate (calls, imports, etc.).
-                                    // Phase 2 will remove this once FileIndex is complete.
-                                    reindex_file(&rel_owned, &src_owned, ext, &mut store_w);
-                                }
+                        if let Ok(src) = std::fs::read(abs_path) {
+                            let rel_owned = rel.clone();
+                            let src_owned = src;
+                            // ── Cortex (RFC-0003 Phase 1) ─────────────────────────
+                            // Set the file in the Salsa database and retrieve the
+                            // memoised FileIndex.  If content is unchanged, Salsa
+                            // returns the cached result without re-running the
+                            // extractor.  The FileIndex is then applied to the main
+                            // Store via its bridge method.
+                            {
+                                let file = cortex
+                                    .lock()
+                                    .await
+                                    .set_file(abs_path.clone(), src_owned.clone());
+                                let idx = cortex.lock().await.query_file(file);
+                                idx.apply_to_store(&rel_owned, &mut store_w);
                             }
+                            // Fallback: also run reindex_file for edge kinds that
+                            // FileIndex does not yet propagate (calls, imports, etc.).
+                            // Phase 2 will remove this once FileIndex is complete.
+                            reindex_file(&rel_owned, &src_owned, ext, &mut store_w);
                         }
                     }
                     changed = true;
+                    changed_files.push(rel);
                 }
                 store_w.resolve_bare_call_stubs();
                 drop(store_w);
@@ -1545,7 +1668,10 @@ impl MyceliumServer {
                         .batches_processed
                         .fetch_add(1, Ordering::Relaxed);
                     // Save snapshot (best-effort; failures are non-fatal).
-                    store.read().await.save(&snap).ok();
+                    let store_r = store.read().await;
+                    if let Err(e) = persist_watch_batch(&root, &store_r, &changed_files) {
+                        warn!("could not persist watch batch: {e}");
+                    }
                 }
             }
 
@@ -5634,6 +5760,51 @@ mod tests {
         assert!(
             tmp.path().join(".mycelium").join("index.rmp").exists(),
             "with_root must save a snapshot after live indexing"
+        );
+    }
+
+    #[cfg(feature = "redb-backend")]
+    #[tokio::test]
+    async fn redb_watch_batch_persists_one_changed_file() {
+        use mycelium_core::store::backend::StorageBackend as _;
+        use mycelium_core::store::redb_backend::RedbBackend;
+
+        let tmp = tempfile::tempdir().unwrap();
+
+        let mut store = Store::new();
+        reindex_file("a.py", b"def old(): pass", "py", &mut store);
+        reindex_file("b.py", b"def keep(): pass", "py", &mut store);
+        store.resolve_bare_call_stubs();
+        persist_full_redb_index(tmp.path(), &store).expect("initial redb import");
+
+        store.remove_file("a.py");
+        reindex_file("a.py", b"def new(): pass", "py", &mut store);
+        store.resolve_bare_call_stubs();
+        persist_redb_watch_batch(tmp.path(), &store, &["a.py".to_string()])
+            .expect("single-file redb replacement");
+
+        let redb = tmp.path().join(".mycelium").join("index.redb");
+        assert!(redb.exists(), "watch persistence must use index.redb");
+
+        let loaded = Store::load(&redb).expect("load redb store");
+        assert!(
+            loaded.lookup("a.py>old").is_none(),
+            "changed-file replacement must remove stale symbols"
+        );
+        assert!(
+            loaded.lookup("a.py>new").is_some(),
+            "changed-file replacement must persist new symbols"
+        );
+        assert!(
+            loaded.lookup("b.py>keep").is_some(),
+            "single-file replacement must preserve unrelated files"
+        );
+
+        let reopened = RedbBackend::open_existing(&redb).expect("reopen redb backend");
+        assert_eq!(
+            reopened.node_count(),
+            loaded.node_count(),
+            "redb node count must match the materialized store"
         );
     }
 

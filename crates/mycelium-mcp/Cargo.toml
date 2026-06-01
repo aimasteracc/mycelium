@@ -16,6 +16,10 @@ categories    = ["development-tools", "api-bindings"]
 [lib]
 name = "mycelium_mcp"
 
+[features]
+default = []
+redb-backend = ["mycelium-core/redb-backend"]
+
 [lints]
 workspace = true
 

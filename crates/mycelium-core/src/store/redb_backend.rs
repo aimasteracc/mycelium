@@ -751,19 +751,26 @@ impl RedbBackend {
         let mut nodes = Vec::new();
         let mut owned_sources = Vec::new();
 
-        for path in store
-            .all_paths()
-            .filter(|path| path_owned_by_file(file_path, path))
-        {
-            let Some(id) = store.lookup(path) else {
-                continue;
-            };
-            owned_sources.push(id);
-            nodes.push(FileNode {
-                path: path.to_owned(),
-                kind: store.kind_of(id),
-                span: store.span_of(id).filter(|span| !span.is_empty()),
-            });
+        if let Some(root_id) = store.lookup(file_path) {
+            let mut file_ids: Vec<NodeId> = store.descendants(root_id).collect();
+            file_ids.push(root_id);
+            file_ids.sort_unstable_by_key(|id| id.0);
+            file_ids.dedup();
+
+            for id in file_ids {
+                let Some(path) = store.path_of(id) else {
+                    continue;
+                };
+                if !path_owned_by_file(file_path, path) {
+                    continue;
+                }
+                owned_sources.push(id);
+                nodes.push(FileNode {
+                    path: path.to_owned(),
+                    kind: store.kind_of(id),
+                    span: store.span_of(id).filter(|span| !span.is_empty()),
+                });
+            }
         }
 
         let mut edges = Vec::new();
