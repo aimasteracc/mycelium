@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   indexes under 500 nodes. This advances Issue #382 without adding new tools
   or triggering Three-Surface surface changes.
 
+- **RFC-0101 draft — `mycelium_context` architecture context tool** — adds the
+  governance contract for Issue #379 before implementation: CLI/MCP/Skill
+  Three-Surface scope, seven-key response shape, Hyphae-first routing,
+  natural-language candidate extraction, bounded graph expansion, source-snippet
+  budgets, NOT_FOUND behavior, and RED-first acceptance tests.
+
 - **RFC-0100 Phase 1 — `StorageBackend` + redb backend foundation** —
   introduces the feature-gated `redb-backend` storage path with an object-safe
   `StorageBackend` trait, `InMemoryBackend` oracle, redb key/tag helpers,
