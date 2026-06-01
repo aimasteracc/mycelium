@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default, preserving existing MessagePack behavior while preparing the unified
   redb storage migration. (RFC-0100)
 
+- **RFC-0100 Phase 2 T03/T05 — redb edge-write crash safety** — adds 4
+  RED-first tests for the bidirectional adjacency invariant and makes
+  `RedbBackend` update `synapse_fwd` and `synapse_rev` inside one redb write
+  transaction for `upsert_edge`, `remove_node_edges`, and `remove_node`. Write
+  failures are retained and surfaced through `StorageBackend::flush()` instead
+  of being silently discarded.
+
 - **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
   diagnostic method that returns a conservative lower-bound estimate of bytes
   held by the store's Patricia trie and CSR synapse. Three TDD tests verify
