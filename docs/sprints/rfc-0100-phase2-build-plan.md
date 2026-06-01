@@ -200,6 +200,30 @@ unchanged symbols in a watch replacement no longer churn trunk pages, and the
 local macOS/aarch64 criterion benchmark for 10K-symbol redb single-file
 replacement improved further from ~9.70 ms to ~9.37 ms.
 
+### P2-T05g progress marker — 2026-06-01
+
+The next write-amplification slice fixes the file-level no-op path:
+`RedbBackend::replace_file` previously deleted and rewrote owned edges and
+metadata even when the incoming file payload was byte-for-byte equivalent at the
+file-index/trunk/kind/span level. The replacement transaction now returns early
+only when all of these are already consistent:
+
+- persisted `file_index` nodes and owned edges match the new payload;
+- `trunk_by_id` and `trunk_by_path` both point to the expected paths and ids;
+- `kind_map` and `span_map` already match the incoming `FileNode` metadata.
+- `synapse_fwd` and `synapse_rev` already contain each owned edge recorded in
+  the incoming file payload.
+
+RED-first coverage showed 100 identical replacements of one file grew redb
+allocated pages from 57KB to 77KB. After the early-return guard, the same loop
+does not grow page footprint. This mainly protects no-op watch batches and
+content-equivalent rescans; the renamed-symbol benchmark remains roughly flat
+at 10K (~9.27 ms) and 100K (~13.97 ms), as expected because that scenario still
+has real edge/metadata changes to commit. A second RED regression test caught
+the repair boundary: if a public `remove_node_edges` call removes adjacency
+while `file_index` still records the owned edge, an identical `replace_file`
+must not skip the transaction; it repairs both forward and reverse adjacency.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.

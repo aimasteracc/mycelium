@@ -81,7 +81,7 @@ pub struct FileEdge {
     pub dst: NodeId,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct FileEntry {
     nodes: Vec<u64>,
     edges: Vec<FileEntryEdge>,
@@ -517,6 +517,76 @@ impl RedbBackend {
         Ok(())
     }
 
+    fn file_node_records_match_in(
+        txn: &WriteTransaction,
+        nodes: &[FileNode],
+    ) -> Result<bool, BackendError> {
+        let by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+        let by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+        let kind_tbl = txn.open_table(KIND_MAP).map_err(db_err)?;
+        let span_tbl = txn.open_table(SPAN_MAP).map_err(db_err)?;
+
+        for node in nodes {
+            let id = path_to_node_id(&node.path);
+            let id_path_matches = by_id
+                .get(id.0)
+                .map_err(db_err)?
+                .is_some_and(|guard| guard.value() == node.path);
+            if !id_path_matches {
+                return Ok(false);
+            }
+
+            let path_key = encode_path_key(&node.path);
+            let path_id_matches = by_path
+                .get(path_key.as_slice())
+                .map_err(db_err)?
+                .is_some_and(|guard| guard.value() == id.0);
+            if !path_id_matches {
+                return Ok(false);
+            }
+
+            let expected_kind = node.kind.map(node_kind_tag);
+            let actual_kind = kind_tbl
+                .get(id.0)
+                .map_err(db_err)?
+                .map(|guard| guard.value());
+            if actual_kind != expected_kind {
+                return Ok(false);
+            }
+
+            let actual_span = span_tbl
+                .get(id.0)
+                .map_err(db_err)?
+                .map(|guard| decode_span(guard.value()));
+            if actual_span != node.span {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn file_edge_records_match_in(
+        txn: &WriteTransaction,
+        edges: &[FileEntryEdge],
+    ) -> Result<bool, BackendError> {
+        for edge in edges {
+            let Some(kind) = tag_to_edge_kind(edge.kind) else {
+                return Ok(false);
+            };
+            let fwd = Self::read_fwd_in(txn, kind, edge.src)?;
+            if !fwd.contains(&edge.dst) {
+                return Ok(false);
+            }
+            let rev = Self::read_rev_in(txn, kind, edge.dst)?;
+            if !rev.contains(&edge.src) {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     fn set_kind_in(txn: &WriteTransaction, id: NodeId, kind: NodeKind) -> Result<(), BackendError> {
         let mut table = txn.open_table(KIND_MAP).map_err(db_err)?;
         table.insert(id.0, node_kind_tag(kind)).map_err(db_err)?;
@@ -702,9 +772,21 @@ impl RedbBackend {
         }
         new_entry_edges.sort_unstable();
         new_entry_edges.dedup();
+        let mut new_entry = FileEntry {
+            nodes: new_node_ids.iter().copied().collect(),
+            edges: new_entry_edges,
+        };
+        new_entry.nodes.sort_unstable();
+        new_entry.nodes.dedup();
 
         let txn = self.db.begin_write().map_err(db_err)?;
         let old_entry = Self::read_file_entry_in(&txn, file_path)?;
+        if old_entry == new_entry
+            && Self::file_node_records_match_in(&txn, nodes)?
+            && Self::file_edge_records_match_in(&txn, &new_entry.edges)?
+        {
+            return Ok(());
+        }
         let retained_old_node_ids: BTreeSet<u64> = old_entry
             .nodes
             .iter()
@@ -746,12 +828,6 @@ impl RedbBackend {
             Self::upsert_edge_in(&txn, edge.kind, edge.src.0, edge.dst.0)?;
         }
 
-        let mut new_entry = FileEntry {
-            nodes: new_node_ids.into_iter().collect(),
-            edges: new_entry_edges,
-        };
-        new_entry.nodes.sort_unstable();
-        new_entry.nodes.dedup();
         Self::write_file_entry_in(&txn, file_path, &new_entry)?;
 
         txn.commit().map_err(db_err)?;
