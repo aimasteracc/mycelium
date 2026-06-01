@@ -186,6 +186,20 @@ On the local macOS/aarch64 criterion benchmark, the 10K-symbol redb
 single-file replacement mean improved from ~18.4 ms to ~9.70 ms after this
 change.
 
+### P2-T05f progress marker — 2026-06-01
+
+The next write-amplification slice fixes the P2 finding that `upsert_node`
+always wrote both trunk tables even when the same path already existed with the
+same deterministic id. `RedbBackend::upsert_node` now checks `trunk_by_path`
+and `trunk_by_id` inside the write transaction and returns early when both
+indexes are already consistent.
+
+RED-first coverage proves 1,000 repeated upserts of the same node do not grow
+the redb allocated page footprint. This directly supports the R2/R3 tracks:
+unchanged symbols in a watch replacement no longer churn trunk pages, and the
+local macOS/aarch64 criterion benchmark for 10K-symbol redb single-file
+replacement improved further from ~9.70 ms to ~9.37 ms.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.

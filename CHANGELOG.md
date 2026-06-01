@@ -121,6 +121,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unnecessary stale-node edge scans for unchanged symbols; local 10K
   single-file replacement improved from ~18.4 ms to ~9.70 ms.
 
+- **RFC-0100 redb no-op node upsert write amplification** —
+  `RedbBackend::upsert_node` now reads existing `path -> id` and `id -> path`
+  entries before writing. Re-upserting an unchanged node no longer allocates
+  additional redb pages, and local 10K single-file replacement improved further
+  from ~9.70 ms to ~9.37 ms.
+
 - **Release pipeline hardening** — release prep now updates internal
   `mycelium-rcig-*` dependency pins before publishing, and `release.yml` fails
   fast on missing crates.io credentials or cargo publish errors instead of

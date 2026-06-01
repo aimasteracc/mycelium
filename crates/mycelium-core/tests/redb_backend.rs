@@ -98,6 +98,30 @@ fn redb_upsert_idempotent() {
 }
 
 #[test]
+fn redb_repeated_upsert_existing_node_does_not_grow_page_footprint() {
+    let mut r = fresh_redb();
+    let path = "src/a.rs>fn_a";
+    r.upsert_node(path);
+    r.flush().expect("flush initial insert");
+    let before = r.heap_size_estimate();
+
+    for _ in 0..1_000 {
+        assert_eq!(
+            r.upsert_node(path),
+            r.lookup_path(path).expect("path exists")
+        );
+    }
+    r.flush().expect("flush repeated upserts");
+    let after = r.heap_size_estimate();
+
+    assert_eq!(r.node_count(), 1);
+    assert!(
+        after <= before,
+        "re-upserting an existing identical node should not allocate more redb pages: before={before} after={after}"
+    );
+}
+
+#[test]
 fn redb_node_count_parity() {
     let mut r = fresh_redb();
     let mut m = fresh_mem();
