@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-01 (PM dispatch v3 — PR #395 MERGED ✅ (90th MCP tool, OutputBudget, stubs); PR #405 MERGED ✅; Issue #375 escalated to founder; dep bumps #402-#404 deferred) |
+| Last updated | 2026-06-01 (PM dispatch v4 — PR #406 MERGED ✅; PR #407 docs fixed (CI re-running); Issue #375 founder-gated; dep bumps deferred) |
 | Current sprint | **v0.1.16 — IN PROGRESS (ceremony repair + feature content ready)** |
 | Active release branch | none (Issue #375 ceremony repair pending founder GPG decision) |
 | Next release target | **v0.1.16** — ceremony repair (Issue #375) + mycelium_context + RFC-0100 redb + RFC-0101 CLI twin |
@@ -86,9 +86,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 3. **Post-v0.1.15/v0.1.16 security scan** — pending ceremony resolution (after Issue #375 closes).
 
 **Maintenance (merged this run and prior runs today):**
+- PR #406 MERGED ✅ (2026-06-01 v4): PM dispatch v3 state chore
 - PR #395 MERGED ✅ (2026-06-01 v3): mycelium_context + OutputBudget + import-aware stubs (90 MCP tools, 22/22 CI checks green)
 - PR #405 MERGED ✅ (2026-06-01 v3): PM dispatch state chore
 - PRs #397–#401 MERGED ✅ (2026-06-01 v2): CI action bumps — all 5 merged
+
+**PR #407 — R2 incremental persistence (founder-opened, awaiting CI):**
+- Docs fix pushed (2026-06-01 v4): unresolved `[Store]` intra-doc link → `[super::Store]`; CI re-running
+- When Quality Gate turns green → ready for merge (closes Issue #343)
+- Note: Founder opened this PR directly — implicit sign-off on journal approach (additive `.mycelium/journal.jsonl`, base `index.rmp` format unchanged)
 
 **Deferred dependency bumps (red CI, needs RFC/analysis):**
 - PR #402: redb 2.6.3→4.1.0 — clippy + docs failure; redb 4.x is a major API break
@@ -104,7 +110,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-01 v3 — PRs #395+#405 merged; v0.1.16 sprint defined)
+## Dispatch state (2026-06-01 v4 — PR #406 merged; PR #407 docs fixed; CI re-running)
 
 | Agent | Status | Current item |
 |---|---|---|
