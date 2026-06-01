@@ -67,7 +67,7 @@ fn redb_open_existing_rejects_newer_schema_version() {
     match err {
         StorageError::SchemaVersion { file, supported } => {
             assert_eq!(file, 999);
-            assert_eq!(supported, 1);
+            assert_eq!(supported, 2);
         }
         other => panic!("expected schema version error, got {other:?}"),
     }

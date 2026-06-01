@@ -65,6 +65,25 @@ Scope boundaries:
   under cap" gate remain open until the batched/file-scoped write path avoids
   per-operation fsync costs.
 
+### P2-T05a progress marker — 2026-06-01
+
+The first P2-T05 implementation slice adds the ADR-0007 `file_index` table to
+`RedbBackend` and introduces a feature-gated core-only `replace_file` API. The
+API reads the persisted file entry, removes the file's previous nodes and owned
+edges, strips stale external references to removed nodes, writes the new
+nodes/edges, updates `file_index`, and commits all of that in one redb write
+transaction.
+
+Scope boundaries:
+
+- This is the core storage primitive for Issue #343, not the full issue
+  closure.
+- The default backend remains unchanged and `redb-backend` remains feature-gated
+  off by default.
+- CLI/MCP/Skill surfaces are intentionally untouched until the backend flip or
+  migration command, so the Three-Surface Rule is not triggered in this slice.
+- Watch-mode wiring and large-repo O(changed-file) benchmarks remain open.
+
 ## First PR (this one) — P2-T01 only
 
 The equivalence harness as RED-first integration tests gated `#[cfg(feature="redb-backend")]`.

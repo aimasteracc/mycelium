@@ -12,17 +12,21 @@
 //! | `span_map` | `u64` (`NodeId`) | `&[u8]` (24-byte span) | per-node span |
 //! | `synapse_fwd` | `&[u8]` (kind `u16` ++ src `u64`) | `&[u8]` (packed dst list) | forward adjacency |
 //! | `synapse_rev` | `&[u8]` (kind `u16` ++ dst `u64`) | `&[u8]` (packed src list) | reverse adjacency |
+//! | `file_index` | `&str` (source file path) | `&[u8]` (`MessagePack` `FileEntry`) | per-file replacement index |
 //! | `meta` | `&str` | `u64` | schema version, stats |
 //!
 //! RFC-0100 / P1-T09. Key encoding from P1-T05 (`redb_keys.rs`).
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use redb::{Database, ReadableTable, ReadableTableMetadata, TableDefinition, WriteTransaction};
+use serde::{Deserialize, Serialize};
 
 use crate::store::backend::{StorageBackend, StorageError as BackendError};
 use crate::store::redb_keys::{decode_adj_key, encode_adj_key, encode_path_key};
 use crate::store::redb_tags::{edge_kind_tag, tag_to_edge_kind};
+use crate::trunk::{TrunkPath, path_to_node_id};
 use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
 
 // ── table definitions ────────────────────────────────────────────────────────
@@ -40,10 +44,52 @@ const SYNAPSE_FWD: TableDefinition<'_, &[u8], &[u8]> = TableDefinition::new("syn
 #[allow(elided_lifetimes_in_paths)]
 const SYNAPSE_REV: TableDefinition<'_, &[u8], &[u8]> = TableDefinition::new("synapse_rev");
 #[allow(elided_lifetimes_in_paths)]
+const FILE_INDEX: TableDefinition<'_, &str, &[u8]> = TableDefinition::new("file_index");
+#[allow(elided_lifetimes_in_paths)]
 const META: TableDefinition<'_, &str, u64> = TableDefinition::new("meta");
 
 /// Current schema version written into the `meta` table on first open.
-const SCHEMA_VERSION: u64 = 1;
+const SCHEMA_VERSION: u64 = 2;
+
+// ── file-scoped replacement payloads ─────────────────────────────────────────
+
+/// A node materialized from one source file for [`RedbBackend::replace_file`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileNode {
+    /// Fully-qualified trunk path, e.g. `src/lib.rs>Parser>parse`.
+    pub path: String,
+    /// Optional semantic kind for the node.
+    pub kind: Option<NodeKind>,
+    /// Optional source span for the node.
+    pub span: Option<SourceSpan>,
+}
+
+/// A directed edge owned by one source file for [`RedbBackend::replace_file`].
+///
+/// Edge ownership follows ADR-0007/RFC-0098: the source file owns edges whose
+/// `src` node belongs to that file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FileEdge {
+    /// Edge kind.
+    pub kind: EdgeKind,
+    /// Source node id; must belong to the replacing file's node set.
+    pub src: NodeId,
+    /// Destination node id; may point to another file.
+    pub dst: NodeId,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct FileEntry {
+    nodes: Vec<u64>,
+    edges: Vec<FileEntryEdge>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+struct FileEntryEdge {
+    kind: u16,
+    src: u64,
+    dst: u64,
+}
 
 // ── helper: encode/decode span ───────────────────────────────────────────────
 
@@ -149,6 +195,21 @@ fn db_err(e: impl std::fmt::Display) -> BackendError {
     BackendError::Backend(e.to_string())
 }
 
+fn encode_file_entry(entry: &FileEntry) -> Result<Vec<u8>, BackendError> {
+    rmp_serde::to_vec(entry).map_err(|e| BackendError::Encode(e.to_string()))
+}
+
+fn decode_file_entry(bytes: &[u8]) -> Result<FileEntry, BackendError> {
+    rmp_serde::from_slice(bytes).map_err(|e| BackendError::Encode(e.to_string()))
+}
+
+fn path_owned_by_file(file_path: &str, node_path: &str) -> bool {
+    node_path == file_path
+        || node_path
+            .strip_prefix(file_path)
+            .is_some_and(|rest| rest.starts_with('>'))
+}
+
 // ── backend struct ────────────────────────────────────────────────────────────
 
 /// Storage backend backed by a redb ACID B-tree database.
@@ -163,7 +224,7 @@ pub struct RedbBackend {
 impl RedbBackend {
     /// Open or create a redb database at `path`.
     ///
-    /// On first open, creates all 7 tables and writes `SCHEMA_VERSION` to meta.
+    /// On first open, creates all 8 tables and writes `SCHEMA_VERSION` to meta.
     /// On subsequent opens, verifies that the stored schema version matches
     /// `SCHEMA_VERSION`.
     ///
@@ -216,6 +277,7 @@ impl RedbBackend {
             txn.open_table(SPAN_MAP).map_err(db_err)?;
             txn.open_table(SYNAPSE_FWD).map_err(db_err)?;
             txn.open_table(SYNAPSE_REV).map_err(db_err)?;
+            txn.open_table(FILE_INDEX).map_err(db_err)?;
             let mut meta = txn.open_table(META).map_err(db_err)?;
             if meta.get("schema_version").map_err(db_err)?.is_none() {
                 meta.insert("schema_version", SCHEMA_VERSION)
@@ -271,6 +333,9 @@ impl RedbBackend {
         {
             txn.open_table(SYNAPSE_REV).map_err(db_err)?;
         }
+        {
+            txn.open_table(FILE_INDEX).map_err(db_err)?;
+        }
         Ok(())
     }
 
@@ -293,36 +358,61 @@ impl RedbBackend {
         Some(usize::try_from(bytes).unwrap_or(usize::MAX))
     }
 
-    fn try_upsert_node(&self, path: &str) -> Result<NodeId, BackendError> {
-        if crate::trunk::TrunkPath::parse(path).is_err() {
-            return Ok(NodeId::NULL);
+    fn read_file_entry_in(
+        txn: &WriteTransaction,
+        file_path: &str,
+    ) -> Result<FileEntry, BackendError> {
+        let table = txn.open_table(FILE_INDEX).map_err(db_err)?;
+        table.get(file_path).map_err(db_err)?.map_or_else(
+            || Ok(FileEntry::default()),
+            |g| decode_file_entry(g.value()),
+        )
+    }
+
+    fn write_file_entry_in(
+        txn: &WriteTransaction,
+        file_path: &str,
+        entry: &FileEntry,
+    ) -> Result<(), BackendError> {
+        let mut table = txn.open_table(FILE_INDEX).map_err(db_err)?;
+        if entry.nodes.is_empty() && entry.edges.is_empty() {
+            table.remove(file_path).map_err(db_err)?;
+        } else {
+            let encoded = encode_file_entry(entry)?;
+            table
+                .insert(file_path, encoded.as_slice())
+                .map_err(db_err)?;
         }
-        let id = crate::trunk::path_to_node_id(path);
+        Ok(())
+    }
+
+    fn upsert_node_in(txn: &WriteTransaction, path: &str) -> Result<NodeId, BackendError> {
+        TrunkPath::parse(path)
+            .map_err(|e| BackendError::Backend(format!("invalid trunk path {path:?}: {e}")))?;
+        let id = path_to_node_id(path);
         let path_key = encode_path_key(path);
-        let txn = self.db.begin_write().map_err(db_err)?;
         {
             let mut by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
-            let mut by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
             by_id.insert(id.0, path).map_err(db_err)?;
+        }
+        {
+            let mut by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
             by_path.insert(path_key.as_slice(), id.0).map_err(db_err)?;
         }
-        txn.commit().map_err(db_err)?;
         Ok(id)
     }
 
-    fn try_remove_node(&self, id: NodeId) -> Result<(), BackendError> {
-        let txn = self.db.begin_write().map_err(db_err)?;
-        Self::remove_node_edges_in(&txn, id.0)?;
+    fn remove_node_record_in(txn: &WriteTransaction, id: u64) -> Result<(), BackendError> {
         let path = {
             let by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
             by_id
-                .get(id.0)
+                .get(id)
                 .map_err(db_err)?
                 .map(|guard| guard.value().to_owned())
         };
         {
             let mut by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
-            by_id.remove(id.0).map_err(db_err)?;
+            by_id.remove(id).map_err(db_err)?;
         }
         if let Some(path) = path {
             let path_key = encode_path_key(&path);
@@ -331,33 +421,60 @@ impl RedbBackend {
         }
         {
             let mut kind_tbl = txn.open_table(KIND_MAP).map_err(db_err)?;
-            kind_tbl.remove(id.0).map_err(db_err)?;
+            kind_tbl.remove(id).map_err(db_err)?;
         }
         {
             let mut span_tbl = txn.open_table(SPAN_MAP).map_err(db_err)?;
-            span_tbl.remove(id.0).map_err(db_err)?;
+            span_tbl.remove(id).map_err(db_err)?;
         }
+        Ok(())
+    }
+
+    fn set_kind_in(txn: &WriteTransaction, id: NodeId, kind: NodeKind) -> Result<(), BackendError> {
+        let mut table = txn.open_table(KIND_MAP).map_err(db_err)?;
+        table.insert(id.0, node_kind_tag(kind)).map_err(db_err)?;
+        Ok(())
+    }
+
+    fn set_span_in(
+        txn: &WriteTransaction,
+        id: NodeId,
+        span: SourceSpan,
+    ) -> Result<(), BackendError> {
+        let encoded = encode_span(span);
+        let mut table = txn.open_table(SPAN_MAP).map_err(db_err)?;
+        table.insert(id.0, encoded.as_slice()).map_err(db_err)?;
+        Ok(())
+    }
+
+    fn try_upsert_node(&self, path: &str) -> Result<NodeId, BackendError> {
+        if TrunkPath::parse(path).is_err() {
+            return Ok(NodeId::NULL);
+        }
+        let txn = self.db.begin_write().map_err(db_err)?;
+        let id = Self::upsert_node_in(&txn, path)?;
+        txn.commit().map_err(db_err)?;
+        Ok(id)
+    }
+
+    fn try_remove_node(&self, id: NodeId) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        Self::remove_node_edges_in(&txn, id.0)?;
+        Self::remove_node_record_in(&txn, id.0)?;
         txn.commit().map_err(db_err)?;
         Ok(())
     }
 
     fn try_set_kind(&self, id: NodeId, kind: NodeKind) -> Result<(), BackendError> {
         let txn = self.db.begin_write().map_err(db_err)?;
-        {
-            let mut table = txn.open_table(KIND_MAP).map_err(db_err)?;
-            table.insert(id.0, node_kind_tag(kind)).map_err(db_err)?;
-        }
+        Self::set_kind_in(&txn, id, kind)?;
         txn.commit().map_err(db_err)?;
         Ok(())
     }
 
     fn try_set_span(&self, id: NodeId, span: SourceSpan) -> Result<(), BackendError> {
-        let encoded = encode_span(span);
         let txn = self.db.begin_write().map_err(db_err)?;
-        {
-            let mut table = txn.open_table(SPAN_MAP).map_err(db_err)?;
-            table.insert(id.0, encoded.as_slice()).map_err(db_err)?;
-        }
+        Self::set_span_in(&txn, id, span)?;
         txn.commit().map_err(db_err)?;
         Ok(())
     }
@@ -424,6 +541,121 @@ impl RedbBackend {
             }
         }
         Ok(())
+    }
+
+    fn remove_edge_in(
+        txn: &WriteTransaction,
+        kind: EdgeKind,
+        src: u64,
+        dst: u64,
+    ) -> Result<(), BackendError> {
+        let mut fwd = Self::read_fwd_in(txn, kind, src)?;
+        fwd.retain(|&old_dst| old_dst != dst);
+        Self::write_fwd_in(txn, kind, src, &fwd)?;
+
+        let mut rev = Self::read_rev_in(txn, kind, dst)?;
+        rev.retain(|&old_src| old_src != src);
+        Self::write_rev_in(txn, kind, dst, &rev)?;
+        Ok(())
+    }
+
+    fn try_replace_file(
+        &self,
+        file_path: &str,
+        nodes: &[FileNode],
+        edges: &[FileEdge],
+    ) -> Result<(), BackendError> {
+        TrunkPath::parse(file_path)
+            .map_err(|e| BackendError::Backend(format!("invalid file path {file_path:?}: {e}")))?;
+
+        let mut new_node_ids = BTreeSet::new();
+        for node in nodes {
+            if !path_owned_by_file(file_path, &node.path) {
+                return Err(BackendError::Backend(format!(
+                    "node path {:?} is not owned by file {:?}",
+                    node.path, file_path
+                )));
+            }
+            TrunkPath::parse(&node.path).map_err(|e| {
+                BackendError::Backend(format!("invalid trunk path {:?}: {e}", node.path))
+            })?;
+            new_node_ids.insert(path_to_node_id(&node.path).0);
+        }
+
+        let mut new_entry_edges = Vec::with_capacity(edges.len());
+        for edge in edges {
+            if !new_node_ids.contains(&edge.src.0) {
+                return Err(BackendError::Backend(format!(
+                    "edge source {:?} is not owned by file {:?}",
+                    edge.src, file_path
+                )));
+            }
+            new_entry_edges.push(FileEntryEdge {
+                kind: edge_kind_tag(edge.kind),
+                src: edge.src.0,
+                dst: edge.dst.0,
+            });
+        }
+        new_entry_edges.sort_unstable();
+        new_entry_edges.dedup();
+
+        let txn = self.db.begin_write().map_err(db_err)?;
+        let old_entry = Self::read_file_entry_in(&txn, file_path)?;
+
+        for old_edge in old_entry.edges {
+            if let Some(kind) = tag_to_edge_kind(old_edge.kind) {
+                Self::remove_edge_in(&txn, kind, old_edge.src, old_edge.dst)?;
+            }
+        }
+
+        for old_node in old_entry.nodes {
+            Self::remove_node_edges_in(&txn, old_node)?;
+            Self::remove_node_record_in(&txn, old_node)?;
+        }
+
+        for node in nodes {
+            let id = Self::upsert_node_in(&txn, &node.path)?;
+            if let Some(kind) = node.kind {
+                Self::set_kind_in(&txn, id, kind)?;
+            }
+            if let Some(span) = node.span {
+                Self::set_span_in(&txn, id, span)?;
+            }
+        }
+
+        for edge in edges {
+            Self::upsert_edge_in(&txn, edge.kind, edge.src.0, edge.dst.0)?;
+        }
+
+        let mut new_entry = FileEntry {
+            nodes: new_node_ids.into_iter().collect(),
+            edges: new_entry_edges,
+        };
+        new_entry.nodes.sort_unstable();
+        new_entry.nodes.dedup();
+        Self::write_file_entry_in(&txn, file_path, &new_entry)?;
+
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    /// Atomically replace all redb records owned by `file_path`.
+    ///
+    /// This is the RFC-0100/#343 incremental write unit: one transaction reads
+    /// the persisted `file_index`, removes the file's previous nodes and owned
+    /// edges, inserts the new nodes/edges, updates `file_index`, then commits.
+    ///
+    /// # Errors
+    ///
+    /// Returns a backend error if paths are invalid, an edge source is not owned
+    /// by `file_path`, encoding fails, or redb reports an I/O/transaction error.
+    pub fn replace_file(
+        &mut self,
+        file_path: &str,
+        nodes: &[FileNode],
+        edges: &[FileEdge],
+    ) -> Result<(), BackendError> {
+        self.try_replace_file(file_path, nodes, edges)
     }
 
     // ── fwd adjacency helpers ─────────────────────────────────────────────────
