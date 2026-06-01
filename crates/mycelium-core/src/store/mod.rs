@@ -1023,10 +1023,14 @@ impl Store {
     ///
     /// Returns the count of stubs successfully resolved.
     pub fn resolve_bare_call_stubs(&mut self) -> usize {
-        // Snapshot all paths to avoid borrow conflicts during mutation.
+        let base = self.resolve_bare_call_stubs_simple();
+        let aware = self.resolve_import_aware_stubs();
+        base + aware
+    }
+
+    fn resolve_bare_call_stubs_simple(&mut self) -> usize {
         let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
 
-        // Bare stubs: paths with no `>` separator.
         let stubs: Vec<(NodeId, String)> = all_paths
             .iter()
             .filter(|p| !p.contains('>'))
@@ -1044,6 +1048,99 @@ impl Store {
 
             if matches.len() == 1 {
                 let def_id = matches[0];
+                self.synapse.redirect_node(stub_id, def_id);
+                self.trunk.remove(stub_id);
+                resolved += 1;
+            }
+        }
+        resolved
+    }
+
+    /// Second-pass resolution using import edges to disambiguate.
+    ///
+    /// For each remaining bare stub, examine its callers. If a caller's file
+    /// imports a module that defines the symbol, resolve the stub to that
+    /// definition. This handles cases where multiple files define the same
+    /// symbol name but only one is imported by the caller.
+    fn resolve_import_aware_stubs(&mut self) -> usize {
+        let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
+
+        let stubs: Vec<(NodeId, String)> = all_paths
+            .iter()
+            .filter(|p| !p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p).map(|id| (id, p.clone())))
+            .collect();
+
+        if stubs.is_empty() {
+            return 0;
+        }
+
+        let suffix_map: hashbrown::HashMap<String, Vec<NodeId>> = {
+            let mut m: HashMap<String, Vec<NodeId>> = HashMap::new();
+            for path in &all_paths {
+                if let Some(gt) = path.rfind('>') {
+                    let suffix = &path[gt..];
+                    if let Some(id) = self.trunk.lookup_path(path) {
+                        m.entry(suffix.to_owned()).or_default().push(id);
+                    }
+                }
+            }
+            m
+        };
+
+        let mut resolved = 0;
+        for (stub_id, stub_name) in stubs {
+            let suffix = format!(">{stub_name}");
+            let Some(defs) = suffix_map.get(&suffix) else {
+                continue;
+            };
+
+            let callers: Vec<NodeId> = self.synapse.incoming(stub_id, EdgeKind::Calls).to_vec();
+            if callers.is_empty() {
+                continue;
+            }
+
+            let mut best_def: Option<NodeId> = None;
+            let mut best_count = 0usize;
+
+            for &def_id in defs {
+                let Some(def_path) = self.trunk.path_of(def_id) else {
+                    continue;
+                };
+                let def_path = def_path.to_owned();
+                let Some(file_path) = def_path.split('>').next() else {
+                    continue;
+                };
+                let Some(file_id) = self.trunk.lookup_path(file_path) else {
+                    continue;
+                };
+
+                let mut match_count = 0usize;
+                for &caller_id in &callers {
+                    let Some(caller_path) = self.trunk.path_of(caller_id) else {
+                        continue;
+                    };
+                    let caller_path = caller_path.to_owned();
+                    let Some(caller_file) = caller_path.split('>').next() else {
+                        continue;
+                    };
+                    let Some(caller_file_id) = self.trunk.lookup_path(caller_file) else {
+                        continue;
+                    };
+
+                    let imports = self.synapse.outgoing(caller_file_id, EdgeKind::Imports);
+                    if imports.contains(&file_id) || imports.contains(&def_id) {
+                        match_count += 1;
+                    }
+                }
+
+                if match_count > best_count {
+                    best_count = match_count;
+                    best_def = Some(def_id);
+                }
+            }
+
+            if let Some(def_id) = best_def {
                 self.synapse.redirect_node(stub_id, def_id);
                 self.trunk.remove(stub_id);
                 resolved += 1;

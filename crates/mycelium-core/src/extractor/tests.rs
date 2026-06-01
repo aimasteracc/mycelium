@@ -1570,6 +1570,58 @@ fn extractor_python_extends_dotted_and_simple_mixed_inheritance() {
     );
 }
 
+// ── issue #381: import-aware stub resolution (second pass) ──────────────────
+
+/// When two files define the same symbol and the simple pass cannot disambiguate,
+/// the import-aware second pass uses the caller file's Imports edges to pick the
+/// correct definition. We manually construct the graph to simulate this scenario
+/// since the Python extractor's alias table handles `from X import Y` at extraction
+/// time.
+#[test]
+#[allow(clippy::similar_names)]
+fn store_import_aware_stub_resolution_picks_imported_def() {
+    let ext = python_extractor();
+    let mut store = Store::new();
+
+    // Two files define "helper" with full paths.
+    ext.extract("a.py", b"def helper():\n    pass", &mut store)
+        .unwrap();
+    ext.extract("b.py", b"def helper():\n    pass", &mut store)
+        .unwrap();
+    // Third file calls helper at module level, creating a bare stub.
+    ext.extract("caller.py", b"helper()", &mut store).unwrap();
+
+    // Manually add Imports edge: caller.py imports a.py
+    let caller_file = store.lookup("caller.py").expect("caller.py must exist");
+    let a_file = store.lookup("a.py").expect("a.py must exist");
+    store.upsert_edge(EdgeKind::Imports, caller_file, a_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+    assert!(
+        resolved >= 1,
+        "at least one stub must be resolved, got {resolved}"
+    );
+
+    // The bare "helper" stub should be gone, resolved to a.py>helper
+    assert!(
+        store.lookup("helper").is_none(),
+        "bare stub 'helper' must be removed after resolution"
+    );
+    let a_helper = store.lookup("a.py>helper").expect("a.py>helper must exist");
+    let b_helper = store.lookup("b.py>helper").expect("b.py>helper must exist");
+
+    // caller.py has an outgoing Calls edge — it should point to a.py>helper
+    let calls_targets = store.outgoing(caller_file, EdgeKind::Calls);
+    assert!(
+        calls_targets.contains(&a_helper),
+        "caller must call a.py>helper (the imported definition)"
+    );
+    assert!(
+        !calls_targets.contains(&b_helper),
+        "caller must NOT call b.py>helper (not imported)"
+    );
+}
+
 #[test]
 fn extractor_python_extends_metaclass_kwarg_not_captured_as_base() {
     // `class Foo(Base, metaclass=Meta):` — metaclass keyword argument must NOT
