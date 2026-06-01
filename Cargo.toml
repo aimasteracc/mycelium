@@ -95,7 +95,7 @@ criterion          = { version = "0.8", features = ["html_reports"] }
 tempfile           = "3"
 
 # Storage backend
-redb               = "=2.6.3"
+redb               = "=4.1.0"
 
 # Hashing / IDs
 blake3             = "1"
