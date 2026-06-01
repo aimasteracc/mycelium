@@ -20,7 +20,10 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use redb::{Database, ReadableTable, ReadableTableMetadata, TableDefinition, WriteTransaction};
+use redb::{
+    Database, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition,
+    WriteTransaction,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::store::Store;
