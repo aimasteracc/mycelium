@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`pack → core → hyphae → mcp → cli`) and tag creation now waits until main
   and develop merges succeed.
 
+- **Release governance guardrails** — CI now runs static release/governance
+  checks, and GitFlow/PR/release-agent runbooks explicitly define admin-merge
+  overrides, incomplete-release incident response, and the four-step release
+  completion invariant.
+
 ## [0.1.14] - 2026-05-31
 
 ### Added
