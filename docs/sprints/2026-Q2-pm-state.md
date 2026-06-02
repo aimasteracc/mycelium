@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v6 — PR #431 MERGED ✅ RFC-0101 contract; PR #433 opened: Issue #426 criterion 3 BoundedStore removal) |
-| Current sprint | **v0.1.17 — IN PROGRESS (PR #433 CI pending; Issues #426/#427/#428 in queue)** |
-| Active release branch | none (cut release/v0.1.17 after v0.1.16 crates.io confirmed + security scan) |
-| Next release target | **v0.1.17** — RFC-0101/0102 contract (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
+| Last updated | 2026-06-02 (PM dispatch v9 — PR #442 opened: Issue #428 AC#2 slice 1 lib.rs tests extraction 12191→5627 lines; PRs #440+#441 absorbed; Issue #426 remaining criteria escalated to founder) |
+| Current sprint | **v0.1.17 — IN PROGRESS (PR #442 CI pending; Issue #426 AC#4 founder-gated; Issue #428 AC#2 tool-impl split remaining)** |
+| Active release branch | none (cut release/v0.1.17 after PR #442 + security scan + founder sign-off on Issue #426) |
+| Next release target | **v0.1.17** — RFC-0101/0102 contract + RFC-0100 Phase 3 redb readiness + tech debt god-file split (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last ceremony-complete release | **v0.1.14** (all 4 Charter §5.12 steps ✅). v0.1.16 is on main+tag but crates.io PENDING (step 3 incomplete — not considered "shipped" until crates.io confirmed). |
 
@@ -100,10 +100,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## 🚀 v0.1.17 — CONTENT COMPLETE; ceremony pending
 
-**What will ship (all merged to develop at `2c4cb66`):**
+**What will ship (all merged to develop, HEAD `ec3266d`):**
 - [x] RFC-0101 Phase 2: `mycelium context` CLI twin (PR #414) — Three-Surface compliant ✅
-- [x] Governance guardrails: `check_supersede_discipline.sh` CI gate, phantom RFC-0099 restored, `journal.rs` annotated as transitional bridge, two CLAUDE.md Hard Rules (PR #424)
-- [x] fix(storage): `node_kind_tag` panics on unmapped variant + roundtrip completeness test (PR #425)
+- [x] Governance guardrails: `check_supersede_discipline.sh` CI gate (PR #424)
+- [x] fix(storage): `node_kind_tag` panic on unmapped variant + roundtrip test (PR #425)
+- [x] docs(adr): renumber ADR-0007 redb → ADR-0008 (PR #429 — Issue #428 AC#1) ✅
+- [x] feat(mcp): RFC-0101 `related_files` + `apply_budget` + `edge_kinds` (PR #431)
+- [x] feat(context): shared `mycelium_core::context` builder, byte-identical CLI↔MCP (PR #436)
+- [x] feat(budget): `OutputBudget` to core, context budgeted on both surfaces (PR #438 — Issue #427 CLOSED) ✅
+- [x] feat(core): 100k-node redb SLA gate; remove orphan LRU (PR #440 — Issue #426 AC#1+3) ✅
+- [x] refactor(core): redb codec → `redb_codec.rs` (PR #441 — Issue #428 AC#3 slice) ✅
+- [ ] refactor(mcp): `mod tests` → `src/tests.rs` lib.rs 12191→5627 (PR #442, CI pending — Issue #428 AC#2 slice 1)
 
 **v0.1.17 ceremony status — NOT STARTED ⚠️ (gated on v0.1.16 crates.io step 3 first):**
 - [ ] **Step 1**: `release/v0.1.17` → `main` — branch not yet cut
@@ -121,44 +128,47 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 1. Re-push `release/v0.1.16` branch → `release.yml` re-runs automatically, OR
 2. Run the ceremony script from PR #375 against the `v0.1.16` tag manually.
 
-**Recent events (2026-06-02 v6):**
+**Recent events (2026-06-02 v9 — absorbed v6/v7/v8):**
 - PR #416 (v0.1.16 release → main) MERGED ✅ (founder authorized)
 - PR #419 (hotfix: release.yml publish fixes) MERGED to main ✅
-- PR #423 (back-merge hotfix → develop, squash) MERGED ✅
-- PR #424 (governance: supersede-discipline CI gate + CLAUDE.md Hard Rules) MERGED ✅
+- PR #423 (back-merge hotfix → develop) MERGED ✅
+- PR #424 (governance: supersede-discipline CI gate) MERGED ✅
 - PR #425 (fix: NodeKind tag 255 silent corruption) MERGED ✅
-- PR #429 (ADR-0008 renumber) MERGED ✅
-- PR #431 (RFC-0101 contract: `related_files` + `apply_budget` + `edge_kinds`) MERGED ✅ — Issue #427 partial
-- PR #432 (PM dispatch v5 chore) MERGED ✅
-- PR #433 (refactor: BoundedStore removal — Issue #426 criterion 3) OPENED, CI pending
+- PR #429 (ADR-0008 renumber — Issue #428 AC#1) MERGED ✅
+- PR #431 (RFC-0101 contract: `related_files` + `apply_budget` + `edge_kinds`) MERGED ✅
+- PR #436 (RFC-0101 shared core context builder) MERGED ✅
+- PR #438 (RFC-0102: OutputBudget to core, budget context on both surfaces) MERGED ✅ — Issue #427 CLOSED ✅
+- PR #440 (100k-node redb SLA gate + remove orphan LRU — Issue #426 AC#1+3) MERGED ✅
+- PR #441 (redb codec extraction to redb_codec.rs — Issue #428 AC#3 slice) MERGED ✅
+- PR #439 (PM chore v8 — conflicted after #440+#441 merged) SUPERSEDED by v9
+- PR #442 (Issue #428 AC#2 slice 1: `mod tests` 12191→5627 lines) OPENED, CI pending
 
 **P1 (after v0.1.16 crates.io confirmed):**
-1. **Merge PR #433** (BoundedStore removal — Issue #426 criterion 3; waiting CI).
+1. **Merge PR #442** (Issue #428 AC#2 slice 1 — tests extraction, CI pending).
 2. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
-3. **Issue #427 remaining** — parity fixture, dead budget fields (enforce/remove), Hyphae-first routing.
-4. **Cut release/v0.1.17** — gated on items 1-3 + security scan.
+3. **Cut release/v0.1.17** — gated on items 1-2 + founder sign-off on Issue #426.
 
-**P1 — decision gate (founder sign-off required before implementation):**
-5. **Issue #426 — RFC-0100 Phase 3 readiness**: redb as default backend flip. 100k-node SLA gate + RSS-cap CI + Charter §2 warm/cold split. DECISION GATE — do NOT flip default without founder ADR sign-off. Criterion 3 (LRU removal) is in PR #433 (autonomous-safe).
+**P1 — decision gate (founder sign-off required):**
+4. **Issue #426 — RFC-0100 Phase 3 remaining**: AC#2 (RSS-cap CI gate) is blocked on AC#4 (Charter §2 warm/cold latency split — `meta` RFC required, BDFL approval per Charter §9). AC#5 (flip redb to default + retire journal) gated on AC#2+AC#4. DO NOT proceed without founder ADR sign-off.
 
 **P2 (v0.2.0 scope):**
-6. Issue #428 remaining ACs: split `lib.rs` into tool sub-modules; split `redb_backend.rs` into `redb_codec.rs` (2 dedicated sessions).
-7. `release.yml` finalize merge step — `RELEASE_BOT_TOKEN` systemic fix (blocking since v0.1.6)
-8. Skill marketplace submission
+5. Issue #428 AC#2 remaining: split tool implementations into `tools/context.rs` + `tools/graph.rs` (lib.rs still 5,627 lines after slice 1).
+6. `release.yml` finalize merge step — `RELEASE_BOT_TOKEN` systemic fix (blocking since v0.1.6).
+7. Skill marketplace submission.
 
 ---
 
-## Dispatch state (2026-06-02 v6 — PRs #431+#432 MERGED; PR #433 opened: Issue #426 criterion 3)
+## Dispatch state (2026-06-02 v9 — PR #442 opened; Issues #426 founder-gated)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review + merge PR #433 (BoundedStore removal, CI pending). (3) Sign off on Issue #426 remaining (RFC-0100 Phase 3 redb-default DECISION GATE — 100k SLA + RSS cap + Charter §2 split). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
-| orchestrator/pm | **done** | This dispatch. PRs #431+#432 merged; PR #433 opened. |
-| security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14 — two releases behind). |
-| rust-implementer | **QUEUED** | Issue #427 remaining: parity fixture + dead budget fields + Hyphae-first routing. Issue #426 remaining after PR #433: 100k-node SLA gate + RSS-cap CI gate + Charter §2 warm/cold split (all founder-gated). |
-| architect | idle | Issue #426: RFC-0100 Phase 3 decision gate — prepare ADR for founder sign-off before redb default flip. |
+| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main`+`develop`; release.yml fixed). (2) Issue #426 AC#4: authorize `meta` RFC to split Charter §2 warm/cold latency SLAs — required before RSS-cap CI gate (AC#2) and redb-default flip (AC#5) can proceed. (3) Authorize v0.1.17 ceremony after crates.io + security scan. (4) Systemic: `RELEASE_BOT_TOKEN` fix. |
+| orchestrator/pm | **done** | This dispatch (v9). PR #442 opened (Issue #428 AC#2 slice 1). |
+| security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14). |
+| rust-implementer | **QUEUED** | Issue #428 AC#2 remaining: split tool impls into tools/context.rs + tools/graph.rs. After founder sign-off: Issue #426 AC#2 RSS-cap CI gate. |
+| architect | idle | Prepare meta-RFC for Issue #426 AC#4 Charter §2 warm/cold split (for founder review). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | idle | RSS-curve measurement — benchmark harness exists. |
+| e2e-runner | idle | RSS-curve measurement — benchmark harness exists in `redb_sla.rs`. |
 
 
 ---
@@ -185,6 +195,30 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 ---
 
 ## Archive
+
+### 2026-06-02 PM dispatch v9 (this run — PR #442 opened: Issue #428 AC#2 slice 1; PRs #436/#438/#440/#441 absorbed; Issue #426 founder-escalated)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (no domain hits), PM state (v8 from conflicted PR #439), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `ec3266d` (PR #441 — redb codec extraction). 1 open PR (#439 chore v8, 22/22 CI green but merge conflict with develop). 2 open issues: #428 P2 (god-file split), #426 P1 (RFC-0100 Phase 3 remaining). CI in_progress on develop from #441 merge.
+- Issue #426 remaining criteria: AC#2 (RSS-cap CI gate) requires AC#4 (Charter §2 warm/cold split) first — that is a meta-RFC / Charter amendment per Charter §9, requiring BDFL approval. AC#5 (flip default) gated on AC#2+AC#4. All three are founder-gated. ESCALATED.
+- Issue #428: AC#1 (ADR renumber, PR #429) ✅; AC#3 slice (redb codec, PR #441) ✅; AC#2 (split lib.rs, 12,191 lines) — main remaining item.
+- PR #439 (PM v8 chore): superseded by this v9 run due to merge conflict.
+
+**Actions taken:**
+1. PR #439 superseded — not merged (conflict). This v9 chore supersedes it.
+2. **Issue #428 AC#2 slice 1 (TDD)**:
+   - RED: `mod tests` block (6,564 lines) was inline in lib.rs, violating Charter 800-line cap.
+   - GREEN: Extracted to `src/tests.rs`; lib.rs redirects with `#[cfg(test)] mod tests;`. lib.rs: 12,191 → 5,627 lines (−54%).
+   - `cargo test --all`: **584 passed, 0 failed**. `fmt --check` clean. `clippy -D warnings` clean.
+   - PR #442 opened (refactor/mcp-lib-split-tests → develop).
+3. Escalated Issue #426 to founder (AC#4 Charter §2 amendment required).
+4. Updated PM state v9 + appended decisions.jsonl.
+
+**Escalations:**
+- **Issue #426 AC#4 (founder, meta-RFC)**: Charter §2 warm/cold latency split — must be a `meta` RFC with BDFL approval before AC#2 (RSS-cap CI gate) and AC#5 (default flip) can proceed.
+- **v0.1.16 crates.io (founder)**: re-trigger publish with fixed release.yml (`curl` idempotency fix on main+develop).
 
 ### 2026-06-02 PM dispatch v6 (this run — PRs #431+#432 merged; PR #433 opened: BoundedStore removal)
 
