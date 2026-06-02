@@ -41,6 +41,8 @@ pub mod memory_budget;
 #[cfg(feature = "redb-backend")]
 pub mod redb_backend;
 #[cfg(feature = "redb-backend")]
+mod redb_codec;
+#[cfg(feature = "redb-backend")]
 pub mod redb_keys;
 #[cfg(feature = "redb-backend")]
 pub mod redb_tags;
