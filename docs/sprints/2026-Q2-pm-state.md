@@ -149,7 +149,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Review PR #452 (`release/v0.1.17` → `main`) once CI green — authorize merge (Charter §5.12). (2) After step 1: run `scripts/release-ceremony.sh` for tag + crates.io + GitHub Release. (3) After ceremony: admin-merge PR #453 (back-merge → develop). (4) Systemic: `release.yml` finalize merge fix before v0.2.0. (5) Schedule `sla_ancestors_100k` nightly benchmark run for RFC-0104 cold numbers. |
+| founder | **action requested** | (1) Review PR #452 (`release/v0.1.17` → `main`) once CI green — authorize merge (Charter §5.12 Step 1). (2) Run `scripts/release-ceremony.sh` → pushes tag (Step 2) + publishes all 5 crates (Step 3) + GitHub Release. (3) **Only after Steps 1+2+3 complete**: admin-merge PR #453 (back-merge → develop, Step 4). ⚠️ Do NOT merge #453 before crates.io publish — would leave develop with sealed 0.1.17 unreachable by users (v0.1.15 drift pattern). (4) Systemic: `release.yml` finalize merge fix before v0.2.0. (5) Schedule `sla_ancestors_100k` nightly benchmark run for RFC-0104 cold numbers. |
 | security-reviewer | **DONE ✅** | Post-v0.1.16 scan completed this run: CLEAN. |
 | release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 (→ main) + PR #453 (→ develop) opened. Awaiting founder auth for Step 1. |
 | bench | **P1** | Run `sla_ancestors_100k` nightly to produce RFC-0104 cold SLA numbers. |
