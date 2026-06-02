@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   never-enforced budget fields (`max_code_lines`, `max_total_chars`) were
   removed to make the type honest.
 
+### Removed
+
+- **`BoundedStore` (orphan LRU eviction) removed from `memory_budget.rs`** (Issue #426,
+  RFC-0100 R3 cleanup). The hand-built LRU was superseded by redb mmap residency
+  (RFC-0099 → RFC-0100). `estimate_store_bytes` and `measure_rss` (Phase-0 measurement
+  tooling for the RSS-cap CI gate) are retained. `MemoryBudget`, `FileAccessTracker`,
+  and associated internals are also removed. No public API change; zero non-test callers.
+
 ### Changed
 
 - **Governance: supersede discipline is now machine-enforced.** New
