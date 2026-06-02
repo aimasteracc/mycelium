@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v6 — PR #431 MERGED ✅ RFC-0101 contract; PR #433 opened: Issue #426 criterion 3 BoundedStore removal) |
+| Last updated | 2026-06-02 (PM dispatch v7 — PR #434 MERGED ✅; PR #433 governance fix pushed (TRANSITIONAL header); CI re-triggered) |
 | Current sprint | **v0.1.17 — IN PROGRESS (PR #433 CI pending; Issues #426/#427/#428 in queue)** |
 | Active release branch | none (cut release/v0.1.17 after v0.1.16 crates.io confirmed + security scan) |
 | Next release target | **v0.1.17** — RFC-0101/0102 contract (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
@@ -121,7 +121,7 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 1. Re-push `release/v0.1.16` branch → `release.yml` re-runs automatically, OR
 2. Run the ceremony script from PR #375 against the `v0.1.16` tag manually.
 
-**Recent events (2026-06-02 v6):**
+**Recent events (2026-06-02 v7):**
 - PR #416 (v0.1.16 release → main) MERGED ✅ (founder authorized)
 - PR #419 (hotfix: release.yml publish fixes) MERGED to main ✅
 - PR #423 (back-merge hotfix → develop, squash) MERGED ✅
@@ -130,7 +130,8 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 - PR #429 (ADR-0008 renumber) MERGED ✅
 - PR #431 (RFC-0101 contract: `related_files` + `apply_budget` + `edge_kinds`) MERGED ✅ — Issue #427 partial
 - PR #432 (PM dispatch v5 chore) MERGED ✅
-- PR #433 (refactor: BoundedStore removal — Issue #426 criterion 3) OPENED, CI pending
+- PR #433 (refactor: BoundedStore removal — Issue #426 criterion 3) ⚠️ CI red (governance guardrails) → **fixed**: `memory_budget.rs` header now has TRANSITIONAL + superseded note matching `check_supersede_discipline.sh` regex. CI re-triggered.
+- PR #434 (PM dispatch v6 chore) MERGED ✅
 
 **P1 (after v0.1.16 crates.io confirmed):**
 1. **Merge PR #433** (BoundedStore removal — Issue #426 criterion 3; waiting CI).
@@ -148,12 +149,12 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 
 ---
 
-## Dispatch state (2026-06-02 v6 — PRs #431+#432 MERGED; PR #433 opened: Issue #426 criterion 3)
+## Dispatch state (2026-06-02 v7 — PR #434 MERGED; PR #433 CI fix pushed; governance guardrail regression fixed)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review + merge PR #433 (BoundedStore removal, CI pending). (3) Sign off on Issue #426 remaining (RFC-0100 Phase 3 redb-default DECISION GATE — 100k SLA + RSS cap + Charter §2 split). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
-| orchestrator/pm | **done** | This dispatch. PRs #431+#432 merged; PR #433 opened. |
+| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review + merge PR #433 (BoundedStore removal, CI re-triggered after governance fix). (3) Sign off on Issue #426 remaining (RFC-0100 Phase 3 redb-default DECISION GATE — 100k SLA + RSS cap + Charter §2 split). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
+| orchestrator/pm | **done** | This dispatch (v7). PR #434 merged; PR #433 governance fix; decisions.jsonl appended; PM state updated. |
 | security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14 — two releases behind). |
 | rust-implementer | **QUEUED** | Issue #427 remaining: parity fixture + dead budget fields + Hyphae-first routing. Issue #426 remaining after PR #433: 100k-node SLA gate + RSS-cap CI gate + Charter §2 warm/cold split (all founder-gated). |
 | architect | idle | Issue #426: RFC-0100 Phase 3 decision gate — prepare ADR for founder sign-off before redb default flip. |
@@ -186,7 +187,25 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 
 ## Archive
 
-### 2026-06-02 PM dispatch v6 (this run — PRs #431+#432 merged; PR #433 opened: BoundedStore removal)
+### 2026-06-02 PM dispatch v7 (this run — PR #434 MERGED; PR #433 governance fix)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest: v6 dispatch PR #433 opened), anti-patterns (governance/ci/mcp domains checked), PM state v6, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `733e351` (PR #434 merged this run). 2 open PRs: #433 (Quality Gate FAILED — governance guardrails), #434 (22/22 green → merged immediately). 3 open issues: #426 (P1), #427 (P1), #428 (P2).
+- PR #433 failure: `check_supersede_discipline.sh` (added by PR #433 itself) reported `memory_budget.rs` header says `supersedes it (RFC-0099 → RFC-0100)` but regex requires `superseded` (past tense) or `TRANSITIONAL`. One-word mismatch: "supersedes" ≠ "superseded". `journal.rs` (the reference implementation) correctly uses "TRANSITIONAL bridge. RFC-0098 is *Superseded by RFC-0100*."
+- Root cause: the PR added the check script AND the transitional annotation, but used the wrong verb tense in the annotation.
+
+**Actions taken:**
+1. Merged PR #434 (chore: PM state v6 — 22/22 CI green, squash). ✅
+2. Diagnosed governance guardrails failure on PR #433: `supersedes` vs `superseded` regex mismatch.
+3. Checked out `feature/issue426-remove-bounded-store`, fixed `memory_budget.rs` header: added `**TRANSITIONAL bridge.** RFC-0099 (Bounded Resident Memory) is *superseded by RFC-0100*`. Verified locally: both `check_governance_guardrails.sh` and `check_supersede_discipline.sh` pass. 572 tests GREEN, fmt ✅ clippy ✅.
+4. Committed (DCO-signed) and pushed fix to PR #433 branch → CI re-triggered.
+5. Updated PM state v7 + appended decisions.jsonl.
+
+**Escalations:** Founder: (1) v0.1.16 crates.io re-trigger; (2) merge PR #433 after CI green; (3) Issue #426 RFC-0100 Phase 3 DECISION GATE; (4) v0.1.17 ceremony.
+
+### 2026-06-02 PM dispatch v6 (previous — PRs #431+#432 merged; PR #433 opened: BoundedStore removal)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest: v5 dispatch PR #431 opened), anti-patterns (no domain hits), PM state v5, v0.2 PRD.
 
