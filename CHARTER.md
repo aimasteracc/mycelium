@@ -29,6 +29,13 @@
 Every release must meet or beat these numbers on a 100k-node graph, otherwise
 it does not ship. CI gates them.
 
+> **Warm vs cold (redb default, RFC-0104).** As of 2026-06-02 redb is the default
+> storage backend. redb is memory-mapped, so a cold-open first query is a disk
+> read and cannot meet the sub-ms targets below; those numbers are the **warm /
+> steady-state** contract (CI exercises the warm path). A separate **cold-open**
+> budget is governed by [RFC-0104](rfcs/0104-charter-warm-cold-sla-split.md) and
+> will be committed here from measured nightly `redb-sla-100k` data, not guessed.
+
 | Metric | Target |
 |---|---|
 | Cold small query (single symbol lookup) | < 5 ms |

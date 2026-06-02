@@ -17,7 +17,8 @@ categories    = ["development-tools", "api-bindings"]
 name = "mycelium_mcp"
 
 [features]
-default = []
+# redb is the default storage backend (RFC-0100 Phase 3 flip, 2026-06-02).
+default = ["redb-backend"]
 redb-backend = ["mycelium-core/redb-backend"]
 
 [lints]
