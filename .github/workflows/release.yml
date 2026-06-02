@@ -89,7 +89,7 @@ jobs:
             local encoded
             encoded=$(echo "$1" | tr '-' '_')
             curl -sf "https://crates.io/api/v1/crates/${encoded}" \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('crate',{}).get('max_version','')=='$VERSION' else 1)" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if any(v.get('num','')=='$VERSION' for v in d.get('versions',[])) else 1)" \
               2>/dev/null
           }
 
