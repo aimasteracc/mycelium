@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v4 — hotfix PR #419 merged to main; back-merge PR #423 + governance PR #424 + NodeKind fix PR #425 merged to develop; v0.1.16 crates.io PENDING; v0.1.17 content complete) |
-| Current sprint | **v0.1.17 — CONTENT COMPLETE; ceremony blocked on v0.1.16 crates.io resolution** |
+| Last updated | 2026-06-02 (PM dispatch v4 — hotfix PR #419→#423 merged; governance PR #424 + NodeKind fix PR #425 merged; Issue #428 AC#1 done; v0.1.17 sprint scoped with Issues #426/#427/#428; v0.1.16 crates.io PENDING) |
+| Current sprint | **v0.1.17 — CONTENT COMPLETE; ceremony blocked on v0.1.16 crates.io (Issues #426/#427/#428 in queue)** |
 | Active release branch | none (cut release/v0.1.17 after v0.1.16 crates.io confirmed + security scan) |
-| Next release target | **v0.1.17** — RFC-0101 Phase 2 CLI twin + governance guardrails + NodeKind fix (all merged to develop) |
+| Next release target | **v0.1.17** — RFC-0101/0102 contract (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.16** — RFC-0100 redb, incremental persistence, LRU, MCP routing, dep bumps — GitHub+tag ✅; crates.io PENDING |
+| Last shipped | **v0.1.16** — RFC-0100 redb Phases 1-2, incremental persistence, LRU, dep bumps — tag v0.1.16, main SHA cd662788; crates.io PENDING |
 
 ---
 
@@ -130,30 +130,33 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 - PR #429 (ADR-0008 renumber — open, CI running)
 
 **P1 (after v0.1.16 crates.io confirmed):**
-1. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
-2. **Merge PR #429** (ADR-0008 renumber — once CI green).
-3. **Cut release/v0.1.17** — content complete at develop HEAD `2c4cb66`.
+1. **Merge PR #429** (ADR-0008 renumber — Issue #428 AC#1; once CI green).
+2. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
+3. **Issue #427 — RFC-0101/0102 contract completion** (rust-implementer, TDD): wire `apply_budget` into `mycelium_context`; add `related_files` key; parity fixture; ≥5 integration tests.
+4. **Cut release/v0.1.17** — gated on items 1-3 + security scan.
 
-**P2 (staged from expert panel review, v0.1.17 or v0.1.18 scope):**
-4. Wire `apply_budget` into `mycelium_context` output (RFC-0102 gap — `apply_budget` not wired)
-5. 100k-node redb SLA gate + R3 RSS-cap CI test
-6. Split god-files (`lib.rs`, `redb_backend.rs`)
+**P1 — decision gate (founder sign-off required before implementation):**
+5. **Issue #426 — RFC-0100 Phase 3 readiness**: redb as default backend flip. 100k-node SLA gate + RSS-cap CI + orphan LRU removal + Charter §2 warm/cold split. DECISION GATE — do NOT implement without founder ADR sign-off.
+
+**P2 (v0.2.0 scope):**
+6. Issue #428 remaining ACs: split `lib.rs` into tool sub-modules; split `redb_backend.rs` into `redb_codec.rs` (2 dedicated sessions).
 7. `release.yml` finalize merge step — `RELEASE_BOT_TOKEN` systemic fix (blocking since v0.1.6)
 8. Skill marketplace submission
 
 ---
 
-## Dispatch state (2026-06-02 v4 — hotfix + governance merged; v0.1.17 content complete)
+## Dispatch state (2026-06-02 v4 — PRs #423/#424/#425 merged; Issues #426/#427/#428 triaged)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review PR #429 (ADR-0008 renumber, CI running). (3) Authorize v0.1.17 ceremony after crates.io + security scan. (4) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix before v0.2.0. |
+| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review PR #429 (ADR-0008 renumber, CI running). (3) Sign off on Issue #426 (RFC-0100 Phase 3 redb-default DECISION GATE). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
 | orchestrator/pm | **ACTIVE** | This dispatch. Next: monitor PR #429 CI; cut release/v0.1.17 after P0+P1 resolved. |
 | security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14 — two releases behind). |
-| rust-implementer | idle | Expert panel P2 backlog: wire `apply_budget`, 100k redb SLA gate, R3 RSS-cap test, split god-files. |
-| architect | idle | RFC-0100 Phase 3 decision gate: redb as default backend (ADR-0008 renumbered via PR #429). |
+| rust-implementer | **QUEUED** | Issue #427: RFC-0101/0102 contract completion (TDD: wire apply_budget + related_files). After PR #429 + security scan. |
+| architect | idle | Issue #426: RFC-0100 Phase 3 decision gate — prepare ADR for founder sign-off before redb default flip. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 | e2e-runner | idle | RSS-curve measurement — benchmark harness exists. |
+
 
 ---
 
