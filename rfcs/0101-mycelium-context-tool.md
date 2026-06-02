@@ -266,8 +266,16 @@ implementation must lower default code-block count before raising the SLA.
       tasks.
 - [x] Natural-language "trace X to Y" returns at least one entry point plus
       related nodes and edges.
-- [ ] Valid Hyphae task goes through the DSL path and does not run candidate
-      extraction. (future: Hyphae path integration)
+- [x] Valid Hyphae task goes through the DSL path and does not run candidate
+      extraction. (`mycelium_core::context::looks_like_hyphae` → DSL evaluator on
+      both surfaces; `routing` field reports `"natural"` / `"hyphae"`.)
+- [x] `related_files` key and `edge_kinds` request field implemented; both
+      surfaces share `mycelium_core::context` so JSON is identical by
+      construction; `skills/architecture-context/tests/parity.test.json` added.
+- [ ] **Remaining:** apply `OutputBudget` to the context payload (RFC-0102).
+      Deferred until `OutputBudget` moves into `mycelium_core` so CLI and MCP
+      truncate identically — applying it MCP-only would break the byte-identical
+      contract. Tracked in the RFC-0101/0102 follow-up issue.
 - [x] Gibberish task returns NOT_FOUND with a `next_step` hint.
 - [x] `output_format` supports `text` and `json` (CLI); `msgpack` via MCP.
 - [x] At least three RED-first tests cover: no-index error, NOT_FOUND on empty
