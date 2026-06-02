@@ -1,11 +1,21 @@
 # Mycelium — 当初设想 vs. 现在做到（易懂版）
 
-> 把**最初头脑风暴**（2026-05-29 Cowork 启动会）画的蓝图，和**今天 v0.1.13**
+> 把**最初头脑风暴**（2026-05-29 Cowork 启动会）画的蓝图，和**今天 v0.1.16+**
 > 的真实状态放在一起，用大白话讲清楚：我们计划做到什么程度，现在做到了哪。
 >
-> 最后核对：2026-05-31（已逐条对照源码核实）。
+> 最后核对：2026-06-03（已逐条对照源码核实）。
 > 来源：`wiki/wiki/ai-tech/mycelium-project-bootstrap.md` ·
 > `wiki/raw/ai-tech/mycelium-cowork-session-2026-05-29.md`
+
+---
+
+## 三个原始比喻 → 落成了什么（创始人最初的构思框架）
+
+| 比喻 | 落成 | 状态 |
+|---|---|---|
+| **jQuery**（选择器选节点） | **Hyphae 查询语言** —— CSS 选择器风格选**代码符号**（RFC-0003 / ADR-0006）+ 专门的 **jQuery 扩展**（RFC-0091，7 种 jQuery 式形式）。`class.AuthService > method:async:calls(UserRepo)`，伪类 `:calls()/:has()/:not()/:in()` 已实装，`mycelium query` 三端齐全。 | ✅ |
+| **virtual DOM**（只 diff/patch 变化节点） | **反应式符号图**：Trunk（层级树）+ Synapse（关系网）是内存里的"虚拟镜像"；watch-mode（RFC-0008）文件一改**只重建该文件切片并原子换入**——正是 virtual DOM 的"只 patch 变化节点"。底层已翻成 **redb 默认**（mmap、有界内存）。 | ✅ 核心；❌ 差主动推送(push/subscribe) |
+| **zen coding / Emmet**（极简 DSL 表达） | **AI 原生紧凑序列化**（RFC-0001/0004）：输出紧凑 DSL（text/TOON、msgpack），比 JSON **省约 70% token**（Charter §2 ≤30% JSON 硬指标），`mycelium_get_token_stats` 可验证。 | ✅ |
 
 ---
 
@@ -98,11 +108,20 @@
 
 | 计划 | 状态 | 现在的真相 |
 |---|---|---|
-| 10 万节点**查询**性能 SLA | 🟡 | <30s，6 个 SLA 测试——但这是**合成内存图的查询延迟**，不是真实 index 吞吐。⚠️ 见 [scale-gap-analysis.md](scale-gap-analysis.md)：几十万真实文件的 index 全流程从未实测 |
+| 10 万节点**查询**性能 SLA | ✅ | <30s，多个 SLA 测试；**redb 路径新增 100k SLA 门禁**（warm <5ms/<1ms，nightly `redb-sla-100k`，RFC-0100 Phase 3）。Charter §2 已按 RFC-0104 标为 warm 契约，冷数字待 nightly 实测 |
 | 6+ 语言 | ✅ | 10 种（达标） |
-| 治理体系（CHARTER/RFC/ADR/CI） | ✅ | RFC 至 0097 + 7 ADR + 完整发布仪式 |
-| 大规模 index（几十万文件） | ❌ | **串行抽取 + 全量快照 + 无内存上界**——大型 Java 项目会卡。见 scale-gap-analysis.md（R1 并行 / R2 增量持久化 / R3 内存边界） |
+| 治理体系（CHARTER/RFC/ADR/CI） | ✅ | RFC 至 0104 + 8 ADR + 完整发布仪式 + **supersede 守卫（CI 强制）** |
+| 大规模 index（几十万文件） | 🟡 | **R2 增量持久化 + R3 内存边界已解决**：redb 已翻为**默认**后端（mmap 有界内存 + 按文件 ACID 增量写，RFC-0100 Phase 3）。剩 **R1 并行抽取**未做（仍串行）。见 scale-gap-analysis.md |
 | Salsa 框架 / 分层存储 / LSP | 🟡/❌ | Salsa 接入 Phase 1（cortex.rs，符号抽取半步；边仍全量重抽）；分层存储、LSP 未做 |
+
+### 六、v0.1.13 之后新增（这份文档上次核对后做的）
+
+| 新增 | 状态 | 现在的真相 |
+|---|---|---|
+| **`mycelium context` 一站式架构上下文**（RFC-0101） | ✅ | 三端齐全；CLI+MCP 共用 `mycelium_core::context` 一个 builder（字节一致 by construction）；related_files/edge_kinds/Hyphae 路由 |
+| **自适应输出预算 OutputBudget**（RFC-0102） | ✅ | 移进 `mycelium_core::budget`，CLI+MCP 同一预算同一截断（字节一致） |
+| **redb 翻为默认存储后端**（RFC-0100 Phase 3） | ✅ | mmap ACID、有界内存、按文件增量写；老快照仍可读（软迁移）；跨平台 CI 绿 |
+| **god-file 收缩**（#428） | 🟡 | `mcp/lib.rs` 12k→5.6k（测试外提）、`redb_backend.rs` 拆出 `redb_codec`；剩 lib.rs 内 tool 实现可继续拆 |
 
 ---
 
@@ -136,8 +155,11 @@
   tree-sitter ✅、radix trie（如约替换 HashMap）✅、BLAKE3 shard tag ✅。
 - **蓝图的灵魂功能（反应式增量）真的做出来了**——RFC-0008 文件监听 + 单文件
   增量重建（MCP 端）。这不是"又一个静态代码图"，warm graph 的核心在了。
-- 广度严重超额：10 语言、~89 工具、三端 1:1、三仓库发布、自托管 CI。
+- 广度严重超额：10 语言、~90 工具、三端 1:1、三仓库发布、自托管 CI。
 - "加一种语言只动 `packs/<lang>/`、不碰核心"的约束守住了。
+- **存储愿景兑现**（v0.1.13 之后）：redb 已翻为**默认**（mmap 有界内存 + 按文件
+  ACID 增量写）——scale-gap 的 **R2 增量持久化 + R3 内存边界两块解决了**（只剩
+  R1 并行抽取）。`mycelium context` 一站式上下文 + OutputBudget 也已三端落地。
 
 **还差的（明确且不大）**
 1. **主动推送 / 订阅传输层** —— 服务器侦测到变化后主动通知 agent。现在
