@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v3 — PR #414 MERGED (RFC-0101 Phase 2 CLI twin); PR #419 hotfix CI fixed (macOS SLA + pipefail); v0.1.17 content complete; crates.io v0.1.16 PENDING) |
-| Current sprint | **v0.1.17 — CONTENT COMPLETE; ceremony blocked on PR #419 + crates.io v0.1.16 resolution** |
-| Active release branch | none (cut release/v0.1.17 after PR #419 merges + v0.1.16 crates.io resolved) |
-| Next release target | **v0.1.17** — RFC-0101 Phase 2 `mycelium context` CLI twin (PR #414 ✅ merged) |
+| Last updated | 2026-06-02 (PM dispatch v4 — hotfix PR #419→#423 merged; governance PR #424 + NodeKind fix PR #425 merged; Issue #428 AC#1 done; v0.1.17 sprint scoped with Issues #426/#427/#428; v0.1.16 crates.io PENDING) |
+| Current sprint | **v0.1.17 — CONTENT COMPLETE; ceremony blocked on v0.1.16 crates.io (Issues #426/#427/#428 in queue)** |
+| Active release branch | none (cut release/v0.1.17 after v0.1.16 crates.io confirmed + security scan) |
+| Next release target | **v0.1.17** — RFC-0101/0102 contract (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.16** — RFC-0100 redb, incremental persistence, LRU, MCP routing, dep bumps — GitHub+tag ✅; crates.io PENDING |
+| Last ceremony-complete release | **v0.1.14** (all 4 Charter §5.12 steps ✅). v0.1.16 is on main+tag but crates.io PENDING (step 3 incomplete — not considered "shipped" until crates.io confirmed). |
 
 ---
 
@@ -90,45 +90,73 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **v0.1.16 ceremony status — INCOMPLETE ⚠️ (Charter §5.12 step 3: crates.io PENDING):**
 - [x] **Step 1**: `release/v0.1.16` → `main` — PR #416 MERGED ✅ (founder authorized)
 - [x] **Step 2**: Tag `v0.1.16` pushed ✅
-- [ ] **Step 3**: All five crates published to crates.io — **PENDING** ⚠️ (release.yml run 26793340808 failed; hotfix #419 + founder re-trigger required)
-- [x] **Step 4**: Back-merge `release/v0.1.16` → `develop` — MERGED ✅ (commit cb31814)
-- **GitHub Release**: Published ✅ (note: bonus step, not one of the Charter §5.12 four required steps)
+- [ ] **Step 3**: All five crates published to crates.io — **PENDING** ⚠️ (release.yml run 26793340808 failed; hotfix PR #419 now on `main` + `develop` with fixed publish logic — **founder re-trigger required**)
+- [x] **Step 4**: Back-merge `release/v0.1.16` → `develop` — MERGED ✅ (PR #423, squash)
+- **GitHub Release**: Published ✅ (bonus step, not one of Charter §5.12's four required steps)
+
+**Hotfix (PR #419 → PR #423):** Fixed `release.yml`: replaced `cargo search` with `curl` to crates.io API; `max_version` → version-list membership check (`$VERSION` ∈ `versions[]`); `|| {}` idempotency pattern (no pipefail); macOS SLA 30ms headroom. Both `main` and `develop` have the fix — re-triggering the release workflow against the `v0.1.16` tag will use the corrected logic.
+
+---
+
+## 🚀 v0.1.17 — CONTENT COMPLETE; ceremony pending
+
+**What will ship (all merged to develop at `2c4cb66`):**
+- [x] RFC-0101 Phase 2: `mycelium context` CLI twin (PR #414) — Three-Surface compliant ✅
+- [x] Governance guardrails: `check_supersede_discipline.sh` CI gate, phantom RFC-0099 restored, `journal.rs` annotated as transitional bridge, two CLAUDE.md Hard Rules (PR #424)
+- [x] fix(storage): `node_kind_tag` panics on unmapped variant + roundtrip completeness test (PR #425)
+
+**v0.1.17 ceremony status — NOT STARTED ⚠️ (gated on v0.1.16 crates.io step 3 first):**
+- [ ] **Step 1**: `release/v0.1.17` → `main` — branch not yet cut
+- [ ] **Step 2**: Tag `v0.1.17`
+- [ ] **Step 3**: All five crates published to crates.io
+- [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop`
 
 ---
 
 ## Live priorities (ordered)
 
-**P0 — PR #419 hotfix** (`hotfix/fix-release-publish → main`, founder-opened): CI run 2 in_progress (macOS SLA + pipefail fixed in commit e0651e8). Merge once green → back-merge to develop → re-trigger v0.1.16 crates.io publish.
+**P0 — Founder action required: re-trigger v0.1.16 crates.io publish**
+
+Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`. Options:
+1. Re-push `release/v0.1.16` branch → `release.yml` re-runs automatically, OR
+2. Run the ceremony script from PR #375 against the `v0.1.16` tag manually.
 
 **Recent events (2026-06-02):**
-- v0.1.16 main ✅, tag ✅, develop back-merge ✅; crates.io PENDING (release.yml failed)
-- PR #414 (RFC-0101 Phase 2 CLI twin) MERGED ✅ — v0.1.17 content complete
-- PR #417 (Windows CI fix) — CLOSED as duplicate; founder fixed independently via commit `b52b8fb`
-- PR #419 (hotfix/fix-release-publish): CI run 1 failed (macOS SLA + validate release branch). CI run 2 triggered after 2-commit fix.
+- PR #416 (v0.1.16 release → main) MERGED ✅ (founder authorized)
+- PR #419 (hotfix: release.yml publish fixes) MERGED to main ✅
+- PR #423 (back-merge hotfix → develop, squash) MERGED ✅
+- PR #424 (governance: supersede-discipline CI gate + CLAUDE.md Hard Rules) MERGED ✅
+- PR #425 (fix: NodeKind tag 255 silent corruption) MERGED ✅
+- PR #429 (ADR-0008 renumber — open, CI running)
 
-**P1 (v0.1.17 ceremony):**
-1. **Merge PR #419** to main (once CI green) + back-merge to develop.
-2. **Re-trigger release for v0.1.16** to crates.io (founder action: run ceremony script from PR #375 against v0.1.16 tag, or re-push `release/v0.1.16` branch after PR #419 merges).
-3. **Cut release/v0.1.17** — content complete (PR #414 CLI twin). Security scan first.
+**P1 (after v0.1.16 crates.io confirmed):**
+1. **Merge PR #429** (ADR-0008 renumber — Issue #428 AC#1; once CI green).
+2. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
+3. **Issue #427 — RFC-0101/0102 contract completion** (rust-implementer, TDD): wire `apply_budget` into `mycelium_context`; add `related_files` key; parity fixture; ≥5 integration tests.
+4. **Cut release/v0.1.17** — gated on items 1-3 + security scan.
+
+**P1 — decision gate (founder sign-off required before implementation):**
+5. **Issue #426 — RFC-0100 Phase 3 readiness**: redb as default backend flip. 100k-node SLA gate + RSS-cap CI + orphan LRU removal + Charter §2 warm/cold split. DECISION GATE — do NOT implement without founder ADR sign-off.
 
 **P2 (v0.2.0 scope):**
-4. `release.yml` finalize merge step (RELEASE_BOT_TOKEN + CRATES_IO_TOKEN audit — systemic since v0.1.6)
-5. ADR-0008: redb as default backend (RFC-0100 Phase 3 decision gate)
-6. Skill marketplace submission
+6. Issue #428 remaining ACs: split `lib.rs` into tool sub-modules; split `redb_backend.rs` into `redb_codec.rs` (2 dedicated sessions).
+7. `release.yml` finalize merge step — `RELEASE_BOT_TOKEN` systemic fix (blocking since v0.1.6)
+8. Skill marketplace submission
 
 ---
 
-## Dispatch state (2026-06-02 v3 — PR #414 merged; PR #419 CI fix in-progress)
+## Dispatch state (2026-06-02 v4 — PRs #423/#424/#425 merged; Issues #426/#427/#428 triaged)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Review PR #419 (CI run 2 in_progress — fix commit e0651e8 pushed). (2) After merge: trigger v0.1.16 crates.io publish. (3) Authorize release/v0.1.17 ceremony. (4) Systemic: `RELEASE_BOT_TOKEN` for automated finalization. |
-| orchestrator/pm | **ACTIVE** | Monitoring PR #419 CI. Will merge to main + back-merge once green. |
-| security-reviewer | **NEXT** | Post-v0.1.16 scan after crates.io publish confirmed. |
-| rust-implementer | idle | Next: RFC-0101 Phase 3 (context graph expansion) — needs RFC draft first. |
-| architect | idle | ADR-0008: redb as default backend (RFC-0100 Phase 3). |
+| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review PR #429 (ADR-0008 renumber, CI running). (3) Sign off on Issue #426 (RFC-0100 Phase 3 redb-default DECISION GATE). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
+| orchestrator/pm | **ACTIVE** | This dispatch. Next: monitor PR #429 CI; cut release/v0.1.17 after P0+P1 resolved. |
+| security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14 — two releases behind). |
+| rust-implementer | **QUEUED** | Issue #427: RFC-0101/0102 contract completion (TDD: wire apply_budget + related_files). After PR #429 + security scan. |
+| architect | idle | Issue #426: RFC-0100 Phase 3 decision gate — prepare ADR for founder sign-off before redb default flip. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 | e2e-runner | idle | RSS-curve measurement — benchmark harness exists. |
+
 
 ---
 
@@ -486,24 +514,29 @@ v0.1.4 sprint declared complete. All 7 exit criteria met.
 
 **Escalations:** Founder review needed to authorize v0.1.16 ceremony after PR #414 lands.
 
-### 2026-06-02 PM dispatch v3 (PR #419 hotfix CI fixed; v0.1.17 content complete)
+### 2026-06-02 PM dispatch v4 (hotfix ceremony complete; governance + NodeKind fix merged; v0.1.17 content complete)
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (sla_trunk macOS pattern noted by prior session), PM state (remote chore branch v2), v0.2 PRD.
+**Context:** PR #421 (v3) was closed by founder as "[SUPERSEDED by v4]" — develop advanced (PRs #423, #424, #425 merged) while v3 waited for CI. This v4 is cut fresh from develop HEAD `2c4cb66`.
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest: `2026-06-02T12:08:00Z` TDD-gate-skip governance PR #424), anti-patterns, PM state (develop `2c4cb66`), v0.2 PRD.
 
 **Assessment:**
-- develop HEAD: `2f6acca` (PR #414 RFC-0101 Phase 2 CLI twin MERGED). main HEAD: `0d27c5a` (release: v0.1.16). 1 open PR: #419 (`hotfix/fix-release-publish → main`, founder-opened).
-- v0.1.16: main ✅, tag ✅, develop back-merge ✅. crates.io PENDING (release.yml failed — run 26793340808 on main, failure).
-- v0.1.17 sprint content COMPLETE (PR #414 merged). Ceremony pending.
-- PR #419 CI run 1: Quality Gate ❌ — `tests (macos-latest / stable)` FAILED on `sla_ancestors_100k` (11.664ms vs 5ms limit). validate release branch failed (expected for hotfix branch name).
-- Review comment P2: `if ! cargo publish | tee` tests tee's exit code (pipefail issue).
+- develop HEAD: `2c4cb66` (PR #425 NodeKind fix). main HEAD: `cd662788` (PR #419 hotfix squash-merged by founder).
+- 1 open PR: #429 (ADR-0008 renumber, CI running).
+- v0.1.16: main ✅, tag ✅, develop back-merge ✅; crates.io PENDING (step 3 — release.yml fixed, founder re-trigger required).
+- v0.1.17: content complete (PRs #414+#424+#425 all merged to develop).
 
 **Actions taken:**
-1. Fixed `sla_trunk.rs` — `#[cfg(target_os = "macos")]` SLA_ANCESTORS = 30ms; Linux keeps 5ms.
-2. Fixed `release.yml` — replaced `if ! cargo publish | tee` with `cargo publish || { }` (no pipeline, cargo exit code direct).
-3. Pushed commit `e0651e8` to `hotfix/fix-release-publish`. CI run 2 triggered.
-4. Confirmed `validate release branch` failure is from Release workflow (not PR CI gate) — expected.
-5. Updated PM state v3 + decisions.jsonl.
+1. Confirmed PR #421 review thread (outdated, already addressed in bc9baf4) — no action needed.
+2. Created `chore/pm-dispatch-2026-06-02-v4` from develop HEAD `2c4cb66`.
+3. Updated PM state: added v0.1.16 section (INCOMPLETE, step 3 PENDING); added v0.1.17 section (content complete); updated header/priorities/dispatch.
+4. Appended decisions.jsonl + anti-patterns.jsonl (v3 session entries that never reached develop).
+5. Opened PR v4 targeting develop.
 
-**CI run 2 trajectory**: E2E ✅, CI in_progress at time of writing.
+**Key v3 session findings (recorded here since v3 never merged):**
+- macOS SLA: `sla_ancestors_100k` at 11.664ms vs 5ms limit on macOS CI runners — fixed with `#[cfg(target_os = "macos")]` → 30ms limit.
+- `crate_published()` `max_version` bug: field returns highest published version, not whether `$VERSION` is in the list. Fixed by checking `versions[]` membership.
+- pipefail: `if ! cargo publish | tee` always returns 0 (tee's exit code). Fixed with `|| {}` pattern.
+- Anti-pattern: do not infer crates.io ceremony success from a develop back-merge commit.
 
-**Escalations:** Founder action needed to (1) review/merge PR #419 once CI green, (2) trigger v0.1.16 crates.io publish, (3) authorize v0.1.17 ceremony.
+**Escalations:** Founder: (1) v0.1.16 crates.io re-trigger; (2) PR #429 review; (3) v0.1.17 ceremony authorization; (4) RELEASE_BOT_TOKEN systemic fix.
