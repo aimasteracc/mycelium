@@ -252,6 +252,7 @@ jobs:
           bash scripts/test-release-prep.sh
           bash scripts/test-release-workflow.sh
           bash scripts/check_governance_guardrails.sh
+          bash scripts/check_supersede_discipline.sh
 
   # ─────────────────────────────────────────────────────────────
   # The single required check.

@@ -129,7 +129,7 @@ authored in Phase 2 PRs, one PR per category.
 | `find_import_path` | `mycelium find-import-path` | `mycelium_find_import_path` | [`import-graph`](import-graph/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 | `get_mutual_reachability` | `mycelium get-mutual-reachability` | `mycelium_get_mutual_reachability` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 | `get_common_reachable` | `mycelium get-common-reachable` | `mycelium_get_common_reachable` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
-| `context` | _(CLI pending — RFC-0101 Phase 2)_ | `mycelium_context` | [`architecture-context`](architecture-context/SKILL.md) | ⚠️ `EXCEPTION: MCP-only` pending BDFL sign-off; CLI tracked in RFC-0101 Phase 2 |
+| `context` | `mycelium context` | `mycelium_context` | [`architecture-context`](architecture-context/SKILL.md) | ✅ Three-Surface v0.1.16 (RFC-0101 Phase 2 — CLI twin implemented) |
 
 **Status legend:** ✅ Three-Surface = all three surfaces shipped, parity-CI green. `EXCEPTION: MCP-only` = server-process state with no human-visible CLI verb, filed per RFC-0090 §Exceptions, BDFL sign-off on file. ⚠️ #153 = perf issue *fixed in v0.1.4*; annotation retained for history.
 

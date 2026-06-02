@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Governance: supersede discipline is now machine-enforced.** New
+  `scripts/check_supersede_discipline.sh` (wired into the CI `governance` job)
+  fails the build on (1) a `Supersedes:`/`Superseded by` link that points at a
+  non-existent `rfcs/` file, and (2) a source module whose header declares it
+  implements a `Status: Superseded` RFC without a `TRANSITIONAL`/superseded
+  note. Restored the previously-phantom `rfcs/0099-bounded-resident-memory.md`
+  (marked Superseded by RFC-0100), annotated `store/journal.rs` as a sanctioned
+  transitional bridge, and corrected RFC-0100/RFC-0102 statuses to *Partially
+  Implemented* with honest gap lists. Two CLAUDE.md Hard Rules added
+  (supersede-then-close; verify-against-merged-tree). Contributor-facing only;
+  no runtime or API change.
+
+## [0.1.16] - 2026-06-02
+
 ### Added
+
+- **`mycelium context` CLI command** (RFC-0101 Phase 2) — CLI twin of the
+  `mycelium_context` MCP tool. Accepts `--task` (natural-language task or
+  Hyphae selector), `--max-nodes`, `--max-code-blocks`, and `--format`.
+  Returns the same JSON envelope as the MCP tool: `entry_points`, `nodes`,
+  `edges`, `code_blocks`, `stats`, and `agent_summary`. Completes the
+  Three-Surface Rule requirement for this capability (CLI ↔ MCP 1:1 strict;
+  `skills/architecture-context/SKILL.md` updated to reflect full coverage).
 
 - **MCP server routing instructions** — `mycelium serve --mcp` now includes
   a routing table in the MCP `InitializeResult.instructions` field (Issue #366).
@@ -174,6 +198,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.14] - 2026-05-31
 
+<!-- next release goes here -->
+
+## [0.1.14] - 2026-05-31
+
 ### Added
 
 - **RFC-0096 Phase 2 — TypeScript `import type` → `TypeImports`** — TypeScript's
@@ -208,6 +236,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `successful_lookup_yields_is_error_false`. (RFC-0093, Issue #209)
 
 [mcp-errors]: https://spec.modelcontextprotocol.io/specification/server/tools/#error-handling
+
 
 ## [0.1.13] - 2026-05-31
 

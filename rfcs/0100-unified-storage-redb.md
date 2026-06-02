@@ -2,7 +2,7 @@
 
 - **RFC**: 0100
 - **Title**: Unified Storage Layer on redb — one backend that makes writes incremental (R2) and resident memory bounded (R3)
-- **Status**: Draft
+- **Status**: Partially Implemented (Phases 1–2 merged; Phase 3 default-flip pending). Phase 1 (Storage trait + InMemory + Redb backends) and Phase 2 (per-file ACID `replace_file`, edge-count meta, MCP watch wiring, equivalence + SLA harness) are merged behind the **default-OFF** `redb-backend` feature. Phase 3 — making redb the default and retiring the journal/snapshot path — is **not yet done**; see Acceptance Criteria.
 - **Author**: orchestrator (Hive AI agent)
 - **Created**: 2026-05-31
 - **Decision gate**: Charter §3 (Tech Stack, *locked*) — **founder-authorized 2026-05-31** ("允许引入 redb（方案 A）"); this RFC carries the §3 amendment text + requires a new ADR before implementation
