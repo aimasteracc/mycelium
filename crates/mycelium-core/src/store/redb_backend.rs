@@ -148,8 +148,12 @@ const fn node_kind_tag(kind: NodeKind) -> u8 {
         NodeKind::Export => 16,
         NodeKind::Route => 17,
         NodeKind::Component => 18,
+        // NodeKind is #[non_exhaustive]; a new variant must get a stable tag
+        // here before it can be persisted. Fail loud (like `edge_kind_tag` in
+        // redb_tags.rs) instead of writing a 255 sentinel that `tag_to_node_kind`
+        // would silently drop on read — that path is silent data corruption.
         #[allow(unreachable_patterns)]
-        _ => 255,
+        _ => panic!("NodeKind variant has no stable redb tag — add one to redb_backend.rs"),
     }
 }
 
@@ -177,6 +181,54 @@ const fn tag_to_node_kind(tag: u8) -> Option<NodeKind> {
         18 => NodeKind::Component,
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod node_kind_tag_tests {
+    use super::{node_kind_tag, tag_to_node_kind};
+    use crate::types::NodeKind;
+
+    /// Every persistable `NodeKind` must roundtrip through its stable redb tag.
+    /// This guards the fail-loud contract: `node_kind_tag` now `panic!`s on an
+    /// unmapped variant (instead of writing a 255 sentinel that the reader would
+    /// silently drop), and a new `#[non_exhaustive]` variant added without a tag
+    /// would fail this completeness check first.
+    #[test]
+    fn all_known_node_kinds_roundtrip() {
+        let all = [
+            NodeKind::File,
+            NodeKind::Module,
+            NodeKind::Class,
+            NodeKind::Struct,
+            NodeKind::Interface,
+            NodeKind::Function,
+            NodeKind::Method,
+            NodeKind::Property,
+            NodeKind::Field,
+            NodeKind::Variable,
+            NodeKind::Constant,
+            NodeKind::Enum,
+            NodeKind::EnumMember,
+            NodeKind::TypeAlias,
+            NodeKind::Parameter,
+            NodeKind::Import,
+            NodeKind::Export,
+            NodeKind::Route,
+            NodeKind::Component,
+        ];
+        let mut seen_tags = Vec::new();
+        for kind in all {
+            let tag = node_kind_tag(kind);
+            assert_ne!(tag, 255, "{kind:?} must not map to the sentinel tag");
+            assert!(!seen_tags.contains(&tag), "tag {tag} is assigned twice");
+            seen_tags.push(tag);
+            assert_eq!(
+                tag_to_node_kind(tag),
+                Some(kind),
+                "{kind:?} (tag {tag}) must roundtrip"
+            );
+        }
+    }
 }
 
 // ── helper: pack/unpack adjacency lists ──────────────────────────────────────
