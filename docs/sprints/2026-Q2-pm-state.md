@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v9 — PR #442 opened: Issue #428 AC#2 slice 1 lib.rs tests extraction 12191→5627 lines; PRs #440+#441 absorbed; Issue #426 remaining criteria escalated to founder) |
-| Current sprint | **v0.1.17 — IN PROGRESS (PR #442 CI pending; Issue #426 AC#4 founder-gated; Issue #428 AC#2 tool-impl split remaining)** |
-| Active release branch | none (cut release/v0.1.17 after PR #442 + security scan + founder sign-off on Issue #426) |
+| Last updated | 2026-06-02 (PM dispatch v10 — PRs #442+#443 merged; RFC-0104 draft PR #444 opened: Charter §2 warm/cold SLA split — founder decision required) |
+| Current sprint | **v0.1.17 — IN PROGRESS (Issue #426 AC#4 gated on founder RFC-0104 review; Issue #428 AC#2 tool-impl split remaining P2)** |
+| Active release branch | none (cut release/v0.1.17 after security scan + founder sign-off on Issue #426) |
 | Next release target | **v0.1.17** — RFC-0101/0102 contract + RFC-0100 Phase 3 redb readiness + tech debt god-file split (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last ceremony-complete release | **v0.1.14** (all 4 Charter §5.12 steps ✅). v0.1.16 is on main+tag but crates.io PENDING (step 3 incomplete — not considered "shipped" until crates.io confirmed). |
@@ -128,7 +128,7 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 1. Re-push `release/v0.1.16` branch → `release.yml` re-runs automatically, OR
 2. Run the ceremony script from PR #375 against the `v0.1.16` tag manually.
 
-**Recent events (2026-06-02 v9 — absorbed v6/v7/v8):**
+**Recent events (2026-06-02 v10 — absorbed v9):**
 - PR #416 (v0.1.16 release → main) MERGED ✅ (founder authorized)
 - PR #419 (hotfix: release.yml publish fixes) MERGED to main ✅
 - PR #423 (back-merge hotfix → develop) MERGED ✅
@@ -140,19 +140,20 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 - PR #438 (RFC-0102: OutputBudget to core, budget context on both surfaces) MERGED ✅ — Issue #427 CLOSED ✅
 - PR #440 (100k-node redb SLA gate + remove orphan LRU — Issue #426 AC#1+3) MERGED ✅
 - PR #441 (redb codec extraction to redb_codec.rs — Issue #428 AC#3 slice) MERGED ✅
-- PR #439 (PM chore v8 — conflicted after #440+#441 merged) SUPERSEDED by v9
-- PR #442 (Issue #428 AC#2 slice 1: `mod tests` 12191→5627 lines) OPENED, CI pending
+- PR #442 (Issue #428 AC#2 slice 1: `mod tests` 12191→5627 lines) MERGED ✅
+- PR #443 (PM chore v9) MERGED ✅
+- PR #444 (RFC-0104 draft: Charter §2 warm/cold SLA split — Issue #426 AC#4) OPENED as draft, **BDFL decision required**
 
-**P1 (after v0.1.16 crates.io confirmed):**
-1. **Merge PR #442** (Issue #428 AC#2 slice 1 — tests extraction, CI pending).
-2. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
-3. **Cut release/v0.1.17** — gated on items 1-2 + founder sign-off on Issue #426.
+**P0 — Founder action required (two items):**
+1. **Re-trigger v0.1.16 crates.io publish** (Charter §5.12 step 3 still PENDING). Hotfix is on main + develop. Re-push `release/v0.1.16` or run ceremony script manually.
+2. **Review RFC-0104 draft (PR #444)** — Charter §2 warm/cold SLA split. Three open questions require founder input (cold target values, measurement protocol, warm-up scan scope). This unblocks Issue #426 AC#2 + AC#5 (redb default flip).
 
-**P1 — decision gate (founder sign-off required):**
-4. **Issue #426 — RFC-0100 Phase 3 remaining**: AC#2 (RSS-cap CI gate) is blocked on AC#4 (Charter §2 warm/cold latency split — `meta` RFC required, BDFL approval per Charter §9). AC#5 (flip redb to default + retire journal) gated on AC#2+AC#4. DO NOT proceed without founder ADR sign-off.
+**P1 (after P0 resolved):**
+3. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
+4. **Cut release/v0.1.17** — gated on item 3 + founder sign-off on Issue #426.
 
 **P2 (v0.2.0 scope):**
-5. Issue #428 AC#2 remaining: split tool implementations into `tools/context.rs` + `tools/graph.rs` (lib.rs still 5,627 lines after slice 1).
+5. Issue #428 AC#2 remaining: split tool implementations into `tools/context.rs` + `tools/graph.rs` (lib.rs at 5,627 lines, above 800-line cap).
 6. `release.yml` finalize merge step — `RELEASE_BOT_TOKEN` systemic fix (blocking since v0.1.6).
 7. Skill marketplace submission.
 
@@ -548,6 +549,28 @@ v0.1.4 sprint declared complete. All 7 exit criteria met.
 
 1. v0.1.0 + v0.1.1 shipped. Three-Surface Rule is law.
 2. PRD for v0.2 at [`docs/prd/v0.2-the-three-surface-release.md`](../prd/v0.2-the-three-surface-release.md).
+
+### 2026-06-02 PM dispatch v10 (PRs #442+#443 merged; RFC-0104 draft PR #444 opened)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (no relevant new hits), PM state (v9 from PR #443), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD 153eb8f (PM v9 chore merged). 2 open PRs: #442 (Issue #428 AC#2 slice 1 — 24/24 CI SUCCESS), #443 (PM chore v9 — 22/22 CI SUCCESS). 1 open P1 issue: #426 (RFC-0100 Phase 3; AC#4 founder-gated).
+- PR #414 (RFC-0101 Phase 2 CLI twin) already merged per GitHub (not in open PR list).
+- Sprint v0.1.17: content largely done (PRs #414/#424/#425/#429/#431/#436/#438/#440/#441 all merged). Issue #426 AC#4 is the sole founder-gated blocker for redb default.
+- Anti-patterns checked: no new relevant hits. "auto-loop without checking priorities" anti-pattern noted — confirmed highest-priority is Issue #426 AC#4 unblocking.
+
+**Actions taken:**
+1. **Merged PR #442** (Issue #428 AC#2 slice 1 — tests extraction, 24/24 CI green, squash) ✅.
+2. **Merged PR #443** (PM chore v9, 22/22 CI green, squash) ✅.
+3. **Drafted RFC-0104** (`rfcs/0104-charter-warm-cold-sla-split.md`): formalises ADR-0008 Decision-4; proposes Charter §2 warm/cold column split; defines madvise(MADV_DONTNEED) measurement protocol; surfaces three open questions for BDFL decision.
+4. **Updated ADR-0008** Decision-4 with RFC-0104 cross-reference.
+5. **Opened PR #444** (draft meta RFC — BDFL decision required).
+6. Updated PM state v10 + appended decisions.jsonl.
+
+**Sprint status:** v0.1.17 content complete modulo Issue #426 AC#4 (founder gate). Next action for the Hive is security scan; for the founder: RFC-0104 review + v0.1.16 crates.io re-trigger.
+
+**Escalations:** (1) v0.1.16 crates.io PENDING — re-trigger required. (2) RFC-0104 PR #444 — three BDFL questions need answers before implementation.
 
 ### 2026-06-02 PM dispatch (RFC-0101 Phase 2 CLI twin; PR #414 opened)
 
