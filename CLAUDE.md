@@ -45,6 +45,8 @@ If any of the above fails or is impossible, **stop and report**, do not improvis
 - ✅ **Always use Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`, `perf:`, `ci:`, `build:`, `meta:`).
 - ✅ **Always update `CHANGELOG.md` "Unreleased" section** when shipping a user-visible change.
 - ✅ **Always close the loop** — after acting, append to `.hive/memory/decisions.jsonl` what was decided and why.
+- ❌ **Never leave a superseded approach actionable.** When an RFC marks another `Status: Superseded`, the **same change** MUST: (1) close/relabel that RFC's tracking issues and any open PRs as `superseded`, (2) ensure the `Supersedes:` link resolves to a real `rfcs/` file (no phantom links — `scripts/check_supersede_discipline.sh` enforces this), and (3) annotate any retained transitional code's module header as a bridge. Rationale: a worker (human or AI) told "deal with the open issues/PRs" will implement whatever is still open — exactly how the v0.1.16 journal/LRU (#343/#344) shipped *after* RFC-0100 retired that approach.
+- ✅ **Always verify a rule against the MERGED tree, not commit-reachability.** Before declaring a Hard Rule (e.g. Three-Surface) "resolved", grep the actual `origin/develop` tree — a squash-merge gives the merged code a new SHA, so `git merge-base <feature-commit>` falsely reports "not merged", and a stale local branch shows pre-merge state. Never mark a rule resolved on PR-*open*; verify on PR-*merge*.
 
 ## TDD Workflow (§5.1 of Charter) — NON-NEGOTIABLE
 

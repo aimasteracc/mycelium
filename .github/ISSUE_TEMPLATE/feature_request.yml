@@ -42,6 +42,15 @@ body:
     attributes:
       label: Performance / SLA impact
       description: Could this affect the Charter §2 SLAs? If yes, how?
+  - type: input
+    id: governing_rfc
+    attributes:
+      label: Governing RFC (if any)
+      description: >-
+        Which RFC governs this area? Before implementing, confirm it is NOT
+        Status:Superseded. (Implementing an issue whose approach a newer RFC has
+        already retired is the v0.1.16 journal/LRU anti-pattern.)
+      placeholder: "e.g. RFC-0100 (active) — or 'none' / 'new RFC needed'"
   - type: checkboxes
     id: confirmations
     attributes:
@@ -50,4 +59,6 @@ body:
         - label: I searched existing issues for similar proposals.
           required: true
         - label: I have read the [Charter](https://github.com/aimasteracc/mycelium/blob/develop/CHARTER.md) §2 SLAs.
+          required: true
+        - label: I checked that the governing RFC for this area is not Superseded by a newer one.
           required: true
