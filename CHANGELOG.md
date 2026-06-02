@@ -5,7 +5,7 @@ All notable changes to **Mycelium** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.16] - 2026-06-02
 
 ### Added
 
@@ -174,6 +174,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.14] - 2026-05-31
 
+<!-- next release goes here -->
+
+## [0.1.14] - 2026-05-31
+
 ### Added
 
 - **RFC-0096 Phase 2 — TypeScript `import type` → `TypeImports`** — TypeScript's
@@ -208,6 +212,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `successful_lookup_yields_is_error_false`. (RFC-0093, Issue #209)
 
 [mcp-errors]: https://spec.modelcontextprotocol.io/specification/server/tools/#error-handling
+
 
 ## [0.1.13] - 2026-05-31
 
