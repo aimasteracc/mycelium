@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-05-31 (PM dispatch — PRs #340/#341/#345 merged; PR #346 opened (RFC-0093 Phase 3 CHANGELOG+RFC); v0.1.14 6/6 criteria DONE; scale-gap R1/R2/R3 now P1) |
-| Current sprint | **v0.1.14 — COMPLETE (pending PR #346 CI+merge)** |
-| Active release branch | none (v0.1.14 content on develop; cut release after PR #346 lands) |
-| Next release target | **v0.1.14** — RFC-0093 Phase 3 + scale-gap R1 step 1 |
+| Last updated | 2026-06-02 (PM dispatch — PR #414 opened: RFC-0101 Phase 2 mycelium context CLI twin; Three-Surface violation for `context` resolved; dep bumps #411/#412/#413 merged to develop) |
+| Current sprint | **v0.1.16 — CONTENT NEARLY COMPLETE (PR #414 CLI twin pending CI+merge)** |
+| Active release branch | none (cut release/v0.1.16 after PR #414 merges) |
+| Next release target | **v0.1.16** — RFC-0101 CLI twin (PR #414) + all RFC-0100 redb + dep bumps |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.13 — RFC-0093 Phase 2 (success_str), RFC-0096 TypeImports (Python), TS resolver fix** (tag v0.1.13, GitHub Release published 2026-05-31) |
+| Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
 ---
 
@@ -35,53 +35,82 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## 🚀 v0.1.14 — IN PROGRESS
+## ✅ v0.1.14 — SHIPPED (ceremony 4/4 COMPLETE — PR #352 merged to main, tag + Release + back-merge done)
 
-**Sprint goal**: Advance toward v0.2.0. Headline: RFC-0093 Phase 3 (all 89 MCP tools → `Result<CallToolResult>`). Secondary: dogfood validation + Skills INDEX.md CI gate.
+**What shipped:**
+- [x] RFC-0096 Phase 2 TypeScript: `import type` → TypeImports edges + TS resolver bug fix
+- [x] RFC-0093 Phase 3 (BREAKING): all 89 MCP tools → `is_error: Some(true)` per MCP spec
+- [x] Skills INDEX.md CI gate: `skill-parity` promoted to required Quality Gate
+- [x] Store::merge R1 parallel-index primitive (step 1/2)
+- [x] Dogfood pass rate 8/8: all 8 core CLI commands green
 
-**Exit criteria:**
-- [x] **RFC-0096 Phase 2 TypeScript**: `import type` → TypeImports edges + TS resolver bug fix (PR #331 MERGED ✅, 2026-05-31)
-- [x] **Post-v0.1.13 security scan**: CLEAN ✅ (this run — no hardcoded secrets, no unsafe blocks)
-- [x] **PRD v0.2 corrections**: Fixed stale claims — `mycelium query` IS implemented, 10 Skills exist (this run ✅)
-- [x] **RFC-0093 Phase 3**: CHANGELOG BREAKING entry added + RFC marked Implemented. Confirmed that `-> CallToolResult` + `is_error` helpers meets the MCP spec contract; `Result<>` wrapper is unnecessary. PR #346 open (CI running). (2026-05-31)
-- [x] **Skills INDEX.md CI gate**: `skill-parity` job added to `ci.yml` Quality Gate — parity is now a **required** check. (PR #335 MERGED ✅)
-- [x] **Dogfood pass rate 8/8**: All 8 core CLI commands green against this repo (PR #337 MERGED ✅, 195 files, 14 523 nodes, 9 871 edges, ~0.4 s)
+**v0.1.14 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
+- [x] **Step 1**: `release/v0.1.14` → `main` — PR #352 MERGED ✅ (founder authorized 2026-05-31; one-time --admin due to squash-trailer DCO artifact on cecb11f — all real quality gates green)
+- [x] **Step 2**: Tag `v0.1.14` pushed ✅
+- [x] **Step 3**: GitHub Release published ✅
+- [x] **Step 4**: Back-merge `release/v0.1.14` → `develop` — PR #349 MERGED ✅
 
-**Stretch (v0.1.14 if time, v0.2.0 otherwise):**
-- [ ] `release.yml` finalize merge step fix (founder-escalated systemic issue)
-- [ ] Skill marketplace submission prep (metadata done in v0.1.12)
+**Note also shipped in v0.1.14:**
+- [x] R1 parallel index step 2: `index_path_parallel` via `thread::scope` + `Store::merge` reduce — Issue #342 CLOSED (PR #351 merged)
+
+**⚠️ Systemic escalation (recurring):** `release.yml` finalize auto-closes the release-to-main PR on every release (v0.1.6, v0.1.10–v0.1.14 affected). Root cause: `RELEASE_BOT_TOKEN` not configured → merge step skipped → PR auto-closed and branch deleted. **Founder must fix before v0.2.0.**
+
+---
+
+## 🚀 v0.1.15 — CONTENT DONE; CEREMONY BROKEN (Issue #375)
+
+**Content shipped to develop (PRs #374–#394):**
+- [x] RFC-0100 governance guardrails + release secret config (#376, #377)
+- [x] RFC-0100 redb Phase 1: `StorageBackend` trait + `InMemoryBackend` + `RedbBackend` foundation
+- [x] RFC-0100 redb Phase 2: property equivalence, crash-safety, adjacency, file-scoped replacement, edge-count cache, RSS instrumentation, MCP watch persistence, SLA benchmarks (PRs #378-#394)
+- [x] RFC-0101/0102/0103 RFC drafts (PRs #385, #386, #387)
+- [x] MCP agent routing instructions strengthened (PR #384)
+
+**v0.1.15 ceremony status — BROKEN ⚠️:**
+- ❌ **Step 1**: `release/v0.1.15` → `main` — PR #361 CLOSED UNMERGED (release workflow created orphan tag)
+- ❌ **Step 2**: Tag `v0.1.15` exists but points to orphan commit not on main or develop
+- ❌ **Step 3**: GitHub Release published but at wrong commit
+- ❌ **Step 4**: `release/v0.1.15` → `develop` — PR #362 CLOSED UNMERGED
+- **Root cause**: `release.yml` used `cargo publish ... || true` masking CRATES_IO_TOKEN failures; tag created before main/develop merges. `crates.io` still at `0.1.10`.
+- **Decision gate (founder required)**: Repair v0.1.15 OR cut fresh v0.1.16. See Issue #375.
 
 ---
 
 ## Live priorities (ordered)
 
-**P0**: none (v0.1.14 content complete; PR #346 pending merge)
+**P0:** none — Issue #375 ceremony resolved (PR #375 merged); 0 open issues.
 
-**P1 (v0.1.15 sprint — scale-gap remediation):**
-1. **R1 parallel index step 2** (#342) — switch `WalkBuilder::build()` → `build_parallel()`, extract files via per-thread sub-stores, merge via `Store::merge` (step 1 landed in PR #345). Add `rayon`. Benchmark: files/sec at 10K/100K nodes. Deterministic-output assertion vs serial path. Low risk.
-2. **R2 incremental persistence** (#343) — O(changed-file) disk I/O on watch-loop change. Requires ADR (storage format). Medium risk — founder decision gate if format changes.
-3. **R3 memory bound** (#344) — LRU/segment eviction or mmap-backed store. Medium-high risk. Gate behind feature flag. Do RSS measurement first.
+**P1 (v0.1.16 scope):**
+1. **PR #414 — `mycelium context` CLI twin** (RFC-0101 Phase 2): merge after CI green. Three-Surface violation for `context` resolved by this PR (CLI + MCP 1:1 strict, Skill covered). Once merged, v0.1.16 content is complete.
+2. **Security scan post-v0.1.16** — run after PR #414 merges + ceremony completes.
+3. **Cut release/v0.1.16** — all content ready: RFC-0100 redb, RFC-0101 CLI twin, dep bumps (salsa 0.26, logos 0.16, redb 4.1), release ceremony script. Use ceremony script from PR #375.
+
+**Recent merges (since last PM state):**
+- PR #407/#343: append-only journal for incremental persistence (R2) MERGED ✅
+- PR #344: memory-bound LRU eviction (R3) MERGED ✅
+- PR #411: salsa 0.18→0.26 MERGED ✅
+- PR #412: logos 0.14→0.16 MERGED ✅
+- PR #413: redb 2.6.3→4.1 MERGED ✅ (required ReadableDatabase trait import)
+- PR #375: release ceremony script MERGED ✅
 
 **P2 (v0.2.0 scope):**
-4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` audit or job rewrite)
-5. Hyphae CLI end-to-end: `mycelium query "<selector>"` works (v0.2 PRD headline)
-6. Skill marketplace submission to Claude Code marketplace
-7. "First 5 minutes" walkthrough validation (README + docs site)
+4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit — blocking since v0.1.6; ceremony script is workaround)
+5. Skill marketplace submission to Claude Code marketplace
+6. "First 5 minutes" walkthrough validation (README + docs site)
 
 ---
 
-## Dispatch state (2026-05-31, this run — v0.1.14 sprint complete; scale-gap P1)
+## Dispatch state (2026-06-01 v3 — PRs #395+#405 merged; v0.1.16 sprint defined)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Audit `release.yml` finalize merge step before v0.2.0 (systemic). (2) Decision gate for R2 if storage format changes (Charter §3). |
-| rust-implementer | **NEXT** | R1 step 2 (#342): `build_parallel()` + rayon + Store::merge reduce + benchmark. TDD: deterministic-output test RED first. |
-| security-reviewer | done | Post-v0.1.13 scan CLEAN. |
-| tech-writer | done | PRD v0.2 corrections + scale-gap-analysis.md (PR #341 merged). |
-| e2e-runner | done | Dogfood 8/8 ✅ (PR #337 merged). |
-| architect | idle | R2/R3 design review; ADR required before R2 implementation. |
-| code-reviewer | idle | Review PR #346 (RFC-0093 Phase 3 docs). |
-| release | idle | Cut release/v0.1.14 once PR #346 merges (all 6 criteria done). |
+| founder | **action requested** | (1) Review + authorize v0.1.16 release after PR #414 merges (ceremony via PR #375 script). (2) Systemic: `release.yml` finalize merge fix before v0.2.0. |
+| release | **NEXT** | Cut release/v0.1.16 once PR #414 CI green + merged. Use ceremony script from PR #375. |
+| rust-implementer | done | PR #414 (RFC-0101 Phase 2 CLI twin) — waiting CI. |
+| security-reviewer | idle | Post-v0.1.16 scan after ceremony completes. |
+| architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). |
+| tech-writer | idle | Skill marketplace submission prep (P2). |
+| e2e-runner | idle | RSS-curve measurement — benchmark harness exists (PR #391). |
 
 ---
 
@@ -92,7 +121,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6, v0.1.10, v0.1.11, v0.1.12, v0.1.13 confirmed). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
+- **⚠️ R2 / RFC-0098**: incremental persistence implementation touches storage format (Charter §3 deviation from WAL/HAMT/time-travel row). Founder must sign off on ADR + approach before any implementation PR.
+- **⚠️ Systemic**: `release.yml` finalize merge step fails on every release (v0.1.6–v0.1.14 all affected). Founder must audit `RELEASE_BOT_TOKEN` or merge logic before v0.2.0.
 
 ---
 
@@ -107,7 +137,171 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-05-31 PM dispatch (this run — PRs #340/#341/#345 merged; PR #346 opened; v0.1.14 DONE; scale-gap R1/R2/R3 triaged)
+### 2026-06-01 PM dispatch v3 (this run — PRs #395+#405 merged; v0.1.16 sprint defined)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest entry: `2026-06-01T21:30:00Z` second PM dispatch merging CI bumps #397-#401, fixing PR #395 test), anti-patterns (no relevant hits), PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `5f81d9f` (CI bump #401 merged). 5 open PRs: #395 (feature, 22/22 CI green after test fix), #402-#404 (dep bumps, red CI), #405 (PM chore, green CI). 3 open issues: #375 (P0 founder gate), #343 (R2), #344 (R3).
+- PR #395: all 22 CI checks SUCCESS (Quality Gate, rustfmt, clippy, DCO, skill coverage I1+I2, unit/integration tests linux/mac/windows/nightly, coverage, security, build, e2e dogfood + real projects). Ready.
+- PR #405: green CI. PM state chore from prior run. Mergeable.
+- Issue #375: prerequisites done (PRs #374/#376 merged, credentials configured). Blocked on founder GPG decision.
+- Dep bumps #402-#404: still deferred — all red CI (breaking API changes).
+
+**Actions taken:**
+1. **Merged PR #395** (feat: mycelium_context + OutputBudget + import-aware stubs, 22/22 CI green, squash). 90th MCP tool. Three-Surface Rule: I1/I2 pass (architecture-context Skill covers it). CLI twin deferred per RFC-0101 Phase 2.
+2. **Merged PR #405** (chore: PM dispatch state — v2, squash). PM memory updated.
+3. **Updated PM state v3**: sprint renamed v0.1.16, priorities and dispatch table updated.
+4. **Appended decisions.jsonl** for this run.
+
+**Escalations:** Issue #375 P0 — founder GPG-signed decision required (repair v0.1.15 or cut v0.1.16). All technical prerequisites are complete.
+
+### 2026-06-01 PM dispatch (this run — PR #395 test fixed; PRs #397-#401 merged; dep bumps triaged)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (from PR #396 — v0.1.15 ceremony broken), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `dc3e521` (PR #396 — PM dispatch chore from previous session today).
+- 9 open PRs: #395 (feature, CI failing), #397-#404 (7 dependabot bumps). 3 open issues: #375 (P0), #343/#344 (P1).
+- CI action bumps #397-#401: all Quality Gate SUCCESS — safe to merge.
+- Dep bumps #402-#404 (redb/logos/salsa): red CI — API breaking changes, need RFC.
+- PR #395: 1 failing test `server_info_tests::get_info_includes_primary_tool_selection_rules`. Root cause: item-1 label in `MCP_INSTRUCTIONS_BASE` used unquoted `How does X work /` but test asserted `"\"How does X work?\""` (literal quotes + `?`). Also header said "89 tools" vs actual 90.
+
+**Actions taken:**
+1. **Fixed PR #395 test failure**: changed `MCP_INSTRUCTIONS_BASE` item-1 label to `\"How does X work?\"` + header 89→90. Confirmed RED→GREEN locally (all 566 tests pass, fmt+clippy clean). Pushed to `feature/mycelium-context-tool`.
+2. **Merged PRs #397/#398/#399/#400/#401** (5 CI action bumps, all Quality Gate green): checkout 4→6, upload-artifact 4→7, setup-python 5→6, stale 9→10, action-gh-release 2→3.
+3. **Triaged deferred dep bumps** (#402 redb 4.x, #403 logos 0.16, #404 salsa 0.26): all red CI. Salsa 0.26 is the riskiest — 8 major versions ahead, core reactivity layer; needs dedicated RFC before adopting.
+4. Updated PM state + appended decisions.jsonl.
+
+**Escalations:** Issue #375 remains P0 (founder: decide repair v0.1.15 or cut v0.1.16). Salsa/redb/logos bumps need RFC/analysis before adoption.
+
+### 2026-06-01 PM dispatch (previous run — PR #395 rebased + architecture-context Skill; Issue #375 P0 escalated)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (stale — last updated 2026-05-31), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `d3cfaca` (PR #394 merged — RFC-0100 redb Phase 2 T06a SLA benchmarks). 20+ PRs merged since last PM state.
+- 1 open PR: #395 (`feature/mycelium-context-tool`, `mergeable_state: dirty`) — 3 new features: mycelium_context (90th MCP tool), OutputBudget, import-aware stub resolution. Three-Surface violation: MCP-only, no CLI twin, no Skill. Opened today 2026-06-01.
+- 3 open issues: #375 (v0.1.15 ceremony BROKEN — P0 founder gate), #343 (R2 persistence, founder gate), #344 (R3 memory, measurement first).
+- v0.1.15 ceremony status: BROKEN — `release.yml` used `|| true` on publish, CRATES_IO_TOKEN failures masked, orphan tag created before main/develop merges. PRs #361/#362 closed unmerged.
+
+**Actions taken:**
+1. **Rebased PR #395** onto develop HEAD (d3cfaca). Resolved two conflicts in `crates/mycelium-mcp/src/lib.rs`: (a) MCP_INSTRUCTIONS text (took feature branch's definitive version), (b) watch-loop structure (took develop's refactored version with extension filter via `source_extension()`).
+2. **Removed .claude/worktrees/ artifacts** from feature branch (two gitmodule subproject entries accidentally committed by Claude Code worktree feature).
+3. **Added `skills/architecture-context/SKILL.md`** covering `mcp__mycelium__context`. Satisfies RFC-0090 I1: parity check now 90/90 PASS (--strict).
+4. **Updated `skills/INDEX.md`** with `context` row (EXCEPTION: MCP-only pending BDFL sign-off, CLI tracked as RFC-0101 Phase 2).
+5. **Updated CHANGELOG Unreleased** with mycelium_context, OutputBudget, import-aware stubs, architecture-context Skill entries.
+6. **Force-pushed** to `feature/mycelium-context-tool` — PR #395 now clean, CI triggered.
+7. **Updated PM state** to reflect v0.1.15 content complete but ceremony broken, v0.1.16 scope.
+
+**Escalations:**
+- Issue #375 (P0): founder must decide repair v0.1.15 vs cut v0.1.16; audit CRATES_IO_TOKEN + RELEASE_BOT_TOKEN.
+- RFC-0101 Phase 2 (Three-Surface): `mycelium context` CLI twin needed; currently EXCEPTION: MCP-only pending BDFL sign-off.
+
+### 2026-05-31 PM dispatch (this run — Issue #366 CLOSED; PR #365 CI re-triggered; PR #369 replaced)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (via git show origin/develop), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `f003f65` (MCP server instructions PR #368 already MERGED). v0.1.14 ceremony: ALL 4 STEPS COMPLETE ✅. v0.1.15 IN PROGRESS.
+- 3 open PRs: #365 (RFC-0100 Phase 1, Quality Gate FAILURE — Windows runner CANCELLED, transient), #367 (Phase 2 T01, Quality Gate SUCCESS ✅, stacked on #365), #369 (PM dispatch, dirty/mergeable:false — 20-commit stale branch).
+- 3 open issues: #366 (OPEN despite PR #368 MERGED — auto-close failed), #343 (R2 decision-gate), #344 (R3 Phase 0 done).
+
+**Actions taken:**
+1. **Closed Issue #366** — resolved by PR #368 on develop HEAD.
+2. **Re-triggered CI on PR #365** — pushed empty DCO-signed commit (`6212c65`) to `feature/rfc0100-storage-trait-and-inmemory`. The prior "CI re-triggered" claim in PR #369 didn't materialize a new run (latest still 17:00 UTC with transient Windows cancel).
+3. **Replaced PR #369** (dirty, 20-commit stale branch) with this fresh chore branch from develop HEAD `f003f65`.
+4. **Updated PM state**: priorities corrected (PR #368 done, Issue #366 closed, PR #365 CI re-triggered, PR #367 awaiting #365).
+
+**Escalations:**
+- Founder: (a) `release.yml` RELEASE_BOT_TOKEN systemic fix; (b) Review + merge PR #365 once CI green (RFC-0100 Phase 1 — feature-flagged OFF, zero behavior change).
+
+### 2026-05-31 PM dispatch (this run — PR #356 MERGED; PR #357 PM-chore rebased+merged; RFC-0099 PR #358 escalated)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (scale/memory domain — no hits), PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `5d5e43a` (PR #356 merged this run). Prior stale PM state (header said "KICKOFF", sprint state stale).
+- 3 open PRs: #356 (R3 measurement, `dirty` — conflict with RFC-0098 commit), #357 (PM dispatch chore, blocked), #358 (RFC-0099 draft, explicitly do-not-auto-merge).
+- 2 open issues: #343 (R2), #344 (R3).
+- v0.1.14 ceremony: COMPLETE (all 4 steps). v0.1.15 sprint: R1 DONE, R3 Phase 0 in PR #356, R2+R3 design gated.
+
+**Actions taken:**
+1. **Rebased PR #356** onto develop (conflict: decisions.jsonl + pm-state.md header — append-only resolution). Tests green (0 FAILED). Force-pushed `feature/r3-memory-curve`. **Merged PR #356** ✅.
+2. **Rebased PR #357** onto post-#356 develop (conflict: decisions.jsonl + pm-state.md — append-only + --theirs strategy). **Updated PM state** for this run. Pushing as amended PR #357.
+3. **Escalated PR #358** (RFC-0099 do-not-auto-merge) to founder — Phase 1 and Phase 2 implementation blocked on founder sign-off.
+
+**Escalations:**
+- Founder: (a) `release.yml` RELEASE_BOT_TOKEN systemic fix before v0.2.0; (b) RFC-0098 R2 decision gate; (c) RFC-0099 PR #358 sign-off (Phase 1 streaming index + Phase 2 LRU approach).
+
+### 2026-05-31 PM dispatch (this run — PR #353 merged; PM state corrected; PR #356 CI pending)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (scale/parallel/memory domain), PM state, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `dd266ce` (RFC-0098 draft merged in this run). Prior HEAD: `c052e4a` (v0.1.14 ceremony commit).
+- 2 open PRs: #353 (RFC-0098 Draft, Quality Gate 21/21 SUCCESS — pure docs), #356 (R3 measurement, CI pending — state=pending, 0 commit statuses yet).
+- 2 open issues: #343 (R2 persistence, decision-gate), #344 (R3 memory, measurement-first).
+- v0.1.14 ceremony: COMPLETE (PR #352 merged to main by founder; commit 59521bd; all 4 steps done).
+- R1 parallel indexing: DONE — PR #351 merged, Issue #342 closed (`index_path_parallel` via `thread::scope` + `Store::merge`).
+- PM state body was stale (header updated by c052e4a but ceremony body still showed PR #352 open; priorities still showed P0 as ceremony, R1 as NEXT).
+
+**Actions taken:**
+1. **Merged PR #353** (docs/rfc-0098-incremental-persistence — 1 file, 430 lines RFC-0098 Draft, Quality Gate 21/21 SUCCESS). Marks R2 design process advancing; implementation gated on founder sign-off + ADR.
+2. **Corrected PM state**: v0.1.14 ceremony body → ALL FOUR STEPS COMPLETE; R1 DONE; Live priorities updated; dispatch table updated.
+3. **Appended decisions.jsonl** (this run's summary).
+4. **Chore PR opened** targeting develop.
+
+**Escalations:**
+- Founder must (a) audit `release.yml` finalize merge step (systemic, v0.1.6–v0.1.14); (b) sign off on RFC-0098 + ADR before R2 implementation begins.
+
+**Note on PR #356:** CI was in `pending` state (0 commit statuses) at assessment time — neither failed nor queued. Will merge when green. Code is TDD-complete (Store::heap_size_estimate() + 3 CI tests + 3 #[ignore] RSS-curve tests).
+
+### 2026-05-31 PM dispatch (this run — PR #350 merged; release/v0.1.14 conflicts resolved; PR #352 opened; security CLEAN)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #350 (chore/pm-dispatch prior session, CI 21/21 green). 2 open issues: #343 (R2 persistence), #344 (R3 memory).
+- v0.1.14 shipped (tag + GitHub Release ✅; develop has v0.1.14 via PR #349 back-merge ✅).
+- Ceremony step 1 (→ main) blocked: PR #348 was auto-closed by release.yml without merge; branch deleted; PR marked `dirty` due to CHANGELOG + Cargo.toml version conflicts.
+- main is at v0.1.13; develop at v0.1.14.
+
+**Actions taken:**
+1. **Merged PR #350** (chore pm-dispatch prior session, squash, green CI) ✅
+2. **Recreated release/v0.1.14** from tag `v0.1.14` (9690fc60); resolved 3 mechanical conflicts:
+   - `CHANGELOG.md`: kept v0.1.14 section (origin/main had empty Unreleased)
+   - `Cargo.toml`: kept `version = "0.1.14"` (origin/main had `0.1.13`)
+   - `crates/mycelium-cli/Cargo.toml`: kept `mycelium-mcp = "0.1.14"` pin (origin/main had `0.1.13`)
+3. **Pushed release/v0.1.14** to origin. **Created PR #352** (`release/v0.1.14` → `main`). FOUNDER AUTHORIZATION REQUIRED.
+4. **Security scan post-v0.1.14**: CLEAN — no hardcoded secrets, zero unsafe blocks (compiler-enforced deny), GitHub Actions token refs correct.
+5. **Triaged issues #343/#344**: #343 = P1 R2 (medium risk, storage format change, needs ADR + spike); #344 = P1/P2 R3 (medium-high risk, measurement spike first). Both confirmed as v0.1.15 sprint items.
+6. Updated PM state + decisions.jsonl.
+
+**Escalations:**
+- Founder must (a) authorize PR #352 (release→main) when CI green; (b) audit `release.yml` finalize merge step — same systemic failure on every release since v0.1.6 (`RELEASE_BOT_TOKEN` not configured causes auto-close of release PRs); (c) decision gate for R2 if storage format changes.
+
+### 2026-05-31 PM dispatch (previous — PRs #346+#347 merged; release/v0.1.14 cut; PRs #348+#349 opened; R1 step 2 deferred)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
+
+**Assessment:**
+- Open PRs: #346 (RFC-0093 Phase 3 docs, CI ✅), #347 (PM dispatch v0.1.14 DONE, CI ✅). Both fully green.
+- Open issues: #342/#343/#344 (scale-gap R1/R2/R3). Latest tag: v0.1.13. v0.1.14 not yet released.
+- v0.1.14 sprint declared DONE (6/6 criteria) in PR #347. Release not yet cut.
+
+**Actions taken:**
+1. **Merged PR #346** (RFC-0093 Phase 3 docs) — green CI, squash merge. ✅
+2. **Merged PR #347** (PM dispatch v0.1.14 DONE) — green CI, squash merge. ✅
+3. **Cut release/v0.1.14**: bumped version 0.1.13→0.1.14 in Cargo.toml + cli dep pin; sealed CHANGELOG [Unreleased]→[0.1.14]-2026-05-31; committed + pushed branch.
+4. **Opened PR #348** (`release/v0.1.14` → `main`) — FOUNDER AUTHORIZATION REQUIRED (Charter §5.12).
+5. **Opened PR #349** (`release/v0.1.14` → `develop`) — back-merge (ceremony step 4), can admin-merge when CI green.
+6. **R1 step 2 deferred**: `cargo check` took 65s in this environment. Full TDD cycle (RED→GREEN→clippy→fmt) not feasible within 25-min window. Scheduled for next run (full session).
+7. Updated PM state + decisions.jsonl.
+
+**Escalations:** Founder must (a) authorize PR #348 (release→main); (b) audit `release.yml` merge step; (c) decision gate for R2 if storage format changes.
+
+### 2026-05-31 PM dispatch (previous — PRs #340/#341/#345 merged; PR #346 opened; v0.1.14 DONE; scale-gap R1/R2/R3 triaged)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state, v0.2 PRD.
 
@@ -249,3 +443,27 @@ v0.1.4 sprint declared complete. All 7 exit criteria met.
 
 1. v0.1.0 + v0.1.1 shipped. Three-Surface Rule is law.
 2. PRD for v0.2 at [`docs/prd/v0.2-the-three-surface-release.md`](../prd/v0.2-the-three-surface-release.md).
+
+### 2026-06-02 PM dispatch (RFC-0101 Phase 2 CLI twin; PR #414 opened)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (stale — develop at bd25cc8 vs local at 59521bd), v0.2 PRD.
+
+**Assessment:**
+- 0 open PRs, 0 open issues. CI green (E2E SUCCESS on bd25cc8 redb bump).
+- develop HEAD bd25cc8: dep bumps merged (salsa 0.26, logos 0.16, redb 4.1 — all green CI). R2 persistence (#407) + R3 memory-bound (#344) merged. Release ceremony script (PR #375) merged.
+- PM state stale (last updated 2026-06-01). Cargo version: 0.1.14 (needs bump to 0.1.16 at release time).
+- P0 (Issue #375 ceremony) resolved: 0 open issues confirms founder closed it.
+- **Three-Surface violation**: `mycelium_context` MCP tool (90th tool) existed; CLI twin `mycelium context` was missing. INDEX.md had `⚠️ EXCEPTION: MCP-only`.
+
+**Actions taken:**
+1. RFC-0101 Phase 2: TDD (3 RED tests → compile fail) → implemented run_context(), extract_symbol_candidates(), build_context_payload(), context_json(), context_path_leaf() in queries.rs; added Context variant + dispatch in main.rs. 3/3 GREEN tests. fmt ✅ clippy ✅ cargo test --all ✅.
+2. Updated skills/architecture-context/SKILL.md: CLI tool added to allowed-tools + CLI reference section.
+3. Updated skills/INDEX.md: context row ⚠️ → ✅ Three-Surface v0.1.16.
+4. Updated rfcs/0101-mycelium-context-tool.md: Status → Implemented; acceptance criteria ticked.
+5. Updated CHANGELOG.md Unreleased.
+6. Opened PR #414 (feature/rfc-0101-phase2-cli-twin → develop).
+7. Updated PM state + decisions.jsonl.
+
+**Sprint status:** v0.1.16 content complete pending PR #414 merge + CI green.
+
+**Escalations:** Founder review needed to authorize v0.1.16 ceremony after PR #414 lands.

@@ -67,41 +67,62 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: crates-io
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Dry run
+      - name: Verify crates.io token
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
+          if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+            echo "::error::CRATES_IO_TOKEN is not set; refusing to create a partial release."
+            exit 1
+          fi
+      - name: Publish crates in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          crate_published() {
+            cargo search "$1" --limit 1 2>/dev/null | grep -q "^$1 = \"$VERSION\""
+          }
+
+          wait_for_crate() {
+            pkg="$1"
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              if crate_published "$pkg"; then
+                echo "$pkg v$VERSION is visible on crates.io"
+                return 0
+              fi
+              echo "Waiting for $pkg v$VERSION to reach the crates.io index (attempt $attempt/12)..."
+              sleep 10
+            done
+            echo "::error::$pkg v$VERSION did not become visible on crates.io"
+            exit 1
+          }
+
           # crates.io names are `mycelium-rcig-*`; on-disk dirs are `mycelium-*`.
+          # Publish dependency-first so each crate verifies against the version
+          # that this release just uploaded.
           for pair in \
+              "mycelium-pack:mycelium-rcig-pack" \
               "mycelium-core:mycelium-rcig-core" \
               "mycelium-hyphae:mycelium-rcig-hyphae" \
-              "mycelium-pack:mycelium-rcig-pack" \
-              "mycelium-cli:mycelium-rcig-cli" \
-              "mycelium-mcp:mycelium-rcig-mcp"; do
+              "mycelium-mcp:mycelium-rcig-mcp" \
+              "mycelium-cli:mycelium-rcig-cli"; do
             dir="${pair%:*}"
             pkg="${pair#*:}"
             if [ -d "crates/$dir" ]; then
-              # dry-run only verifies packaging; registry-dep checks fail for
-              # sibling crates not yet published — quality gate covers the rest
-              cargo publish -p "$pkg" --dry-run || true
-            fi
-          done
-      - name: Publish
-        run: |
-          for pair in \
-              "mycelium-core:mycelium-rcig-core" \
-              "mycelium-hyphae:mycelium-rcig-hyphae" \
-              "mycelium-pack:mycelium-rcig-pack" \
-              "mycelium-cli:mycelium-rcig-cli" \
-              "mycelium-mcp:mycelium-rcig-mcp"; do
-            dir="${pair%:*}"
-            pkg="${pair#*:}"
-            if [ -d "crates/$dir" ]; then
-              cargo publish -p "$pkg" --token "${{ secrets.CRATES_IO_TOKEN }}" || true
-              # Wait for index propagation before next crate
-              sleep 30
+              if crate_published "$pkg"; then
+                echo "$pkg v$VERSION is already on crates.io; skipping publish"
+                continue
+              fi
+
+              cargo publish -p "$pkg" --dry-run
+              cargo publish -p "$pkg"
+              wait_for_crate "$pkg"
             fi
           done
 
@@ -140,7 +161,7 @@ jobs:
       id-token: write  # for Trusted Publishers
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - run: |
@@ -164,9 +185,8 @@ jobs:
       VERSION: ${{ needs.validate.outputs.version }}
     steps:
       # Use RELEASE_BOT_TOKEN when available (admin PAT required for main merge).
-      # Fall back to GITHUB_TOKEN so tag + Release creation still work even when
-      # the bot token is absent or expired (the two operations that were
-      # previously broken because they are in the same step as the main merge).
+      # Tags and GitHub Releases are created only after the post-publish merges
+      # succeed, so a failed merge cannot leave an orphan public release.
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
@@ -177,90 +197,61 @@ jobs:
           git config user.name "mycelium-release-bot"
           git config user.email "release-bot@mycelium.dev"
 
-      # Step A — Tag the release branch HEAD first.
-      # Branch protection does not apply to tags, so GITHUB_TOKEN is sufficient.
-      # Separating this from the main merge means the tag always exists even if
-      # the merge step below fails (fixable by founder without re-running release).
-      - name: Create and push release tag
-        run: |
-          git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "v$VERSION"
-
-      # Step B — Create the GitHub Release using GITHUB_TOKEN (contents:write).
-      # Decoupled from RELEASE_BOT_TOKEN so the release page is always created.
-      # target_commitish points to the release branch commit; after the founder
-      # merges to main the tag becomes reachable from main automatically.
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.VERSION }}
-          generate_release_notes: true
-          target_commitish: ${{ github.sha }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Step C — Merge to main (requires admin PAT; non-fatal if absent).
+      # Step A — Merge to main (requires admin PAT).
       # RELEASE_BOT_TOKEN must be a PAT from a repo admin — enforce_admins is
       # disabled on main, so an admin PAT can bypass the PR-review requirement.
       - name: Merge release branch to main
-        id: merge-main
-        continue-on-error: true
         env:
           BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
           BRANCH="${GITHUB_REF#refs/heads/}"
-          if [ -z "$BOT_TOKEN" ]; then
-            echo "::warning::RELEASE_BOT_TOKEN is not set — skipping auto-merge to main."
-            echo "::warning::Founder action required:"
-            echo "::warning::  gh pr create --base main --head $BRANCH --title 'chore(release): v$VERSION'"
-            echo "::warning::  gh pr merge --admin --merge <PR_NUMBER>"
+          if [ -z "${BOT_TOKEN:-}" ]; then
+            echo "::error::RELEASE_BOT_TOKEN is not set; registries are published, but main was not touched."
+            echo "::error::Founder action required: create and merge release PRs manually, then tag v$VERSION."
             exit 1
           fi
           git remote set-url origin "https://x-access-token:${BOT_TOKEN}@github.com/${{ github.repository }}.git"
-          git fetch origin main
+          git fetch origin main "$BRANCH"
           git checkout main
-          git merge --no-ff "$BRANCH" -m "chore(release): v$VERSION"
+          git merge --no-ff "origin/$BRANCH" -m "chore(release): v$VERSION"
           git push origin main
 
-      # Step D — Back-merge to develop (non-fatal if absent or conflicts).
+      # Step B — Back-merge to develop.
       - name: Merge release branch to develop
-        id: merge-develop
-        continue-on-error: true
         env:
           BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
           BRANCH="${GITHUB_REF#refs/heads/}"
-          if [ -z "$BOT_TOKEN" ]; then
-            echo "::warning::RELEASE_BOT_TOKEN is not set — skipping auto-merge to develop."
-            echo "::warning::Founder action required:"
-            echo "::warning::  gh pr create --base develop --head $BRANCH --title 'chore(sync): post-release v$VERSION'"
+          if [ -z "${BOT_TOKEN:-}" ]; then
+            echo "::error::RELEASE_BOT_TOKEN is not set; develop was not back-merged."
             exit 1
           fi
           git remote set-url origin "https://x-access-token:${BOT_TOKEN}@github.com/${{ github.repository }}.git"
-          git fetch origin develop
+          git fetch origin develop "$BRANCH"
           git checkout develop
-          git merge --no-ff "$BRANCH" -m "chore(sync): post-release v$VERSION"
+          git merge --no-ff "origin/$BRANCH" -m "chore(sync): post-release v$VERSION"
           git push origin develop
+
+      # Step C — Tag the merged main commit.
+      - name: Create and push release tag
+        run: |
+          git checkout main
+          git pull --ff-only origin main
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
+      # Step D — Create the GitHub Release on the tag reachable from main.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ env.VERSION }}
+          generate_release_notes: true
+          target_commitish: main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete release branch
         continue-on-error: true
         run: |
           BRANCH="${GITHUB_REF#refs/heads/}"
           git push origin --delete "$BRANCH" || true
-
-      # Fail the job if either merge needed manual intervention, so CI stays RED
-      # and the founder knows to act — but the tag and Release page are already
-      # published (Steps A and B completed before this check).
-      - name: Require manual merge action
-        if: steps.merge-main.outcome == 'failure' || steps.merge-develop.outcome == 'failure'
-        run: |
-          echo "::error::Release v$VERSION PUBLISHED (tag + GitHub Release created)."
-          echo "::error::However, one or more post-publish merges require founder action:"
-          if [ "${{ steps.merge-main.outcome }}" = "failure" ]; then
-            echo "::error::  [REQUIRED] Merge to main → open + admin-merge a PR"
-          fi
-          if [ "${{ steps.merge-develop.outcome }}" = "failure" ]; then
-            echo "::error::  [REQUIRED] Back-merge to develop → open + admin-merge a PR"
-          fi
-          echo "::error::The RELEASE_BOT_TOKEN secret may be missing or expired. Audit in repo Settings → Secrets."
-          exit 1

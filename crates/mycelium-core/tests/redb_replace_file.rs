@@ -1,0 +1,359 @@
+//! RFC-0100 / #343 — RED-first tests for redb file-scoped replacement.
+//!
+//! These tests define the incremental persistence unit: replacing one source
+//! file must use the persisted `file_index` to remove only that file's old
+//! nodes and owned edges, while preserving unrelated files and their edges.
+
+#![cfg(feature = "redb-backend")]
+
+use mycelium_core::store::Store;
+use mycelium_core::store::backend::StorageBackend;
+use mycelium_core::store::redb_backend::{FileEdge, FileNode, RedbBackend};
+use mycelium_core::trunk::TrunkPath;
+use mycelium_core::trunk::path_to_node_id;
+use mycelium_core::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
+
+fn open_at(path: &std::path::Path) -> RedbBackend {
+    RedbBackend::open(path).expect("open redb")
+}
+
+fn node(path: &str, kind: NodeKind) -> FileNode {
+    FileNode {
+        path: path.to_owned(),
+        kind: Some(kind),
+        span: None,
+    }
+}
+
+fn node_with_span(path: &str, kind: NodeKind, span: SourceSpan) -> FileNode {
+    FileNode {
+        path: path.to_owned(),
+        kind: Some(kind),
+        span: Some(span),
+    }
+}
+
+fn edge(kind: EdgeKind, src_path: &str, dst_path: &str) -> FileEdge {
+    FileEdge {
+        kind,
+        src: id(src_path),
+        dst: id(dst_path),
+    }
+}
+
+fn id(path: &str) -> NodeId {
+    path_to_node_id(path)
+}
+
+fn trunk_path(path: &str) -> TrunkPath {
+    TrunkPath::parse(path).expect("valid trunk path")
+}
+
+fn sorted(mut ids: Vec<NodeId>) -> Vec<NodeId> {
+    ids.sort_unstable();
+    ids
+}
+
+const fn span() -> SourceSpan {
+    SourceSpan {
+        start_line: 3,
+        start_col: 1,
+        end_line: 8,
+        end_col: 2,
+        start_byte: 40,
+        end_byte: 180,
+    }
+}
+
+#[test]
+fn replace_file_uses_persisted_file_index_across_reopen() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_persisted_index.redb");
+
+    {
+        let mut backend = open_at(&path);
+        backend
+            .replace_file("src/a.rs", &[node("src/a.rs>Old", NodeKind::Struct)], &[])
+            .expect("initial replace_file");
+    }
+
+    {
+        let mut backend = open_at(&path);
+        backend
+            .replace_file("src/a.rs", &[node("src/a.rs>New", NodeKind::Struct)], &[])
+            .expect("second replace_file after reopen");
+
+        assert_eq!(backend.lookup_path("src/a.rs>Old"), None);
+        assert_eq!(
+            backend.lookup_path("src/a.rs>New"),
+            Some(id("src/a.rs>New"))
+        );
+    }
+}
+
+#[test]
+fn replace_file_removes_old_nodes_metadata_and_owned_edges_only() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_owned_edges.redb");
+    let mut backend = open_at(&path);
+
+    backend
+        .replace_file("src/b.rs", &[node("src/b.rs>B", NodeKind::Function)], &[])
+        .expect("insert b");
+    backend
+        .replace_file(
+            "src/c.rs",
+            &[node("src/c.rs>C", NodeKind::Function)],
+            &[edge(EdgeKind::Calls, "src/c.rs>C", "src/b.rs>B")],
+        )
+        .expect("insert c");
+    backend
+        .replace_file(
+            "src/a.rs",
+            &[
+                node("src/a.rs>A", NodeKind::Struct),
+                node_with_span("src/a.rs>A>old", NodeKind::Method, span()),
+            ],
+            &[edge(EdgeKind::Calls, "src/a.rs>A>old", "src/b.rs>B")],
+        )
+        .expect("insert a v1");
+
+    assert_eq!(
+        backend.incoming(id("src/b.rs>B"), EdgeKind::Calls),
+        sorted(vec![id("src/a.rs>A>old"), id("src/c.rs>C")])
+    );
+
+    backend
+        .replace_file("src/a.rs", &[node("src/a.rs>A>new", NodeKind::Method)], &[])
+        .expect("replace a");
+
+    assert_eq!(backend.lookup_path("src/a.rs>A"), None);
+    assert_eq!(backend.lookup_path("src/a.rs>A>old"), None);
+    assert_eq!(backend.kind_of(id("src/a.rs>A>old")), None);
+    assert_eq!(backend.span_of(id("src/a.rs>A>old")), None);
+    assert_eq!(
+        backend.lookup_path("src/a.rs>A>new"),
+        Some(id("src/a.rs>A>new"))
+    );
+
+    assert_eq!(backend.lookup_path("src/b.rs>B"), Some(id("src/b.rs>B")));
+    assert_eq!(backend.lookup_path("src/c.rs>C"), Some(id("src/c.rs>C")));
+    assert_eq!(
+        backend.incoming(id("src/b.rs>B"), EdgeKind::Calls),
+        vec![id("src/c.rs>C")],
+        "replacing src/a.rs must remove only src/a.rs owned edge to B"
+    );
+}
+
+#[test]
+fn replace_file_removes_external_edges_pointing_into_old_nodes() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_external_edges.redb");
+    let mut backend = open_at(&path);
+
+    backend
+        .replace_file("src/a.rs", &[node("src/a.rs>A", NodeKind::Struct)], &[])
+        .expect("insert a");
+    backend
+        .replace_file(
+            "src/b.rs",
+            &[node("src/b.rs>B", NodeKind::Function)],
+            &[edge(EdgeKind::References, "src/b.rs>B", "src/a.rs>A")],
+        )
+        .expect("insert b");
+
+    assert_eq!(
+        backend.outgoing(id("src/b.rs>B"), EdgeKind::References),
+        vec![id("src/a.rs>A")]
+    );
+
+    backend
+        .replace_file("src/a.rs", &[node("src/a.rs>A2", NodeKind::Struct)], &[])
+        .expect("replace a");
+
+    assert_eq!(backend.lookup_path("src/a.rs>A"), None);
+    assert_eq!(
+        backend.outgoing(id("src/b.rs>B"), EdgeKind::References),
+        Vec::<NodeId>::new(),
+        "external references to removed src/a.rs nodes must be stripped"
+    );
+    assert_eq!(backend.lookup_path("src/b.rs>B"), Some(id("src/b.rs>B")));
+}
+
+#[test]
+fn replace_file_preserves_external_edges_pointing_into_stable_nodes() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_external_stable_edges.redb");
+    let mut backend = open_at(&path);
+
+    backend
+        .replace_file(
+            "src/a.rs",
+            &[
+                node("src/a.rs", NodeKind::File),
+                node("src/a.rs>A", NodeKind::Struct),
+            ],
+            &[edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A")],
+        )
+        .expect("insert a");
+    backend
+        .replace_file(
+            "src/b.rs",
+            &[node("src/b.rs>B", NodeKind::Function)],
+            &[edge(EdgeKind::References, "src/b.rs>B", "src/a.rs>A")],
+        )
+        .expect("insert b");
+
+    backend
+        .replace_file(
+            "src/a.rs",
+            &[
+                node("src/a.rs", NodeKind::File),
+                node("src/a.rs>A", NodeKind::Class),
+            ],
+            &[edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A")],
+        )
+        .expect("replace a with stable symbol id");
+
+    assert_eq!(backend.lookup_path("src/a.rs>A"), Some(id("src/a.rs>A")));
+    assert_eq!(backend.kind_of(id("src/a.rs>A")), Some(NodeKind::Class));
+    assert_eq!(
+        backend.outgoing(id("src/b.rs>B"), EdgeKind::References),
+        vec![id("src/a.rs>A")],
+        "external references to stable src/a.rs nodes must survive replacement"
+    );
+}
+
+#[test]
+fn replace_file_identical_payload_does_not_grow_page_footprint() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_identical_payload.redb");
+    let mut backend = open_at(&path);
+    let nodes = vec![
+        node("src/a.rs", NodeKind::File),
+        node_with_span("src/a.rs>A", NodeKind::Function, span()),
+        node("src/a.rs>B", NodeKind::Function),
+    ];
+    let edges = vec![
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A"),
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>B"),
+        edge(EdgeKind::Calls, "src/a.rs>A", "src/a.rs>B"),
+    ];
+
+    backend
+        .replace_file("src/a.rs", &nodes, &edges)
+        .expect("initial replace");
+    backend.flush().expect("flush initial replace");
+    let before = backend.heap_size_estimate();
+
+    for _ in 0..100 {
+        backend
+            .replace_file("src/a.rs", &nodes, &edges)
+            .expect("identical replace");
+    }
+    backend.flush().expect("flush repeated identical replaces");
+    let after = backend.heap_size_estimate();
+
+    assert_eq!(backend.node_count(), 3);
+    assert_eq!(backend.edge_count(), 3);
+    assert!(
+        after <= before,
+        "replacing an identical file payload should not allocate more redb pages: before={before} after={after}"
+    );
+}
+
+#[test]
+fn replace_file_identical_payload_repairs_missing_owned_adjacency() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir
+        .path()
+        .join("replace_file_repairs_missing_owned_adjacency.redb");
+    let mut backend = open_at(&path);
+    let file = node("src/a.rs", NodeKind::File);
+    let source_fn = node("src/a.rs>A", NodeKind::Function);
+    let target_fn = node("src/a.rs>B", NodeKind::Function);
+    let source_id = id("src/a.rs>A");
+    let target_id = id("src/a.rs>B");
+    let nodes = vec![file, source_fn, target_fn];
+    let edges = vec![
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>A"),
+        edge(EdgeKind::Contains, "src/a.rs", "src/a.rs>B"),
+        edge(EdgeKind::Calls, "src/a.rs>A", "src/a.rs>B"),
+    ];
+
+    backend
+        .replace_file("src/a.rs", &nodes, &edges)
+        .expect("initial replace");
+    backend.remove_node_edges(source_id);
+    assert!(
+        backend.outgoing(source_id, EdgeKind::Calls).is_empty(),
+        "test setup should remove the owned call edge while file_index remains stale"
+    );
+
+    backend
+        .replace_file("src/a.rs", &nodes, &edges)
+        .expect("identical replace should repair adjacency");
+
+    assert_eq!(
+        backend.outgoing(source_id, EdgeKind::Calls),
+        vec![target_id],
+        "identical replace_file must not skip when actual adjacency is missing"
+    );
+    assert_eq!(
+        backend.incoming(target_id, EdgeKind::Calls),
+        vec![source_id],
+        "repair must restore reverse adjacency too"
+    );
+}
+
+#[test]
+fn replace_file_from_store_materializes_file_owned_graph() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("replace_file_from_store.redb");
+    let mut backend = open_at(&path);
+
+    let mut file_store = Store::new();
+    let file = file_store.upsert_node(trunk_path("src/a.rs"));
+    let old = file_store.upsert_node(trunk_path("src/a.rs>old"));
+    let helper = file_store.upsert_node(trunk_path("src/a.rs>helper"));
+    file_store.set_kind(file, NodeKind::File);
+    file_store.set_kind(old, NodeKind::Function);
+    file_store.set_kind(helper, NodeKind::Function);
+    file_store.set_span(old, span());
+    file_store.upsert_edge(EdgeKind::Contains, file, old);
+    file_store.upsert_edge(EdgeKind::Contains, file, helper);
+    file_store.upsert_edge(EdgeKind::Calls, old, helper);
+
+    backend
+        .replace_file_from_store("src/a.rs", &file_store)
+        .expect("replace from file store");
+
+    assert_eq!(backend.lookup_path("src/a.rs>old"), Some(old));
+    assert_eq!(backend.kind_of(old), Some(NodeKind::Function));
+    assert_eq!(backend.span_of(old), Some(span()));
+    assert_eq!(
+        backend.outgoing(old, EdgeKind::Calls),
+        vec![helper],
+        "file-owned calls edge must persist into redb"
+    );
+
+    let mut updated_store = Store::new();
+    let updated_file = updated_store.upsert_node(trunk_path("src/a.rs"));
+    let new = updated_store.upsert_node(trunk_path("src/a.rs>new"));
+    updated_store.set_kind(updated_file, NodeKind::File);
+    updated_store.set_kind(new, NodeKind::Function);
+    updated_store.upsert_edge(EdgeKind::Contains, updated_file, new);
+
+    backend
+        .replace_file_from_store("src/a.rs", &updated_store)
+        .expect("replace updated file store");
+
+    assert_eq!(backend.lookup_path("src/a.rs>old"), None);
+    assert_eq!(backend.lookup_path("src/a.rs>helper"), None);
+    assert_eq!(backend.lookup_path("src/a.rs>new"), Some(new));
+    assert_eq!(
+        backend.outgoing(old, EdgeKind::Calls),
+        Vec::<NodeId>::new(),
+        "replacing from store must remove old file-owned edges"
+    );
+}

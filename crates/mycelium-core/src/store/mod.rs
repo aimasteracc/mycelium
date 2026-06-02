@@ -33,6 +33,18 @@
 #[cfg(test)]
 mod tests;
 
+pub mod backend;
+pub mod in_memory;
+pub mod journal;
+#[cfg(feature = "memory-bound")]
+pub mod memory_budget;
+#[cfg(feature = "redb-backend")]
+pub mod redb_backend;
+#[cfg(feature = "redb-backend")]
+pub mod redb_keys;
+#[cfg(feature = "redb-backend")]
+pub mod redb_tags;
+
 use std::collections::{HashSet, VecDeque};
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
@@ -431,17 +443,169 @@ impl Store {
         Ok(())
     }
 
-    /// Deserialize a `Store` from a `MessagePack` snapshot at `path`.
+    /// Deserialize a `Store` from a snapshot at `path`.
+    ///
+    /// With the `redb-backend` feature enabled, the file format is auto-detected:
+    /// a redb database is loaded via [`crate::store::redb_backend::RedbBackend`];
+    /// a legacy `MessagePack` snapshot falls back to `rmp_serde`.  Without the
+    /// feature, only `MessagePack` is attempted.
     ///
     /// # Errors
     ///
-    /// Returns an error if the file cannot be opened or deserialization fails.
+    /// Returns an error if the file cannot be opened, the format is unrecognised,
+    /// or deserialization fails.
     pub fn load(path: &Path) -> anyhow::Result<Self> {
+        #[cfg(feature = "redb-backend")]
+        if let Some(store) = Self::try_load_redb(path) {
+            return Ok(store);
+        }
+
         let file = std::fs::File::open(path)
             .with_context(|| format!("opening snapshot file {}", path.display()))?;
         let reader = BufReader::new(file);
         rmp_serde::decode::from_read(reader)
             .with_context(|| format!("deserializing store from {}", path.display()))
+    }
+
+    /// Try to open `path` as a redb database and convert it to a [`Store`].
+    ///
+    /// Returns `Some(store)` on success, `None` if the file is absent or not a
+    /// redb database (caller falls back to the next format reader).
+    #[cfg(feature = "redb-backend")]
+    fn try_load_redb(path: &Path) -> Option<Self> {
+        use crate::store::backend::StorageBackend as _;
+        use crate::store::redb_backend::RedbBackend;
+
+        let backend = RedbBackend::open_existing(path).ok()?;
+
+        let mut store = Self::default();
+        for path_str in backend.all_paths() {
+            if let Ok(tp) = TrunkPath::parse(&path_str) {
+                let id = store.trunk.upsert(tp);
+                if let Some(kind) = backend.kind_of(id) {
+                    store.kind_map.insert(id, kind);
+                }
+                if let Some(span) = backend.span_of(id) {
+                    store.span_map.insert(id, span);
+                }
+            }
+        }
+        for (kind, src, dst) in backend.all_edges() {
+            store.synapse.add(kind, src, dst);
+        }
+        Some(store)
+    }
+
+    /// Serialize a sub-store to a `Base64`-encoded `MessagePack` blob for journal deltas.
+    #[must_use]
+    pub fn serialize_delta(store: &Self) -> String {
+        use base64::Engine;
+        let mut buf = Vec::new();
+        rmp_serde::encode::write(&mut buf, store).unwrap_or_default();
+        base64::engine::general_purpose::STANDARD.encode(&buf)
+    }
+
+    /// Deserialize a sub-store from a `Base64`-encoded `MessagePack` blob.
+    ///
+    /// # Errors
+    /// Returns an error if the input is not valid `Base64` or `MessagePack`.
+    pub fn deserialize_delta(encoded: &str) -> anyhow::Result<Self> {
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .context("decoding base64 delta")?;
+        rmp_serde::decode::from_slice(&bytes).context("deserializing delta store")
+    }
+
+    /// Load the store from a base snapshot, then replay any journal deltas.
+    ///
+    /// If no journal exists, this is equivalent to `Store::load()`.
+    ///
+    /// # Errors
+    /// Returns an error if the base snapshot cannot be loaded or journal replay fails.
+    pub fn load_with_journal(path: &Path) -> anyhow::Result<Self> {
+        let mut store = Self::load(path)?;
+        let dot = Path::new(".");
+        let journal_path = path.parent().unwrap_or(dot).join("journal.jsonl");
+        if journal_path.exists() {
+            let journal = crate::store::journal::Journal::open(path)?;
+            journal.replay(&mut store)?;
+        }
+        Ok(store)
+    }
+
+    /// Extract a sub-Store containing only the nodes and edges belonging to
+    /// `file_path` and its descendants. Used for incremental journal deltas.
+    #[must_use]
+    pub fn extract_file_substore(&self, file_path: &str) -> Self {
+        let mut sub = Self::default();
+        let Some(root_id) = self.trunk.lookup_path(file_path) else {
+            return sub;
+        };
+        let ids: Vec<NodeId> = self
+            .trunk
+            .descendants(root_id)
+            .chain(std::iter::once(root_id))
+            .collect();
+        for &id in &ids {
+            if let Some(p) = self.trunk.path_of(id) {
+                if let Ok(tp) = TrunkPath::parse(p) {
+                    let new_id = sub.trunk.upsert(tp);
+                    if let Some(&kind) = self.kind_map.get(&id) {
+                        sub.kind_map.insert(new_id, kind);
+                    }
+                    if let Some(&span) = self.span_map.get(&id) {
+                        sub.span_map.insert(new_id, span);
+                    }
+                }
+            }
+        }
+        let edge_kinds: &[EdgeKind] = &[
+            EdgeKind::Contains,
+            EdgeKind::Calls,
+            EdgeKind::Imports,
+            EdgeKind::TypeImports,
+            EdgeKind::Exports,
+            EdgeKind::Extends,
+            EdgeKind::Implements,
+            EdgeKind::References,
+            EdgeKind::TypeOf,
+            EdgeKind::Returns,
+            EdgeKind::Instantiates,
+            EdgeKind::Overrides,
+            EdgeKind::Decorates,
+            EdgeKind::Aggregates,
+            EdgeKind::Composes,
+            EdgeKind::Uses,
+        ];
+        let id_set: HashSet<NodeId> = ids.iter().copied().collect();
+        for &id in &ids {
+            for &ek in edge_kinds {
+                for &dst in self.synapse.outgoing(id, ek) {
+                    let Some(sp) = self.trunk.path_of(id) else {
+                        continue;
+                    };
+                    let Some(dp) = self.trunk.path_of(dst) else {
+                        continue;
+                    };
+                    let (Ok(stp), Ok(dtp)) = (TrunkPath::parse(sp), TrunkPath::parse(dp)) else {
+                        continue;
+                    };
+                    let s = sub.trunk.upsert(stp);
+                    let d = sub.trunk.upsert(dtp);
+                    sub.synapse.add(ek, s, d);
+                    if !id_set.contains(&dst) {
+                        if let Some(&kind) = self.kind_map.get(&dst) {
+                            sub.kind_map.insert(d, kind);
+                        }
+                        if let Some(&span) = self.span_map.get(&dst) {
+                            sub.span_map.insert(d, span);
+                        }
+                    }
+                }
+            }
+        }
+        sub
     }
 
     // ── writes ──────────────────────────────────────────────────────────
@@ -602,6 +766,18 @@ impl Store {
     #[must_use]
     pub fn edge_count(&self) -> usize {
         self.synapse.edge_count()
+    }
+
+    /// Conservative lower-bound estimate of bytes held by this store's
+    /// data structures. Intended for diagnostics and the R3 memory-bound
+    /// investigation (#344) — not a precise allocator report.
+    ///
+    /// The estimate uses structural heuristics:
+    /// - Patricia-trie nodes: ~256 bytes each (key fragment + child map + id).
+    /// - CSR synapse edges: ~24 bytes each (kind tag + src `NodeId` + dst `NodeId`).
+    #[must_use]
+    pub fn heap_size_estimate(&self) -> usize {
+        self.node_count() * 256 + self.edge_count() * 24
     }
 
     /// Iterate all materialized path strings (delegates to the inner Trunk).
@@ -962,10 +1138,14 @@ impl Store {
     ///
     /// Returns the count of stubs successfully resolved.
     pub fn resolve_bare_call_stubs(&mut self) -> usize {
-        // Snapshot all paths to avoid borrow conflicts during mutation.
+        let base = self.resolve_bare_call_stubs_simple();
+        let aware = self.resolve_import_aware_stubs();
+        base + aware
+    }
+
+    fn resolve_bare_call_stubs_simple(&mut self) -> usize {
         let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
 
-        // Bare stubs: paths with no `>` separator.
         let stubs: Vec<(NodeId, String)> = all_paths
             .iter()
             .filter(|p| !p.contains('>'))
@@ -983,6 +1163,99 @@ impl Store {
 
             if matches.len() == 1 {
                 let def_id = matches[0];
+                self.synapse.redirect_node(stub_id, def_id);
+                self.trunk.remove(stub_id);
+                resolved += 1;
+            }
+        }
+        resolved
+    }
+
+    /// Second-pass resolution using import edges to disambiguate.
+    ///
+    /// For each remaining bare stub, examine its callers. If a caller's file
+    /// imports a module that defines the symbol, resolve the stub to that
+    /// definition. This handles cases where multiple files define the same
+    /// symbol name but only one is imported by the caller.
+    fn resolve_import_aware_stubs(&mut self) -> usize {
+        let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
+
+        let stubs: Vec<(NodeId, String)> = all_paths
+            .iter()
+            .filter(|p| !p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p).map(|id| (id, p.clone())))
+            .collect();
+
+        if stubs.is_empty() {
+            return 0;
+        }
+
+        let suffix_map: hashbrown::HashMap<String, Vec<NodeId>> = {
+            let mut m: HashMap<String, Vec<NodeId>> = HashMap::new();
+            for path in &all_paths {
+                if let Some(gt) = path.rfind('>') {
+                    let suffix = &path[gt..];
+                    if let Some(id) = self.trunk.lookup_path(path) {
+                        m.entry(suffix.to_owned()).or_default().push(id);
+                    }
+                }
+            }
+            m
+        };
+
+        let mut resolved = 0;
+        for (stub_id, stub_name) in stubs {
+            let suffix = format!(">{stub_name}");
+            let Some(defs) = suffix_map.get(&suffix) else {
+                continue;
+            };
+
+            let callers: Vec<NodeId> = self.synapse.incoming(stub_id, EdgeKind::Calls).to_vec();
+            if callers.is_empty() {
+                continue;
+            }
+
+            let mut best_def: Option<NodeId> = None;
+            let mut best_count = 0usize;
+
+            for &def_id in defs {
+                let Some(def_path) = self.trunk.path_of(def_id) else {
+                    continue;
+                };
+                let def_path = def_path.to_owned();
+                let Some(file_path) = def_path.split('>').next() else {
+                    continue;
+                };
+                let Some(file_id) = self.trunk.lookup_path(file_path) else {
+                    continue;
+                };
+
+                let mut match_count = 0usize;
+                for &caller_id in &callers {
+                    let Some(caller_path) = self.trunk.path_of(caller_id) else {
+                        continue;
+                    };
+                    let caller_path = caller_path.to_owned();
+                    let Some(caller_file) = caller_path.split('>').next() else {
+                        continue;
+                    };
+                    let Some(caller_file_id) = self.trunk.lookup_path(caller_file) else {
+                        continue;
+                    };
+
+                    let imports = self.synapse.outgoing(caller_file_id, EdgeKind::Imports);
+                    if imports.contains(&file_id) || imports.contains(&def_id) {
+                        match_count += 1;
+                    }
+                }
+
+                if match_count > best_count {
+                    best_count = match_count;
+                    best_def = Some(def_id);
+                }
+            }
+
+            if let Some(def_id) = best_def {
                 self.synapse.redirect_node(stub_id, def_id);
                 self.trunk.remove(stub_id);
                 resolved += 1;

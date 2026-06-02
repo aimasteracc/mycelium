@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version       = "0.1.14"
+version       = "0.1.16"
 edition       = "2024"
 rust-version  = "1.85"
 license       = "MIT"
@@ -51,7 +51,7 @@ tree-sitter-c           = "0.24"
 tree-sitter-ruby        = "0.23"
 tree-sitter-cpp         = "0.23"
 tree-sitter-c-sharp     = "0.23"
-salsa              = "0.18"
+salsa              = "0.26"
 arrow              = "53"
 hashbrown          = { version = "0.17", features = ["serde"] }
 smol_str           = { version = "0.3", features = ["serde"] }
@@ -68,6 +68,9 @@ toml               = "1.1"
 # Errors
 thiserror          = "2"
 anyhow             = "1"
+
+# System
+libc               = "0.2"
 
 # Tracing
 tracing            = "0.1"
@@ -90,6 +93,9 @@ insta              = { version = "1", features = ["yaml", "json"] }
 proptest           = "1"
 criterion          = { version = "0.8", features = ["html_reports"] }
 tempfile           = "3"
+
+# Storage backend
+redb               = "4"
 
 # Hashing / IDs
 blake3             = "1"

@@ -161,12 +161,7 @@ impl Default for Cortex {
 }
 
 #[salsa::db]
-impl salsa::Database for Cortex {
-    fn salsa_event(&self, event: &dyn Fn() -> salsa::Event) {
-        let ev = event();
-        tracing::trace!(event = ?ev, "salsa event");
-    }
-}
+impl salsa::Database for Cortex {}
 
 #[salsa::db]
 impl CortexDb for Cortex {}

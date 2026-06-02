@@ -1,0 +1,1533 @@
+//! `RedbBackend` — `StorageBackend` implementation backed by a redb ACID B-tree.
+//!
+//! Only compiled when the `redb-backend` cargo feature is enabled.
+//!
+//! ## Schema (ADR-0007 §8-table layout — APPEND-ONLY)
+//!
+//! | Table | Key | Value | Purpose |
+//! |---|---|---|---|
+//! | `trunk_by_id` | `u64` (`NodeId`) | `&str` (path) | id → path lookup |
+//! | `trunk_by_path` | `&[u8]` (NUL-encoded path) | `u64` | path → id lookup |
+//! | `kind_map` | `u64` (`NodeId`) | `u8` (`NodeKind` tag) | per-node kind |
+//! | `span_map` | `u64` (`NodeId`) | `&[u8]` (24-byte span) | per-node span |
+//! | `synapse_fwd` | `&[u8]` (kind `u16` ++ src `u64`) | `&[u8]` (packed dst list) | forward adjacency |
+//! | `synapse_rev` | `&[u8]` (kind `u16` ++ dst `u64`) | `&[u8]` (packed src list) | reverse adjacency |
+//! | `file_index` | `&str` (source file path) | `&[u8]` (`MessagePack` `FileEntry`) | per-file replacement index |
+//! | `meta` | `&str` | `u64` | schema version, stats |
+//!
+//! RFC-0100 / P1-T09. Key encoding from P1-T05 (`redb_keys.rs`).
+
+use std::collections::BTreeSet;
+use std::path::Path;
+
+use redb::{
+    Database, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition,
+    WriteTransaction,
+};
+use serde::{Deserialize, Serialize};
+
+use crate::store::Store;
+use crate::store::backend::{StorageBackend, StorageError as BackendError};
+use crate::store::redb_keys::{decode_adj_key, encode_adj_key, encode_path_key};
+use crate::store::redb_tags::{edge_kind_tag, tag_to_edge_kind};
+use crate::trunk::{TrunkPath, path_to_node_id};
+use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
+
+// ── table definitions ────────────────────────────────────────────────────────
+
+#[allow(elided_lifetimes_in_paths)]
+const TRUNK_BY_ID: TableDefinition<'_, u64, &str> = TableDefinition::new("trunk_by_id");
+#[allow(elided_lifetimes_in_paths)]
+const TRUNK_BY_PATH: TableDefinition<'_, &[u8], u64> = TableDefinition::new("trunk_by_path");
+#[allow(elided_lifetimes_in_paths)]
+const KIND_MAP: TableDefinition<'_, u64, u8> = TableDefinition::new("kind_map");
+#[allow(elided_lifetimes_in_paths)]
+const SPAN_MAP: TableDefinition<'_, u64, &[u8]> = TableDefinition::new("span_map");
+#[allow(elided_lifetimes_in_paths)]
+const SYNAPSE_FWD: TableDefinition<'_, &[u8], &[u8]> = TableDefinition::new("synapse_fwd");
+#[allow(elided_lifetimes_in_paths)]
+const SYNAPSE_REV: TableDefinition<'_, &[u8], &[u8]> = TableDefinition::new("synapse_rev");
+#[allow(elided_lifetimes_in_paths)]
+const FILE_INDEX: TableDefinition<'_, &str, &[u8]> = TableDefinition::new("file_index");
+#[allow(elided_lifetimes_in_paths)]
+const META: TableDefinition<'_, &str, u64> = TableDefinition::new("meta");
+
+/// Current schema version written into the `meta` table on first open.
+const SCHEMA_VERSION: u64 = 2;
+const META_SCHEMA_VERSION: &str = "schema_version";
+const META_EDGE_COUNT: &str = "edge_count";
+
+// ── file-scoped replacement payloads ─────────────────────────────────────────
+
+/// A node materialized from one source file for [`RedbBackend::replace_file`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileNode {
+    /// Fully-qualified trunk path, e.g. `src/lib.rs>Parser>parse`.
+    pub path: String,
+    /// Optional semantic kind for the node.
+    pub kind: Option<NodeKind>,
+    /// Optional source span for the node.
+    pub span: Option<SourceSpan>,
+}
+
+/// A directed edge owned by one source file for [`RedbBackend::replace_file`].
+///
+/// Edge ownership follows ADR-0007/RFC-0098: the source file owns edges whose
+/// `src` node belongs to that file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FileEdge {
+    /// Edge kind.
+    pub kind: EdgeKind,
+    /// Source node id; must belong to the replacing file's node set.
+    pub src: NodeId,
+    /// Destination node id; may point to another file.
+    pub dst: NodeId,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+struct FileEntry {
+    nodes: Vec<u64>,
+    edges: Vec<FileEntryEdge>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+struct FileEntryEdge {
+    kind: u16,
+    src: u64,
+    dst: u64,
+}
+
+// ── helper: encode/decode span ───────────────────────────────────────────────
+
+fn encode_span(span: SourceSpan) -> [u8; 24] {
+    let mut out = [0u8; 24];
+    out[0..4].copy_from_slice(&span.start_line.to_le_bytes());
+    out[4..8].copy_from_slice(&span.start_col.to_le_bytes());
+    out[8..12].copy_from_slice(&span.end_line.to_le_bytes());
+    out[12..16].copy_from_slice(&span.end_col.to_le_bytes());
+    out[16..20].copy_from_slice(&span.start_byte.to_le_bytes());
+    out[20..24].copy_from_slice(&span.end_byte.to_le_bytes());
+    out
+}
+
+fn decode_span(bytes: &[u8]) -> SourceSpan {
+    if bytes.len() < 24 {
+        return SourceSpan::default();
+    }
+    SourceSpan {
+        start_line: u32::from_le_bytes(bytes[0..4].try_into().unwrap_or([0; 4])),
+        start_col: u32::from_le_bytes(bytes[4..8].try_into().unwrap_or([0; 4])),
+        end_line: u32::from_le_bytes(bytes[8..12].try_into().unwrap_or([0; 4])),
+        end_col: u32::from_le_bytes(bytes[12..16].try_into().unwrap_or([0; 4])),
+        start_byte: u32::from_le_bytes(bytes[16..20].try_into().unwrap_or([0; 4])),
+        end_byte: u32::from_le_bytes(bytes[20..24].try_into().unwrap_or([0; 4])),
+    }
+}
+
+// ── helper: encode/decode NodeKind ───────────────────────────────────────────
+
+#[must_use]
+const fn node_kind_tag(kind: NodeKind) -> u8 {
+    match kind {
+        NodeKind::File => 0,
+        NodeKind::Module => 1,
+        NodeKind::Class => 2,
+        NodeKind::Struct => 3,
+        NodeKind::Interface => 4,
+        NodeKind::Function => 5,
+        NodeKind::Method => 6,
+        NodeKind::Property => 7,
+        NodeKind::Field => 8,
+        NodeKind::Variable => 9,
+        NodeKind::Constant => 10,
+        NodeKind::Enum => 11,
+        NodeKind::EnumMember => 12,
+        NodeKind::TypeAlias => 13,
+        NodeKind::Parameter => 14,
+        NodeKind::Import => 15,
+        NodeKind::Export => 16,
+        NodeKind::Route => 17,
+        NodeKind::Component => 18,
+        #[allow(unreachable_patterns)]
+        _ => 255,
+    }
+}
+
+#[must_use]
+const fn tag_to_node_kind(tag: u8) -> Option<NodeKind> {
+    Some(match tag {
+        0 => NodeKind::File,
+        1 => NodeKind::Module,
+        2 => NodeKind::Class,
+        3 => NodeKind::Struct,
+        4 => NodeKind::Interface,
+        5 => NodeKind::Function,
+        6 => NodeKind::Method,
+        7 => NodeKind::Property,
+        8 => NodeKind::Field,
+        9 => NodeKind::Variable,
+        10 => NodeKind::Constant,
+        11 => NodeKind::Enum,
+        12 => NodeKind::EnumMember,
+        13 => NodeKind::TypeAlias,
+        14 => NodeKind::Parameter,
+        15 => NodeKind::Import,
+        16 => NodeKind::Export,
+        17 => NodeKind::Route,
+        18 => NodeKind::Component,
+        _ => return None,
+    })
+}
+
+// ── helper: pack/unpack adjacency lists ──────────────────────────────────────
+
+fn pack_ids(ids: &[u64]) -> Vec<u8> {
+    let mut ids = ids.to_vec();
+    ids.sort_unstable();
+    ids.dedup();
+    ids.iter().flat_map(|id| id.to_be_bytes()).collect()
+}
+
+fn unpack_ids(bytes: &[u8]) -> Vec<u64> {
+    bytes
+        .chunks_exact(8)
+        .map(|c| u64::from_be_bytes(c.try_into().unwrap_or([0; 8])))
+        .collect()
+}
+
+// ── error bridge ─────────────────────────────────────────────────────────────
+
+fn db_err(e: impl std::fmt::Display) -> BackendError {
+    BackendError::Backend(e.to_string())
+}
+
+fn encode_file_entry(entry: &FileEntry) -> Result<Vec<u8>, BackendError> {
+    rmp_serde::to_vec(entry).map_err(|e| BackendError::Encode(e.to_string()))
+}
+
+fn decode_file_entry(bytes: &[u8]) -> Result<FileEntry, BackendError> {
+    rmp_serde::from_slice(bytes).map_err(|e| BackendError::Encode(e.to_string()))
+}
+
+fn path_owned_by_file(file_path: &str, node_path: &str) -> bool {
+    node_path == file_path
+        || node_path
+            .strip_prefix(file_path)
+            .is_some_and(|rest| rest.starts_with('>'))
+}
+
+// ── backend struct ────────────────────────────────────────────────────────────
+
+/// Storage backend backed by a redb ACID B-tree database.
+///
+/// Writes commit once per logical operation.
+/// Reads use short-lived read transactions that close immediately.
+pub struct RedbBackend {
+    db: Database,
+    last_error: Option<BackendError>,
+}
+
+impl RedbBackend {
+    /// Open or create a redb database at `path`.
+    ///
+    /// On first open, creates all 8 tables and writes `SCHEMA_VERSION` to meta.
+    /// On subsequent opens, verifies that the stored schema version matches
+    /// `SCHEMA_VERSION`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be opened, the schema is
+    /// incompatible, or table creation fails.
+    pub fn open(path: &Path) -> Result<Self, BackendError> {
+        let db = if path.exists() {
+            Database::open(path).map_err(db_err)?
+        } else {
+            Database::create(path).map_err(db_err)?
+        };
+        let this = Self {
+            db,
+            last_error: None,
+        };
+        this.init_schema()?;
+        Ok(this)
+    }
+
+    /// Open an **existing** redb database. Returns `Err(NotFound)` if the
+    /// file does not exist, and propagates redb errors (e.g. wrong format)
+    /// so callers can fall back to another format reader.
+    ///
+    /// # Errors
+    ///
+    /// Returns `StorageError::NotFound` if `path` does not exist,
+    /// `StorageError::SchemaVersion` if the redb schema is incompatible, or
+    /// `StorageError::Backend` if the file cannot be parsed as a redb database.
+    pub fn open_existing(path: &Path) -> Result<Self, BackendError> {
+        if !path.exists() {
+            return Err(BackendError::NotFound);
+        }
+        let db = Database::open(path).map_err(db_err)?;
+        let this = Self {
+            db,
+            last_error: None,
+        };
+        this.validate_existing_schema()?;
+        Ok(this)
+    }
+
+    fn init_schema(&self) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        {
+            txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+            txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+            txn.open_table(KIND_MAP).map_err(db_err)?;
+            txn.open_table(SPAN_MAP).map_err(db_err)?;
+            txn.open_table(SYNAPSE_FWD).map_err(db_err)?;
+            txn.open_table(SYNAPSE_REV).map_err(db_err)?;
+            txn.open_table(FILE_INDEX).map_err(db_err)?;
+            let mut meta = txn.open_table(META).map_err(db_err)?;
+            if meta.get(META_SCHEMA_VERSION).map_err(db_err)?.is_none() {
+                meta.insert(META_SCHEMA_VERSION, SCHEMA_VERSION)
+                    .map_err(db_err)?;
+            } else {
+                let stored = meta
+                    .get(META_SCHEMA_VERSION)
+                    .map_err(db_err)?
+                    .map_or(0, |g| g.value());
+                if stored != SCHEMA_VERSION {
+                    return Err(BackendError::SchemaVersion {
+                        file: u32::try_from(stored).unwrap_or(u32::MAX),
+                        supported: u32::try_from(SCHEMA_VERSION).unwrap_or(u32::MAX),
+                    });
+                }
+            }
+            if meta.get(META_EDGE_COUNT).map_err(db_err)?.is_none() {
+                let edge_count = Self::scan_edge_count_in(&txn)?;
+                meta.insert(META_EDGE_COUNT, edge_count).map_err(db_err)?;
+            }
+        }
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    fn validate_existing_schema(&self) -> Result<(), BackendError> {
+        let txn = self.db.begin_read().map_err(db_err)?;
+        {
+            let meta = txn.open_table(META).map_err(db_err)?;
+            let stored = meta
+                .get(META_SCHEMA_VERSION)
+                .map_err(db_err)?
+                .map_or(0, |g| g.value());
+            if stored != SCHEMA_VERSION {
+                return Err(BackendError::SchemaVersion {
+                    file: u32::try_from(stored).unwrap_or(u32::MAX),
+                    supported: u32::try_from(SCHEMA_VERSION).unwrap_or(u32::MAX),
+                });
+            }
+        }
+
+        {
+            txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+        }
+        {
+            txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+        }
+        {
+            txn.open_table(KIND_MAP).map_err(db_err)?;
+        }
+        {
+            txn.open_table(SPAN_MAP).map_err(db_err)?;
+        }
+        {
+            txn.open_table(SYNAPSE_FWD).map_err(db_err)?;
+        }
+        {
+            txn.open_table(SYNAPSE_REV).map_err(db_err)?;
+        }
+        {
+            txn.open_table(FILE_INDEX).map_err(db_err)?;
+        }
+        Ok(())
+    }
+
+    fn remember_error(&mut self, error: BackendError) {
+        tracing::error!(%error, "redb backend write failed");
+        self.last_error = Some(error);
+    }
+
+    fn remember_result(&mut self, result: Result<(), BackendError>) {
+        if let Err(error) = result {
+            self.remember_error(error);
+        }
+    }
+
+    fn read_meta_u64_in(txn: &WriteTransaction, key: &str) -> Result<Option<u64>, BackendError> {
+        let table = txn.open_table(META).map_err(db_err)?;
+        table
+            .get(key)
+            .map_err(db_err)
+            .map(|value| value.map(|guard| guard.value()))
+    }
+
+    fn write_meta_u64_in(
+        txn: &WriteTransaction,
+        key: &str,
+        value: u64,
+    ) -> Result<(), BackendError> {
+        let mut table = txn.open_table(META).map_err(db_err)?;
+        table.insert(key, value).map_err(db_err)?;
+        Ok(())
+    }
+
+    fn scan_edge_count_in(txn: &WriteTransaction) -> Result<u64, BackendError> {
+        let table = txn.open_table(SYNAPSE_FWD).map_err(db_err)?;
+        let iter = table.iter().map_err(db_err)?;
+        let mut total = 0u64;
+        for entry in iter {
+            let (_, value) = entry.map_err(db_err)?;
+            let len = u64::try_from(unpack_ids(value.value()).len()).unwrap_or(u64::MAX);
+            total = total.saturating_add(len);
+        }
+        Ok(total)
+    }
+
+    fn adjust_edge_count_in(txn: &WriteTransaction, delta: i64) -> Result<(), BackendError> {
+        let Some(current) = Self::read_meta_u64_in(txn, META_EDGE_COUNT)? else {
+            return Self::write_meta_u64_in(txn, META_EDGE_COUNT, Self::scan_edge_count_in(txn)?);
+        };
+        let next = if delta.is_negative() {
+            current.saturating_sub(delta.unsigned_abs())
+        } else {
+            current.saturating_add(delta.unsigned_abs())
+        };
+        Self::write_meta_u64_in(txn, META_EDGE_COUNT, next)
+    }
+
+    fn read_edge_count_meta(&self) -> Option<usize> {
+        let txn = self.db.begin_read().ok()?;
+        let table = txn.open_table(META).ok()?;
+        let value = table.get(META_EDGE_COUNT).ok()??.value();
+        Some(usize::try_from(value).unwrap_or(usize::MAX))
+    }
+
+    fn allocated_page_bytes(&self) -> Option<usize> {
+        let txn = self.db.begin_write().ok()?;
+        let stats = txn.stats().ok()?;
+        let page_size = u64::try_from(stats.page_size()).unwrap_or(u64::MAX);
+        let bytes = stats.allocated_pages().saturating_mul(page_size);
+        Some(usize::try_from(bytes).unwrap_or(usize::MAX))
+    }
+
+    fn read_file_entry_in(
+        txn: &WriteTransaction,
+        file_path: &str,
+    ) -> Result<FileEntry, BackendError> {
+        let table = txn.open_table(FILE_INDEX).map_err(db_err)?;
+        table.get(file_path).map_err(db_err)?.map_or_else(
+            || Ok(FileEntry::default()),
+            |g| decode_file_entry(g.value()),
+        )
+    }
+
+    fn write_file_entry_in(
+        txn: &WriteTransaction,
+        file_path: &str,
+        entry: &FileEntry,
+    ) -> Result<(), BackendError> {
+        let mut table = txn.open_table(FILE_INDEX).map_err(db_err)?;
+        if entry.nodes.is_empty() && entry.edges.is_empty() {
+            table.remove(file_path).map_err(db_err)?;
+        } else {
+            let encoded = encode_file_entry(entry)?;
+            table
+                .insert(file_path, encoded.as_slice())
+                .map_err(db_err)?;
+        }
+        Ok(())
+    }
+
+    fn upsert_node_in(txn: &WriteTransaction, path: &str) -> Result<NodeId, BackendError> {
+        TrunkPath::parse(path)
+            .map_err(|e| BackendError::Backend(format!("invalid trunk path {path:?}: {e}")))?;
+        let id = path_to_node_id(path);
+        let path_key = encode_path_key(path);
+        let existing_path_id = {
+            let by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+            by_path
+                .get(path_key.as_slice())
+                .map_err(db_err)?
+                .map(|guard| guard.value())
+        };
+        if existing_path_id == Some(id.0) {
+            let existing_id_path_matches = {
+                let by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+                by_id
+                    .get(id.0)
+                    .map_err(db_err)?
+                    .is_some_and(|guard| guard.value() == path)
+            };
+            if existing_id_path_matches {
+                return Ok(id);
+            }
+        }
+        {
+            let mut by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+            by_id.insert(id.0, path).map_err(db_err)?;
+        }
+        {
+            let mut by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+            by_path.insert(path_key.as_slice(), id.0).map_err(db_err)?;
+        }
+        Ok(id)
+    }
+
+    fn remove_node_record_in(txn: &WriteTransaction, id: u64) -> Result<(), BackendError> {
+        let path = {
+            let by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+            by_id
+                .get(id)
+                .map_err(db_err)?
+                .map(|guard| guard.value().to_owned())
+        };
+        {
+            let mut by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+            by_id.remove(id).map_err(db_err)?;
+        }
+        if let Some(path) = path {
+            let path_key = encode_path_key(&path);
+            let mut by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+            by_path.remove(path_key.as_slice()).map_err(db_err)?;
+        }
+        {
+            let mut kind_tbl = txn.open_table(KIND_MAP).map_err(db_err)?;
+            kind_tbl.remove(id).map_err(db_err)?;
+        }
+        {
+            let mut span_tbl = txn.open_table(SPAN_MAP).map_err(db_err)?;
+            span_tbl.remove(id).map_err(db_err)?;
+        }
+        Ok(())
+    }
+
+    fn clear_node_metadata_in(txn: &WriteTransaction, id: u64) -> Result<(), BackendError> {
+        {
+            let mut kind_tbl = txn.open_table(KIND_MAP).map_err(db_err)?;
+            kind_tbl.remove(id).map_err(db_err)?;
+        }
+        {
+            let mut span_tbl = txn.open_table(SPAN_MAP).map_err(db_err)?;
+            span_tbl.remove(id).map_err(db_err)?;
+        }
+        Ok(())
+    }
+
+    fn file_node_records_match_in(
+        txn: &WriteTransaction,
+        nodes: &[FileNode],
+    ) -> Result<bool, BackendError> {
+        let by_id = txn.open_table(TRUNK_BY_ID).map_err(db_err)?;
+        let by_path = txn.open_table(TRUNK_BY_PATH).map_err(db_err)?;
+        let kind_tbl = txn.open_table(KIND_MAP).map_err(db_err)?;
+        let span_tbl = txn.open_table(SPAN_MAP).map_err(db_err)?;
+
+        for node in nodes {
+            let id = path_to_node_id(&node.path);
+            let id_path_matches = by_id
+                .get(id.0)
+                .map_err(db_err)?
+                .is_some_and(|guard| guard.value() == node.path);
+            if !id_path_matches {
+                return Ok(false);
+            }
+
+            let path_key = encode_path_key(&node.path);
+            let path_id_matches = by_path
+                .get(path_key.as_slice())
+                .map_err(db_err)?
+                .is_some_and(|guard| guard.value() == id.0);
+            if !path_id_matches {
+                return Ok(false);
+            }
+
+            let expected_kind = node.kind.map(node_kind_tag);
+            let actual_kind = kind_tbl
+                .get(id.0)
+                .map_err(db_err)?
+                .map(|guard| guard.value());
+            if actual_kind != expected_kind {
+                return Ok(false);
+            }
+
+            let actual_span = span_tbl
+                .get(id.0)
+                .map_err(db_err)?
+                .map(|guard| decode_span(guard.value()));
+            if actual_span != node.span {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn file_edge_records_match_in(
+        txn: &WriteTransaction,
+        edges: &[FileEntryEdge],
+    ) -> Result<bool, BackendError> {
+        for edge in edges {
+            let Some(kind) = tag_to_edge_kind(edge.kind) else {
+                return Ok(false);
+            };
+            let fwd = Self::read_fwd_in(txn, kind, edge.src)?;
+            if !fwd.contains(&edge.dst) {
+                return Ok(false);
+            }
+            let rev = Self::read_rev_in(txn, kind, edge.dst)?;
+            if !rev.contains(&edge.src) {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn set_kind_in(txn: &WriteTransaction, id: NodeId, kind: NodeKind) -> Result<(), BackendError> {
+        let mut table = txn.open_table(KIND_MAP).map_err(db_err)?;
+        table.insert(id.0, node_kind_tag(kind)).map_err(db_err)?;
+        Ok(())
+    }
+
+    fn set_span_in(
+        txn: &WriteTransaction,
+        id: NodeId,
+        span: SourceSpan,
+    ) -> Result<(), BackendError> {
+        let encoded = encode_span(span);
+        let mut table = txn.open_table(SPAN_MAP).map_err(db_err)?;
+        table.insert(id.0, encoded.as_slice()).map_err(db_err)?;
+        Ok(())
+    }
+
+    fn try_upsert_node(&self, path: &str) -> Result<NodeId, BackendError> {
+        if TrunkPath::parse(path).is_err() {
+            return Ok(NodeId::NULL);
+        }
+        let txn = self.db.begin_write().map_err(db_err)?;
+        let id = Self::upsert_node_in(&txn, path)?;
+        txn.commit().map_err(db_err)?;
+        Ok(id)
+    }
+
+    fn try_remove_node(&self, id: NodeId) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        Self::remove_node_edges_in(&txn, id.0)?;
+        Self::remove_node_record_in(&txn, id.0)?;
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    fn try_set_kind(&self, id: NodeId, kind: NodeKind) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        Self::set_kind_in(&txn, id, kind)?;
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    fn try_set_span(&self, id: NodeId, span: SourceSpan) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        Self::set_span_in(&txn, id, span)?;
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    fn try_upsert_edge(
+        &self,
+        kind: EdgeKind,
+        src: NodeId,
+        dst: NodeId,
+    ) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        Self::upsert_edge_in(&txn, kind, src.0, dst.0)?;
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    fn try_remove_node_edges(&self, id: NodeId) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        Self::remove_node_edges_in(&txn, id.0)?;
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    fn upsert_edge_in(
+        txn: &WriteTransaction,
+        kind: EdgeKind,
+        src: u64,
+        dst: u64,
+    ) -> Result<(), BackendError> {
+        let mut fwd = Self::read_fwd_in(txn, kind, src)?;
+        let inserted = !fwd.contains(&dst);
+        if inserted {
+            fwd.push(dst);
+            Self::write_fwd_in(txn, kind, src, &fwd)?;
+        }
+
+        let mut rev = Self::read_rev_in(txn, kind, dst)?;
+        if !rev.contains(&src) {
+            rev.push(src);
+            Self::write_rev_in(txn, kind, dst, &rev)?;
+        }
+        if inserted {
+            Self::adjust_edge_count_in(txn, 1)?;
+        }
+        Ok(())
+    }
+
+    fn remove_node_edges_in(txn: &WriteTransaction, id: u64) -> Result<(), BackendError> {
+        for &kind in ALL_EDGE_KINDS {
+            let dsts = Self::read_fwd_in(txn, kind, id)?;
+            if !dsts.is_empty() {
+                Self::write_fwd_in(txn, kind, id, &[])?;
+                Self::adjust_edge_count_in(txn, -i64::try_from(dsts.len()).unwrap_or(i64::MAX))?;
+                for dst in dsts {
+                    let mut rev = Self::read_rev_in(txn, kind, dst)?;
+                    rev.retain(|&src| src != id);
+                    Self::write_rev_in(txn, kind, dst, &rev)?;
+                }
+            }
+
+            let srcs = Self::read_rev_in(txn, kind, id)?;
+            if !srcs.is_empty() {
+                Self::write_rev_in(txn, kind, id, &[])?;
+                for src in srcs {
+                    let mut fwd = Self::read_fwd_in(txn, kind, src)?;
+                    let before = fwd.len();
+                    fwd.retain(|&dst| dst != id);
+                    let removed = before.saturating_sub(fwd.len());
+                    Self::write_fwd_in(txn, kind, src, &fwd)?;
+                    if removed > 0 {
+                        Self::adjust_edge_count_in(
+                            txn,
+                            -i64::try_from(removed).unwrap_or(i64::MAX),
+                        )?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn remove_edge_in(
+        txn: &WriteTransaction,
+        kind: EdgeKind,
+        src: u64,
+        dst: u64,
+    ) -> Result<(), BackendError> {
+        let mut fwd = Self::read_fwd_in(txn, kind, src)?;
+        let existed = fwd.contains(&dst);
+        fwd.retain(|&old_dst| old_dst != dst);
+        Self::write_fwd_in(txn, kind, src, &fwd)?;
+
+        let mut rev = Self::read_rev_in(txn, kind, dst)?;
+        rev.retain(|&old_src| old_src != src);
+        Self::write_rev_in(txn, kind, dst, &rev)?;
+        if existed {
+            Self::adjust_edge_count_in(txn, -1)?;
+        }
+        Ok(())
+    }
+
+    fn try_replace_file(
+        &self,
+        file_path: &str,
+        nodes: &[FileNode],
+        edges: &[FileEdge],
+    ) -> Result<(), BackendError> {
+        TrunkPath::parse(file_path)
+            .map_err(|e| BackendError::Backend(format!("invalid file path {file_path:?}: {e}")))?;
+
+        let mut new_node_ids = BTreeSet::new();
+        for node in nodes {
+            if !path_owned_by_file(file_path, &node.path) {
+                return Err(BackendError::Backend(format!(
+                    "node path {:?} is not owned by file {:?}",
+                    node.path, file_path
+                )));
+            }
+            TrunkPath::parse(&node.path).map_err(|e| {
+                BackendError::Backend(format!("invalid trunk path {:?}: {e}", node.path))
+            })?;
+            new_node_ids.insert(path_to_node_id(&node.path).0);
+        }
+
+        let mut new_entry_edges = Vec::with_capacity(edges.len());
+        for edge in edges {
+            if !new_node_ids.contains(&edge.src.0) {
+                return Err(BackendError::Backend(format!(
+                    "edge source {:?} is not owned by file {:?}",
+                    edge.src, file_path
+                )));
+            }
+            new_entry_edges.push(FileEntryEdge {
+                kind: edge_kind_tag(edge.kind),
+                src: edge.src.0,
+                dst: edge.dst.0,
+            });
+        }
+        new_entry_edges.sort_unstable();
+        new_entry_edges.dedup();
+        let mut new_entry = FileEntry {
+            nodes: new_node_ids.iter().copied().collect(),
+            edges: new_entry_edges,
+        };
+        new_entry.nodes.sort_unstable();
+        new_entry.nodes.dedup();
+
+        let txn = self.db.begin_write().map_err(db_err)?;
+        let old_entry = Self::read_file_entry_in(&txn, file_path)?;
+        if old_entry == new_entry
+            && Self::file_node_records_match_in(&txn, nodes)?
+            && Self::file_edge_records_match_in(&txn, &new_entry.edges)?
+        {
+            return Ok(());
+        }
+        let retained_old_node_ids: BTreeSet<u64> = old_entry
+            .nodes
+            .iter()
+            .copied()
+            .filter(|old_node| new_node_ids.contains(old_node))
+            .collect();
+        let discarded_old_node_ids: Vec<u64> = old_entry
+            .nodes
+            .iter()
+            .copied()
+            .filter(|old_node| !new_node_ids.contains(old_node))
+            .collect();
+
+        for old_edge in old_entry.edges {
+            if let Some(kind) = tag_to_edge_kind(old_edge.kind) {
+                Self::remove_edge_in(&txn, kind, old_edge.src, old_edge.dst)?;
+            }
+        }
+
+        for old_node in discarded_old_node_ids {
+            Self::remove_node_edges_in(&txn, old_node)?;
+            Self::remove_node_record_in(&txn, old_node)?;
+        }
+        for old_node in retained_old_node_ids {
+            Self::clear_node_metadata_in(&txn, old_node)?;
+        }
+
+        for node in nodes {
+            let id = Self::upsert_node_in(&txn, &node.path)?;
+            if let Some(kind) = node.kind {
+                Self::set_kind_in(&txn, id, kind)?;
+            }
+            if let Some(span) = node.span {
+                Self::set_span_in(&txn, id, span)?;
+            }
+        }
+
+        for edge in edges {
+            Self::upsert_edge_in(&txn, edge.kind, edge.src.0, edge.dst.0)?;
+        }
+
+        Self::write_file_entry_in(&txn, file_path, &new_entry)?;
+
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    /// Atomically replace all redb records owned by `file_path`.
+    ///
+    /// This is the RFC-0100/#343 incremental write unit: one transaction reads
+    /// the persisted `file_index`, removes the file's previous nodes and owned
+    /// edges, inserts the new nodes/edges, updates `file_index`, then commits.
+    ///
+    /// # Errors
+    ///
+    /// Returns a backend error if paths are invalid, an edge source is not owned
+    /// by `file_path`, encoding fails, or redb reports an I/O/transaction error.
+    pub fn replace_file(
+        &mut self,
+        file_path: &str,
+        nodes: &[FileNode],
+        edges: &[FileEdge],
+    ) -> Result<(), BackendError> {
+        self.try_replace_file(file_path, nodes, edges)
+    }
+
+    /// Atomically replace `file_path` from an in-memory single-file [`Store`].
+    ///
+    /// This is the watch-mode bridge for RFC-0100/#343: callers can extract a
+    /// changed file into a temporary `Store`, then persist only that file's
+    /// owned graph through the same redb transaction as [`Self::replace_file`].
+    /// Nodes are owned when their path is exactly `file_path` or has
+    /// `file_path>` as a prefix; edges are owned when their source node is
+    /// owned by the file.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same backend errors as [`Self::replace_file`].
+    pub fn replace_file_from_store(
+        &mut self,
+        file_path: &str,
+        store: &Store,
+    ) -> Result<(), BackendError> {
+        let mut nodes = Vec::new();
+        let mut owned_sources = Vec::new();
+
+        if let Some(root_id) = store.lookup(file_path) {
+            let mut file_ids: Vec<NodeId> = store.descendants(root_id).collect();
+            file_ids.push(root_id);
+            file_ids.sort_unstable_by_key(|id| id.0);
+            file_ids.dedup();
+
+            for id in file_ids {
+                let Some(path) = store.path_of(id) else {
+                    continue;
+                };
+                if !path_owned_by_file(file_path, path) {
+                    continue;
+                }
+                owned_sources.push(id);
+                nodes.push(FileNode {
+                    path: path.to_owned(),
+                    kind: store.kind_of(id),
+                    span: store.span_of(id).filter(|span| !span.is_empty()),
+                });
+            }
+        }
+
+        let mut edges = Vec::new();
+        for src in owned_sources {
+            for &kind in ALL_EDGE_KINDS {
+                for &dst in store.outgoing(src, kind) {
+                    edges.push(FileEdge { kind, src, dst });
+                }
+            }
+        }
+
+        self.replace_file(file_path, &nodes, &edges)
+    }
+
+    // ── fwd adjacency helpers ─────────────────────────────────────────────────
+
+    fn read_fwd_in(
+        txn: &WriteTransaction,
+        kind: EdgeKind,
+        src: u64,
+    ) -> Result<Vec<u64>, BackendError> {
+        let key = encode_adj_key(edge_kind_tag(kind), src);
+        let table = txn.open_table(SYNAPSE_FWD).map_err(db_err)?;
+        Ok(table
+            .get(key.as_slice())
+            .map_err(db_err)?
+            .map_or_else(Vec::new, |g| unpack_ids(g.value())))
+    }
+
+    fn read_fwd(&self, kind: EdgeKind, src: u64) -> Vec<u64> {
+        let key = encode_adj_key(edge_kind_tag(kind), src);
+        let Ok(txn) = self.db.begin_read() else {
+            return Vec::new();
+        };
+        let Ok(table) = txn.open_table(SYNAPSE_FWD) else {
+            return Vec::new();
+        };
+        table
+            .get(key.as_slice())
+            .ok()
+            .flatten()
+            .map_or_else(Vec::new, |g| unpack_ids(g.value()))
+    }
+
+    fn write_fwd_in(
+        txn: &WriteTransaction,
+        kind: EdgeKind,
+        src: u64,
+        dsts: &[u64],
+    ) -> Result<(), BackendError> {
+        let key = encode_adj_key(edge_kind_tag(kind), src);
+        let mut table = txn.open_table(SYNAPSE_FWD).map_err(db_err)?;
+        if dsts.is_empty() {
+            table.remove(key.as_slice()).map_err(db_err)?;
+        } else {
+            let packed = pack_ids(dsts);
+            table
+                .insert(key.as_slice(), packed.as_slice())
+                .map_err(db_err)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn write_fwd(&self, kind: EdgeKind, src: u64, dsts: &[u64]) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        let old_dsts = Self::read_fwd_in(&txn, kind, src)?;
+        Self::write_fwd_in(&txn, kind, src, dsts)?;
+
+        for dst in old_dsts.iter().copied().filter(|dst| !dsts.contains(dst)) {
+            let mut rev = Self::read_rev_in(&txn, kind, dst)?;
+            rev.retain(|&old_src| old_src != src);
+            Self::write_rev_in(&txn, kind, dst, &rev)?;
+        }
+
+        for dst in dsts.iter().copied().filter(|dst| !old_dsts.contains(dst)) {
+            let mut rev = Self::read_rev_in(&txn, kind, dst)?;
+            if !rev.contains(&src) {
+                rev.push(src);
+                Self::write_rev_in(&txn, kind, dst, &rev)?;
+            }
+        }
+
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+
+    // ── rev adjacency helpers ─────────────────────────────────────────────────
+
+    fn read_rev_in(
+        txn: &WriteTransaction,
+        kind: EdgeKind,
+        dst: u64,
+    ) -> Result<Vec<u64>, BackendError> {
+        let key = encode_adj_key(edge_kind_tag(kind), dst);
+        let table = txn.open_table(SYNAPSE_REV).map_err(db_err)?;
+        Ok(table
+            .get(key.as_slice())
+            .map_err(db_err)?
+            .map_or_else(Vec::new, |g| unpack_ids(g.value())))
+    }
+
+    fn read_rev(&self, kind: EdgeKind, dst: u64) -> Vec<u64> {
+        let key = encode_adj_key(edge_kind_tag(kind), dst);
+        let Ok(txn) = self.db.begin_read() else {
+            return Vec::new();
+        };
+        let Ok(table) = txn.open_table(SYNAPSE_REV) else {
+            return Vec::new();
+        };
+        table
+            .get(key.as_slice())
+            .ok()
+            .flatten()
+            .map_or_else(Vec::new, |g| unpack_ids(g.value()))
+    }
+
+    fn write_rev_in(
+        txn: &WriteTransaction,
+        kind: EdgeKind,
+        dst: u64,
+        srcs: &[u64],
+    ) -> Result<(), BackendError> {
+        let key = encode_adj_key(edge_kind_tag(kind), dst);
+        let mut table = txn.open_table(SYNAPSE_REV).map_err(db_err)?;
+        if srcs.is_empty() {
+            table.remove(key.as_slice()).map_err(db_err)?;
+        } else {
+            let packed = pack_ids(srcs);
+            table
+                .insert(key.as_slice(), packed.as_slice())
+                .map_err(db_err)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    #[allow(dead_code)]
+    fn write_rev(&self, kind: EdgeKind, dst: u64, srcs: &[u64]) -> Result<(), BackendError> {
+        let txn = self.db.begin_write().map_err(db_err)?;
+        let old_srcs = Self::read_rev_in(&txn, kind, dst)?;
+        Self::write_rev_in(&txn, kind, dst, srcs)?;
+
+        for src in old_srcs.iter().copied().filter(|src| !srcs.contains(src)) {
+            let mut fwd = Self::read_fwd_in(&txn, kind, src)?;
+            fwd.retain(|&old_dst| old_dst != dst);
+            Self::write_fwd_in(&txn, kind, src, &fwd)?;
+        }
+
+        for src in srcs.iter().copied().filter(|src| !old_srcs.contains(src)) {
+            let mut fwd = Self::read_fwd_in(&txn, kind, src)?;
+            if !fwd.contains(&dst) {
+                fwd.push(dst);
+                Self::write_fwd_in(&txn, kind, src, &fwd)?;
+            }
+        }
+
+        txn.commit().map_err(db_err)?;
+        Ok(())
+    }
+}
+
+// ── all edge kinds we must scan when removing a node ─────────────────────────
+
+const ALL_EDGE_KINDS: &[EdgeKind] = &[
+    EdgeKind::Contains,
+    EdgeKind::Calls,
+    EdgeKind::Imports,
+    EdgeKind::TypeImports,
+    EdgeKind::Exports,
+    EdgeKind::Extends,
+    EdgeKind::Implements,
+    EdgeKind::References,
+    EdgeKind::TypeOf,
+    EdgeKind::Returns,
+    EdgeKind::Instantiates,
+    EdgeKind::Overrides,
+    EdgeKind::Decorates,
+    EdgeKind::Aggregates,
+    EdgeKind::Composes,
+    EdgeKind::Uses,
+];
+
+// ── StorageBackend impl ───────────────────────────────────────────────────────
+
+impl StorageBackend for RedbBackend {
+    fn upsert_node(&mut self, path: &str) -> NodeId {
+        match self.try_upsert_node(path) {
+            Ok(id) => id,
+            Err(error) => {
+                self.remember_error(error);
+                NodeId::NULL
+            }
+        }
+    }
+
+    fn remove_node(&mut self, id: NodeId) {
+        let result = self.try_remove_node(id);
+        self.remember_result(result);
+    }
+
+    fn path_of(&self, id: NodeId) -> Option<String> {
+        let txn = self.db.begin_read().ok()?;
+        let table = txn.open_table(TRUNK_BY_ID).ok()?;
+        table.get(id.0).ok()?.map(|g| g.value().to_owned())
+    }
+
+    fn lookup_path(&self, path: &str) -> Option<NodeId> {
+        let path_key = encode_path_key(path);
+        let txn = self.db.begin_read().ok()?;
+        let table = txn.open_table(TRUNK_BY_PATH).ok()?;
+        table
+            .get(path_key.as_slice())
+            .ok()?
+            .map(|g| NodeId(g.value()))
+    }
+
+    fn node_count(&self) -> usize {
+        let Ok(txn) = self.db.begin_read() else {
+            return 0;
+        };
+        let Ok(table) = txn.open_table(TRUNK_BY_ID) else {
+            return 0;
+        };
+        usize::try_from(table.len().unwrap_or(0)).unwrap_or(usize::MAX)
+    }
+
+    fn all_paths(&self) -> Vec<String> {
+        let Ok(txn) = self.db.begin_read() else {
+            return Vec::new();
+        };
+        let Ok(table) = txn.open_table(TRUNK_BY_ID) else {
+            return Vec::new();
+        };
+        let Ok(iter) = table.iter() else {
+            return Vec::new();
+        };
+        iter.filter_map(Result::ok)
+            .map(|(_, v)| v.value().to_owned())
+            .collect()
+    }
+
+    fn set_kind(&mut self, id: NodeId, kind: NodeKind) {
+        let result = self.try_set_kind(id, kind);
+        self.remember_result(result);
+    }
+
+    fn kind_of(&self, id: NodeId) -> Option<NodeKind> {
+        let txn = self.db.begin_read().ok()?;
+        let table = txn.open_table(KIND_MAP).ok()?;
+        let tag = table.get(id.0).ok()??.value();
+        tag_to_node_kind(tag)
+    }
+
+    fn set_span(&mut self, id: NodeId, span: SourceSpan) {
+        let result = self.try_set_span(id, span);
+        self.remember_result(result);
+    }
+
+    fn span_of(&self, id: NodeId) -> Option<SourceSpan> {
+        let txn = self.db.begin_read().ok()?;
+        let table = txn.open_table(SPAN_MAP).ok()?;
+        let guard = table.get(id.0).ok()??;
+        Some(decode_span(guard.value()))
+    }
+
+    fn upsert_edge(&mut self, kind: EdgeKind, src: NodeId, dst: NodeId) {
+        let result = self.try_upsert_edge(kind, src, dst);
+        self.remember_result(result);
+    }
+
+    fn remove_node_edges(&mut self, id: NodeId) {
+        let result = self.try_remove_node_edges(id);
+        self.remember_result(result);
+    }
+
+    fn outgoing(&self, src: NodeId, kind: EdgeKind) -> Vec<NodeId> {
+        let mut ids: Vec<NodeId> = self.read_fwd(kind, src.0).into_iter().map(NodeId).collect();
+        ids.sort_unstable();
+        ids
+    }
+
+    fn incoming(&self, dst: NodeId, kind: EdgeKind) -> Vec<NodeId> {
+        let mut ids: Vec<NodeId> = self.read_rev(kind, dst.0).into_iter().map(NodeId).collect();
+        ids.sort_unstable();
+        ids
+    }
+
+    fn edge_count(&self) -> usize {
+        if let Some(count) = self.read_edge_count_meta() {
+            return count;
+        }
+        let Ok(txn) = self.db.begin_read() else {
+            return 0;
+        };
+        let Ok(table) = txn.open_table(SYNAPSE_FWD) else {
+            return 0;
+        };
+        let Ok(iter) = table.iter() else {
+            return 0;
+        };
+        iter.filter_map(Result::ok)
+            .map(|(_, v)| unpack_ids(v.value()).len())
+            .sum()
+    }
+
+    fn all_edges(&self) -> Vec<(EdgeKind, NodeId, NodeId)> {
+        let Ok(txn) = self.db.begin_read() else {
+            return Vec::new();
+        };
+        let Ok(table) = txn.open_table(SYNAPSE_FWD) else {
+            return Vec::new();
+        };
+        let Ok(iter) = table.iter() else {
+            return Vec::new();
+        };
+        let mut result = Vec::new();
+        for entry in iter.filter_map(Result::ok) {
+            let (kind_tag, src) = decode_adj_key(entry.0.value());
+            if let Some(kind) = tag_to_edge_kind(kind_tag) {
+                for dst in unpack_ids(entry.1.value()) {
+                    result.push((kind, NodeId(src), NodeId(dst)));
+                }
+            }
+        }
+        result
+    }
+
+    fn heap_size_estimate(&self) -> usize {
+        self.allocated_page_bytes().unwrap_or_else(|| {
+            let nodes = self.node_count();
+            let edges = self.edge_count();
+            nodes * 256 + edges * 24
+        })
+    }
+
+    fn flush(&mut self) -> Result<(), BackendError> {
+        self.last_error.take().map_or(Ok(()), Err)
+    }
+}
+
+// ── T03 crash-safety unit tests ──────────────────────────────────────────────
+// These tests are RED against the old two-separate-txn implementation and
+// turn GREEN once private adjacency replacement helpers preserve fwd/rev
+// invariants in one transaction.
+
+#[cfg(all(test, feature = "redb-backend"))]
+mod crash_safety_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn open_at(path: &std::path::Path) -> RedbBackend {
+        RedbBackend::open(path).expect("open redb")
+    }
+
+    fn meta_edge_count(backend: &RedbBackend) -> Option<u64> {
+        let txn = backend.db.begin_read().expect("begin read");
+        let table = txn.open_table(META).expect("open meta");
+        table
+            .get("edge_count")
+            .expect("read edge_count")
+            .map(|g| g.value())
+    }
+
+    fn remove_meta_edge_count(backend: &RedbBackend) {
+        let txn = backend.db.begin_write().expect("begin write");
+        {
+            let mut table = txn.open_table(META).expect("open meta");
+            table.remove(META_EDGE_COUNT).expect("remove edge_count");
+        }
+        txn.commit().expect("commit");
+    }
+
+    /// T03-C1: `upsert_edge` two-txn atomicity gap.
+    ///
+    /// RED:  `write_fwd` commits in TXN-1; crash before TXN-2 (`write_rev`) leaves
+    ///       outgoing(src) containing dst but incoming(dst) empty.
+    /// GREEN after T05: single atomic txn for both directions.
+    #[test]
+    fn upsert_edge_crash_between_fwd_and_rev_leaves_no_ghost_edge() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c1.redb");
+
+        // T05 makes this private replacement helper one atomic logical update.
+        {
+            let b = open_at(&path);
+            b.write_fwd(EdgeKind::Calls, 10, &[20])
+                .expect("replace fwd atomically");
+        }
+
+        let b2 = open_at(&path);
+        let fwd = b2
+            .outgoing(NodeId(10), EdgeKind::Calls)
+            .contains(&NodeId(20));
+        let rev = b2
+            .incoming(NodeId(20), EdgeKind::Calls)
+            .contains(&NodeId(10));
+
+        assert_eq!(
+            fwd, rev,
+            "CRITICAL-1: fwd 10→20={fwd}, rev 20→10={rev} — ghost one-directional edge \
+             (two-txn atomicity bug; expected to go RED→GREEN after T05 WriteBatch)"
+        );
+    }
+
+    /// T03-C1b: same invariant for `EdgeKind::Imports` (exercises tag-encoding path).
+    #[test]
+    fn upsert_edge_crash_ghost_edge_invariant_holds_for_imports() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c1_imports.redb");
+
+        {
+            let b = open_at(&path);
+            b.write_fwd(EdgeKind::Imports, 100, &[200])
+                .expect("replace imports fwd atomically");
+        }
+
+        let b2 = open_at(&path);
+        let fwd = b2
+            .outgoing(NodeId(100), EdgeKind::Imports)
+            .contains(&NodeId(200));
+        let rev = b2
+            .incoming(NodeId(200), EdgeKind::Imports)
+            .contains(&NodeId(100));
+
+        assert_eq!(fwd, rev, "CRITICAL-1 Imports: fwd={fwd}, rev={rev}");
+    }
+
+    /// T03-C1c: crash on second upsert of same edge (idempotent guard path).
+    #[test]
+    fn upsert_edge_crash_invariant_after_idempotent_upsert() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c1_idem.redb");
+
+        {
+            let mut b = open_at(&path);
+            // First write is complete (both fwd+rev).
+            b.upsert_edge(EdgeKind::Calls, NodeId(5), NodeId(6));
+            b.write_fwd(EdgeKind::Calls, 7, &[8])
+                .expect("replace second fwd atomically");
+        }
+
+        let b2 = open_at(&path);
+
+        // 5→6 must remain intact.
+        assert!(b2.outgoing(NodeId(5), EdgeKind::Calls).contains(&NodeId(6)));
+        assert!(b2.incoming(NodeId(6), EdgeKind::Calls).contains(&NodeId(5)));
+
+        // 7→8 must satisfy the bidirectional invariant.
+        let fwd78 = b2.outgoing(NodeId(7), EdgeKind::Calls).contains(&NodeId(8));
+        let rev78 = b2.incoming(NodeId(8), EdgeKind::Calls).contains(&NodeId(7));
+        assert_eq!(
+            fwd78, rev78,
+            "CRITICAL-1 idem: fwd 7→8={fwd78}, rev 8→7={rev78}"
+        );
+    }
+
+    /// T03-C2: `remove_node_edges` dangling reverse pointer.
+    ///
+    /// RED:  fwd(30→40) cleared in its own txn; crash before rev(40←30)
+    ///       is patched — incoming(40) still contains 30 (dangling ptr).
+    /// GREEN after T05: single atomic txn for full edge removal.
+    #[test]
+    fn remove_node_edges_crash_leaves_no_dangling_rev_ptr() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("crash_c2.redb");
+
+        // Setup: complete bidirectional edge 30→40.
+        {
+            let mut b = open_at(&path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(30), NodeId(40));
+        }
+
+        // T05 makes fwd clearing patch the reverse table in the same transaction.
+        {
+            let b = open_at(&path);
+            b.write_fwd(EdgeKind::Calls, 30, &[])
+                .expect("clear fwd atomically");
+        }
+
+        let b2 = open_at(&path);
+        let fwd_has = b2
+            .outgoing(NodeId(30), EdgeKind::Calls)
+            .contains(&NodeId(40));
+        let dangling_rev = b2
+            .incoming(NodeId(40), EdgeKind::Calls)
+            .contains(&NodeId(30));
+
+        assert!(
+            !dangling_rev || fwd_has,
+            "CRITICAL-2: dangling rev pointer — incoming(40) contains 30 \
+             even though outgoing(30) no longer contains 40"
+        );
+    }
+
+    /// P2-T05/T02 invariant: persisted adjacency lists are canonical, sorted
+    /// sets, not insertion-order vectors. Public readers sort defensively, so
+    /// this checks the raw redb representation used for reopen/diff stability.
+    #[test]
+    fn redb_stores_adjacency_lists_sorted_on_disk() {
+        let dir = tempdir().expect("tempdir");
+        let descending_path = dir.path().join("sorted_adjacency_desc.redb");
+        let ascending_path = dir.path().join("sorted_adjacency_asc.redb");
+
+        {
+            let mut b = open_at(&descending_path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(30));
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(20));
+            b.upsert_edge(EdgeKind::Calls, NodeId(30), NodeId(40));
+            b.upsert_edge(EdgeKind::Calls, NodeId(20), NodeId(40));
+        }
+        {
+            let mut b = open_at(&ascending_path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(20));
+            b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(30));
+            b.upsert_edge(EdgeKind::Calls, NodeId(20), NodeId(40));
+            b.upsert_edge(EdgeKind::Calls, NodeId(30), NodeId(40));
+        }
+
+        let descending = open_at(&descending_path);
+        let ascending = open_at(&ascending_path);
+        assert_eq!(descending.read_fwd(EdgeKind::Calls, 10), vec![20, 30]);
+        assert_eq!(descending.read_rev(EdgeKind::Calls, 40), vec![20, 30]);
+        assert_eq!(
+            descending.read_fwd(EdgeKind::Calls, 10),
+            ascending.read_fwd(EdgeKind::Calls, 10)
+        );
+        assert_eq!(
+            descending.read_rev(EdgeKind::Calls, 40),
+            ascending.read_rev(EdgeKind::Calls, 40)
+        );
+    }
+
+    /// P2-T05 follow-up: `edge_count` must be O(1) metadata, not an O(E) scan of
+    /// `synapse_fwd`. The meta key is the physical invariant that lets
+    /// `heap_size_estimate()` and SLA tests avoid scanning the whole graph.
+    #[test]
+    fn redb_meta_edge_count_tracks_deduped_writes_and_reopen() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("edge_count_meta_writes.redb");
+
+        {
+            let mut b = open_at(&path);
+            assert_eq!(meta_edge_count(&b), Some(0));
+
+            b.upsert_edge(EdgeKind::Calls, NodeId(1), NodeId(2));
+            b.upsert_edge(EdgeKind::Calls, NodeId(1), NodeId(2));
+            b.upsert_edge(EdgeKind::Imports, NodeId(1), NodeId(3));
+
+            assert_eq!(b.edge_count(), 2);
+            assert_eq!(meta_edge_count(&b), Some(2));
+        }
+
+        let reopened = open_at(&path);
+        assert_eq!(reopened.edge_count(), 2);
+        assert_eq!(meta_edge_count(&reopened), Some(2));
+    }
+
+    #[test]
+    fn redb_meta_edge_count_tracks_removal_and_replace_file() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("edge_count_meta_remove.redb");
+        let mut b = open_at(&path);
+
+        b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(20));
+        b.upsert_edge(EdgeKind::Calls, NodeId(10), NodeId(30));
+        assert_eq!(meta_edge_count(&b), Some(2));
+
+        b.remove_node_edges(NodeId(10));
+        assert_eq!(b.edge_count(), 0);
+        assert_eq!(meta_edge_count(&b), Some(0));
+
+        b.replace_file(
+            "src/a.rs",
+            &[FileNode {
+                path: "src/a.rs>A".to_owned(),
+                kind: Some(NodeKind::Struct),
+                span: None,
+            }],
+            &[],
+        )
+        .expect("insert a");
+        b.replace_file(
+            "src/b.rs",
+            &[FileNode {
+                path: "src/b.rs>B".to_owned(),
+                kind: Some(NodeKind::Function),
+                span: None,
+            }],
+            &[FileEdge {
+                kind: EdgeKind::References,
+                src: path_to_node_id("src/b.rs>B"),
+                dst: path_to_node_id("src/a.rs>A"),
+            }],
+        )
+        .expect("insert b with external edge");
+        assert_eq!(b.edge_count(), 1);
+        assert_eq!(meta_edge_count(&b), Some(1));
+
+        b.replace_file(
+            "src/a.rs",
+            &[FileNode {
+                path: "src/a.rs>A2".to_owned(),
+                kind: Some(NodeKind::Struct),
+                span: None,
+            }],
+            &[],
+        )
+        .expect("replace a strips external edge");
+        assert_eq!(b.edge_count(), 0);
+        assert_eq!(meta_edge_count(&b), Some(0));
+    }
+
+    #[test]
+    fn redb_open_existing_without_edge_count_meta_seeds_from_current_graph_on_write() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("edge_count_meta_legacy.redb");
+
+        {
+            let mut b = open_at(&path);
+            b.upsert_edge(EdgeKind::Calls, NodeId(1), NodeId(2));
+            assert_eq!(b.edge_count(), 1);
+            remove_meta_edge_count(&b);
+            assert_eq!(meta_edge_count(&b), None);
+        }
+
+        let mut reopened = RedbBackend::open_existing(&path).expect("open existing redb");
+        assert_eq!(reopened.edge_count(), 1);
+        assert_eq!(meta_edge_count(&reopened), None);
+
+        reopened.upsert_edge(EdgeKind::Calls, NodeId(2), NodeId(3));
+        assert_eq!(reopened.edge_count(), 2);
+        assert_eq!(meta_edge_count(&reopened), Some(2));
+    }
+}

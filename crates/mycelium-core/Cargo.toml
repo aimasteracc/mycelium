@@ -16,11 +16,20 @@ readme        = "README.md"
 [lib]
 name = "mycelium_core"
 
+[features]
+default = []
+memory-bound = ["dep:libc"]
+redb-backend = ["dep:redb"]
+
 [lints]
 workspace = true
 
 [dependencies]
+base64 = "0.22"
+serde_json = "1"
 anyhow        = { workspace = true }
+libc          = { workspace = true, optional = true }
+redb          = { workspace = true, optional = true }
 blake3        = { workspace = true }
 hashbrown     = { workspace = true }
 mycelium-pack = { workspace = true }
@@ -58,3 +67,13 @@ required-features = []
 name    = "heavy_graph"
 harness = false
 required-features = []
+
+[[bench]]
+name    = "redb_incremental_persistence"
+harness = false
+required-features = ["redb-backend"]
+
+[[bench]]
+name    = "memory_rss"
+harness = false
+required-features = ["memory-bound"]

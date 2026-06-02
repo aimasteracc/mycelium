@@ -5,7 +5,174 @@ All notable changes to **Mycelium** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.16] - 2026-06-02
+
+### Added
+
+- **MCP server routing instructions** — `mycelium serve --mcp` now includes
+  a routing table in the MCP `InitializeResult.instructions` field (Issue #366).
+  Agents with 89 tools available see an intent→tool map at turn 0, cutting
+  median turn count and variance on real-repo benchmarks. No breaking change;
+  clients that do not read `instructions` are unaffected.
+
+- **MCP Agent behavior instructions** — the MCP `instructions` payload now
+  includes a primary tool-selection decision tree, explicit anti-patterns for
+  avoiding expensive multi-tool loops, and a small-project mode hint for
+  indexes under 500 nodes. This advances Issue #382 without adding new tools
+  or triggering Three-Surface surface changes.
+
+- **RFC-0101 draft — `mycelium_context` architecture context tool** — adds the
+  governance contract for Issue #379 before implementation: CLI/MCP/Skill
+  Three-Surface scope, seven-key response shape, Hyphae-first routing,
+  natural-language candidate extraction, bounded graph expansion, source-snippet
+  budgets, NOT_FOUND behavior, and RED-first acceptance tests.
+
+- **RFC-0102 draft — adaptive output budgets** — adds the governance contract
+  for Issue #380 before response-contract changes: shared CLI/MCP output
+  budgets, visible truncation metadata, structured truncation before formatting,
+  and a stable-tool-list policy that keeps dynamic tool hiding out of the first
+  implementation unless a future RFC grants an explicit Three-Surface exception.
+
+- **RFC-0103 draft — import-aware cross-file reference resolution** — adds the
+  governance contract for Issue #381 before changing resolver semantics:
+  conservative per-edge bare-stub rewrites, import-evidence ranking, inheritance
+  correctness targets, watch-mode integration requirements, and ADR/migration
+  gates if new import-binding storage is introduced.
+
+- **RFC-0100 Phase 1 — `StorageBackend` + redb backend foundation** —
+  introduces the feature-gated `redb-backend` storage path with an object-safe
+  `StorageBackend` trait, `InMemoryBackend` oracle, redb key/tag helpers,
+  `RedbBackend`, and `Store::load` format auto-detection. The feature is off by
+  default, preserving existing MessagePack behavior while preparing the unified
+  redb storage migration. (RFC-0100)
+
+- **RFC-0100 Phase 2 T03/T05 — redb edge-write crash safety** — adds 4
+  RED-first tests for the bidirectional adjacency invariant and makes
+  `RedbBackend` update `synapse_fwd` and `synapse_rev` inside one redb write
+  transaction for `upsert_edge`, `remove_node_edges`, and `remove_node`. Write
+  failures are retained and surfaced through `StorageBackend::flush()` instead
+  of being silently discarded.
+
+- **RFC-0100 Phase 2 T02 — property equivalence guard** — adds randomized
+  operation-sequence equivalence tests over `InMemoryBackend` and `RedbBackend`,
+  including node metadata, all edge kinds, removals, re-insertion, reopen
+  durability, and per-prefix `edge_count`/incoming/outgoing consistency checks.
+  Redb adjacency lists are now canonicalized as sorted unique sets before
+  persistence so insertion order cannot affect on-disk graph shape.
+
+- **`Store::heap_size_estimate()` — R3 memory-bound instrumentation** — new
+  diagnostic method that returns a conservative lower-bound estimate of bytes
+  held by the store's Patricia trie and CSR synapse. Three TDD tests verify
+  the estimate is non-zero, grows monotonically with node count, and is
+  non-decreasing with edges. Three `#[ignore]`-gated tests measure actual
+  process RSS at 1 K / 10 K / 100 K nodes to generate the data needed to
+  design the LRU/mmap mitigation (Issue #344). Run with
+  `cargo test -p mycelium-rcig-core --test sla_memory_curve -- --include-ignored --nocapture`.
+
+- **RFC-0100 Phase 2 T04 — redb memory-footprint instrumentation** —
+  `RedbBackend::heap_size_estimate()` now reports redb allocated page bytes
+  instead of the in-memory node/edge formula, and `sla_memory_curve` includes
+  opt-in redb RSS/page-footprint measurements plus a Linux-only child-process
+  RSS comparison scaffold. This advances Issue #344's memory-bound proof while
+  keeping the redb backend feature-gated off by default.
+
+- **RFC-0100 Phase 2 T05a — redb file-scoped replacement foundation** —
+  `RedbBackend` now has the ADR-0007 `file_index` table plus a feature-gated
+  `replace_file` API that atomically removes one file's old nodes/owned edges,
+  strips stale external references, inserts the new file graph, and persists
+  the replacement index in one redb write transaction. This advances Issue #343
+  without flipping the default backend or adding CLI/MCP surface yet.
+
+- **RFC-0100 Phase 2 T05b — redb edge-count metadata cache** —
+  `RedbBackend` now persists a deduplicated `edge_count` value in the redb
+  `meta` table and updates it inside the same write transactions that mutate
+  adjacency. This removes the O(E) scan from `edge_count()` and the
+  `heap_size_estimate()` edge path while keeping the backend feature-gated off
+  by default.
+
+- **RFC-0100 Phase 2 T05c — redb single-file Store bridge** —
+  `RedbBackend::replace_file_from_store` converts a single-file in-memory
+  `Store` into file-owned redb nodes, metadata, and source-owned edges, then
+  persists them through the existing one-transaction `replace_file` path. This
+  gives watch-mode wiring a small core bridge toward O(changed-file)
+  persistence without changing CLI/MCP surfaces yet.
+
+- **RFC-0100 Phase 2 T05d — feature-gated MCP redb watch persistence** —
+  `mycelium-mcp` now exposes a `redb-backend` cargo feature that loads
+  `.mycelium/index.redb` before legacy `.mycelium/index.rmp`, imports the
+  initial in-memory graph into redb, and persists watch batches by replacing
+  only changed source files through `RedbBackend::replace_file_from_store`.
+  The default build remains on legacy MessagePack snapshots.
+
+- **RFC-0100 Phase 2 T06a — redb persistence benchmark harness** —
+  Added a feature-gated `redb_sla` test target plus a
+  `redb_incremental_persistence` criterion benchmark comparing legacy full
+  MessagePack snapshots with redb single-file replacement. The default
+  benchmark covers 10K redb replacement and 10K/100K full snapshots, with
+  `MYCELIUM_REDB_BENCH_100K=1` enabling the slower 100K redb replacement run.
+
+- **`mycelium_context` MCP tool** (Issue #379 / RFC-0101) — one-shot
+  architecture-tracing tool that accepts a natural-language task, extracts
+  symbol candidates, expands a bounded call-graph neighborhood, and returns
+  `entry_points`, `nodes`, `edges`, `code_blocks`, `stats`, and
+  `agent_summary` in a single call. The 90th MCP tool. Replaces 5–20
+  chained `search_symbol` + callers/callees + `symbol_info` round-trips.
+
+- **`OutputBudget` adaptive output control** (Issue #380 / RFC-0102) —
+  3-tier size-based budget (`small <500 nodes`, `medium <5K`, `large`) that
+  caps `nodes`, `edges`, `paths`, `results`, `symbols`, `callers`,
+  `callees`, and `reachable` arrays with `truncated: true` +
+  `total_available: N` metadata. Applied to 8 high-traffic MCP tools.
+  7 unit tests.
+
+- **Import-aware stub resolution** (Issue #381 / RFC-0103) — second-pass
+  stub resolver that uses `Imports` edges to disambiguate bare call stubs
+  when multiple files define the same symbol name. The caller's import
+  graph is used to vote on which definition wins. Integrated into
+  `Store::resolve_bare_call_stubs()` as a supplementary pass after the
+  existing simple pass.
+
+- **`architecture-context` Skill** — new `skills/architecture-context/`
+  category Skill covering `mycelium_context`. Satisfies RFC-0090 I1
+  coverage for the 90th MCP tool. CLI twin tracked as RFC-0101 Phase 2.
+
+### Fixed
+
+- **RFC-0100 redb replace-file external reference preservation** —
+  `RedbBackend::replace_file` now preserves external incoming edges that point
+  to nodes whose paths remain stable across a file replacement, while still
+  stripping external edges to removed or renamed nodes. This fixes a
+  watch-persistence correctness bug in the feature-gated redb path and avoids
+  unnecessary stale-node edge scans for unchanged symbols; local 10K
+  single-file replacement improved from ~18.4 ms to ~9.70 ms.
+
+- **RFC-0100 redb no-op node upsert write amplification** —
+  `RedbBackend::upsert_node` now reads existing `path -> id` and `id -> path`
+  entries before writing. Re-upserting an unchanged node no longer allocates
+  additional redb pages, and local 10K single-file replacement improved further
+  from ~9.70 ms to ~9.37 ms.
+
+- **RFC-0100 redb no-op file replacement write amplification** —
+  `RedbBackend::replace_file` now returns early when the persisted file index,
+  trunk indexes, kind metadata, span metadata, and forward/reverse adjacency
+  already match the incoming file payload. Replacing an identical file payload
+  100 times no longer grows allocated redb pages from 57KB to 77KB, while
+  identical replacements still repair missing owned adjacency when the persisted
+  edge tables drift from the file index.
+
+- **Release pipeline hardening** — release prep now updates internal
+  `mycelium-rcig-*` dependency pins before publishing, and `release.yml` fails
+  fast on missing crates.io credentials or cargo publish errors instead of
+  creating an orphan GitHub tag/Release. Crates publish dependency-first
+  (`pack → core → hyphae → mcp → cli`) and tag creation now waits until main
+  and develop merges succeed.
+
+- **Release governance guardrails** — CI now runs static release/governance
+  checks, and GitFlow/PR/release-agent runbooks explicitly define admin-merge
+  overrides, incomplete-release incident response, and the four-step release
+  completion invariant.
+
+## [0.1.14] - 2026-05-31
 
 <!-- next release goes here -->
 
@@ -1179,4 +1346,3 @@ First public release of **Mycelium** — the reactive, AI-native symbol graph th
 ---
 
 [Unreleased]: https://github.com/aimasteracc/mycelium/compare/v0.1.3...HEAD
-

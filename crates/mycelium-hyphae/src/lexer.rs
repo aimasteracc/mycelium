@@ -15,7 +15,6 @@ use logos::Logos;
 /// simple selectors is the *descendant* combinator (`a b` means "b inside
 /// a"). Leading and trailing whitespace is stripped by the parser.
 #[derive(Logos, Clone, Debug, PartialEq, Eq)]
-#[logos(skip r"")]
 pub enum Token<'src> {
     // ── Sigil-prefixed selectors ─────────────────────────────────────────
     /// `#ident` — name selector.

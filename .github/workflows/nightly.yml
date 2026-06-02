@@ -44,7 +44,7 @@ jobs:
           else
             echo "no benches yet — skipping"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bench-results
@@ -111,7 +111,7 @@ jobs:
           fi
           echo "Kill rate ${KILL_RATE}% meets the >= 70% SLA."
       - name: Upload mutants report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: mutants-report
