@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`mycelium_context` response contract (RFC-0101/RFC-0102 partial):** `related_files`
+  key now present in all responses (empty `[]` on NOT_FOUND; unique file paths from
+  the returned nodes on success). `edge_kinds` optional request parameter added to
+  `GetContextRequest` — accepted by MCP and CLI alike (filtering implementation in a
+  follow-up). `apply_budget` is now wired into the success path, capping `nodes` and
+  `edges` arrays at the project-size budget (15/30/50 nodes for small/medium/large
+  projects). Five RED-first integration tests in `context_contract_tests` cover:
+  NOT_FOUND has `related_files: []`, success has correct `related_files`, all 7
+  RFC-0101 keys present, budget truncation fires, and `edge_kinds` param accepted.
+
 ### Changed
 
 - **Governance: supersede discipline is now machine-enforced.** New
