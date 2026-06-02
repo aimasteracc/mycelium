@@ -76,7 +76,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## ✅ v0.1.16 — SHIPPED (ceremony COMPLETE)
+## ⚠️ v0.1.16 — SHIPPED (ceremony INCOMPLETE — crates.io PENDING)
 
 **What shipped:**
 - [x] RFC-0100 Phase 1+2: `StorageBackend` + redb backend, crash-safety, property equivalence
@@ -87,11 +87,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Dep bumps: salsa 0.18→0.26, logos 0.14→0.16, redb 2.6→4.1
 - [x] fix: measure_rss test platform-aware (Windows CI unblocked — commit b52b8fb)
 
-**v0.1.16 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
+**v0.1.16 ceremony status — INCOMPLETE ⚠️ (Charter §5.12 step 3: crates.io PENDING):**
 - [x] **Step 1**: `release/v0.1.16` → `main` — PR #416 MERGED ✅ (founder authorized)
 - [x] **Step 2**: Tag `v0.1.16` pushed ✅
-- [x] **Step 3**: GitHub Release published ✅ (inferred from back-merge)
+- [ ] **Step 3**: All five crates published to crates.io — **PENDING** ⚠️ (release.yml run 26793340808 failed; hotfix #419 + founder re-trigger required)
 - [x] **Step 4**: Back-merge `release/v0.1.16` → `develop` — MERGED ✅ (commit cb31814)
+- **GitHub Release**: Published ✅ (note: bonus step, not one of the Charter §5.12 four required steps)
 
 ---
 
