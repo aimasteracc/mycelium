@@ -38,7 +38,8 @@ backward-compat baggage we don't owe anyone yet.**
    is set from the T1 mmap cold-page spike, NOT guessed.** mmap cold pages are disk
    reads — `<1ms` 3-hop is physically impossible cold. We measure, then commit the
    number to Charter. This is the one place "毫无压力 on 100K files" must be earned
-   with data.
+   with data. Governed by [RFC-0104](../../rfcs/0104-charter-warm-cold-sla-split.md)
+   (Issue #426 AC#4).
 5. **redb version → no hard `=` pin.** Cargo.lock pins the tested version;
    Cargo.toml allows patch updates; **every redb bump must pass a CI gate that opens
    an old-format index file.** Hard-pinning would block security patches.

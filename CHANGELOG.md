@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0008
+  Decision-4 (founder-authorized 2026-05-31) required splitting Charter §2's single
+  SLA column into warm (page-cache steady-state, existing targets) and cold (first
+  open after process restart, mmap page-fault path). This RFC formalises that split,
+  proposes placeholder ceiling values (50 ms cold lookup, 200 ms cold 3-hop), and
+  defines the `madvise(MADV_DONTNEED)` measurement protocol. Once the founder approves
+  and nightly CI reports p99 values, the placeholders are replaced and Issue #426
+  AC#4 closes — unblocking AC#2 (RSS-cap CI gate) and AC#5 (flip redb to default).
+
 ### Refactored
 
 - **`mycelium-mcp` god-file split — tests submodule extracted (Issue #428 AC#2 slice 1).** `crates/mycelium-mcp/src/lib.rs` reduced from 12,191 → 5,627 lines (~54%) by extracting the 6,564-line `mod tests` block into `src/tests.rs`. The remaining three small test modules (`edge_kind_tests`, `server_info_tests`, `output_budget_tests`) stay in `lib.rs`. Pure mechanical refactor; zero behavior change. All 584 workspace tests green. Remaining AC#2 work: split tool implementations into `tools/context.rs` and `tools/graph.rs`.
