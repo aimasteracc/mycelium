@@ -122,13 +122,14 @@ jobs:
               fi
 
               cargo publish -p "$pkg" --dry-run
-              if ! cargo publish -p "$pkg" 2>&1 | tee /tmp/publish_${pkg}.log; then
+              cargo publish -p "$pkg" >/tmp/publish_${pkg}.log 2>&1 || {
                 if grep -q "already exists" /tmp/publish_${pkg}.log; then
                   echo "$pkg v$VERSION was published by a previous run; continuing"
                 else
+                  cat /tmp/publish_${pkg}.log >&2
                   exit 1
                 fi
-              fi
+              }
               wait_for_crate "$pkg"
             fi
           done
