@@ -86,7 +86,11 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
           crate_published() {
-            cargo search "$1" --limit 1 2>/dev/null | grep -q "^$1 = \"$VERSION\""
+            local encoded
+            encoded=$(echo "$1" | tr '-' '_')
+            curl -sf "https://crates.io/api/v1/crates/${encoded}" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('crate',{}).get('max_version','')=='$VERSION' else 1)" \
+              2>/dev/null
           }
 
           wait_for_crate() {
@@ -121,7 +125,14 @@ jobs:
               fi
 
               cargo publish -p "$pkg" --dry-run
-              cargo publish -p "$pkg"
+              cargo publish -p "$pkg" >/tmp/publish_${pkg}.log 2>&1 || {
+                if grep -q "already exists" /tmp/publish_${pkg}.log; then
+                  echo "$pkg v$VERSION was published by a previous run; continuing"
+                else
+                  cat /tmp/publish_${pkg}.log >&2
+                  exit 1
+                fi
+              }
               wait_for_crate "$pkg"
             fi
           done
