@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch — P0 Windows CI fix PR #417 opened; release/v0.1.16 branch already cut as PR #416 → main; PR #414 RFC-0101 Phase 2 unmerged on develop) |
-| Current sprint | **v0.1.16 — RELEASE CUT; CI RED (Windows test bug); PR #417 fix in CI** |
-| Active release branch | `release/v0.1.16` — PR #416 → main (founder-gated; CI red — blocked on PR #417 fix landing) |
-| Next release target | **v0.1.16** — RFC-0100 redb, incremental persistence, memory budget, MCP routing, dep bumps |
+| Last updated | 2026-06-02 (PM dispatch v2 — v0.1.16 ceremony COMPLETE (back-merge in develop); PR #417 closed as duplicate (founder fixed b52b8fb); PR #414 rebased onto fixed develop; CI running) |
+| Current sprint | **v0.1.17 — IN PROGRESS (PR #414 RFC-0101 Phase 2 CLI twin pending CI+merge)** |
+| Active release branch | none (v0.1.16 shipped; v0.1.17 content in progress) |
+| Next release target | **v0.1.17** — RFC-0101 Phase 2 `mycelium context` CLI twin (PR #414) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.14** (v0.1.15 ceremony broken — orphan tag; v0.1.16 is effective next release) |
+| Last shipped | **v0.1.16** — RFC-0100 redb backend, incremental persistence, memory budget/LRU, MCP routing, dep bumps (salsa 0.26, logos 0.16, redb 4.1) |
 
 ---
 
@@ -76,45 +76,58 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Live priorities (ordered)
+## ✅ v0.1.16 — SHIPPED (ceremony COMPLETE)
 
-**P0:** **Windows CI fix — PR #417 (`fix/windows-rss-test → develop`) — CI running**
-- Root cause: `measure_rss_returns_some` unconditionally asserted `is_some()` on Windows; `measure_rss()` documents returning `None` on unsupported platforms. Fix: platform-gated tests.
-- Blocks: PR #416 (release to main) + PR #414 (RFC-0101 feature).
+**What shipped:**
+- [x] RFC-0100 Phase 1+2: `StorageBackend` + redb backend, crash-safety, property equivalence
+- [x] Incremental persistence journal (Issue #343)
+- [x] Memory budget / bounded store with LRU eviction (Issue #344)
+- [x] MCP server routing instructions (Issue #366)
+- [x] Release ceremony script (Issue #375)
+- [x] Dep bumps: salsa 0.18→0.26, logos 0.14→0.16, redb 2.6→4.1
+- [x] fix: measure_rss test platform-aware (Windows CI unblocked — commit b52b8fb)
 
-**P1 (v0.1.16 scope):**
-1. **Merge PR #417** (Windows CI fix) → develop once CI green. Then cherry-pick onto `release/v0.1.16`.
-2. **Update PR #414** (`feature/rfc-0101-phase2-cli-twin`) — rebase onto fixed develop; merge after CI green. This goes to v0.1.17, NOT v0.1.16 (release was cut before #414 merged).
-3. **PR #416** (`release/v0.1.16 → main`) — escalate to founder for merge authorization after cherry-pick + green CI.
-4. **Security scan post-v0.1.16** — run after ceremony completes.
-
-**Recent merges (since last PM state):**
-- PR #407/#343: append-only journal for incremental persistence (R2) MERGED ✅
-- PR #344: memory-bound LRU eviction (R3) MERGED ✅
-- PR #411: salsa 0.18→0.26 MERGED ✅
-- PR #412: logos 0.14→0.16 MERGED ✅
-- PR #413: redb 2.6.3→4.1 MERGED ✅ (required ReadableDatabase trait import)
-- PR #375: release ceremony script MERGED ✅
-- PR #414: RFC-0101 Phase 2 context CLI twin — **OPEN**, waiting on PR #417 fix
-
-**P2 (v0.2.0 scope):**
-5. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit — blocking since v0.1.6; ceremony script is workaround)
-6. Skill marketplace submission to Claude Code marketplace
-7. "First 5 minutes" walkthrough validation (README + docs site)
+**v0.1.16 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
+- [x] **Step 1**: `release/v0.1.16` → `main` — PR #416 MERGED ✅ (founder authorized)
+- [x] **Step 2**: Tag `v0.1.16` pushed ✅
+- [x] **Step 3**: GitHub Release published ✅ (inferred from back-merge)
+- [x] **Step 4**: Back-merge `release/v0.1.16` → `develop` — MERGED ✅ (commit cb31814)
 
 ---
 
-## Dispatch state (2026-06-02 — Windows CI fix PR #417 in CI; release/v0.1.16 blocked)
+## Live priorities (ordered)
+
+**P0:** none
+
+**P1 (v0.1.17 scope):**
+1. **PR #414 — `mycelium context` CLI twin** (RFC-0101 Phase 2): rebased onto fixed develop (2026-06-02); CI running. Three-Surface Rule: `context` was the only MCP-only capability; now CLI ↔ MCP 1:1 strict, covered by `architecture-context` Skill.
+2. **Security scan post-v0.1.16** — pending (run after PR #414 merges + ceremony).
+3. **Cut release/v0.1.17** — after PR #414 merges. Single-feature release.
+
+**Recent events (2026-06-02):**
+- v0.1.16 ceremony COMPLETE (founder authorized; back-merge `cb31814` in develop) ✅
+- PR #417 (Windows CI fix) — CLOSED as duplicate; founder fixed independently via commit `b52b8fb`
+- PR #418 (PM chore this session) — pushed, pending CI+merge
+- PR #414 rebased onto `cb31814` develop; CI running
+
+**P2 (v0.2.0 scope):**
+4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit)
+5. Skill marketplace submission
+6. "First 5 minutes" walkthrough validation
+
+---
+
+## Dispatch state (2026-06-02 v2 — v0.1.16 shipped; PR #414 in CI)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Authorize PR #416 (`release/v0.1.16 → main`) after CI goes green (cherry-pick fix lands). (2) Systemic: `release.yml` finalize merge fix before v0.2.0. |
-| orchestrator | **ACTIVE** | Watching PR #417 CI; will merge → develop, cherry-pick to release/v0.1.16, rebase PR #414. |
-| rust-implementer | done | PR #414 (RFC-0101 Phase 2 CLI twin) — waiting PR #417 fix to rebase. |
-| security-reviewer | idle | Post-v0.1.16 scan after ceremony completes. |
+| founder | **action requested** | (1) Authorize PR #414 merge once CI green (no P0 risk — pure CLI addition). (2) Authorize release/v0.1.17 after PR #414 merges. (3) Systemic: `release.yml` finalize merge fix before v0.2.0. |
+| orchestrator | **ACTIVE** | Monitoring PR #414 CI; will merge to develop + cut release/v0.1.17 after CI green. |
+| security-reviewer | **NEXT** | Post-v0.1.16 scan (scheduled). |
+| rust-implementer | done | PR #414 pushed and rebased — waiting CI. |
 | architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | idle | RSS-curve measurement — benchmark harness exists (PR #391). |
+| e2e-runner | idle | RSS-curve measurement — benchmark harness exists. |
 
 ---
 
