@@ -1417,52 +1417,11 @@ pub struct GetContextRequest {
 
 // ── server ────────────────────────────────────────────────────────────────────
 
-/// Stateful MCP server holding the in-memory symbol graph.
-/// Adaptive output budget keyed on project size (issue #380).
-///
-/// Prevents a single tool call from flooding the Agent context window.
-/// Three tiers match `CodeGraph`'s proven sizing strategy:
-///
-/// | Nodes   | max_nodes | max_edges | max_code_lines | max_total_chars |
-/// |---------|-----------|-----------|----------------|-----------------|
-/// | <500    | 15        | 30        | 20             | 13 000          |
-/// | 500–5K  | 30        | 60        | 30             | 25 000          |
-/// | >5K     | 50        | 100       | 40             | 38 000          |
-#[derive(Debug, Clone, Copy)]
-#[allow(clippy::struct_field_names, dead_code)]
-struct OutputBudget {
-    max_nodes: usize,
-    max_code_lines: usize,
-    max_total_chars: usize,
-    max_edges: usize,
-}
-
-impl OutputBudget {
-    const fn for_project(node_count: usize) -> Self {
-        if node_count < 500 {
-            Self {
-                max_nodes: 15,
-                max_code_lines: 20,
-                max_total_chars: 13_000,
-                max_edges: 30,
-            }
-        } else if node_count < 5_000 {
-            Self {
-                max_nodes: 30,
-                max_code_lines: 30,
-                max_total_chars: 25_000,
-                max_edges: 60,
-            }
-        } else {
-            Self {
-                max_nodes: 50,
-                max_code_lines: 40,
-                max_total_chars: 38_000,
-                max_edges: 100,
-            }
-        }
-    }
-}
+// `OutputBudget` and `apply_budget` now live in `mycelium_core::budget` so the
+// CLI applies the *same* truncation and CLI↔MCP output stays byte-identical
+// (Three-Surface Rule). The two dead fields (`max_code_lines`/`max_total_chars`)
+// were removed there — they were never enforced.
+use mycelium_core::budget::{OutputBudget, apply_budget};
 
 #[allow(dead_code)]
 fn is_core_tool(name: &str) -> bool {
@@ -1475,104 +1434,6 @@ fn is_core_tool(name: &str) -> bool {
             | "mycelium_server_status"
             | "mycelium_index_workspace"
     )
-}
-
-fn apply_budget(value: &mut serde_json::Value, budget: &OutputBudget) {
-    let mut truncated = false;
-    let mut total_available: Option<usize> = None;
-
-    if let Some(nodes) = value.get_mut("nodes").and_then(|n| n.as_array_mut()) {
-        let count = nodes.len();
-        if count > budget.max_nodes {
-            nodes.truncate(budget.max_nodes);
-            truncated = true;
-            total_available = Some(count);
-        }
-    }
-
-    if let Some(edges) = value.get_mut("edges").and_then(|e| e.as_array_mut()) {
-        let count = edges.len();
-        if count > budget.max_edges {
-            edges.truncate(budget.max_edges);
-            truncated = true;
-            if total_available.is_none() {
-                total_available = Some(count);
-            }
-        }
-    }
-
-    if let Some(paths) = value.get_mut("paths").and_then(|p| p.as_array_mut()) {
-        let count = paths.len();
-        if count > budget.max_nodes {
-            paths.truncate(budget.max_nodes);
-            truncated = true;
-            if total_available.is_none() {
-                total_available = Some(count);
-            }
-        }
-    }
-
-    if let Some(results) = value.get_mut("results").and_then(|r| r.as_array_mut()) {
-        let count = results.len();
-        if count > budget.max_nodes {
-            results.truncate(budget.max_nodes);
-            truncated = true;
-            if total_available.is_none() {
-                total_available = Some(count);
-            }
-        }
-    }
-
-    if let Some(symbols) = value.get_mut("symbols").and_then(|s| s.as_array_mut()) {
-        let count = symbols.len();
-        if count > budget.max_nodes {
-            symbols.truncate(budget.max_nodes);
-            truncated = true;
-            if total_available.is_none() {
-                total_available = Some(count);
-            }
-        }
-    }
-
-    if let Some(callees) = value.get_mut("callees").and_then(|c| c.as_array_mut()) {
-        let count = callees.len();
-        if count > budget.max_edges {
-            callees.truncate(budget.max_edges);
-            truncated = true;
-            if total_available.is_none() {
-                total_available = Some(count);
-            }
-        }
-    }
-
-    if let Some(callers) = value.get_mut("callers").and_then(|c| c.as_array_mut()) {
-        let count = callers.len();
-        if count > budget.max_edges {
-            callers.truncate(budget.max_edges);
-            truncated = true;
-            if total_available.is_none() {
-                total_available = Some(count);
-            }
-        }
-    }
-
-    if let Some(reachable) = value.get_mut("reachable").and_then(|r| r.as_array_mut()) {
-        let count = reachable.len();
-        if count > budget.max_edges {
-            reachable.truncate(budget.max_edges);
-            truncated = true;
-            if total_available.is_none() {
-                total_available = Some(count);
-            }
-        }
-    }
-
-    if truncated {
-        value["truncated"] = serde_json::Value::Bool(true);
-        if let Some(avail) = total_available {
-            value["total_available"] = serde_json::Value::Number(avail.into());
-        }
-    }
 }
 
 /// MCP server for Mycelium code graph analysis.
@@ -5054,7 +4915,7 @@ impl MyceliumServer {
             let eps = context::seed_entry_points(&store, &cands, max_nodes);
             (Routing::Natural, cands, eps)
         };
-        let value = context::build_payload(
+        let mut value = context::build_payload(
             &store,
             &req.task,
             &candidates,
@@ -5062,13 +4923,12 @@ impl MyceliumServer {
             routing,
             &opts,
         );
+        // Apply the adaptive budget from the live node count — the CLI twin runs
+        // the identical `for_project(node_count)` over the same payload, so the
+        // truncated JSON stays byte-identical (RFC-0102 / Three-Surface Rule).
+        apply_budget(&mut value, &OutputBudget::for_project(store.node_count()));
         drop(store);
 
-        // NOTE: OutputBudget is intentionally NOT applied here yet. Applying it
-        // on the MCP side only would break the strict CLI↔MCP byte-identical
-        // contract (the CLI twin does not own OutputBudget). Wiring budgets in
-        // requires moving OutputBudget into `mycelium_core` so both surfaces
-        // apply the same truncation — tracked as a follow-up on RFC-0102.
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -12257,8 +12117,6 @@ mod output_budget_tests {
     fn output_budget_small_project() {
         let budget = OutputBudget::for_project(100);
         assert_eq!(budget.max_nodes, 15);
-        assert_eq!(budget.max_code_lines, 20);
-        assert_eq!(budget.max_total_chars, 13_000);
         assert_eq!(budget.max_edges, 30);
     }
 
@@ -12266,8 +12124,6 @@ mod output_budget_tests {
     fn output_budget_medium_project() {
         let budget = OutputBudget::for_project(1000);
         assert_eq!(budget.max_nodes, 30);
-        assert_eq!(budget.max_code_lines, 30);
-        assert_eq!(budget.max_total_chars, 25_000);
         assert_eq!(budget.max_edges, 60);
     }
 
@@ -12275,8 +12131,6 @@ mod output_budget_tests {
     fn output_budget_large_project() {
         let budget = OutputBudget::for_project(10_000);
         assert_eq!(budget.max_nodes, 50);
-        assert_eq!(budget.max_code_lines, 40);
-        assert_eq!(budget.max_total_chars, 38_000);
         assert_eq!(budget.max_edges, 100);
     }
 
