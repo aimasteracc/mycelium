@@ -1,4 +1,4 @@
-# ADR-0007: redb as the Unified On-Disk Storage Engine
+# ADR-0008: redb as the Unified On-Disk Storage Engine
 
 ## Status
 

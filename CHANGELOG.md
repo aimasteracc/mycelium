@@ -101,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeping the redb backend feature-gated off by default.
 
 - **RFC-0100 Phase 2 T05a — redb file-scoped replacement foundation** —
-  `RedbBackend` now has the ADR-0007 `file_index` table plus a feature-gated
+  `RedbBackend` now has the ADR-0008 `file_index` table plus a feature-gated
   `replace_file` API that atomically removes one file's old nodes/owned edges,
   strips stale external references, inserts the new file graph, and persists
   the replacement index in one redb write transaction. This advances Issue #343

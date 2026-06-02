@@ -11,7 +11,7 @@ The shipped `RedbBackend` (Phase 1, behind the `redb-backend` cargo feature, **d
 released binary is affected**) is functionally correct on the **single-threaded happy path** the
 12 Phase-1 tests cover. But three independent adversarial reviews converged: the
 **`auto-commit-per-op`** design is *simultaneously* a **crash-atomicity defect** and a
-**performance cliff**, and the on-disk adjacency violates the ADR-0007 sorted-Vec contract.
+**performance cliff**, and the on-disk adjacency violates the ADR-0008 sorted-Vec contract.
 
 The fix — a **batched single-transaction `WriteBatch` API** (task **T05**) — is therefore **not a
 perf nice-to-have; it is the correctness fix** for the CRITICAL crash bugs. The crash-safety suite
@@ -25,14 +25,14 @@ perf nice-to-have; it is the correctness fix** for the CRITICAL crash bugs. The 
 | 2 | **CRITICAL** | `remove_node_edges` is non-atomic across up to `16×(2+2·degree)` separate committed txns, every write discarded with `let _ =`. Any failure leaves dangling adjacency (a ghost id whose `path_of()` is `None`). | 459-480 (463,467,472,476) |
 | 3 | **CRITICAL** | `remove_node` splits edge-removal and trunk/kind/span-removal into **two commit groups**. Crash between → ghost node: in `all_paths`/`lookup_path` but edgeless. | 343-364 |
 | 4 | **CRITICAL** | **Silent error swallowing in production**, not just on crash. The same `let _ =` pattern in `upsert_edge`/`remove_node`/`set_kind`/`set_span` means a transient redb/IO error (disk full, mmap error) produces a torn state with **no signal to the caller**. | 408, 428, 450, 455, 346, 463-476 |
-| 5 | **HIGH** | Adjacency stored **UNSORTED** (`fwd.push` / `rev.push`) — violates ADR-0007 §2 (sorted `Vec<u64>`). `outgoing()`/`incoming()` sort at read time to compensate, so on-disk bytes are non-canonical and `contains()` can't become a binary search. | 449, 454; read-sort 484, 490 |
+| 5 | **HIGH** | Adjacency stored **UNSORTED** (`fwd.push` / `rev.push`) — violates ADR-0008 §2 (sorted `Vec<u64>`). `outgoing()`/`incoming()` sort at read time to compensate, so on-disk bytes are non-canonical and `contains()` can't become a binary search. | 449, 454; read-sort 484, 490 |
 | 6 | **HIGH** | `upsert_node` has **no read-before-write** — always fsyncs even when the node already exists unchanged. Re-indexing 100K nodes for a one-line change = ~100K wasted fsyncs. | 320-341 |
 | 7 | **HIGH** | **Perf cliff:** each `upsert_edge` = 4 txns (2 fsync). 300K edges ≈ **1.2M fsyncs** vs Charter §2 `< 30 s`. Plus `contains()` duplicate check is O(degree) → O(degree²)/node. | 446-457 |
 | 8 | **HIGH** | `flush()` is a no-op but the trait doc promises "finalises the current write transaction". When the batch API lands, `flush()` MUST commit the open batch or callers believe data is durable when it isn't. | 537-539; `backend.rs` 118-122 |
 | 9 | **HIGH/MED** | `edge_count()` is an O(E) full scan, called by `heap_size_estimate()`. Oracle is O(1). Fix: cached counter in the `META` table updated inside the edge write txn. | 494-507; 531-535 |
 | 10 | **MEDIUM** | `all_edges()` returns B-tree-sorted triples while the oracle returns HashMap order — a **test-design landmine**: any equivalence assertion using `Vec::eq` instead of set/sort will false-fail. (Harness already sorts; enforce for every new edge assertion.) | 509-529 |
 
-**ADR-0007 is currently aspirational, not implemented:** §6 ("ONE redb WriteTransaction per file
+**ADR-0008 is currently aspirational, not implemented:** §6 ("ONE redb WriteTransaction per file
 re-index") and §7 ("never a torn third state") are **false for shipped code**. Update the ADR's
 status/consequences when T05 lands — do not "fix forward" silently; the founder must know the
 Phase-1 durability claim didn't hold.
@@ -67,7 +67,7 @@ Scope boundaries:
 
 ### P2-T05a progress marker — 2026-06-01
 
-The first P2-T05 implementation slice adds the ADR-0007 `file_index` table to
+The first P2-T05 implementation slice adds the ADR-0008 `file_index` table to
 `RedbBackend` and introduces a feature-gated core-only `replace_file` API. The
 API reads the persisted file entry, removes the file's previous nodes and owned
 edges, strips stale external references to removed nodes, writes the new

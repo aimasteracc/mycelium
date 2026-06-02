@@ -2,7 +2,7 @@
 //!
 //! Only compiled when the `redb-backend` cargo feature is enabled.
 //!
-//! ## Schema (ADR-0007 §8-table layout — APPEND-ONLY)
+//! ## Schema (ADR-0008 §8-table layout — APPEND-ONLY)
 //!
 //! | Table | Key | Value | Purpose |
 //! |---|---|---|---|
@@ -72,7 +72,7 @@ pub struct FileNode {
 
 /// A directed edge owned by one source file for [`RedbBackend::replace_file`].
 ///
-/// Edge ownership follows ADR-0007/RFC-0098: the source file owns edges whose
+/// Edge ownership follows ADR-0008/RFC-0098: the source file owns edges whose
 /// `src` node belongs to that file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileEdge {
