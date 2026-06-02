@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v4 — hotfix PR #419→#423 merged; governance PR #424 + NodeKind fix PR #425 merged; Issue #428 AC#1 done; v0.1.17 sprint scoped with Issues #426/#427/#428; v0.1.16 crates.io PENDING) |
-| Current sprint | **v0.1.17 — CONTENT COMPLETE; ceremony blocked on v0.1.16 crates.io (Issues #426/#427/#428 in queue)** |
+| Last updated | 2026-06-02 (PM dispatch v5 — Issues #426/#427/#428 triaged; PR #431 opened: RFC-0101 contract: related_files + apply_budget + edge_kinds) |
+| Current sprint | **v0.1.17 — IN PROGRESS (PR #431 CI pending; Issues #426/#427/#428 in queue)** |
 | Active release branch | none (cut release/v0.1.17 after v0.1.16 crates.io confirmed + security scan) |
 | Next release target | **v0.1.17** — RFC-0101/0102 contract (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -130,13 +130,13 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 - PR #429 (ADR-0008 renumber — open, CI running)
 
 **P1 (after v0.1.16 crates.io confirmed):**
-1. **Merge PR #429** (ADR-0008 renumber — Issue #428 AC#1; once CI green).
+1. **Merge PR #431** (RFC-0101 contract: `related_files` + `apply_budget` + `edge_kinds` — Issue #427 partial; waiting CI).
 2. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
-3. **Issue #427 — RFC-0101/0102 contract completion** (rust-implementer, TDD): wire `apply_budget` into `mycelium_context`; add `related_files` key; parity fixture; ≥5 integration tests.
+3. **Issue #427 remaining** — parity fixture, dead budget fields (enforce/remove), Hyphae-first routing. After PR #431 merges.
 4. **Cut release/v0.1.17** — gated on items 1-3 + security scan.
 
 **P1 — decision gate (founder sign-off required before implementation):**
-5. **Issue #426 — RFC-0100 Phase 3 readiness**: redb as default backend flip. 100k-node SLA gate + RSS-cap CI + orphan LRU removal + Charter §2 warm/cold split. DECISION GATE — do NOT implement without founder ADR sign-off.
+5. **Issue #426 — RFC-0100 Phase 3 readiness**: redb as default backend flip. 100k-node SLA gate + RSS-cap CI + orphan LRU removal + Charter §2 warm/cold split. DECISION GATE — do NOT implement without founder ADR sign-off. LRU removal is autonomous-safe (zero non-test callers) and can proceed independently.
 
 **P2 (v0.2.0 scope):**
 6. Issue #428 remaining ACs: split `lib.rs` into tool sub-modules; split `redb_backend.rs` into `redb_codec.rs` (2 dedicated sessions).
@@ -145,14 +145,14 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 
 ---
 
-## Dispatch state (2026-06-02 v4 — PRs #423/#424/#425 merged; Issues #426/#427/#428 triaged)
+## Dispatch state (2026-06-02 v5 — PR #431 opened; Issues #426/#427/#428 triaged)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review PR #429 (ADR-0008 renumber, CI running). (3) Sign off on Issue #426 (RFC-0100 Phase 3 redb-default DECISION GATE). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
-| orchestrator/pm | **ACTIVE** | This dispatch. Next: monitor PR #429 CI; cut release/v0.1.17 after P0+P1 resolved. |
+| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review + merge PR #431 (RFC-0101 contract, waiting CI). (3) Sign off on Issue #426 (RFC-0100 Phase 3 redb-default DECISION GATE). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
+| orchestrator/pm | **done** | This dispatch. PR #431 opened. Issues triaged. |
 | security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14 — two releases behind). |
-| rust-implementer | **QUEUED** | Issue #427: RFC-0101/0102 contract completion (TDD: wire apply_budget + related_files). After PR #429 + security scan. |
+| rust-implementer | **QUEUED** | Issue #427 remaining after PR #431 merges: parity fixture + dead fields + Hyphae routing. Issue #426 partial: LRU removal (BoundedStore — zero non-test callers, safe to proceed). |
 | architect | idle | Issue #426: RFC-0100 Phase 3 decision gate — prepare ADR for founder sign-off before redb default flip. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 | e2e-runner | idle | RSS-curve measurement — benchmark harness exists. |
@@ -513,6 +513,24 @@ v0.1.4 sprint declared complete. All 7 exit criteria met.
 **Sprint status:** v0.1.16 content complete pending PR #414 merge + CI green.
 
 **Escalations:** Founder review needed to authorize v0.1.16 ceremony after PR #414 lands.
+
+### 2026-06-02 PM dispatch v5 (Issues #426/#427/#428 triaged; PR #431 RFC-0101 contract)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (develop `8dde565` — v0.1.16 shipped, PM v4 done), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `8dde565` (PM dispatch v4, PR #430). 0 open PRs. 3 new issues from founder (expert-panel review at 02:47 UTC): #426 (RFC-0100 Phase 3 redb SLA), #427 (RFC-0101/0102 contract completion), #428 (tech-debt: ADR + god-files).
+- v0.1.16: main ✅, tag ✅, develop ✅; crates.io PENDING (P0 founder action).
+- ADR renumbering (#428 AC#1) already done via PR #429 (`75739aa`).
+
+**Actions taken:**
+1. Triaged issues: #426 → P1, #427 → P1, #428 → P2.
+2. Picked Issue #427 partial as highest-impact autonomous P1 (no founder gate).
+3. TDD: 5 RED-first tests (compile fail: `edge_kinds` missing, `related_files` missing) → implemented: `edge_kinds` field on `GetContextRequest`, `related_files` in both NOT_FOUND + success responses, `apply_budget` wired into success path → 5/5 GREEN. fmt ✅ clippy ✅ cargo test --all 572+ ✅.
+4. Updated RFC-0101 acceptance criteria (4 new [x]). Updated CHANGELOG Unreleased.
+5. PR #431 opened (feature/rfc-0101-context-contract → develop).
+
+**Escalations:** Founder: (1) Re-trigger v0.1.16 crates.io (hotfix on main+develop). (2) Sign off Issue #426 RFC-0100 Phase 3 redb-default decision gate before architect prepares ADR.
 
 ### 2026-06-02 PM dispatch v4 (hotfix ceremony complete; governance + NodeKind fix merged; v0.1.17 content complete)
 
