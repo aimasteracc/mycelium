@@ -285,12 +285,20 @@ mod tests {
     }
 
     #[test]
-    fn measure_rss_returns_some() {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    fn measure_rss_returns_some_on_supported_platform() {
         let rss = measure_rss();
+        assert!(rss.is_some(), "RSS measurement must work on macOS/Linux");
+        assert!(rss.unwrap() > 0, "RSS must be positive");
+    }
+
+    #[test]
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    fn measure_rss_returns_none_on_unsupported_platform() {
+        // Windows and other platforms are not yet implemented; None is the documented contract.
         assert!(
-            rss.is_some(),
-            "RSS measurement should work on this platform"
+            measure_rss().is_none(),
+            "measure_rss must return None on unsupported platforms"
         );
-        assert!(rss.unwrap() > 0, "RSS should be positive");
     }
 }

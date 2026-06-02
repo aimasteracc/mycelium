@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows CI: `measure_rss` test now platform-gated** — `measure_rss_returns_some`
+  unconditionally asserted `is_some()` but `measure_rss()` documents and returns `None`
+  on unsupported platforms (Windows). The test is now split into
+  `measure_rss_returns_some_on_supported_platform` (`#[cfg(any(target_os = "macos", target_os = "linux"))]`)
+  and `measure_rss_returns_none_on_unsupported_platform` (`#[cfg(not(…))]`),
+  matching the documented contract and unblocking Windows CI.
+
 ### Added
 
 - **MCP server routing instructions** — `mycelium serve --mcp` now includes
