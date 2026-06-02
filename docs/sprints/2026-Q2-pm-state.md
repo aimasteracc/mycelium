@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch — PR #414 opened: RFC-0101 Phase 2 mycelium context CLI twin; Three-Surface violation for `context` resolved; dep bumps #411/#412/#413 merged to develop) |
-| Current sprint | **v0.1.16 — CONTENT NEARLY COMPLETE (PR #414 CLI twin pending CI+merge)** |
-| Active release branch | none (cut release/v0.1.16 after PR #414 merges) |
-| Next release target | **v0.1.16** — RFC-0101 CLI twin (PR #414) + all RFC-0100 redb + dep bumps |
+| Last updated | 2026-06-02 (PM dispatch v4 — PRs #423/#424/#425 merged; PR #429 opened; PR #421 closed stale; Issue #428 AC#1 done; v0.1.17 sprint scoped from expert-panel issues #426/#427/#428) |
+| Current sprint | **v0.1.17 — SPRINT DEFINED (crates.io ceremony for v0.1.16 PENDING; Issues #426/#427/#428 in queue)** |
+| Active release branch | none |
+| Next release target | **v0.1.17** — RFC-0101/0102 contract completion (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
+| Last shipped | **v0.1.16 — RFC-0101 CLI twin, RFC-0100 redb Phases 1-2, dep bumps** (tag v0.1.16, main SHA cd662788; crates.io ceremony PENDING — founder must push 5 crates) |
 
 ---
 
@@ -78,39 +78,39 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0:** none — Issue #375 ceremony resolved (PR #375 merged); 0 open issues.
+**P0 (ceremony):**
+1. **v0.1.16 crates.io ceremony** — main has v0.1.16 (cd662788) but `crates.io` not yet published. Founder must run ceremony script (PR #375) to push all 5 crates. PR #423 (hotfix back-merge → develop) MERGED ✅ — Charter §5.12 step 4 done. Only crates.io publish remains.
 
-**P1 (v0.1.16 scope):**
-1. **PR #414 — `mycelium context` CLI twin** (RFC-0101 Phase 2): merge after CI green. Three-Surface violation for `context` resolved by this PR (CLI + MCP 1:1 strict, Skill covered). Once merged, v0.1.16 content is complete.
-2. **Security scan post-v0.1.16** — run after PR #414 merges + ceremony completes.
-3. **Cut release/v0.1.16** — all content ready: RFC-0100 redb, RFC-0101 CLI twin, dep bumps (salsa 0.26, logos 0.16, redb 4.1), release ceremony script. Use ceremony script from PR #375.
-
-**Recent merges (since last PM state):**
-- PR #407/#343: append-only journal for incremental persistence (R2) MERGED ✅
-- PR #344: memory-bound LRU eviction (R3) MERGED ✅
-- PR #411: salsa 0.18→0.26 MERGED ✅
-- PR #412: logos 0.14→0.16 MERGED ✅
-- PR #413: redb 2.6.3→4.1 MERGED ✅ (required ReadableDatabase trait import)
-- PR #375: release ceremony script MERGED ✅
+**P1 (v0.1.17 content):**
+2. **PR #429 — ADR renumber** (Issue #428 AC#1): CI pending → merge when green. No conflicts.
+3. **Issue #427 — RFC-0101/0102 contract completion**: wire `apply_budget` into `mycelium_context`; add `related_files` key; parity fixture; ≥5 integration tests. Next rust-implementer task (TDD cycle).
+4. **Issue #426 — RFC-0100 Phase 3 readiness**: DECISION GATE — requires founder sign-off before redb default flip. 100k-node SLA gate + RSS-cap CI + orphan LRU removal + Charter §2 warm/cold split. Do NOT implement without founder ADR sign-off.
+5. **Security scan post-v0.1.16** — run after crates.io ceremony completes.
 
 **P2 (v0.2.0 scope):**
-4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit — blocking since v0.1.6; ceremony script is workaround)
-5. Skill marketplace submission to Claude Code marketplace
-6. "First 5 minutes" walkthrough validation (README + docs site)
+6. Issue #428 remaining ACs: split `lib.rs` (~12.5K lines) into tools sub-modules; split `redb_backend.rs` (~1.5K lines) into `redb_codec.rs`. Large refactor — schedule 2 dedicated sessions.
+7. `release.yml` finalize merge step (systemic, v0.1.6–v0.1.16 all affected; ceremony script is workaround; founder must audit `RELEASE_BOT_TOKEN`).
+8. Skill marketplace submission to Claude Code marketplace.
+
+**Recent merges (this session 2026-06-02 v4):**
+- PR #423: hotfix back-merge `hotfix/fix-release-publish` → develop MERGED ✅ (Charter §5.12 step 4)
+- PR #424: governance supersede discipline (check_supersede_discipline.sh, RFC-0099 restored, journal.rs annotated) MERGED ✅
+- PR #425: fix NodeKind tag overflow → panic on unmapped variant + roundtrip test MERGED ✅
+- PR #421: PM dispatch v3 — CLOSED STALE (rebase conflict; superseded by this state)
+- PR #429: docs(adr) renumber ADR-0007 redb → ADR-0008 — OPENED, CI pending
 
 ---
 
-## Dispatch state (2026-06-01 v3 — PRs #395+#405 merged; v0.1.16 sprint defined)
+## Dispatch state (2026-06-02 v4 — PRs #423/#424/#425 merged; Issues #426/#427/#428 triaged)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Review + authorize v0.1.16 release after PR #414 merges (ceremony via PR #375 script). (2) Systemic: `release.yml` finalize merge fix before v0.2.0. |
-| release | **NEXT** | Cut release/v0.1.16 once PR #414 CI green + merged. Use ceremony script from PR #375. |
-| rust-implementer | done | PR #414 (RFC-0101 Phase 2 CLI twin) — waiting CI. |
-| security-reviewer | idle | Post-v0.1.16 scan after ceremony completes. |
-| architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). |
-| tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | idle | RSS-curve measurement — benchmark harness exists (PR #391). |
+| founder | **action requested** | (1) Complete v0.1.16 crates.io ceremony: run PR #375 ceremony script to publish all 5 crates. (2) Issue #426 decision gate: sign ADR for redb default flip + Charter §2 warm/cold split before Phase 3 starts. (3) Systemic: `release.yml` `RELEASE_BOT_TOKEN` fix before v0.2.0. |
+| rust-implementer | **NEXT** | Issue #427: wire `apply_budget` into `mycelium_context` + add `related_files` + parity fixture + RED-first integration tests. TDD cycle, RFC-0101/0102. |
+| security-reviewer | idle | Post-v0.1.16 crates.io ceremony scan. |
+| architect | idle | Issue #426: Charter §2 warm/cold split + ADR for redb Phase 3 flip. Founder sign-off required first. |
+| tech-writer | idle | Issue #428 AC#2/#3 (split lib.rs + redb_backend.rs) — schedule 2 dedicated sessions. |
+| e2e-runner | idle | Issue #426 AC#2: RSS-cap CI gate (prove mmap bounds RAM). |
 
 ---
 
