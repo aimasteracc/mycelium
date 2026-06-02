@@ -10,7 +10,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Active release branch | none (cut release/v0.1.17 after v0.1.16 crates.io confirmed + security scan) |
 | Next release target | **v0.1.17** — RFC-0101/0102 contract (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.16** — RFC-0100 redb Phases 1-2, incremental persistence, LRU, dep bumps — tag v0.1.16, main SHA cd662788; crates.io PENDING |
+| Last ceremony-complete release | **v0.1.14** (all 4 Charter §5.12 steps ✅). v0.1.16 is on main+tag but crates.io PENDING (step 3 incomplete — not considered "shipped" until crates.io confirmed). |
 
 ---
 
