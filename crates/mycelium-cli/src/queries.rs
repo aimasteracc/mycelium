@@ -2023,7 +2023,13 @@ pub(crate) fn run_context(
     } else {
         natural(&store)
     };
-    let value = context::build_payload(&store, task, &candidates, &entry_points, routing, &opts);
+    let mut value =
+        context::build_payload(&store, task, &candidates, &entry_points, routing, &opts);
+    // Same budget as the MCP tool over the same payload → byte-identical JSON.
+    mycelium_core::budget::apply_budget(
+        &mut value,
+        &mycelium_core::budget::OutputBudget::for_project(store.node_count()),
+    );
 
     match format {
         Format::Json => println!("{}", serde_json::to_string(&value)?),

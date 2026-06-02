@@ -18,8 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mycelium_core::context`, so their JSON is **identical by construction** —
   this also fixes a real parity bug where the two surfaces had divergent
   candidate tokenizers. Added `skills/architecture-context/tests/parity.test.json`.
-  Applying `OutputBudget` to the payload is deferred until that type moves into
-  core so both surfaces truncate identically (tracked as follow-up).
+
+- **`OutputBudget` moved into `mycelium_core::budget` and applied to
+  `mycelium context` on both surfaces (RFC-0102).** The adaptive output budget
+  (caps `nodes`/`edges`-shaped arrays by project size, with `truncated` /
+  `total_available` metadata) now lives in core, so the CLI applies the *same*
+  truncation as the MCP tool over the *same* payload — closing the item the
+  context work had deferred while keeping CLI↔MCP byte-identical. The two
+  never-enforced budget fields (`max_code_lines`, `max_total_chars`) were
+  removed to make the type honest.
 
 ### Changed
 

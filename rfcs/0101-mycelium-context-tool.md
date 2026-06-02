@@ -272,10 +272,10 @@ implementation must lower default code-block count before raising the SLA.
 - [x] `related_files` key and `edge_kinds` request field implemented; both
       surfaces share `mycelium_core::context` so JSON is identical by
       construction; `skills/architecture-context/tests/parity.test.json` added.
-- [ ] **Remaining:** apply `OutputBudget` to the context payload (RFC-0102).
-      Deferred until `OutputBudget` moves into `mycelium_core` so CLI and MCP
-      truncate identically — applying it MCP-only would break the byte-identical
-      contract. Tracked in the RFC-0101/0102 follow-up issue.
+- [x] Apply `OutputBudget` to the context payload (RFC-0102). Done: `OutputBudget`
+      moved into `mycelium_core::budget`; both the MCP tool and the CLI twin run
+      the identical `for_project(node_count)` over the same payload, so the
+      truncated JSON stays byte-identical.
 - [x] Gibberish task returns NOT_FOUND with a `next_step` hint.
 - [x] `output_format` supports `text` and `json` (CLI); `msgpack` via MCP.
 - [x] At least three RED-first tests cover: no-index error, NOT_FOUND on empty
