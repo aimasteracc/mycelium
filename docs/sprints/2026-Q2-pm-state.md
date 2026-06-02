@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v6 — PR #431 MERGED ✅ RFC-0101 contract; PR #433 opened: Issue #426 criterion 3 BoundedStore removal) |
-| Current sprint | **v0.1.17 — IN PROGRESS (PR #433 CI pending; Issues #426/#427/#428 in queue)** |
-| Active release branch | none (cut release/v0.1.17 after v0.1.16 crates.io confirmed + security scan) |
-| Next release target | **v0.1.17** — RFC-0101/0102 contract (#427) + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
+| Last updated | 2026-06-02 (PM dispatch v8 — Issue #427 CLOSED ✅ all 7 criteria done; PR #433 rebased onto `64bee1b`; CI in-progress on `4a8ab9e`) |
+| Current sprint | **v0.1.17 — CONTENT EXPANDED (PR #433 CI pending; Issues #426/#428 in queue; #427 CLOSED)** |
+| Active release branch | none (cut release/v0.1.17 after PR #433 merged + v0.1.16 crates.io confirmed + security scan) |
+| Next release target | **v0.1.17** — RFC-0101/0102 full contract + RFC-0100 Phase 3 readiness (#426) + tech debt (#428) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last ceremony-complete release | **v0.1.14** (all 4 Charter §5.12 steps ✅). v0.1.16 is on main+tag but crates.io PENDING (step 3 incomplete — not considered "shipped" until crates.io confirmed). |
 
@@ -98,12 +98,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## 🚀 v0.1.17 — CONTENT COMPLETE; ceremony pending
+## 🚀 v0.1.17 — CONTENT EXPANDING; ceremony pending
 
-**What will ship (all merged to develop at `2c4cb66`):**
+**What will ship (develop HEAD `64bee1b` + PR #433 pending):**
 - [x] RFC-0101 Phase 2: `mycelium context` CLI twin (PR #414) — Three-Surface compliant ✅
 - [x] Governance guardrails: `check_supersede_discipline.sh` CI gate, phantom RFC-0099 restored, `journal.rs` annotated as transitional bridge, two CLAUDE.md Hard Rules (PR #424)
 - [x] fix(storage): `node_kind_tag` panics on unmapped variant + roundtrip completeness test (PR #425)
+- [x] ADR renumber: duplicate ADR-0007 → ADR-0008 (redb storage engine) (PR #429)
+- [x] RFC-0101 contract: `related_files`, `edge_kinds`, `apply_budget`, Hyphae routing in MCP handler (PR #431)
+- [x] RFC-0101 shared `mycelium_core::context` builder + 7 integration tests + parity fixture (PR #436)
+- [x] RFC-0102 `OutputBudget` → `mycelium_core::budget`, dead fields removed, CLI+MCP byte-identical (PR #438)
+- [ ] **PR #433**: `BoundedStore` LRU removal (Issue #426 criterion 3) — CI in-progress on `4a8ab9e`
 
 **v0.1.17 ceremony status — NOT STARTED ⚠️ (gated on v0.1.16 crates.io step 3 first):**
 - [ ] **Step 1**: `release/v0.1.17` → `main` — branch not yet cut
@@ -121,25 +126,29 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 1. Re-push `release/v0.1.16` branch → `release.yml` re-runs automatically, OR
 2. Run the ceremony script from PR #375 against the `v0.1.16` tag manually.
 
-**Recent events (2026-06-02 v6):**
+**Recent events (2026-06-02 v8):**
 - PR #416 (v0.1.16 release → main) MERGED ✅ (founder authorized)
 - PR #419 (hotfix: release.yml publish fixes) MERGED to main ✅
 - PR #423 (back-merge hotfix → develop, squash) MERGED ✅
 - PR #424 (governance: supersede-discipline CI gate + CLAUDE.md Hard Rules) MERGED ✅
 - PR #425 (fix: NodeKind tag 255 silent corruption) MERGED ✅
 - PR #429 (ADR-0008 renumber) MERGED ✅
-- PR #431 (RFC-0101 contract: `related_files` + `apply_budget` + `edge_kinds`) MERGED ✅ — Issue #427 partial
+- PR #431 (RFC-0101 contract: `related_files` + `apply_budget` + `edge_kinds`) MERGED ✅
 - PR #432 (PM dispatch v5 chore) MERGED ✅
-- PR #433 (refactor: BoundedStore removal — Issue #426 criterion 3) OPENED, CI pending
+- PR #434 (PM dispatch v6 chore) MERGED ✅
+- PR #436 (RFC-0101 shared context builder + 7 tests + parity fixture) MERGED ✅
+- PR #438 (RFC-0102 OutputBudget → core + mycelium_context budgeted) MERGED ✅
+- **Issue #427 CLOSED** ✅ — all 7 RFC-0101/0102 acceptance criteria verified done on develop `64bee1b`
+- **PR #433** rebased onto `64bee1b` (CI in-progress on `4a8ab9e` — only CHANGELOG+memory_budget.rs changed vs original green CI)
+- PR #437 (PM dispatch v7 chore) STALE — superseded by this v8 run
 
 **P1 (after v0.1.16 crates.io confirmed):**
-1. **Merge PR #433** (BoundedStore removal — Issue #426 criterion 3; waiting CI).
+1. **Merge PR #433** (BoundedStore removal — Issue #426 criterion 3; CI in-progress, expected green).
 2. **Security scan post-v0.1.16** — no scan since v0.1.14 (two releases behind).
-3. **Issue #427 remaining** — parity fixture, dead budget fields (enforce/remove), Hyphae-first routing.
-4. **Cut release/v0.1.17** — gated on items 1-3 + security scan.
+3. **Cut release/v0.1.17** — gated on PR #433 merge + security scan + v0.1.16 crates.io confirmed.
 
 **P1 — decision gate (founder sign-off required before implementation):**
-5. **Issue #426 — RFC-0100 Phase 3 readiness**: redb as default backend flip. 100k-node SLA gate + RSS-cap CI + Charter §2 warm/cold split. DECISION GATE — do NOT flip default without founder ADR sign-off. Criterion 3 (LRU removal) is in PR #433 (autonomous-safe).
+4. **Issue #426 — RFC-0100 Phase 3 readiness**: redb as default backend flip. 100k-node SLA gate + RSS-cap CI + Charter §2 warm/cold split. DECISION GATE — do NOT flip default without founder ADR sign-off. Criterion 3 (LRU removal, PR #433) is autonomous-safe.
 
 **P2 (v0.2.0 scope):**
 6. Issue #428 remaining ACs: split `lib.rs` into tool sub-modules; split `redb_backend.rs` into `redb_codec.rs` (2 dedicated sessions).
@@ -148,14 +157,14 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 
 ---
 
-## Dispatch state (2026-06-02 v6 — PRs #431+#432 MERGED; PR #433 opened: Issue #426 criterion 3)
+## Dispatch state (2026-06-02 v8 — Issue #427 CLOSED; PR #433 rebased; PRs #436+#438 merged)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Review + merge PR #433 (BoundedStore removal, CI pending). (3) Sign off on Issue #426 remaining (RFC-0100 Phase 3 redb-default DECISION GATE — 100k SLA + RSS cap + Charter §2 split). (4) Authorize v0.1.17 ceremony after crates.io + security scan. (5) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix. |
-| orchestrator/pm | **done** | This dispatch. PRs #431+#432 merged; PR #433 opened. |
+| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main` + `develop`; release.yml fixed). (2) Sign off on Issue #426 remaining (RFC-0100 Phase 3 redb-default DECISION GATE — 100k SLA + RSS cap + Charter §2 warm/cold split). (3) Authorize v0.1.17 ceremony after PR #433 merge + crates.io + security scan. (4) Systemic: `RELEASE_BOT_TOKEN` finalize merge fix before v0.2.0. |
+| orchestrator/pm | **done** | This dispatch: Issue #427 CLOSED (all 7 criteria done on develop); PR #433 rebased + CI triggered; PM state v8. |
 | security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14 — two releases behind). |
-| rust-implementer | **QUEUED** | Issue #427 remaining: parity fixture + dead budget fields + Hyphae-first routing. Issue #426 remaining after PR #433: 100k-node SLA gate + RSS-cap CI gate + Charter §2 warm/cold split (all founder-gated). |
+| rust-implementer | **QUEUED** | Merge PR #433 when CI green; then Issue #426 remaining after PR #433: 100k-node SLA gate + RSS-cap CI gate + Charter §2 warm/cold split (all founder-gated, wait sign-off). P2: Issue #428 god-file splits. |
 | architect | idle | Issue #426: RFC-0100 Phase 3 decision gate — prepare ADR for founder sign-off before redb default flip. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 | e2e-runner | idle | RSS-curve measurement — benchmark harness exists. |
@@ -583,3 +592,23 @@ v0.1.4 sprint declared complete. All 7 exit criteria met.
 - Anti-pattern: do not infer crates.io ceremony success from a develop back-merge commit.
 
 **Escalations:** Founder: (1) v0.1.16 crates.io re-trigger; (2) PR #429 review; (3) v0.1.17 ceremony authorization; (4) RELEASE_BOT_TOKEN systemic fix.
+
+### 2026-06-02 PM dispatch v8 (Issue #427 CLOSED; PR #433 rebased; PRs #436+#438 verified merged)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (no relevant hits for today's tasks), PM state v6 (from develop `733e351`), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `64bee1b` (RFC-0102 OutputBudget → core, #438 — merged after PM v6). 2 open PRs: #437 (PM dispatch v7, stale base `733e351` vs develop `64bee1b`), #433 (BoundedStore removal, base `e49d0b7` — needs rebase). 3 open issues: #426 (P1), #427 (P1), #428 (P2).
+- Issue #427: body showed all [ ] but PRs #431/#436/#438 on develop satisfy ALL 7 criteria — related_files ✅ (#431), edge_kinds ✅ (#431), apply_budget ✅ (#431), Hyphae routing ✅ (#436 — `looks_like_hyphae` + `Routing::Hyphae` in `context/mod.rs`), dead fields removed ✅ (#438), parity fixture ✅ (#436 — `skills/architecture-context/tests/parity.test.json`), 7 integration tests ✅ (#436 — `context/tests.rs`).
+- PR #433: original CI SUCCESS (c8aef54, 06:09 UTC). Base stale (`e49d0b7` vs develop `64bee1b`). `git merge-tree` showed CHANGELOG conflict (one entry from #438, one from #433) but rebase succeeded cleanly (git resolved non-overlapping Removed/Added sections).
+
+**Actions taken:**
+1. **Closed Issue #427** with updated checkbox body — all 7 acceptance criteria verified done on `64bee1b`.
+2. **Rebased PR #433** onto develop `64bee1b` — clean rebase, new HEAD `4a8ab9e`. Force-pushed to `feature/issue426-remove-bounded-store`. CI triggered (in-progress at 07:08 UTC — E2E + CI workflows both started).
+3. **Updated PM state v8**: v0.1.17 content section expanded (PRs #429/#431/#436/#438 added), Issue #427 CLOSED, PR #433 status updated, dispatch table v8.
+4. **Appended decisions.jsonl** (this entry).
+5. Stale PR #437 left open — will close when chore v8 PR merges (avoid confusion; v7 and v8 are both PM chores targeting develop).
+
+**Next:** Merge PR #433 when CI green (expected — only CHANGELOG + memory_budget.rs changed; original CI passed on same code). Then security scan (P1, two releases behind v0.1.14).
+
+**Escalations:** (1) Founder: re-trigger v0.1.16 crates.io publish (hotfix on main + develop). (2) Issue #426 RFC-0100 Phase 3 — DECISION GATE (redb default flip requires founder ADR sign-off). (3) v0.1.17 ceremony after PR #433 + security scan + crates.io confirmed.
