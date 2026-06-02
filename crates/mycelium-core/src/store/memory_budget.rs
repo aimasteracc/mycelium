@@ -1,9 +1,9 @@
 //! Memory measurement utilities for Store residency tracking (RFC-0100 R3).
 //!
-//! The hand-built LRU eviction wrapper (`BoundedStore`) was removed in
-//! Issue #426: redb mmap residency supersedes it (RFC-0099 → RFC-0100).
-//! This module now only carries the Phase-0 measurement tooling needed
-//! by the RSS-cap CI gate and benchmarks.
+//! **TRANSITIONAL bridge.** RFC-0099 (Bounded Resident Memory) is *superseded
+//! by RFC-0100* (redb mmap residency). The hand-built LRU eviction wrapper
+//! (`BoundedStore`) was removed in Issue #426. This module now only carries
+//! the Phase-0 measurement tooling needed by the RSS-cap CI gate and benchmarks.
 
 use crate::store::Store;
 
