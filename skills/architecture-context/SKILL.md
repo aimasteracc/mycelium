@@ -3,6 +3,7 @@ name: architecture-context
 description: One-shot architecture tracing — get entry points, call graph neighborhood, and source snippets for any natural-language question about how code works.
 allowed-tools:
   - mcp__mycelium__context
+  - mycelium_context
 category: navigation
 icon: 🏗️
 marketplace_examples:
@@ -16,9 +17,10 @@ marketplace_examples:
 
 # `architecture-context` — one-shot architecture tracing
 
-This Skill exposes the `mycelium_context` tool: a single call that accepts a
-natural-language task description and returns the most relevant entry-point
-symbols, their call-graph neighborhood, and source location spans.
+This Skill exposes the `mycelium_context` tool (MCP) and `mycelium context`
+CLI command: a single call that accepts a natural-language task description and
+returns the most relevant entry-point symbols, their call-graph neighborhood,
+and source location spans.
 
 Use this **before** chaining lower-level tools like `mycelium_search_symbol`,
 `mycelium_get_callers`, and `mycelium_get_callees`. One `mycelium_context` call
@@ -40,22 +42,31 @@ Do **NOT** use when:
 
 ## Tool reference
 
-### `mycelium_context`
+### MCP: `mycelium_context`
 
 ```
-task          (string)  Natural-language architecture question or "trace A to B".
-max_nodes     (int?)    Maximum graph nodes returned. Default: 30.
-max_code_blocks (int?)  Maximum source snippets. Default: 6.
-output_format (string?) "json" (default), "text", or "msgpack".
+task            (string)  Natural-language architecture question or "trace A to B".
+max_nodes       (int?)    Maximum graph nodes returned. Default: 30.
+max_code_blocks (int?)    Maximum source snippets. Default: 6.
+output_format   (string?) "json" (default), "text", or "msgpack".
 ```
 
-Returns `entry_points`, `nodes`, `edges`, `code_blocks`, `stats`, and
-`agent_summary`. The `agent_summary.next_step` field tells you whether to
+### CLI: `mycelium context`
+
+```
+mycelium context --task "trace ServeHTTP to HandlerFunc"
+mycelium context --task "how does auth work" --format json
+mycelium context --task "function:calls(#AuthService)" --max-nodes 50
+```
+
+```
+--task TEXT           Natural-language task or Hyphae selector (required)
+--root PATH           Project root (default: current directory)
+--max-nodes INT       Maximum graph nodes (default: 30, max: 100)
+--max-code-blocks INT Maximum source snippets (default: 6, max: 25)
+--format json|text    Output format (default: json)
+```
+
+Both surfaces return `entry_points`, `nodes`, `edges`, `code_blocks`, `stats`,
+and `agent_summary`. The `agent_summary.next_step` field tells you whether to
 proceed from the returned context or chain a narrower tool.
-
-## Three-Surface coverage note
-
-RFC-0101 specifies a CLI twin `mycelium context <task>` and this Skill. The
-CLI implementation is tracked as RFC-0101 Phase 2 work. Until that ships,
-this capability is MCP-only (requires BDFL sign-off per Charter §5.13
-`EXCEPTION: MCP-only`).

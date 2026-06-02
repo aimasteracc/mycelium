@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`mycelium context` CLI command** (RFC-0101 Phase 2) — CLI twin of the
+  `mycelium_context` MCP tool. Accepts `--task` (natural-language task or
+  Hyphae selector), `--max-nodes`, `--max-code-blocks`, and `--format`.
+  Returns the same JSON envelope as the MCP tool: `entry_points`, `nodes`,
+  `edges`, `code_blocks`, `stats`, and `agent_summary`. Completes the
+  Three-Surface Rule requirement for this capability (CLI ↔ MCP 1:1 strict;
+  `skills/architecture-context/SKILL.md` updated to reflect full coverage).
+
 - **MCP server routing instructions** — `mycelium serve --mcp` now includes
   a routing table in the MCP `InitializeResult.instructions` field (Issue #366).
   Agents with 89 tools available see an intent→tool map at turn 0, cutting
