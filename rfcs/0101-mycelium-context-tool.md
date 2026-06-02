@@ -280,6 +280,12 @@ implementation must lower default code-block count before raising the SLA.
 - [x] `output_format` supports `text` and `json` (CLI); `msgpack` via MCP.
 - [x] At least three RED-first tests cover: no-index error, NOT_FOUND on empty
       store, and required JSON keys (Phase 2 tests in queries.rs).
+- [x] `related_files` key present in both NOT_FOUND and success responses.
+- [x] `edge_kinds` optional request parameter accepted (field exists on `GetContextRequest`).
+- [x] `apply_budget` wired into the success response path.
+- [x] Five RED-first integration tests in `context_contract_tests` module (NOT_FOUND
+      has related_files, success has related_files, all 7 RFC keys present,
+      budget truncation fires, edge_kinds param accepted).
 - [x] Existing quality gate remains green: fmt, clippy, tests pass.
 
 ## Open questions
