@@ -91,6 +91,8 @@ tmp/
 
 # Claude Code session artifacts
 .claude/scheduled_tasks.lock
+# Transient workflow worktrees — must never be committed as gitlinks
+.claude/worktrees/
 
 # Phantom files (intermediate artefacts from pack-parity check)
 crates/mycelium-mcp/phantom/
