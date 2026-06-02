@@ -287,10 +287,17 @@ mod tests {
     #[test]
     fn measure_rss_returns_some() {
         let rss = measure_rss();
-        assert!(
-            rss.is_some(),
-            "RSS measurement should work on this platform"
-        );
-        assert!(rss.unwrap() > 0, "RSS should be positive");
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        {
+            assert!(rss.is_none(), "RSS should be None on unsupported platforms");
+        }
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        {
+            assert!(
+                rss.is_some(),
+                "RSS measurement should work on this platform"
+            );
+            assert!(rss.unwrap() > 0, "RSS should be positive");
+        }
     }
 }
