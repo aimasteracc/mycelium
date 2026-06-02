@@ -51,6 +51,25 @@ jobs:
           path: bench-results.txt
           if-no-files-found: ignore
 
+  redb-sla-100k:
+    name: redb SLA (100k nodes, Charter §2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Charter §2 mandates the latency SLAs at 100k nodes. The gate is
+      # env-guarded so PR CI stays fast; the nightly proves the redb path holds
+      # at the contract's scale (cold lookup < 5 ms, 3-hop < 1 ms). Release mode
+      # for representative timing.
+      - name: 100k redb SLA gate
+        env:
+          MYCELIUM_REDB_BENCH_100K: '1'
+        run: |
+          cargo test --release -p mycelium-rcig-core --features redb-backend \
+            --test redb_sla redb_ -- --nocapture
+
   e2e:
     name: e2e (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

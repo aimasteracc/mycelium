@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **100k-node redb SLA gate (RFC-0100 Phase 3, Charter §2).** New env-guarded
+  tests in `redb_sla.rs` exercise the Charter §2 latency targets (cold lookup
+  < 5 ms, 3-hop < 1 ms) on the redb path at the **mandated 100k-node scale** — the
+  existing checks only covered 10k, leaving the contract unproven at scale. A new
+  nightly `redb-sla-100k` job runs them (`MYCELIUM_REDB_BENCH_100K=1`); PR CI stays
+  fast. This must be green before redb can become the default backend.
+
 - **`mycelium context` gains `related_files`, `edge_kinds`, and Hyphae routing
   (RFC-0101).** The context tool now returns the full seven-key contract
   (`related_files` was missing), accepts an `edge_kinds` request field / CLI
@@ -41,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Implemented* with honest gap lists. Two CLAUDE.md Hard Rules added
   (supersede-then-close; verify-against-merged-tree). Contributor-facing only;
   no runtime or API change.
+
+### Removed
+
+- **Orphan LRU eviction (`store::memory_budget::BoundedStore`).** The hand-built
+  LRU segment-eviction cache — the "reinvent what a memory-mapped B-tree already
+  gives you" mechanism RFC-0100 explicitly retired — had zero callers. Removed it
+  with `MemoryBudget`/`FileAccessTracker`. The RFC-0099 *measurement* half
+  (`measure_rss`, `estimate_store_bytes`) is kept for the SLA evidence work.
 
 ## [0.1.16] - 2026-06-02
 

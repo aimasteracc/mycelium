@@ -1,89 +1,18 @@
-//! Memory budget and LRU eviction for bounded Store residency (RFC-0100 R3).
+//! Resident-memory **measurement** tooling (RFC-0099 Phase 0, carried forward
+//! by RFC-0100).
 //!
-//! When the `memory-bound` feature is enabled, Store tracks file-level access
-//! timestamps and can evict cold file subtrees to keep peak RSS under a
-//! configurable cap. The default in-memory path is completely unchanged when
-//! the feature is off.
-
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+//! RFC-0099 is *Superseded by RFC-0100*; only its measurement phase lives on
+//! here. RFC-0100 adopted redb, whose mmap + OS page cache bound resident RAM — so the
+//! hand-built LRU segment-eviction cache that once lived here (`BoundedStore`)
+//! was the "reinvent what a memory-mapped B-tree already gives you" anti-pattern
+//! RFC-0100 explicitly retires, and has been removed. What *lives on* is the
+//! measurement half: an RSS probe and a store-size estimate used to produce the
+//! RSS-vs-node-count evidence the Charter §2 SLA work needs.
+//!
+//! Gated behind the `memory-bound` feature only because the macOS RSS probe
+//! needs `libc`; the default build is unaffected.
 
 use crate::store::Store;
-use crate::trunk::TrunkPath;
-use crate::types::NodeId;
-
-static GLOBAL_ACCESS_CLOCK: AtomicU64 = AtomicU64::new(0);
-
-fn tick() -> u64 {
-    GLOBAL_ACCESS_CLOCK.fetch_add(1, Ordering::Relaxed)
-}
-
-/// Configuration for memory-bounded Store operation.
-#[derive(Debug, Clone)]
-pub struct MemoryBudget {
-    /// Maximum number of file-level nodes before eviction triggers.
-    pub max_file_nodes: usize,
-    /// Number of cold files to evict per eviction pass.
-    pub eviction_batch: usize,
-}
-
-impl Default for MemoryBudget {
-    fn default() -> Self {
-        Self {
-            max_file_nodes: 10_000,
-            eviction_batch: 100,
-        }
-    }
-}
-
-impl MemoryBudget {
-    /// Create a new budget with the given file-node cap.
-    #[must_use]
-    pub const fn new(max_file_nodes: usize) -> Self {
-        Self {
-            max_file_nodes,
-            eviction_batch: 100,
-        }
-    }
-
-    /// Builder: set eviction batch size.
-    #[must_use]
-    pub const fn with_eviction_batch(mut self, batch: usize) -> Self {
-        self.eviction_batch = batch;
-        self
-    }
-}
-
-/// Per-file access tracking for LRU eviction.
-#[derive(Debug, Default)]
-struct FileAccessTracker {
-    access_tick: HashMap<String, u64>,
-}
-
-impl FileAccessTracker {
-    fn touch(&mut self, file_path: &str) {
-        self.access_tick.insert(file_path.to_string(), tick());
-    }
-
-    fn coldest(&self, count: usize) -> Vec<String> {
-        let mut entries: Vec<_> = self.access_tick.iter().collect();
-        entries.sort_by_key(|&(_, &t)| t);
-        entries
-            .into_iter()
-            .take(count)
-            .map(|(p, _)| p.clone())
-            .collect()
-    }
-
-    fn remove(&mut self, file_path: &str) {
-        self.access_tick.remove(file_path);
-    }
-
-    #[must_use]
-    fn file_count(&self) -> usize {
-        self.access_tick.len()
-    }
-}
 
 /// Estimate the memory usage of a [`Store`] in bytes.
 ///
@@ -92,8 +21,7 @@ impl FileAccessTracker {
 /// (forward + reverse `Vec` entries).
 #[must_use]
 pub fn estimate_store_bytes(store: &Store) -> usize {
-    let node_count = store.node_count();
-    let node_bytes = node_count * 200;
+    let node_bytes = store.node_count() * 200;
     let edge_bytes = store.edge_count() * 40;
     node_bytes + edge_bytes
 }
@@ -141,75 +69,6 @@ pub fn measure_rss() -> Option<usize> {
     }
 }
 
-/// Bounded [`Store`] wrapper that evicts cold files when the budget is exceeded.
-///
-/// Wrap a `Store` with a [`MemoryBudget`] and call [`BoundedStore::after_upsert`]
-/// after each batch of mutations.
-pub struct BoundedStore {
-    /// The underlying store.
-    pub store: Store,
-    /// The budget configuration.
-    pub budget: MemoryBudget,
-    tracker: FileAccessTracker,
-}
-
-impl BoundedStore {
-    /// Create a new bounded store with the given budget.
-    #[must_use]
-    pub fn new(store: Store, budget: MemoryBudget) -> Self {
-        let mut tracker = FileAccessTracker::default();
-        for file_path in store.all_file_paths() {
-            tracker.touch(&file_path);
-        }
-        Self {
-            store,
-            budget,
-            tracker,
-        }
-    }
-
-    /// Upsert a node and track file-level access.
-    pub fn upsert_node(&mut self, path: TrunkPath) -> NodeId {
-        let file = file_part(path.as_str());
-        if let Some(f) = file {
-            self.tracker.touch(f);
-        }
-        self.store.upsert_node(path)
-    }
-
-    /// Call after a batch of mutations to trigger eviction if needed.
-    ///
-    /// Returns the number of files evicted.
-    pub fn after_upsert(&mut self) -> usize {
-        if self.tracker.file_count() <= self.budget.max_file_nodes {
-            return 0;
-        }
-        let to_evict = self.tracker.coldest(self.budget.eviction_batch);
-        let count = to_evict.len();
-        for file_path in &to_evict {
-            self.store.remove_file(file_path);
-            self.tracker.remove(file_path);
-        }
-        count
-    }
-
-    /// Current estimated memory usage in bytes.
-    #[must_use]
-    pub fn estimated_bytes(&self) -> usize {
-        estimate_store_bytes(&self.store)
-    }
-
-    /// Number of tracked files.
-    #[must_use]
-    pub fn tracked_file_count(&self) -> usize {
-        self.tracker.file_count()
-    }
-}
-
-fn file_part(path: &str) -> Option<&str> {
-    path.split('>').next()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -217,63 +76,6 @@ mod tests {
 
     fn path(s: &str) -> TrunkPath {
         TrunkPath::parse(s).unwrap()
-    }
-
-    #[test]
-    fn file_access_tracker_touch_orders_correctly() {
-        let mut tracker = FileAccessTracker::default();
-        tracker.touch("a.rs");
-        tracker.touch("b.rs");
-        tracker.touch("c.rs");
-        tracker.touch("b.rs");
-
-        let coldest = tracker.coldest(2);
-        assert_eq!(coldest, vec!["a.rs", "c.rs"]);
-    }
-
-    #[test]
-    fn bounded_store_evicts_coldest_files() {
-        let budget = MemoryBudget::new(3).with_eviction_batch(1);
-        let mut bs = BoundedStore::new(Store::new(), budget);
-
-        for f in ["src/a.rs", "src/b.rs", "src/c.rs", "src/d.rs"] {
-            bs.upsert_node(path(f));
-        }
-        bs.upsert_node(path("src/a.rs>Foo"));
-        bs.store.upsert_node(path("src/b.rs>Bar"));
-        bs.store.upsert_node(path("src/c.rs>Baz"));
-        bs.store.upsert_node(path("src/d.rs>Qux"));
-
-        let evicted = bs.after_upsert();
-        assert!(evicted >= 1, "should evict at least 1 cold file");
-        assert!(
-            bs.store.lookup("src/a.rs>Foo").is_some(),
-            "a.rs>Foo should survive (recently touched)"
-        );
-    }
-
-    #[test]
-    fn bounded_store_seeds_tracker_from_existing_store() {
-        let mut store = Store::new();
-        store.upsert_node(path("src/a.rs"));
-        store.upsert_node(path("src/a.rs>Foo"));
-        store.upsert_node(path("src/b.rs"));
-        store.upsert_node(path("src/b.rs>Bar"));
-        store.upsert_node(path("src/c.rs"));
-        store.upsert_node(path("src/c.rs>Baz"));
-        store.upsert_node(path("src/d.rs"));
-        store.upsert_node(path("src/d.rs>Qux"));
-
-        let budget = MemoryBudget::new(3).with_eviction_batch(2);
-        let mut bs = BoundedStore::new(store, budget);
-        assert_eq!(
-            bs.tracked_file_count(),
-            4,
-            "tracker should be seeded with all 4 existing files"
-        );
-
-        let evicted = bs.after_upsert();
-        assert!(evicted >= 1, "should evict pre-existing files above budget");
     }
 
     #[test]
