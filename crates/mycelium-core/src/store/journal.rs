@@ -1,5 +1,13 @@
 //! Append-only journal for incremental Store persistence (RFC-0098 §2).
 //!
+//! **TRANSITIONAL bridge.** RFC-0098 is *Superseded by RFC-0100* (redb). This
+//! journal is intentionally retained as the incremental-persistence path for
+//! the **default build**, because the redb backend is gated behind the
+//! `redb-backend` feature and is still default-OFF (RFC-0100 Phase 1/2 seam).
+//! It is the live default persistence mechanism, not dead code. It is slated
+//! for removal at the RFC-0100 Phase-3 default-flip, when redb's per-file ACID
+//! transactions take over; track that removal against the RFC-0100 migration.
+//!
 //! Instead of rewriting the entire Store on every file change, we append a
 //! [`DeltaRecord`] describing what changed. On load, the base snapshot is
 //! reconstructed and deltas replayed on top. Periodic compaction merges

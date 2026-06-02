@@ -5,6 +5,22 @@ All notable changes to **Mycelium** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Governance: supersede discipline is now machine-enforced.** New
+  `scripts/check_supersede_discipline.sh` (wired into the CI `governance` job)
+  fails the build on (1) a `Supersedes:`/`Superseded by` link that points at a
+  non-existent `rfcs/` file, and (2) a source module whose header declares it
+  implements a `Status: Superseded` RFC without a `TRANSITIONAL`/superseded
+  note. Restored the previously-phantom `rfcs/0099-bounded-resident-memory.md`
+  (marked Superseded by RFC-0100), annotated `store/journal.rs` as a sanctioned
+  transitional bridge, and corrected RFC-0100/RFC-0102 statuses to *Partially
+  Implemented* with honest gap lists. Two CLAUDE.md Hard Rules added
+  (supersede-then-close; verify-against-merged-tree). Contributor-facing only;
+  no runtime or API change.
+
 ## [0.1.16] - 2026-06-02
 
 ### Added

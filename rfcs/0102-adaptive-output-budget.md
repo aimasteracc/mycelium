@@ -1,6 +1,6 @@
 # RFC-0102: Adaptive output budgets for agent-facing results
 
-- **Status**: Draft
+- **Status**: Partially Implemented (#395). `OutputBudget`/`BudgetOptions` and `apply_budget` ship and are applied to several MCP tools, with truncation metadata. **Known gaps (not yet closed):** `apply_budget` is *not* invoked inside the `mycelium_context` handler — the tool it most targets gets no budgeting — and the `max_code_lines` / `max_total_chars` fields are defined but unenforced (`#[allow(dead_code)]`). Do not mark Implemented until those are closed or the dead fields removed.
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-01
 - **Last updated**: 2026-06-01
