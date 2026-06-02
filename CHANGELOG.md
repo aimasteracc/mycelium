@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **redb is now the default storage backend (RFC-0100 Phase 3 flip).** The
+  `redb-backend` feature is now on by default in `mycelium-core` and
+  `mycelium-mcp`, so the default build persists and loads through redb's
+  memory-mapped ACID B-tree (bounded RAM, per-file incremental writes) instead
+  of the legacy MessagePack-snapshot + journal path. `Store::load` still reads
+  legacy snapshots (soft migration — old index files keep working). Opt back out
+  with `--no-default-features`. Full workspace test suite passes with redb as the
+  default; Charter §2 latency targets are now the **warm/steady-state** contract
+  (RFC-0104 — cold-open budgets pending measured nightly data).
+
 ### Added
 
 - **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0008

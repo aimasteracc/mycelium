@@ -17,7 +17,9 @@ readme        = "README.md"
 name = "mycelium_core"
 
 [features]
-default = []
+# redb is the default storage backend (RFC-0100 Phase 3 flip, 2026-06-02).
+# Opt out with --no-default-features for the legacy in-memory snapshot path.
+default = ["redb-backend"]
 memory-bound = ["dep:libc"]
 redb-backend = ["dep:redb"]
 
