@@ -984,6 +984,27 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// One-shot architecture context: find entry points, expand the call graph,
+    /// and return source spans for a natural-language task or Hyphae selector.
+    /// The CLI twin of the `mycelium_context` MCP tool (RFC-0101).
+    Context {
+        /// Natural-language task or Hyphae selector, e.g.
+        /// `"trace ServeHTTP to HandlerFunc"` or `"function:calls(#AuthService)"`.
+        #[arg(long)]
+        task: String,
+        /// Project root (defaults to current directory).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        /// Maximum graph nodes to return (default: 30, max: 100).
+        #[arg(long)]
+        max_nodes: Option<usize>,
+        /// Maximum source snippets to return (default: 6, max: 25).
+        #[arg(long)]
+        max_code_blocks: Option<usize>,
+        /// Output format.
+        #[arg(long, value_enum, default_value_t = QueryFormat::Json)]
+        format: QueryFormat,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -1804,6 +1825,16 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_find_import_path(&canonical, &from, &to, max_depth, format.into())?;
+        }
+        Cmd::Context {
+            task,
+            root,
+            max_nodes,
+            max_code_blocks,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_context(&canonical, &task, max_nodes, max_code_blocks, format.into())?;
         }
         Cmd::Serve {
             mcp: true,

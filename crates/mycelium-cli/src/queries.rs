@@ -1926,6 +1926,274 @@ fn print_string_list(items: &[String], format: Format) -> Result<()> {
     Ok(())
 }
 
+// ── context (RFC-0101) ────────────────────────────────────────────────────────
+
+const CONTEXT_STOP_WORDS: &[&str] = &[
+    "a", "an", "and", "are", "as", "at", "by", "call", "calls", "does", "flow", "for", "from",
+    "how", "in", "into", "is", "of", "on", "or", "through", "to", "trace", "what", "when", "where",
+    "which", "why", "with", "work", "works",
+];
+
+fn extract_symbol_candidates(task: &str) -> Vec<String> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for raw in task.split(|c: char| {
+        c.is_whitespace()
+            || matches!(
+                c,
+                ',' | ';' | '(' | ')' | '[' | ']' | '{' | '}' | '!' | '?' | '='
+            )
+    }) {
+        let stripped = raw.trim_matches(|c: char| c == '`' || c == '"' || c == '\'');
+        for part in stripped.split(['.', ':']) {
+            let token = part.trim_matches(|c: char| c == '_' || c == '-' || c == '>');
+            if token.len() < 3 {
+                continue;
+            }
+            let lower = token.to_ascii_lowercase();
+            if CONTEXT_STOP_WORDS.contains(&lower.as_str()) {
+                continue;
+            }
+            let has_structure =
+                token.contains('_') || token.chars().any(char::is_uppercase) || token.len() >= 4;
+            if !has_structure {
+                continue;
+            }
+            if seen.insert(token.to_owned()) {
+                out.push(token.to_owned());
+            }
+        }
+    }
+    out
+}
+
+fn context_path_leaf(trunk_path: &str) -> &str {
+    trunk_path
+        .rsplit('>')
+        .next()
+        .unwrap_or(trunk_path)
+        .rsplit("::")
+        .next()
+        .unwrap_or(trunk_path)
+}
+
+type ContextPayload = (
+    Vec<String>,
+    Vec<serde_json::Value>,
+    Vec<serde_json::Value>,
+    Vec<serde_json::Value>,
+);
+
+fn build_context_payload(
+    store: &Store,
+    candidates: &[String],
+    max_nodes: usize,
+    max_code_blocks: usize,
+) -> ContextPayload {
+    let mut entry_points: Vec<String> = Vec::new();
+    for candidate in candidates.iter().take(10) {
+        let matches = store.search_symbol(candidate, std::cmp::max(5, max_nodes / 3));
+        for m in matches {
+            if !entry_points.contains(&m) {
+                entry_points.push(m);
+            }
+            if entry_points.len() >= max_nodes {
+                break;
+            }
+        }
+        if entry_points.len() >= max_nodes {
+            break;
+        }
+    }
+
+    let mut nodes: Vec<serde_json::Value> = entry_points
+        .iter()
+        .take(max_nodes)
+        .map(|p| serde_json::json!({ "id": p, "name": context_path_leaf(p), "path": p }))
+        .collect();
+    let mut edges: Vec<serde_json::Value> = Vec::new();
+    let mut seen_edges: std::collections::BTreeSet<(String, String)> =
+        std::collections::BTreeSet::new();
+
+    let calls_kind = mycelium_core::types::EdgeKind::Calls;
+    for ep in entry_points.iter().take(max_nodes) {
+        let Some(id) = store.lookup(ep) else { continue };
+        for &callee_id in store.outgoing(id, calls_kind) {
+            if nodes.len() >= max_nodes {
+                break;
+            }
+            let Some(callee_path) = store.path_of(callee_id) else {
+                continue;
+            };
+            let callee_owned = callee_path.to_owned();
+            if !nodes.iter().any(|n| n["path"] == callee_owned) {
+                nodes.push(serde_json::json!({
+                    "id": callee_path,
+                    "name": context_path_leaf(callee_path),
+                    "path": callee_path
+                }));
+            }
+            if seen_edges.insert((ep.clone(), callee_owned.clone())) {
+                edges.push(
+                    serde_json::json!({ "source": ep, "target": callee_path, "kind": "calls" }),
+                );
+            }
+        }
+        for &caller_id in store.incoming(id, calls_kind) {
+            if nodes.len() >= max_nodes {
+                break;
+            }
+            let Some(caller_path) = store.path_of(caller_id) else {
+                continue;
+            };
+            let caller_owned = caller_path.to_owned();
+            if !nodes.iter().any(|n| n["path"] == caller_owned) {
+                nodes.push(serde_json::json!({
+                    "id": caller_path,
+                    "name": context_path_leaf(caller_path),
+                    "path": caller_path
+                }));
+            }
+            if seen_edges.insert((caller_owned.clone(), ep.clone())) {
+                edges.push(
+                    serde_json::json!({ "source": caller_path, "target": ep, "kind": "calls" }),
+                );
+            }
+        }
+    }
+
+    let mut code_blocks: Vec<serde_json::Value> = Vec::new();
+    let mut seen_files: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for node in &nodes {
+        if code_blocks.len() >= max_code_blocks {
+            break;
+        }
+        let path_str = node["path"].as_str().unwrap_or("");
+        let file_part = path_str.split('>').next().unwrap_or(path_str).to_owned();
+        if seen_files.contains(&file_part) {
+            continue;
+        }
+        seen_files.insert(file_part.clone());
+        let Some(id) = store.lookup(path_str) else {
+            continue;
+        };
+        let span = store.span_of(id);
+        code_blocks.push(serde_json::json!({
+            "file": file_part,
+            "symbol": context_path_leaf(path_str),
+            "span": span.map_or(serde_json::Value::Null, |s| serde_json::json!({
+                "start_line": s.start_line,
+                "start_col": s.start_col,
+                "end_line": s.end_line,
+                "end_col": s.end_col,
+            }))
+        }));
+    }
+
+    (entry_points, nodes, edges, code_blocks)
+}
+
+fn context_json(
+    task: &str,
+    candidates: &[String],
+    entry_points: &[String],
+    nodes: &[serde_json::Value],
+    edges: &[serde_json::Value],
+    code_blocks: &[serde_json::Value],
+) -> serde_json::Value {
+    let verdict = if entry_points.is_empty() {
+        "NOT_FOUND"
+    } else {
+        "INFO"
+    };
+    serde_json::json!({
+        "success": true,
+        "verdict": verdict,
+        "task": task,
+        "candidates": candidates,
+        "entry_points": entry_points,
+        "nodes": nodes,
+        "edges": edges,
+        "code_blocks": code_blocks,
+        "stats": {
+            "entry_points": entry_points.len(),
+            "nodes": nodes.len(),
+            "edges": edges.len(),
+            "code_blocks": code_blocks.len(),
+        },
+        "agent_summary": {
+            "summary_line": format!(
+                "codegraph_context: {} entry points, {} nodes, {} edges, {} code blocks",
+                entry_points.len(), nodes.len(), edges.len(), code_blocks.len()
+            ),
+            "verdict": verdict,
+            "next_step": if code_blocks.is_empty() {
+                "Use the nodes and edges to answer; code snippets were not available."
+            } else {
+                "Answer from code_blocks and the graph now. Only call a narrower tool if a specific edge or symbol is missing."
+            }
+        }
+    })
+}
+
+pub(crate) fn run_context(
+    root: &Path,
+    task: &str,
+    max_nodes: Option<usize>,
+    max_code_blocks: Option<usize>,
+    format: Format,
+) -> Result<()> {
+    let store = load_index(root)?;
+    let candidates = extract_symbol_candidates(task);
+    let max_n = max_nodes.unwrap_or(30).min(100);
+    let max_b = max_code_blocks.unwrap_or(6).min(25);
+    let (entry_points, nodes, edges, code_blocks) =
+        build_context_payload(&store, &candidates, max_n, max_b);
+    let value = context_json(
+        task,
+        &candidates,
+        &entry_points,
+        &nodes,
+        &edges,
+        &code_blocks,
+    );
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+        Format::Text => {
+            println!("task: {task}");
+            println!("verdict: {}", value["verdict"].as_str().unwrap_or(""));
+            println!("entry_points ({}):", entry_points.len());
+            for ep in &entry_points {
+                println!("  {ep}");
+            }
+            println!("nodes ({}):", nodes.len());
+            for n in &nodes {
+                println!("  {}", n["path"].as_str().unwrap_or(""));
+            }
+            println!("edges ({}):", edges.len());
+            for e in &edges {
+                println!(
+                    "  {} --{}--> {}",
+                    e["source"].as_str().unwrap_or(""),
+                    e["kind"].as_str().unwrap_or(""),
+                    e["target"].as_str().unwrap_or("")
+                );
+            }
+            println!("code_blocks ({}):", code_blocks.len());
+            for b in &code_blocks {
+                println!("  {}", b["file"].as_str().unwrap_or(""));
+            }
+            println!(
+                "summary: {}",
+                value["agent_summary"]["summary_line"]
+                    .as_str()
+                    .unwrap_or("")
+            );
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1945,5 +2213,72 @@ mod tests {
         let store = Store::default();
         let err = symbol_info(&store, "nonexistent").unwrap_err();
         assert!(format!("{err}").contains("path not found"));
+    }
+
+    // RFC-0101 Phase 2 — CLI twin for mycelium_context (RED-first)
+
+    #[test]
+    fn run_context_no_index_errors_clearly() {
+        let dir = tempdir().unwrap();
+        let err =
+            run_context(dir.path(), "trace foo to bar", None, None, Format::Json).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("no index"), "got: {msg}");
+    }
+
+    #[test]
+    fn run_context_gibberish_returns_not_found_json() {
+        let dir = tempdir().unwrap();
+        let index_dir = dir.path().join(".mycelium");
+        std::fs::create_dir_all(&index_dir).unwrap();
+        let store = Store::default();
+        store.save(&index_dir.join("index.rmp")).unwrap();
+
+        let output =
+            capture_context_output(dir.path(), "xyzzy_nonexistent_gibberish_xyz", None, None);
+        let v: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(v["verdict"], "NOT_FOUND");
+    }
+
+    #[test]
+    fn run_context_json_output_has_required_keys() {
+        let dir = tempdir().unwrap();
+        let index_dir = dir.path().join(".mycelium");
+        std::fs::create_dir_all(&index_dir).unwrap();
+        let store = Store::default();
+        store.save(&index_dir.join("index.rmp")).unwrap();
+
+        let output = capture_context_output(dir.path(), "some task", None, None);
+        let v: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert!(v.get("entry_points").is_some(), "missing entry_points");
+        assert!(v.get("nodes").is_some(), "missing nodes");
+        assert!(v.get("edges").is_some(), "missing edges");
+        assert!(v.get("code_blocks").is_some(), "missing code_blocks");
+        assert!(v.get("stats").is_some(), "missing stats");
+        assert!(v.get("agent_summary").is_some(), "missing agent_summary");
+    }
+
+    fn capture_context_output(
+        root: &Path,
+        task: &str,
+        max_nodes: Option<usize>,
+        max_code_blocks: Option<usize>,
+    ) -> String {
+        // Redirect stdout by calling the JSON serialisation directly.
+        let store = load_index(root).unwrap();
+        let candidates = extract_symbol_candidates(task);
+        let max_n = max_nodes.unwrap_or(30).min(100);
+        let max_b = max_code_blocks.unwrap_or(6).min(25);
+        let (entry_points, nodes, edges, code_blocks) =
+            build_context_payload(&store, &candidates, max_n, max_b);
+        serde_json::to_string(&context_json(
+            task,
+            &candidates,
+            &entry_points,
+            &nodes,
+            &edges,
+            &code_blocks,
+        ))
+        .unwrap()
     }
 }
