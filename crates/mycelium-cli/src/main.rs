@@ -1001,6 +1001,10 @@ enum Cmd {
         /// Maximum source snippets to return (default: 6, max: 25).
         #[arg(long)]
         max_code_blocks: Option<usize>,
+        /// Edge kinds to expand during one-hop traversal, comma-separated,
+        /// e.g. `--edge-kinds calls,imports,extends`. Default: `calls`.
+        #[arg(long, value_delimiter = ',')]
+        edge_kinds: Vec<String>,
         /// Output format.
         #[arg(long, value_enum, default_value_t = QueryFormat::Json)]
         format: QueryFormat,
@@ -1831,10 +1835,18 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             root,
             max_nodes,
             max_code_blocks,
+            edge_kinds,
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_context(&canonical, &task, max_nodes, max_code_blocks, format.into())?;
+            queries::run_context(
+                &canonical,
+                &task,
+                max_nodes,
+                max_code_blocks,
+                &edge_kinds,
+                format.into(),
+            )?;
         }
         Cmd::Serve {
             mcp: true,

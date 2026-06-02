@@ -1928,212 +1928,55 @@ fn print_string_list(items: &[String], format: Format) -> Result<()> {
 
 // ── context (RFC-0101) ────────────────────────────────────────────────────────
 
-const CONTEXT_STOP_WORDS: &[&str] = &[
-    "a", "an", "and", "are", "as", "at", "by", "call", "calls", "does", "flow", "for", "from",
-    "how", "in", "into", "is", "of", "on", "or", "through", "to", "trace", "what", "when", "where",
-    "which", "why", "with", "work", "works",
-];
+// Candidate extraction, stop-words, and the path/payload helpers used to live
+// here as a near-duplicate of the MCP tool (with a *different* tokenizer — the
+// exact RFC-0101 parity bug). They now live once in `mycelium_core::context`,
+// which both surfaces call, so CLI and MCP JSON are identical by construction.
 
-fn extract_symbol_candidates(task: &str) -> Vec<String> {
-    let mut seen = std::collections::BTreeSet::new();
-    let mut out = Vec::new();
-    for raw in task.split(|c: char| {
-        c.is_whitespace()
-            || matches!(
-                c,
-                ',' | ';' | '(' | ')' | '[' | ']' | '{' | '}' | '!' | '?' | '='
-            )
-    }) {
-        let stripped = raw.trim_matches(|c: char| c == '`' || c == '"' || c == '\'');
-        for part in stripped.split(['.', ':']) {
-            let token = part.trim_matches(|c: char| c == '_' || c == '-' || c == '>');
-            if token.len() < 3 {
-                continue;
-            }
-            let lower = token.to_ascii_lowercase();
-            if CONTEXT_STOP_WORDS.contains(&lower.as_str()) {
-                continue;
-            }
-            let has_structure =
-                token.contains('_') || token.chars().any(char::is_uppercase) || token.len() >= 4;
-            if !has_structure {
-                continue;
-            }
-            if seen.insert(token.to_owned()) {
-                out.push(token.to_owned());
-            }
-        }
+fn print_context_text(task: &str, value: &serde_json::Value) {
+    let arr = |k: &str| value[k].as_array().cloned().unwrap_or_default();
+    let str_at = |v: &serde_json::Value, k: &str| v[k].as_str().unwrap_or("").to_owned();
+
+    println!("task: {task}");
+    println!("verdict: {}", value["verdict"].as_str().unwrap_or(""));
+    println!("routing: {}", value["routing"].as_str().unwrap_or(""));
+
+    let eps = arr("entry_points");
+    println!("entry_points ({}):", eps.len());
+    for ep in &eps {
+        println!("  {}", ep.as_str().unwrap_or(""));
     }
-    out
-}
-
-fn context_path_leaf(trunk_path: &str) -> &str {
-    trunk_path
-        .rsplit('>')
-        .next()
-        .unwrap_or(trunk_path)
-        .rsplit("::")
-        .next()
-        .unwrap_or(trunk_path)
-}
-
-type ContextPayload = (
-    Vec<String>,
-    Vec<serde_json::Value>,
-    Vec<serde_json::Value>,
-    Vec<serde_json::Value>,
-);
-
-fn build_context_payload(
-    store: &Store,
-    candidates: &[String],
-    max_nodes: usize,
-    max_code_blocks: usize,
-) -> ContextPayload {
-    let mut entry_points: Vec<String> = Vec::new();
-    for candidate in candidates.iter().take(10) {
-        let matches = store.search_symbol(candidate, std::cmp::max(5, max_nodes / 3));
-        for m in matches {
-            if !entry_points.contains(&m) {
-                entry_points.push(m);
-            }
-            if entry_points.len() >= max_nodes {
-                break;
-            }
-        }
-        if entry_points.len() >= max_nodes {
-            break;
-        }
+    let nodes = arr("nodes");
+    println!("nodes ({}):", nodes.len());
+    for n in &nodes {
+        println!("  {}", str_at(n, "path"));
     }
-
-    let mut nodes: Vec<serde_json::Value> = entry_points
-        .iter()
-        .take(max_nodes)
-        .map(|p| serde_json::json!({ "id": p, "name": context_path_leaf(p), "path": p }))
-        .collect();
-    let mut edges: Vec<serde_json::Value> = Vec::new();
-    let mut seen_edges: std::collections::BTreeSet<(String, String)> =
-        std::collections::BTreeSet::new();
-
-    let calls_kind = mycelium_core::types::EdgeKind::Calls;
-    for ep in entry_points.iter().take(max_nodes) {
-        let Some(id) = store.lookup(ep) else { continue };
-        for &callee_id in store.outgoing(id, calls_kind) {
-            if nodes.len() >= max_nodes {
-                break;
-            }
-            let Some(callee_path) = store.path_of(callee_id) else {
-                continue;
-            };
-            let callee_owned = callee_path.to_owned();
-            if !nodes.iter().any(|n| n["path"] == callee_owned) {
-                nodes.push(serde_json::json!({
-                    "id": callee_path,
-                    "name": context_path_leaf(callee_path),
-                    "path": callee_path
-                }));
-            }
-            if seen_edges.insert((ep.clone(), callee_owned.clone())) {
-                edges.push(
-                    serde_json::json!({ "source": ep, "target": callee_path, "kind": "calls" }),
-                );
-            }
-        }
-        for &caller_id in store.incoming(id, calls_kind) {
-            if nodes.len() >= max_nodes {
-                break;
-            }
-            let Some(caller_path) = store.path_of(caller_id) else {
-                continue;
-            };
-            let caller_owned = caller_path.to_owned();
-            if !nodes.iter().any(|n| n["path"] == caller_owned) {
-                nodes.push(serde_json::json!({
-                    "id": caller_path,
-                    "name": context_path_leaf(caller_path),
-                    "path": caller_path
-                }));
-            }
-            if seen_edges.insert((caller_owned.clone(), ep.clone())) {
-                edges.push(
-                    serde_json::json!({ "source": caller_path, "target": ep, "kind": "calls" }),
-                );
-            }
-        }
+    let edges = arr("edges");
+    println!("edges ({}):", edges.len());
+    for e in &edges {
+        println!(
+            "  {} --{}--> {}",
+            str_at(e, "source"),
+            str_at(e, "kind"),
+            str_at(e, "target")
+        );
     }
-
-    let mut code_blocks: Vec<serde_json::Value> = Vec::new();
-    let mut seen_files: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-    for node in &nodes {
-        if code_blocks.len() >= max_code_blocks {
-            break;
-        }
-        let path_str = node["path"].as_str().unwrap_or("");
-        let file_part = path_str.split('>').next().unwrap_or(path_str).to_owned();
-        if seen_files.contains(&file_part) {
-            continue;
-        }
-        seen_files.insert(file_part.clone());
-        let Some(id) = store.lookup(path_str) else {
-            continue;
-        };
-        let span = store.span_of(id);
-        code_blocks.push(serde_json::json!({
-            "file": file_part,
-            "symbol": context_path_leaf(path_str),
-            "span": span.map_or(serde_json::Value::Null, |s| serde_json::json!({
-                "start_line": s.start_line,
-                "start_col": s.start_col,
-                "end_line": s.end_line,
-                "end_col": s.end_col,
-            }))
-        }));
+    let related = arr("related_files");
+    println!("related_files ({}):", related.len());
+    for f in &related {
+        println!("  {}", f.as_str().unwrap_or(""));
     }
-
-    (entry_points, nodes, edges, code_blocks)
-}
-
-fn context_json(
-    task: &str,
-    candidates: &[String],
-    entry_points: &[String],
-    nodes: &[serde_json::Value],
-    edges: &[serde_json::Value],
-    code_blocks: &[serde_json::Value],
-) -> serde_json::Value {
-    let verdict = if entry_points.is_empty() {
-        "NOT_FOUND"
-    } else {
-        "INFO"
-    };
-    serde_json::json!({
-        "success": true,
-        "verdict": verdict,
-        "task": task,
-        "candidates": candidates,
-        "entry_points": entry_points,
-        "nodes": nodes,
-        "edges": edges,
-        "code_blocks": code_blocks,
-        "stats": {
-            "entry_points": entry_points.len(),
-            "nodes": nodes.len(),
-            "edges": edges.len(),
-            "code_blocks": code_blocks.len(),
-        },
-        "agent_summary": {
-            "summary_line": format!(
-                "codegraph_context: {} entry points, {} nodes, {} edges, {} code blocks",
-                entry_points.len(), nodes.len(), edges.len(), code_blocks.len()
-            ),
-            "verdict": verdict,
-            "next_step": if code_blocks.is_empty() {
-                "Use the nodes and edges to answer; code snippets were not available."
-            } else {
-                "Answer from code_blocks and the graph now. Only call a narrower tool if a specific edge or symbol is missing."
-            }
-        }
-    })
+    let blocks = arr("code_blocks");
+    println!("code_blocks ({}):", blocks.len());
+    for b in &blocks {
+        println!("  {}", str_at(b, "file"));
+    }
+    println!(
+        "summary: {}",
+        value["agent_summary"]["summary_line"]
+            .as_str()
+            .unwrap_or("")
+    );
 }
 
 pub(crate) fn run_context(
@@ -2141,55 +1984,50 @@ pub(crate) fn run_context(
     task: &str,
     max_nodes: Option<usize>,
     max_code_blocks: Option<usize>,
+    edge_kinds: &[String],
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::context::{self, ContextOptions, Routing};
+
     let store = load_index(root)?;
-    let candidates = extract_symbol_candidates(task);
     let max_n = max_nodes.unwrap_or(30).min(100);
     let max_b = max_code_blocks.unwrap_or(6).min(25);
-    let (entry_points, nodes, edges, code_blocks) =
-        build_context_payload(&store, &candidates, max_n, max_b);
-    let value = context_json(
-        task,
-        &candidates,
-        &entry_points,
-        &nodes,
-        &edges,
-        &code_blocks,
-    );
+    let kinds: Vec<EdgeKind> = edge_kinds
+        .iter()
+        .filter_map(|s| context::parse_edge_kind(s))
+        .collect();
+    let opts = ContextOptions {
+        max_nodes: max_n,
+        max_code_blocks: max_b,
+        edge_kinds: kinds,
+    };
+
+    // Same routing logic as the MCP tool, so the two produce identical JSON.
+    let natural = |store: &Store| {
+        let c = context::extract_symbol_candidates(task);
+        let e = context::seed_entry_points(store, &c, max_n);
+        (Routing::Natural, c, e)
+    };
+    let (routing, candidates, entry_points) = if context::looks_like_hyphae(task) {
+        mycelium_hyphae::parse(task).map_or_else(
+            |_| natural(&store),
+            |ast| {
+                let eps = mycelium_hyphae::evaluator::Evaluator::new(&store)
+                    .eval(&ast)
+                    .into_iter()
+                    .take(max_n)
+                    .collect::<Vec<String>>();
+                (Routing::Hyphae, Vec::new(), eps)
+            },
+        )
+    } else {
+        natural(&store)
+    };
+    let value = context::build_payload(&store, task, &candidates, &entry_points, routing, &opts);
+
     match format {
         Format::Json => println!("{}", serde_json::to_string(&value)?),
-        Format::Text => {
-            println!("task: {task}");
-            println!("verdict: {}", value["verdict"].as_str().unwrap_or(""));
-            println!("entry_points ({}):", entry_points.len());
-            for ep in &entry_points {
-                println!("  {ep}");
-            }
-            println!("nodes ({}):", nodes.len());
-            for n in &nodes {
-                println!("  {}", n["path"].as_str().unwrap_or(""));
-            }
-            println!("edges ({}):", edges.len());
-            for e in &edges {
-                println!(
-                    "  {} --{}--> {}",
-                    e["source"].as_str().unwrap_or(""),
-                    e["kind"].as_str().unwrap_or(""),
-                    e["target"].as_str().unwrap_or("")
-                );
-            }
-            println!("code_blocks ({}):", code_blocks.len());
-            for b in &code_blocks {
-                println!("  {}", b["file"].as_str().unwrap_or(""));
-            }
-            println!(
-                "summary: {}",
-                value["agent_summary"]["summary_line"]
-                    .as_str()
-                    .unwrap_or("")
-            );
-        }
+        Format::Text => print_context_text(task, &value),
     }
     Ok(())
 }
@@ -2220,8 +2058,15 @@ mod tests {
     #[test]
     fn run_context_no_index_errors_clearly() {
         let dir = tempdir().unwrap();
-        let err =
-            run_context(dir.path(), "trace foo to bar", None, None, Format::Json).unwrap_err();
+        let err = run_context(
+            dir.path(),
+            "trace foo to bar",
+            None,
+            None,
+            &[],
+            Format::Json,
+        )
+        .unwrap_err();
         let msg = format!("{err}");
         assert!(msg.contains("no index"), "got: {msg}");
     }
@@ -2264,21 +2109,24 @@ mod tests {
         max_nodes: Option<usize>,
         max_code_blocks: Option<usize>,
     ) -> String {
-        // Redirect stdout by calling the JSON serialisation directly.
+        use mycelium_core::context::{self, ContextOptions, Routing};
         let store = load_index(root).unwrap();
-        let candidates = extract_symbol_candidates(task);
         let max_n = max_nodes.unwrap_or(30).min(100);
-        let max_b = max_code_blocks.unwrap_or(6).min(25);
-        let (entry_points, nodes, edges, code_blocks) =
-            build_context_payload(&store, &candidates, max_n, max_b);
-        serde_json::to_string(&context_json(
+        let candidates = context::extract_symbol_candidates(task);
+        let entry_points = context::seed_entry_points(&store, &candidates, max_n);
+        let opts = ContextOptions {
+            max_nodes: max_n,
+            max_code_blocks: max_code_blocks.unwrap_or(6).min(25),
+            edge_kinds: vec![],
+        };
+        let value = context::build_payload(
+            &store,
             task,
             &candidates,
             &entry_points,
-            &nodes,
-            &edges,
-            &code_blocks,
-        ))
-        .unwrap()
+            Routing::Natural,
+            &opts,
+        );
+        serde_json::to_string(&value).unwrap()
     }
 }

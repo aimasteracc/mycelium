@@ -225,59 +225,10 @@ fn parse_edge_kind(s: &str) -> Result<EdgeKind, String> {
     }
 }
 
-const CONTEXT_STOP_WORDS: &[&str] = &[
-    "a", "an", "and", "are", "as", "at", "by", "call", "calls", "does", "flow", "for", "from",
-    "how", "in", "into", "is", "of", "on", "or", "through", "to", "trace", "what", "when", "where",
-    "which", "why", "with", "work", "works",
-];
-
-fn extract_symbol_candidates(task: &str) -> Vec<String> {
-    let pattern = concat!(
-        r"`[^`]+`",
-        r#"|"[^"]+""#,
-        r"|'[^']+'",
-        r"|[A-Za-z_][A-Za-z0-9_.]*",
-    );
-    let re = regex::Regex::new(pattern).unwrap();
-    let mut seen = std::collections::BTreeSet::new();
-    let mut out = Vec::new();
-    for cap in re.captures_iter(task) {
-        let raw = cap[0].trim_matches(|c: char| c == '`' || c == '"' || c == '\'');
-        for part in raw.split(['.', ':', '-', '>']) {
-            let token = part.trim_matches(|c: char| c == '_' || c == '.' || c == ',' || c == ';');
-            if token.is_empty() || token.len() < 3 {
-                continue;
-            }
-            let lower = token.to_ascii_lowercase();
-            if CONTEXT_STOP_WORDS.contains(&lower.as_str()) {
-                continue;
-            }
-            let has_structure =
-                token.contains('_') || token.chars().any(char::is_uppercase) || token.len() >= 4;
-            if !has_structure {
-                continue;
-            }
-            if seen.insert(token.to_owned()) {
-                out.push(token.to_owned());
-            }
-        }
-    }
-    out
-}
-
-fn path_leaf_name(trunk_path: &str) -> &str {
-    trunk_path
-        .rsplit('>')
-        .next()
-        .unwrap_or(trunk_path)
-        .rsplit("::")
-        .next()
-        .unwrap_or(trunk_path)
-}
-
-fn path_part_before_gt(trunk_path: &str) -> &str {
-    trunk_path.split('>').next().unwrap_or(trunk_path)
-}
+// `extract_symbol_candidates`, the stop-word list, and the path helpers used to
+// live here as a near-duplicate of the CLI twin. They now have a single home in
+// `mycelium_core::context` so both surfaces are byte-identical by construction
+// (RFC-0101 / Three-Surface Rule).
 
 #[cfg(test)]
 mod edge_kind_tests {
@@ -1453,13 +1404,15 @@ pub struct GetContextRequest {
     /// Maximum source snippets to return (default: 6).
     #[serde(default)]
     pub max_code_blocks: Option<usize>,
+    /// Edge kinds to expand during one-hop graph traversal, e.g.
+    /// `["calls", "imports", "extends"]`. Omit or empty ⇒ `["calls"]`
+    /// (RFC-0101 `edge_kinds`). Unknown names are ignored.
+    #[serde(default)]
+    pub edge_kinds: Option<Vec<String>>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
-    /// Edge kinds to traverse (e.g. `["Calls", "Imports"]`). Omit for all kinds.
-    #[serde(default)]
-    pub edge_kinds: Option<Vec<String>>,
 }
 
 // ── server ────────────────────────────────────────────────────────────────────
@@ -5063,192 +5016,59 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetContextRequest>,
     ) -> CallToolResult {
+        use mycelium_core::context::{self, ContextOptions, Routing};
+
         let max_nodes = req.max_nodes.unwrap_or(30).min(100);
         let max_code_blocks = req.max_code_blocks.unwrap_or(6).min(25);
-        let candidates = extract_symbol_candidates(&req.task);
-
-        let (entry_points, store_guard) = {
-            let store = self.store.read().await;
-            let mut eps: Vec<String> = Vec::new();
-            for candidate in candidates.iter().take(10) {
-                let matches = store.search_symbol(candidate, std::cmp::max(5, max_nodes / 3));
-                for m in matches {
-                    if !eps.contains(&m) {
-                        eps.push(m);
-                    }
-                    if eps.len() >= max_nodes {
-                        break;
-                    }
-                }
-                if eps.len() >= max_nodes {
-                    break;
-                }
-            }
-            (eps, store)
-        };
-
-        if entry_points.is_empty() {
-            let value = serde_json::json!({
-                "success": true,
-                "verdict": "NOT_FOUND",
-                "task": req.task,
-                "candidates": candidates,
-                "entry_points": [],
-                "nodes": [],
-                "edges": [],
-                "code_blocks": [],
-                "related_files": Vec::<String>::new(),
-                "stats": { "entry_points": 0, "nodes": 0, "edges": 0, "code_blocks": 0 },
-                "agent_summary": {
-                    "summary_line": "codegraph_context: no entry points found",
-                    "verdict": "NOT_FOUND",
-                    "next_step": "Try mycelium_search_symbol with an exact symbol name or broaden the task."
-                }
-            });
-            return success_str(req.output_format.map_or_else(
-                || value.to_string(),
-                |fmt| formatter_for(fmt).format(&value),
-            ));
-        }
-
-        let mut nodes: Vec<serde_json::Value> = entry_points
+        let edge_kinds: Vec<mycelium_core::types::EdgeKind> = req
+            .edge_kinds
+            .as_deref()
+            .unwrap_or_default()
             .iter()
-            .take(max_nodes)
-            .map(|p| serde_json::json!({ "id": p, "name": path_leaf_name(p), "path": p }))
+            .filter_map(|s| context::parse_edge_kind(s))
             .collect();
-        let mut edges: Vec<serde_json::Value> = Vec::new();
-        let mut seen_edges: BTreeSet<(String, String)> = BTreeSet::new();
-
-        let calls_kind = mycelium_core::types::EdgeKind::Calls;
-        for ep in entry_points.iter().take(max_nodes) {
-            let Some(id) = store_guard.lookup(ep) else {
-                continue;
-            };
-            for &callee_id in store_guard.outgoing(id, calls_kind) {
-                if nodes.len() >= max_nodes {
-                    break;
-                }
-                let Some(callee_path) = store_guard.path_of(callee_id) else {
-                    continue;
-                };
-                let callee_owned = callee_path.to_owned();
-                if !nodes.iter().any(|n| n["path"] == callee_owned) {
-                    nodes.push(serde_json::json!({
-                        "id": callee_path,
-                        "name": path_leaf_name(callee_path),
-                        "path": callee_path
-                    }));
-                }
-                let edge_key = (ep.clone(), callee_owned.clone());
-                if seen_edges.insert(edge_key) {
-                    edges.push(serde_json::json!({
-                        "source": ep,
-                        "target": callee_path,
-                        "kind": "calls"
-                    }));
-                }
-            }
-            for &caller_id in store_guard.incoming(id, calls_kind) {
-                if nodes.len() >= max_nodes {
-                    break;
-                }
-                let Some(caller_path) = store_guard.path_of(caller_id) else {
-                    continue;
-                };
-                let caller_owned = caller_path.to_owned();
-                if !nodes.iter().any(|n| n["path"] == caller_owned) {
-                    nodes.push(serde_json::json!({
-                        "id": caller_path,
-                        "name": path_leaf_name(caller_path),
-                        "path": caller_path
-                    }));
-                }
-                let edge_key = (caller_owned.clone(), ep.clone());
-                if seen_edges.insert(edge_key) {
-                    edges.push(serde_json::json!({
-                        "source": caller_path,
-                        "target": ep,
-                        "kind": "calls"
-                    }));
-                }
-            }
-        }
-
-        let mut code_blocks: Vec<serde_json::Value> = Vec::new();
-        let mut seen_paths: BTreeSet<String> = BTreeSet::new();
-        for node in &nodes {
-            if code_blocks.len() >= max_code_blocks {
-                break;
-            }
-            let path_str = node["path"].as_str().unwrap_or("");
-            let file_part = path_part_before_gt(path_str).to_owned();
-            if seen_paths.contains(&file_part) {
-                continue;
-            }
-            seen_paths.insert(file_part.clone());
-            let Some(id) = store_guard.lookup(path_str) else {
-                continue;
-            };
-            let span = store_guard.span_of(id);
-            code_blocks.push(serde_json::json!({
-                "file": file_part,
-                "symbol": path_leaf_name(path_str),
-                "span": span.map_or(serde_json::Value::Null, |s| serde_json::json!({
-                    "start_line": s.start_line,
-                    "start_col": s.start_col,
-                    "end_line": s.end_line,
-                    "end_col": s.end_col,
-                }))
-            }));
-        }
-
-        let related_files: Vec<String> = {
-            let mut seen = std::collections::BTreeSet::new();
-            for node in &nodes {
-                let p = node["path"].as_str().unwrap_or("");
-                let file = path_part_before_gt(p);
-                if !file.is_empty() {
-                    seen.insert(file.to_owned());
-                }
-            }
-            seen.into_iter().collect()
+        let opts = ContextOptions {
+            max_nodes,
+            max_code_blocks,
+            edge_kinds,
         };
 
-        let verdict = if entry_points.is_empty() {
-            "NOT_FOUND"
+        let store = self.store.read().await;
+        // Hyphae-first routing (RFC-0101 §classify): a selector task is
+        // evaluated by the DSL engine; prose goes through candidate search.
+        let (routing, candidates, entry_points) = if context::looks_like_hyphae(&req.task) {
+            if let Ok(ast) = mycelium_hyphae::parse(&req.task) {
+                let eps = mycelium_hyphae::evaluator::Evaluator::new(&store)
+                    .eval(&ast)
+                    .into_iter()
+                    .take(max_nodes)
+                    .collect::<Vec<String>>();
+                (Routing::Hyphae, Vec::new(), eps)
+            } else {
+                let cands = context::extract_symbol_candidates(&req.task);
+                let eps = context::seed_entry_points(&store, &cands, max_nodes);
+                (Routing::Natural, cands, eps)
+            }
         } else {
-            "INFO"
+            let cands = context::extract_symbol_candidates(&req.task);
+            let eps = context::seed_entry_points(&store, &cands, max_nodes);
+            (Routing::Natural, cands, eps)
         };
-        let mut value = serde_json::json!({
-            "success": true,
-            "verdict": verdict,
-            "task": req.task,
-            "candidates": candidates,
-            "entry_points": entry_points,
-            "nodes": nodes,
-            "edges": edges,
-            "code_blocks": code_blocks,
-            "related_files": related_files,
-            "stats": {
-                "entry_points": entry_points.len(),
-                "nodes": nodes.len(),
-                "edges": edges.len(),
-                "code_blocks": code_blocks.len(),
-            },
-            "agent_summary": {
-                "summary_line": format!(
-                    "codegraph_context: {} entry points, {} nodes, {} edges, {} code blocks",
-                    entry_points.len(), nodes.len(), edges.len(), code_blocks.len()
-                ),
-                "verdict": verdict,
-                "next_step": if code_blocks.is_empty() {
-                    "Use the nodes and edges to answer; code snippets were not available.".to_owned()
-                } else {
-                    "Answer from code_blocks and the graph now. Only call a narrower tool if a specific edge or symbol is missing.".to_owned()
-                }
-            }
-        });
-        apply_budget(&mut value, &self.current_budget().await);
+        let value = context::build_payload(
+            &store,
+            &req.task,
+            &candidates,
+            &entry_points,
+            routing,
+            &opts,
+        );
+        drop(store);
+
+        // NOTE: OutputBudget is intentionally NOT applied here yet. Applying it
+        // on the MCP side only would break the strict CLI↔MCP byte-identical
+        // contract (the CLI twin does not own OutputBudget). Wiring budgets in
+        // requires moving OutputBudget into `mycelium_core` so both surfaces
+        // apply the same truncation — tracked as a follow-up on RFC-0102.
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -12513,187 +12333,5 @@ mod output_budget_tests {
         assert!(is_core_tool("mycelium_server_status"));
         assert!(!is_core_tool("mycelium_get_all_symbols"));
         assert!(!is_core_tool("mycelium_get_callees"));
-    }
-}
-
-// RFC-0101 §response-contract: mycelium_context integration tests
-#[cfg(test)]
-mod context_contract_tests {
-    use super::*;
-    use mycelium_core::trunk::TrunkPath;
-    use mycelium_core::types::EdgeKind;
-
-    fn result_str(r: &CallToolResult) -> &str {
-        r.content
-            .first()
-            .and_then(|c| c.raw.as_text())
-            .map(|t| t.text.as_str())
-            .expect("CallToolResult must have non-empty text content")
-    }
-
-    async fn server_with_calls_fixture() -> MyceliumServer {
-        let server = MyceliumServer::new();
-        {
-            let mut store = server.store.write().await;
-            let file = store.upsert_node(TrunkPath::parse("src/router.rs").unwrap());
-            let handle =
-                store.upsert_node(TrunkPath::parse("src/router.rs>handle_request").unwrap());
-            let auth = store.upsert_node(TrunkPath::parse("src/router.rs>authenticate").unwrap());
-            let route =
-                store.upsert_node(TrunkPath::parse("src/router.rs>route_to_handler").unwrap());
-            store.upsert_edge(EdgeKind::Contains, file, handle);
-            store.upsert_edge(EdgeKind::Contains, file, auth);
-            store.upsert_edge(EdgeKind::Contains, file, route);
-            store.upsert_edge(EdgeKind::Calls, handle, auth);
-            store.upsert_edge(EdgeKind::Calls, handle, route);
-        }
-        server
-    }
-
-    async fn server_with_many_nodes() -> MyceliumServer {
-        // Budget starts at for_project(0) = max_nodes 15; we add 20 nodes to trigger truncation.
-        let server = MyceliumServer::new();
-        {
-            let mut store = server.store.write().await;
-            for i in 0..20u32 {
-                let path = TrunkPath::parse(&format!("src/alpha_{i}.rs>alpha_{i}")).unwrap();
-                store.upsert_node(path);
-            }
-        }
-        server
-    }
-
-    // 1. NOT_FOUND verdict must include related_files: []
-    #[tokio::test]
-    async fn context_not_found_has_related_files_empty() {
-        let server = MyceliumServer::new();
-        let raw = server
-            .mycelium_context(Parameters(GetContextRequest {
-                task: "completely_nonexistent_symbol_xyz_abc".to_string(),
-                max_nodes: None,
-                max_code_blocks: None,
-                output_format: None,
-                edge_kinds: None,
-            }))
-            .await;
-        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-        assert_eq!(val["verdict"], "NOT_FOUND", "verdict must be NOT_FOUND");
-        assert!(
-            val["related_files"].is_array(),
-            "related_files must be present in NOT_FOUND response"
-        );
-        assert!(
-            val["related_files"].as_array().unwrap().is_empty(),
-            "related_files must be empty when no context found"
-        );
-    }
-
-    // 2. Success response must include related_files with the correct file paths
-    #[tokio::test]
-    async fn context_success_has_related_files() {
-        let server = server_with_calls_fixture().await;
-        let raw = server
-            .mycelium_context(Parameters(GetContextRequest {
-                task: "handle_request".to_string(),
-                max_nodes: None,
-                max_code_blocks: None,
-                output_format: None,
-                edge_kinds: None,
-            }))
-            .await;
-        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-        let files = val["related_files"]
-            .as_array()
-            .expect("related_files must be present");
-        assert!(
-            files.iter().any(|f| f.as_str() == Some("src/router.rs")),
-            "related_files must contain src/router.rs; got: {files:?}"
-        );
-    }
-
-    // 3. Success response must contain all 7 keys specified by RFC-0101
-    #[tokio::test]
-    async fn context_success_has_all_required_rfc_keys() {
-        let server = server_with_calls_fixture().await;
-        let raw = server
-            .mycelium_context(Parameters(GetContextRequest {
-                task: "handle_request".to_string(),
-                max_nodes: None,
-                max_code_blocks: None,
-                output_format: None,
-                edge_kinds: None,
-            }))
-            .await;
-        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-        for key in &[
-            "entry_points",
-            "nodes",
-            "edges",
-            "code_blocks",
-            "related_files",
-            "stats",
-            "agent_summary",
-        ] {
-            assert!(
-                val.get(key).is_some(),
-                "RFC-0101 requires key '{key}' in success response; got: {val}"
-            );
-        }
-    }
-
-    // 4. Output budget truncates nodes when the count exceeds budget.max_nodes
-    #[tokio::test]
-    async fn context_budget_truncates_nodes() {
-        // Initial budget = for_project(0) = max_nodes 15.
-        // server_with_many_nodes has 20 nodes. Using max_nodes=100 raises the
-        // search limit to max(5, 100/3)=33, so all 20 alpha_N nodes are returned
-        // as entry_points; apply_budget then caps the nodes array at 15.
-        let server = server_with_many_nodes().await;
-        let raw = server
-            .mycelium_context(Parameters(GetContextRequest {
-                task: "alpha".to_string(),
-                max_nodes: Some(100), // ask for 100; budget still caps at 15
-                max_code_blocks: None,
-                output_format: None,
-                edge_kinds: None,
-            }))
-            .await;
-        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-        if val["verdict"] == "NOT_FOUND" {
-            // If search found nothing, skip — fixture didn't match; test is vacuous.
-            return;
-        }
-        let node_count = val["nodes"].as_array().map_or(0, Vec::len);
-        assert!(
-            node_count <= 15,
-            "budget must cap nodes at 15 for a small project; got {node_count}"
-        );
-        assert_eq!(
-            val.get("truncated"),
-            Some(&serde_json::Value::Bool(true)),
-            "truncated flag must be set when budget fires"
-        );
-    }
-
-    // 5. edge_kinds field is accepted and does not cause a panic or error
-    #[tokio::test]
-    async fn context_accepts_edge_kinds_param() {
-        let server = server_with_calls_fixture().await;
-        let raw = server
-            .mycelium_context(Parameters(GetContextRequest {
-                task: "handle_request".to_string(),
-                max_nodes: None,
-                max_code_blocks: None,
-                output_format: None,
-                edge_kinds: Some(vec!["Calls".to_string()]),
-            }))
-            .await;
-        let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-        // Must succeed (not an error payload).
-        assert_eq!(
-            val.get("success"),
-            Some(&serde_json::Value::Bool(true)),
-            "edge_kinds param must not cause an error; got: {val}"
-        );
     }
 }

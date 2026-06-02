@@ -9,15 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`mycelium_context` response contract (RFC-0101/RFC-0102 partial):** `related_files`
-  key now present in all responses (empty `[]` on NOT_FOUND; unique file paths from
-  the returned nodes on success). `edge_kinds` optional request parameter added to
-  `GetContextRequest` — accepted by MCP and CLI alike (filtering implementation in a
-  follow-up). `apply_budget` is now wired into the success path, capping `nodes` and
-  `edges` arrays at the project-size budget (15/30/50 nodes for small/medium/large
-  projects). Five RED-first integration tests in `context_contract_tests` cover:
-  NOT_FOUND has `related_files: []`, success has correct `related_files`, all 7
-  RFC-0101 keys present, budget truncation fires, and `edge_kinds` param accepted.
+- **`mycelium context` gains `related_files`, `edge_kinds`, and Hyphae routing
+  (RFC-0101).** The context tool now returns the full seven-key contract
+  (`related_files` was missing), accepts an `edge_kinds` request field / CLI
+  `--edge-kinds calls,imports,extends` to expand beyond calls, and routes a
+  Hyphae-selector task through the DSL evaluator (the response `routing` field
+  reports `"natural"` vs `"hyphae"`). CLI and MCP now share a single builder,
+  `mycelium_core::context`, so their JSON is **identical by construction** —
+  this also fixes a real parity bug where the two surfaces had divergent
+  candidate tokenizers. Added `skills/architecture-context/tests/parity.test.json`.
+  Applying `OutputBudget` to the payload is deferred until that type moves into
+  core so both surfaces truncate identically (tracked as follow-up).
 
 ### Changed
 

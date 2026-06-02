@@ -36,6 +36,7 @@
 #![doc(html_root_url = "https://docs.rs/mycelium-core")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub mod context;
 pub mod cortex;
 pub mod error;
 pub mod extractor;
