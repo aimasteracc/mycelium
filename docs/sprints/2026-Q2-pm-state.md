@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v10 — PRs #442+#443 merged; RFC-0104 draft PR #444 opened: Charter §2 warm/cold SLA split — founder decision required) |
+| Last updated | 2026-06-02 (PM dispatch v11 — PR #445 merged; Issues #426+#428 AC-state verified; Issue #426 AC#1+AC#3 confirmed done; Issue #428 AC#1+AC#3 confirmed done; comments posted on both issues) |
 | Current sprint | **v0.1.17 — IN PROGRESS (Issue #426 AC#4 gated on founder RFC-0104 review; Issue #428 AC#2 tool-impl split remaining P2)** |
 | Active release branch | none (cut release/v0.1.17 after security scan + founder sign-off on Issue #426) |
 | Next release target | **v0.1.17** — RFC-0101/0102 contract + RFC-0100 Phase 3 redb readiness + tech debt god-file split (#428) |
@@ -110,7 +110,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] feat(budget): `OutputBudget` to core, context budgeted on both surfaces (PR #438 — Issue #427 CLOSED) ✅
 - [x] feat(core): 100k-node redb SLA gate; remove orphan LRU (PR #440 — Issue #426 AC#1+3) ✅
 - [x] refactor(core): redb codec → `redb_codec.rs` (PR #441 — Issue #428 AC#3 slice) ✅
-- [ ] refactor(mcp): `mod tests` → `src/tests.rs` lib.rs 12191→5627 (PR #442, CI pending — Issue #428 AC#2 slice 1)
+- [x] refactor(mcp): `mod tests` → `src/tests.rs` lib.rs 12191→5627 (PR #442 MERGED — Issue #428 AC#2 slice 1) ✅
 
 **v0.1.17 ceremony status — NOT STARTED ⚠️ (gated on v0.1.16 crates.io step 3 first):**
 - [ ] **Step 1**: `release/v0.1.17` → `main` — branch not yet cut
@@ -128,7 +128,12 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 1. Re-push `release/v0.1.16` branch → `release.yml` re-runs automatically, OR
 2. Run the ceremony script from PR #375 against the `v0.1.16` tag manually.
 
-**Recent events (2026-06-02 v10 — absorbed v9):**
+**Recent events (2026-06-02 v11 — absorbed v10):**
+- PR #445 (PM chore v10) MERGED ✅
+- Issue #426: Comments posted confirming AC#1 ✅ (100k nightly gate) + AC#3 ✅ (BoundedStore removed). AC#2 (RSS-cap gate) confirmed blocked on RFC-0104 mechanism decision. AC#5 blocked on AC#2+AC#4.
+- Issue #428: Comments posted confirming AC#1 ✅ (ADR-0008 rename) + AC#3 ✅ (codec split PR #441). AC#2 slice 1 ✅ (PR #442); slice 2 (tool-impl split, lib.rs at 5,626 lines) still open.
+
+**v11 absorbed v10 events:**
 - PR #416 (v0.1.16 release → main) MERGED ✅ (founder authorized)
 - PR #419 (hotfix: release.yml publish fixes) MERGED to main ✅
 - PR #423 (back-merge hotfix → develop) MERGED ✅
@@ -159,14 +164,14 @@ Charter §5.12 step 3 is still open. The hotfix is on both `main` and `develop`.
 
 ---
 
-## Dispatch state (2026-06-02 v9 — PR #442 opened; Issues #426 founder-gated)
+## Dispatch state (2026-06-02 v11 — Issues #426+#428 AC-state verified; PR #445 merged)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main`+`develop`; release.yml fixed). (2) Issue #426 AC#4: authorize `meta` RFC to split Charter §2 warm/cold latency SLAs — required before RSS-cap CI gate (AC#2) and redb-default flip (AC#5) can proceed. (3) Authorize v0.1.17 ceremony after crates.io + security scan. (4) Systemic: `RELEASE_BOT_TOKEN` fix. |
-| orchestrator/pm | **done** | This dispatch (v9). PR #442 opened (Issue #428 AC#2 slice 1). |
+| founder | **action required** | (1) Re-trigger v0.1.16 crates.io publish (hotfix on `main`+`develop`). (2) Review RFC-0104 draft (PR #444) — Charter §2 warm/cold SLA split (unblocks Issue #426 AC#2+AC#5). (3) Authorize v0.1.17 ceremony after crates.io + security scan. (4) Systemic: `RELEASE_BOT_TOKEN` fix. |
+| orchestrator/pm | **done** | Dispatch v11: PR #445 merged; AC-state audited on Issues #426+#428; comments posted; PM state updated. |
 | security-reviewer | **NEXT** | Post-v0.1.16 scan (no scan since v0.1.14). |
-| rust-implementer | **QUEUED** | Issue #428 AC#2 remaining: split tool impls into tools/context.rs + tools/graph.rs. After founder sign-off: Issue #426 AC#2 RSS-cap CI gate. |
+| rust-implementer | **QUEUED** | Issue #428 AC#2 slice 2: split tool impls into `tools/context.rs` + `tools/graph.rs` (lib.rs 5,626 lines → target < 1,000). After founder sign-off on RFC-0104: Issue #426 AC#2 RSS-cap CI gate. |
 | architect | idle | Prepare meta-RFC for Issue #426 AC#4 Charter §2 warm/cold split (for founder review). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 | e2e-runner | idle | RSS-curve measurement — benchmark harness exists in `redb_sla.rs`. |
