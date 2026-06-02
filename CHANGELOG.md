@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored
+
+- **`mycelium-mcp` god-file split — tests submodule extracted (Issue #428 AC#2 slice 1).** `crates/mycelium-mcp/src/lib.rs` reduced from 12,191 → 5,627 lines (~54%) by extracting the 6,564-line `mod tests` block into `src/tests.rs`. The remaining three small test modules (`edge_kind_tests`, `server_info_tests`, `output_budget_tests`) stay in `lib.rs`. Pure mechanical refactor; zero behavior change. All 584 workspace tests green. Remaining AC#2 work: split tool implementations into `tools/context.rs` and `tools/graph.rs`.
+
 ### Added
 
 - **100k-node redb SLA gate (RFC-0100 Phase 3, Charter §2).** New env-guarded
