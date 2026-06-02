@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-01 (PM dispatch v3 — PR #395 MERGED ✅ (90th MCP tool, OutputBudget, stubs); PR #405 MERGED ✅; Issue #375 escalated to founder; dep bumps #402-#404 deferred) |
-| Current sprint | **v0.1.16 — IN PROGRESS (ceremony repair + feature content ready)** |
-| Active release branch | none (Issue #375 ceremony repair pending founder GPG decision) |
-| Next release target | **v0.1.16** — ceremony repair (Issue #375) + mycelium_context + RFC-0100 redb + RFC-0101 CLI twin |
+| Last updated | 2026-06-02 (PM dispatch — PR #414 opened: RFC-0101 Phase 2 mycelium context CLI twin; Three-Surface violation for `context` resolved; dep bumps #411/#412/#413 merged to develop) |
+| Current sprint | **v0.1.16 — CONTENT NEARLY COMPLETE (PR #414 CLI twin pending CI+merge)** |
+| Active release branch | none (cut release/v0.1.16 after PR #414 merges) |
+| Next release target | **v0.1.16** — RFC-0101 CLI twin (PR #414) + all RFC-0100 redb + dep bumps |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.14 — RFC-0096 Phase 2 TS, RFC-0093 Phase 3 BREAKING, skill-parity required CI, Store::merge R1** (tag v0.1.14, GitHub Release published 2026-05-31) |
 
@@ -78,29 +78,25 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0:**
-1. **Issue #375 — v0.1.15 ceremony BROKEN** (founder decision gate): Repair v0.1.15 OR supersede with v0.1.16. Dependencies: (a) configure/audit `CRATES_IO_TOKEN` in crates-io environment, (b) configure/audit `RELEASE_BOT_TOKEN`, (c) founder GPG-signed decision.
+**P0:** none — Issue #375 ceremony resolved (PR #375 merged); 0 open issues.
 
 **P1 (v0.1.16 scope):**
-2. **RFC-0101 Phase 2 — `mycelium context` CLI twin**: PR #395 merged (90th MCP tool). CLI subcommand not yet implemented (I4 deferred). TDD: write failing `mycelium context` CLI integration test, implement `crates/mycelium-cli/src/context.rs`, wire into `main.rs`. Assign to rust-implementer next.
-3. **Post-v0.1.15/v0.1.16 security scan** — pending ceremony resolution (after Issue #375 closes).
+1. **PR #414 — `mycelium context` CLI twin** (RFC-0101 Phase 2): merge after CI green. Three-Surface violation for `context` resolved by this PR (CLI + MCP 1:1 strict, Skill covered). Once merged, v0.1.16 content is complete.
+2. **Security scan post-v0.1.16** — run after PR #414 merges + ceremony completes.
+3. **Cut release/v0.1.16** — all content ready: RFC-0100 redb, RFC-0101 CLI twin, dep bumps (salsa 0.26, logos 0.16, redb 4.1), release ceremony script. Use ceremony script from PR #375.
 
-**Maintenance (merged this run and prior runs today):**
-- PR #395 MERGED ✅ (2026-06-01 v3): mycelium_context + OutputBudget + import-aware stubs (90 MCP tools, 22/22 CI checks green)
-- PR #405 MERGED ✅ (2026-06-01 v3): PM dispatch state chore
-- PRs #397–#401 MERGED ✅ (2026-06-01 v2): CI action bumps — all 5 merged
-
-**Deferred dependency bumps (red CI, needs RFC/analysis):**
-- PR #402: redb 2.6.3→4.1.0 — clippy + docs failure; redb 4.x is a major API break
-- PR #403: logos 0.14.4→0.16.1 — clippy + unit test failures
-- PR #404: salsa 0.18.0→0.26.2 — clippy + unit + dogfood failures; salsa 0.26 is 8 major versions ahead; needs RFC before adopting
+**Recent merges (since last PM state):**
+- PR #407/#343: append-only journal for incremental persistence (R2) MERGED ✅
+- PR #344: memory-bound LRU eviction (R3) MERGED ✅
+- PR #411: salsa 0.18→0.26 MERGED ✅
+- PR #412: logos 0.14→0.16 MERGED ✅
+- PR #413: redb 2.6.3→4.1 MERGED ✅ (required ReadableDatabase trait import)
+- PR #375: release ceremony script MERGED ✅
 
 **P2 (v0.2.0 scope):**
-5. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit — blocking every release since v0.1.6)
-6. R2 incremental persistence (#343) — founder decision gate if storage format changes
-7. R3 memory bound (#344) — measure RSS first; medium-high risk; gate behind feature flag
-8. Skill marketplace submission to Claude Code marketplace
-9. "First 5 minutes" walkthrough validation (README + docs site)
+4. `release.yml` finalize merge step (founder-escalated; needs `RELEASE_BOT_TOKEN` + `CRATES_IO_TOKEN` audit — blocking since v0.1.6; ceremony script is workaround)
+5. Skill marketplace submission to Claude Code marketplace
+6. "First 5 minutes" walkthrough validation (README + docs site)
 
 ---
 
@@ -108,13 +104,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **ACTION REQUIRED (P0)** | **(a) Issue #375**: Decide repair v0.1.15 or cut v0.1.16. All prerequisites done (PRs #374/#376 merged, `CRATES_IO_TOKEN`+`RELEASE_BOT_TOKEN` configured). Awaiting GPG-signed decision on version + crates.io publish authorization. **(b) Systemic**: Fix `release.yml` before next release. |
-| release | **blocked** | Waiting on Issue #375 founder decision before cutting release/v0.1.16 branch. |
-| rust-implementer | **NEXT** | RFC-0101 Phase 2: `mycelium context` CLI twin. TDD: write failing CLI integration test RED first, implement `crates/mycelium-cli/src/context.rs`, wire into `main.rs`. Branch from develop. |
-| security-reviewer | idle | Post-v0.1.16 scan after ceremony resolves. |
-| architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). Also: RFC for salsa 0.18→0.26 adoption if founder approves. |
+| founder | **action requested** | (1) Review + authorize v0.1.16 release after PR #414 merges (ceremony via PR #375 script). (2) Systemic: `release.yml` finalize merge fix before v0.2.0. |
+| release | **NEXT** | Cut release/v0.1.16 once PR #414 CI green + merged. Use ceremony script from PR #375. |
+| rust-implementer | done | PR #414 (RFC-0101 Phase 2 CLI twin) — waiting CI. |
+| security-reviewer | idle | Post-v0.1.16 scan after ceremony completes. |
+| architect | idle | ADR for redb as default backend (RFC-0100 Phase 3 decision gate). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| e2e-runner | idle | RSS-curve measurement — see Issue #344, benchmark harness exists (PR #391). |
+| e2e-runner | idle | RSS-curve measurement — benchmark harness exists (PR #391). |
 
 ---
 
@@ -447,3 +443,27 @@ v0.1.4 sprint declared complete. All 7 exit criteria met.
 
 1. v0.1.0 + v0.1.1 shipped. Three-Surface Rule is law.
 2. PRD for v0.2 at [`docs/prd/v0.2-the-three-surface-release.md`](../prd/v0.2-the-three-surface-release.md).
+
+### 2026-06-02 PM dispatch (RFC-0101 Phase 2 CLI twin; PR #414 opened)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state (stale — develop at bd25cc8 vs local at 59521bd), v0.2 PRD.
+
+**Assessment:**
+- 0 open PRs, 0 open issues. CI green (E2E SUCCESS on bd25cc8 redb bump).
+- develop HEAD bd25cc8: dep bumps merged (salsa 0.26, logos 0.16, redb 4.1 — all green CI). R2 persistence (#407) + R3 memory-bound (#344) merged. Release ceremony script (PR #375) merged.
+- PM state stale (last updated 2026-06-01). Cargo version: 0.1.14 (needs bump to 0.1.16 at release time).
+- P0 (Issue #375 ceremony) resolved: 0 open issues confirms founder closed it.
+- **Three-Surface violation**: `mycelium_context` MCP tool (90th tool) existed; CLI twin `mycelium context` was missing. INDEX.md had `⚠️ EXCEPTION: MCP-only`.
+
+**Actions taken:**
+1. RFC-0101 Phase 2: TDD (3 RED tests → compile fail) → implemented run_context(), extract_symbol_candidates(), build_context_payload(), context_json(), context_path_leaf() in queries.rs; added Context variant + dispatch in main.rs. 3/3 GREEN tests. fmt ✅ clippy ✅ cargo test --all ✅.
+2. Updated skills/architecture-context/SKILL.md: CLI tool added to allowed-tools + CLI reference section.
+3. Updated skills/INDEX.md: context row ⚠️ → ✅ Three-Surface v0.1.16.
+4. Updated rfcs/0101-mycelium-context-tool.md: Status → Implemented; acceptance criteria ticked.
+5. Updated CHANGELOG.md Unreleased.
+6. Opened PR #414 (feature/rfc-0101-phase2-cli-twin → develop).
+7. Updated PM state + decisions.jsonl.
+
+**Sprint status:** v0.1.16 content complete pending PR #414 merge + CI green.
+
+**Escalations:** Founder review needed to authorize v0.1.16 ceremony after PR #414 lands.
