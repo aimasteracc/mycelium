@@ -1,6 +1,6 @@
 # RFC-0102: Adaptive output budgets for agent-facing results
 
-- **Status**: **Partially Implemented** (#395 + the RFC-0101 budget follow-up). `OutputBudget` + `apply_budget` live in `mycelium_core::budget` and are applied across the MCP tool surface **and** inside `mycelium_context` on both the MCP tool and the CLI twin — the same budget over the same payload, so CLI↔MCP stays byte-identical, and the two never-enforced fields (`max_code_lines` / `max_total_chars`) were removed. Truncation is visible via top-level `truncated` and `total_available` **and** the nested `budget { mode, truncated, truncated_fields, total_available{...}, limits{...} }` object (shipped on truncation; `OutputBudget` now carries a `mode: BudgetMode` tag; both surfaces call the same core `apply_budget`, so the object is byte-identical by construction). **What's not yet shipped** (see §"What's still pending" + Acceptance Criteria): the per-call `--budget`/`budget` request knob (`BudgetOptions { budget: BudgetOverride }`) — clients still cannot pick a tier or `disabled` per call; the budget remains server-derived. (When the knob lands, budget metadata becomes always-on rather than truncation-only.)
+- **Status**: **Partially Implemented** (#395 + the RFC-0101 budget follow-up). `OutputBudget` + `apply_budget` live in `mycelium_core::budget` and are applied across the MCP tool surface **and** inside `mycelium_context` on both the MCP tool and the CLI twin — the same budget over the same payload, so CLI↔MCP stays byte-identical, and the two never-enforced fields (`max_code_lines` / `max_total_chars`) were removed. Truncation is visible via top-level `truncated` and `total_available` **and** the nested `budget { mode, truncated, truncated_fields, total_available{...}, limits{...} }` object (shipped on truncation; `OutputBudget` carries a `mode: BudgetMode` tag; both surfaces call the same core `apply_budget`, so the object is byte-identical by construction). The **per-call override knob** is now shipped on the flagship `mycelium_context` tool + its CLI twin: `BudgetOverride { Auto, Small, Medium, Large, Disabled }` resolved by `OutputBudget::resolve(over, node_count)`, exposed as the MCP `budget` field and CLI `--budget`, parsed via a shared `FromStr` (unknown value → fail-fast). **What remains**: rolling the same `resolve`-before-`apply_budget` helper across the other graph-list tools (`get_all_symbols`, `get_callee_tree`, …) — mechanical, no new design — and flipping budget metadata to always-on (currently truncation-only).
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-01
 - **Last updated**: 2026-06-01
@@ -272,11 +272,19 @@ responses, the helper should short-circuit counting until a limit is near.
 
 - [x] RFC accepted (core implementation in #395, completed in the RFC-0101
       budget follow-up).
-- [ ] `OutputBudget` **and `BudgetOptions`** are shared by CLI and MCP paths.
-      `OutputBudget` is shared (`mycelium_core::budget`); **`BudgetOptions`
-      (per-call `--budget`/`budget` override knob) has not been implemented**.
-      Clients cannot request `budget: "disabled"` or pick a tier explicitly;
-      the boundary is server-derived only.
+- [x] `OutputBudget` **and the per-call override knob** are shared by CLI and
+      MCP paths. `OutputBudget` lives in `mycelium_core::budget`; the per-call
+      override is `BudgetOverride { Auto, Small, Medium, Large, Disabled }`
+      resolved by `OutputBudget::resolve(over, node_count)` — both surfaces
+      parse the same wire token via the shared `FromStr` and call the same
+      `resolve`, so the effective budget is byte-identical by construction.
+      Exposed on the flagship `mycelium_context` tool (MCP `budget` field) and
+      its CLI twin (`mycelium context --budget`); an unknown value fails fast
+      (MCP `application_error` / CLI non-zero exit). Clients can now request
+      `disabled` or pin a tier explicitly. *(Scope: wired on `mycelium_context`
+      first per §"first implementation family"; rolling the same
+      `resolve`-before-`apply_budget` helper across the remaining graph-list
+      tools is a mechanical follow-up.)*
 - [x] MCP and CLI JSON outputs remain parity-equivalent for covered tools
       (the same `apply_budget` runs on the same payload — proven by the
       RFC-0101 `mycelium_context` byte-identical contract test).
