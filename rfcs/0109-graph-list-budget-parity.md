@@ -103,7 +103,7 @@ byte-identical contract test.
 | Tool | Shared builder | CLI object shape | `--budget`/`budget` | PR |
 |---|---|---|---|---|
 | `get_callees` | `mycelium_core::queries::callees_payload` | ✅ | ✅ | (this RFC's first impl) |
-| `get_callers` | — | — | — | pending |
+| `get_callers` | `mycelium_core::queries::callers_payload` | ✅ | ✅ | done |
 | `get_dead_symbols` | — | — | — | pending |
 | `get_isolated_symbols` | — | — | — | pending |
 | `get_reachable` / `get_reachable_to` | — | — | — | pending (already object-shaped on MCP) |
