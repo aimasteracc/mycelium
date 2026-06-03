@@ -77,7 +77,7 @@ async fn engine_reindexes_changed_file_and_emits_event() {
             store_h,
             reindexer_ref,
             None,
-            move |ev, _store| events_h.lock().unwrap().push(ev.clone()),
+            move |ev, _delta, _store| events_h.lock().unwrap().push(ev.clone()),
             cancel_h,
         )
         .await
@@ -148,7 +148,7 @@ async fn cancellation_drains_final_batch_then_stops() {
             store_h,
             reindexer_ref,
             None,
-            move |ev, _store| events_h.lock().unwrap().push(ev.clone()),
+            move |ev, _delta, _store| events_h.lock().unwrap().push(ev.clone()),
             cancel_h,
         )
         .await
@@ -200,7 +200,7 @@ async fn ignore_rules_skip_target_and_gitignored() {
             store_h,
             reindexer_ref,
             None,
-            move |ev, _store| events_h.lock().unwrap().push(ev.clone()),
+            move |ev, _delta, _store| events_h.lock().unwrap().push(ev.clone()),
             cancel_h,
         )
         .await

@@ -15,7 +15,9 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use mycelium_core::store::Store;
-use mycelium_core::watch::{CancelToken, FileReindexer, WatchConfig, WatchEngine, WatchEvent};
+use mycelium_core::watch::{
+    BatchDelta, CancelToken, FileReindexer, WatchConfig, WatchEngine, WatchEvent,
+};
 use tokio::sync::RwLock;
 
 use crate::index::{Extractors, index_path_parallel};
@@ -87,7 +89,7 @@ pub(super) fn run_foreground(root: &Path, debounce_ms: u64) -> Result<()> {
         // 4. Drive the engine in a task; race against ctrl_c.
         let store_drive = Arc::clone(&store);
         let drive = tokio::spawn(async move {
-            let on_batch = move |ev: &WatchEvent, _store: &Store| {
+            let on_batch = move |ev: &WatchEvent, _delta: &BatchDelta, _store: &Store| {
                 eprintln!(
                     "mycelium watch: batch {} — reindexed {} file(s): {}",
                     ev.batch_seq,

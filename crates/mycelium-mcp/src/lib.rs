@@ -1644,6 +1644,7 @@ impl MyceliumServer {
         let root_cb = root.clone();
         let notifier_cb = Arc::clone(&self.notifier);
         let on_batch = move |ev: &mycelium_core::watch::WatchEvent,
+                             _delta: &mycelium_core::watch::BatchDelta,
                              store_r: &mycelium_core::store::Store| {
             watch_state_cb
                 .batches_processed
