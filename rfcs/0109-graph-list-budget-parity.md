@@ -106,7 +106,8 @@ byte-identical contract test.
 | `get_callers` | `mycelium_core::queries::callers_payload` | ✅ | ✅ | done |
 | `get_dead_symbols` | `mycelium_core::queries::dead_symbols_payload` | ✅ | ✅ | done |
 | `get_isolated_symbols` | `mycelium_core::queries::isolated_symbols_payload` | ✅ | ✅ | done |
-| `get_reachable` / `get_reachable_to` | — | — | — | pending (already object-shaped on MCP) |
+| `get_reachable` | `mycelium_core::queries::reachable_payload` | ✅ (already object) | ✅ | done |
+| `get_reachable_to` | (shares `reachable_payload`) | — | — | pending |
 | `get_all_symbols` | — | — | — | pending (bespoke pagination — reconcile) |
 
 ## Acceptance criteria

@@ -75,6 +75,15 @@ pub fn isolated_symbols_payload(isolated: &[String]) -> Value {
     json!({ "isolated_symbols": isolated, "count": isolated.len() })
 }
 
+/// Build the `{ "reachable": [...], "count": N }` payload shared by
+/// `get_reachable` and `get_reachable_to` from an already-computed BFS result.
+///
+/// `count` is the full pre-budget total (see [`dead_symbols_payload`]).
+#[must_use]
+pub fn reachable_payload(reachable: &[String]) -> Value {
+    json!({ "reachable": reachable, "count": reachable.len() })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,5 +152,12 @@ mod tests {
         let v = isolated_symbols_payload(&["x".to_owned()]);
         assert_eq!(v["isolated_symbols"], serde_json::json!(["x"]));
         assert_eq!(v["count"], 1);
+    }
+
+    #[test]
+    fn reachable_payload_has_array_and_count() {
+        let v = reachable_payload(&["a".to_owned(), "b".to_owned(), "c".to_owned()]);
+        assert_eq!(v["reachable"], serde_json::json!(["a", "b", "c"]));
+        assert_eq!(v["count"], 3);
     }
 }
