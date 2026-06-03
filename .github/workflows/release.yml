@@ -127,6 +127,7 @@ jobs:
               cargo publish -p "$pkg" >/tmp/publish_${pkg}.log 2>&1 || {
                 if grep -q "already exists" /tmp/publish_${pkg}.log; then
                   echo "$pkg v$VERSION was published by a previous run; continuing"
+                  continue
                 else
                   cat /tmp/publish_${pkg}.log >&2
                   exit 1
