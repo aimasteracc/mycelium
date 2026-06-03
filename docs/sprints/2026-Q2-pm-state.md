@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v14 — PRs #455+#456 merged; PR #457 closed/superseded; PR #458 opened (RFC-0105 clean rebase); security scan CLEAN) |
+| Last updated | 2026-06-03 (PM dispatch v15 — PR #459 merged; `ef5e19a` cherry-picked to release/v0.1.17; release.yml re-triggered with 360s crates.io wait) |
 | Current sprint | **v0.1.17 — RELEASE BRANCH CUT** (`release/v0.1.17`, PR #452 Quality Gate ✅ — founder can authorize ceremony script) |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
@@ -113,14 +113,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
 - [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
 
-**v0.1.17 ceremony status — PARTIALLY BLOCKED:**
+**v0.1.17 ceremony status — CI RE-TRIGGERED (awaiting result):**
 - [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅ (v12)
 - [x] **Pre-release**: CHANGELOG Unreleased section verified ✅ (v12)
 - [ ] **Step 1**: `release/v0.1.17` → `main` (founder authorization required)
   - PR #452: Quality Gate ✅ SUCCESS (required branch-protection check)
-  - ⚠️ `publish to crates.io` = FAILURE in release.yml (crates.io indexing lag — the crate likely published but REST-API wasn't visible within 12×10s=120s wait; NOT a code quality issue)
-  - **Founder path**: use `scripts/release-ceremony.sh` which publishes fresh, bypassing the stale CI run; OR wait for PR #455 to land on develop, cherry-pick to release branch, re-run CI
-  - Charter §5.12 strict: all CI checks must be SUCCESS/SKIPPED. PM standard: Quality Gate (required check) is SUCCESS — ceremony script approach is pragmatic
+  - ~~⚠️ `publish to crates.io` = FAILURE~~ → **FIXED (v15)**: `ef5e19a` cherry-picked to `release/v0.1.17` (121225f); release.yml re-triggered with 36×10s=360s wait. `finalize` gated on `workflow_dispatch` — no auto-merge risk.
+  - **Once CI green** on PR #452: founder can authorize `scripts/release-ceremony.sh` Steps 1–4.
 - [ ] **Step 2**: Tag `v0.1.17` pushed
 - [ ] **Step 3**: GitHub Release published + 5 crates on crates.io
 - [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` (PR #453)
@@ -134,8 +133,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (v0.1.17 release gates):**
 1. ~~**Security scan post-v0.1.16**~~ — COMPLETE ✅ (v12 + re-confirmed v14: CLEAN)
 2. ~~**Cut `release/v0.1.17`**~~ — COMPLETE ✅ (PR #452 + PR #453 open)
-3. ~~**release.yml CI fix PR #455**~~ — MERGED ✅ (2026-06-03, this run)
-4. **Founder authorization** — PR #452 Quality Gate ✅. Use `scripts/release-ceremony.sh` for Steps 1–4. release.yml now fixed (PR #455 on develop). (`founder` action — NEXT STEP)
+3. ~~**release.yml CI fix**~~ — COMPLETE ✅ (PR #455 on develop; cherry-picked 121225f to release/v0.1.17 in v15)
+4. **Wait for PR #452 CI green** (release.yml re-running with 360s wait) → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
 
 **P1 (reactive roadmap — RFC-0105):**
 5. **Founder: ratify or reject RFC-0105 Three-Surface EXCEPTION** — PR #458 (doc-only, CI pending). Watch lifecycle genuinely differs (foreground CLI vs background MCP server); parity bridge = shared WatchEngine + byte-identical `watch --status`. **Implementation is gated on this decision.**
@@ -153,11 +152,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v14 — PRs #455+#456 merged; PR #458 opened; security CLEAN; RFC-0105 founder gate)
+## Dispatch state (2026-06-03 v15 — PR #459 merged; ef5e19a cherry-picked to release/v0.1.17; CI re-triggered)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Authorize v0.1.17 ceremony: `scripts/release-ceremony.sh` — Steps 1–4. PR #452 Quality Gate ✅; release.yml now fixed (PR #455). (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** (PR #458 — foreground CLI watch vs background MCP; parity bridge = shared WatchEngine + `watch --status`). Implementation gated on your decision. (4) Schedule `sla_ancestors_100k` nightly benchmark for RFC-0104 cold numbers. |
+| founder | **action requested** | (1) Watch PR #452 CI — release.yml re-running with 360s crates.io wait (fix: 121225f on release/v0.1.17). Once all checks SUCCESS/SKIPPED: authorize `scripts/release-ceremony.sh` Steps 1–4. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** (PR #458, CI green — foreground CLI watch vs background MCP; parity bridge = shared WatchEngine + `watch --status`). Implementation gated on your decision. (4) Schedule `sla_ancestors_100k` nightly benchmark for RFC-0104 cold numbers. |
 | PM | **DONE ✅** | PRs #455+#456 merged; PR #457 closed; PR #458 opened; security CLEAN; PM state v14. |
 | security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN (v12 + re-confirmed v14). |
 | release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 + PR #453 open. Awaiting founder auth. |
@@ -191,6 +190,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v15 (this run — PR #459 merged; release.yml fix cherry-picked to release/v0.1.17; CI re-triggered)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (no domain hits: `publish`, `cli`, `three-surface`, `context`, `mcp`), PM state (stale — local ahead; develop HEAD f902788), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #452 (release/v0.1.17 → main, `publish to crates.io` FAILED, Quality Gate ✅), #453 (back-merge, ceremony Step 4), #458 (RFC-0105 docs, CI green, founder EXCEPTION gate), #459 (PM chore v14, 22/22 CI green).
+- 0 open issues.
+- PR #452 `publish to crates.io` failure: root cause confirmed — `wait_for_crate` loop timed out after 12×10s=120s; crates.io indexing lag. Fix `ef5e19a` is already on develop (PR #455 merged in v13). Fix NOT yet on release/v0.1.17.
+- PR #459: pure chore, 22/22 green CI — safe to merge immediately.
+- PR #458: RFC-0105 (Watch Engine EXCEPTION), 22/22 green CI — doc-only, but EXCEPTION requires founder ratification before merge.
+- finalize job on PR #452 is SKIPPED (correct — was already gated; new commit gates it on `workflow_dispatch`).
+
+**Actions taken:**
+1. **Merged PR #459** (chore PM dispatch v14, 22/22 CI SUCCESS, squash) ✅.
+2. **Cherry-picked `ef5e19a`** (ci(release): increase crates.io wait 12→36, gate finalize on workflow_dispatch) onto `release/v0.1.17` as commit `121225f`. Push to `origin/release/v0.1.17` → release.yml re-triggered with extended 360s wait. ✅
+3. **Updated PM state v15**: v0.1.17 ceremony status updated; dispatch table updated.
+4. **Appended decisions.jsonl** this run.
+
+**Escalations:**
+- Founder: PR #452 CI re-running (release.yml). Once all checks SUCCESS/SKIPPED → authorize `scripts/release-ceremony.sh` Steps 1–4.
+- Founder: PR #458 (RFC-0105) — ratify or reject EXCEPTION before WatchEngine implementation begins.
 
 ### 2026-06-02 PM dispatch v13 (this run — PR #454 merged; PR #452 CI failure diagnosed; PR #455 release.yml fix opened)
 
