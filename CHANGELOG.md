@@ -53,13 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fail fast (MCP `application_error` / CLI non-zero exit). Rolling the knob
   across the remaining graph-list tools is a mechanical follow-up.
 
-### Docs
-
-- **ADR-0010**: negative architecture decision — no live LSP; prefer optional static
-  SCIP/LSIF ingestion. Codex P2 corrections: date 2026-06-03 (was 06-04) and Charter
-  section refs §4 Language Support Matrix (was §1) for the ≤3-file language-pack
-  constraint.
-
 ## [0.1.19] - 2026-06-04
 
 ### Fixed

@@ -164,7 +164,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 |---|---|---|
 | founder | idle | v0.1.17–v0.1.19 ceremonies complete ✅. RFC-0105 EXCEPTION ratified ✅. Next: review RFC-0104 cold SLA data when nightly bench runs. |
 | PM | **DONE ✅** | v25 complete: PRs #485+#486 merged; ADR-0009 rename done; PM state v25 updated. |
-| release | **WAITING** | Ceremony blocked on founder (Steps 1+2+3 of v0.1.18). |
+| release | **DONE ✅** | All ceremonies complete (v0.1.17 retro-tag ✅, v0.1.18 ✅, v0.1.19 ✅). Next: cut `release/v0.1.20` once RFC-0109 roll-out complete. |
 | security-reviewer | **DONE ✅** | Post-v0.1.18 scan: CLEAN. |
 | architect | **DONE ✅** | ADR-0010 (no live LSP) opened/fixed; ADR-0009 rename complete. |
 | e2e-runner | **P1** | Dogfood re-run with redb-as-default + watch --subscribe (8/8 CLI). |
