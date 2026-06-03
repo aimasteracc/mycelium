@@ -5298,7 +5298,7 @@ impl MyceliumServer {
 }
 
 const MCP_INSTRUCTIONS_BASE: &str = "\
-## Mycelium — AI-native symbol graph (90 tools)
+## Mycelium — AI-native symbol graph (93 tools)
 
 **Setup (always first):**
 - Index a workspace → `mycelium_index_workspace`

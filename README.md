@@ -48,7 +48,7 @@ everything between sessions.
 | Core engine (Trunk + Synapse + Cortex) | ✅ Shipped |
 | Language packs: Python, TS, JS, Rust, Go | ✅ Tier 1 complete |
 | Language packs: Java, C, C++, C#, Ruby | ✅ Tier 2 complete |
-| MCP server (89 tools) | ✅ Shipped |
+| MCP server (93 tools) | ✅ Shipped |
 | Hyphae DSL (lexer + parser + evaluator) | ✅ RFC-0004 complete |
 | CLI (`mycelium index`, `mycelium serve --mcp`) | ✅ Shipped |
 | Persistence (MessagePack snapshot) | ✅ Shipped |
