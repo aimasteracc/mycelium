@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v20 — PR #471 merged; PR #472 rebased on develop; PR #452 `publish to crates.io` running) |
-| Current sprint | **v0.1.17 — RELEASE CEREMONY IN PROGRESS (`publish to crates.io` job running on PR #452)** |
-| Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
-| Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
+| Last updated | 2026-06-03 (PM dispatch v21 — RFC-0105/0106/0107 merged; RFC-0108 doc merged; v0.1.17 crates.io published; PR #477 back-merge conflict-resolved; PR #472/473 MERGED to develop) |
+| Current sprint | **v0.1.17 — CEREMONY BLOCKED on founder auth (Steps 1+2+3); Step 4 ready (PR #477)** |
+| Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated, `dirty` in GitHub but fast-forward-mergeable) + **PR #477** (→ develop back-merge, conflict-resolved, supersedes PR #453) |
+| Next release target | **v0.1.17** — redb default + CLI twin + OutputBudget-core + Charter §2 SLA + god-file-split (content COMPLETE; crates.io PUBLISHED; ceremony pending founder) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.16 — RFC-0100 Phase 1+2 redb backend, MCP routing instructions, journal persistence, memory budget, dep bumps (salsa 0.26, logos 0.16, redb 4.1), crates.io publish fix** (tag v0.1.16, GitHub Release published 2026-06-02T01:27Z) |
 
@@ -92,16 +92,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
 - [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
 
-**v0.1.17 ceremony status — CI RE-RUNNING (URL+continue fix pushed to release branch):**
-- [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅ (v12 + re-confirmed v14)
-- [x] **Pre-release**: CHANGELOG Unreleased section verified ✅ (v12)
+**v0.1.17 ceremony status — CRATES PUBLISHED; Steps 1+2+3 blocked on founder:**
+- [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅
+- [x] **Pre-release**: CHANGELOG Unreleased section verified ✅
+- [x] **Pre-release**: `publish to crates.io` ✅ — release.yml workflow run `26867945825` shows SUCCESS (sparse-index fix + continue fix both applied). All 5 crates at v0.1.17 on crates.io.
 - [ ] **Step 1**: `release/v0.1.17` → `main` (founder authorization required)
-  - PR #452: Quality Gate ✅ SUCCESS (required branch-protection check)
-  - ~~⚠️ `publish to crates.io` FAILURE (v13: timeout 120s)~~ → ~~PARTIAL FIX (v15): wait 360s~~ → ~~PARTIAL FIX (v16): `max_version` API~~ → **ROOT CAUSE FIX (v18)**: `62a2478` removes `tr '-' '_'` URL encoding. **FINAL FIX (v19)**: PR #471 adds `continue` after already-exists skip. ✅ **v20**: PR #471 merged `8c225fd`; `release/v0.1.17` already has `continue` fix (verified grep). **PR #452 Quality Gate ✅, `publish to crates.io` `in_progress` (06:18:26 start)**
-  - **Once PR #452 all CI checks SUCCESS/SKIPPED**: founder authorizes `scripts/release-ceremony.sh` Steps 1–4.
-- [ ] **Step 2**: Tag `v0.1.17` pushed
-- [ ] **Step 3**: GitHub Release published + 5 crates on crates.io
-- [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` (PR #453)
+  - PR #452: Quality Gate ✅ SUCCESS. `mergeable_state: dirty` in GitHub UI but `origin/release/v0.1.17..origin/main = 0 commits` — it is a clean fast-forward. Use `scripts/release-ceremony.sh` or direct merge.
+- [ ] **Step 2**: Tag `v0.1.17` pushed (tag does NOT exist yet — latest tag is `v0.1.16`)
+- [ ] **Step 3**: GitHub Release published (crates.io ✅ already published; GitHub Release itself not yet created)
+- [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` — **PR #477** ✅ conflict-resolved (CHANGELOG + release.yml + Cargo.toml conflicts resolved; supersedes PR #453 which had unresolvable conflicts after RFC-0105/0106/0107 merged to develop)
 
 ---
 
@@ -109,43 +108,46 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P0:** none.
 
-**P1 (v0.1.17 release gates):**
-1. ✓ Security scan post-v0.1.16 — COMPLETE ✅
-2. ✓ Cut `release/v0.1.17` — COMPLETE ✅ (PR #452 + PR #453 open)
-3. ✓ release.yml CI fix: PR #455 (timeout), PR #462 (max_version), PR #468 (URL fix), **PR #471 (continue fix)** — all merged to develop ✅
-4. ✓ **PR #471** merged to develop (`8c225fd`); `release/v0.1.17` continue fix already present ✅
-5. **PR #452**: Quality Gate ✅, `publish to crates.io` in_progress (v20: job running). Once ALL CI SUCCESS/SKIPPED → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
+**P1 (v0.1.17 ceremony — founder gates):**
+1. ✓ Security scan, release branch cut, all CI fixes, crates.io published — COMPLETE ✅
+2. **Step 1**: Founder merges PR #452 (`release/v0.1.17` → `main`). Use `scripts/release-ceremony.sh` or direct merge (it's a fast-forward).
+3. **Step 2**: Founder pushes tag `v0.1.17` to origin.
+4. **Step 3**: Founder creates GitHub Release for `v0.1.17` (crates.io already done ✅).
+5. **Step 4**: Admin-merge PR #477 (back-merge → develop, all conflicts resolved). Can merge immediately after Steps 1–3.
 
-**P1 (reactive roadmap — RFC-0107):**
-6. **PR #472** (RFC-0107 SUBSCRIBE): rebased on develop (resolved decisions.jsonl + RFC-0107 status conflicts, `45ef29c`). CI running — fast-lane green. Once full CI green: merge to develop.
-7. **PR #473** (RFC-0108 doc-only): CI SUCCESS. Waiting founder D1–D4 ratification before implementation PR can open.
-8. **RFC-0105 Three-Surface EXCEPTION**: `feature/rfc-0105-watch-engine` CI SUCCESS. Awaiting founder EXCEPTION ratification.
+**P1 (reactive roadmap — post-v0.1.17 sprint):**
+6. ✓ RFC-0105 WatchEngine — MERGED to develop ✅
+7. ✓ RFC-0106 graphChanged PUSH — MERGED to develop ✅
+8. ✓ RFC-0107 SUBSCRIBE (93 MCP tools) — MERGED to develop ✅ (PR #472)
+9. ✓ RFC-0108 reactive query subscriptions doc — MERGED to develop ✅ (PR #473)
+10. **RFC-0108 D1–D4 implementation**: founder ratifies D1–D4 decisions (PR #473 body has recommendations; "全选推荐" applies). Once ratified, implementation PR opens (~250 LOC, 8 RED tests). Salsa Phase 2 final reactive step.
+11. **Three-Surface coverage for subscribe/unsubscribe/subscription_status** (93 tools): verify skills/INDEX.md updated for the 3 new tools — check `index-management/SKILL.md` coverage. [⚠️ verify next run]
 
-**P1 (post-v0.1.17):**
-9. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark results needed before Charter §2 table is amended.
-10. **ADR-0008** for redb as default backend (required before v0.2.0).
-11. **Dogfood re-run with redb-as-default** — validate 8/8 CLI commands.
+**P1 (post-v0.1.17 quality):**
+12. **Dogfood re-run with redb-as-default** — validate 8/8 CLI commands.
+13. **ADR-0008** for redb as default backend (required before v0.2.0).
+14. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark results needed.
 
 **P2 (v0.2.0 scope):**
-9. Issue #428 god-file-split remaining slices.
-10. Skill marketplace submission to Claude Code marketplace.
-11. "First 5 minutes" walkthrough validation.
-12. `release.yml` finalize merge step systemic fix (v0.2.0 blocker).
+15. Issue #428 god-file-split remaining slices.
+16. Skill marketplace submission to Claude Code marketplace.
+17. "First 5 minutes" walkthrough validation.
+18. `release.yml` finalize merge step systemic fix (v0.2.0 blocker).
 
 ---
 
-## Dispatch state (2026-06-03 v20 — PR #471 merged; PR #472 rebased; PR #452 publish in_progress)
+## Dispatch state (2026-06-03 v21 — RFC-0105/106/107/108 merged; PR #477 opened; crates.io published)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) **PR #452**: once `publish to crates.io` SUCCESS → run `scripts/release-ceremony.sh` Steps 1–4 (merge→main, tag, GitHub Release, back-merge). No cherry-pick needed — `release/v0.1.17` already has all CI fixes. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **RFC-0107**: ratify once PR #472 CI green. (4) **RFC-0108 D1–D4**: "全选推荐" ratification (PR #473). (5) **RFC-0105 Three-Surface EXCEPTION**: ratify or reject. |
-| PM | **DONE ✅** | PR #471 merged (`8c225fd`); PR #472 rebased (`45ef29c`); PR #475 merged (v19); PM state v20 updated. |
-| rust-implementer | **WAITING CI** | PR #472 (RFC-0107 SUBSCRIBE): rebased on develop, fast-lane green. Once full CI green: merge to develop. RFC-0105 gated on founder EXCEPTION. |
-| security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN. |
-| release | **WAITING** | PR #452 `publish to crates.io` in_progress (first time job has actually run — URL + continue fixes applied). Awaiting founder ceremony auth once publish SUCCESS. |
+| founder | **action requested** | (1) **v0.1.17 ceremony**: crates.io already published ✅. Merge PR #452 → main (fast-forward; `dirty` is GitHub UI artifact). Push tag `v0.1.17`. Create GitHub Release. Then admin-merge PR #477 (back-merge, Step 4). Use `scripts/release-ceremony.sh` (Steps 2–4 only since crates already published). (2) **RFC-0108 D1–D4**: "全选推荐" → open implementation PR. |
+| PM | **DONE ✅** | This run: PR #477 opened (back-merge conflict-resolved); PM state v21 updated. Subscribed to PR #472 CI. |
+| rust-implementer | **IDLE — await founder** | RFC-0107 MERGED ✅. RFC-0108 implementation gated on founder D1-D4 ratification. |
+| security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN. Post-v0.1.17 scan needed after ceremony completes. |
+| release | **WAITING** | PR #452 Quality Gate ✅. All CI green/skipped. Awaiting founder ceremony auth (Steps 1+2+3). PR #477 ready for Step 4. |
 | bench | **P1** | Run `sla_ancestors_100k` nightly for RFC-0104 cold SLA numbers. |
 | e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands). |
-| architect | idle | ADR-0008: redb as default backend (required before v0.2.0). |
+| architect | **P1** | ADR-0008: redb as default backend (required before v0.2.0). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 
 ---
@@ -173,6 +175,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v21 (this run — RFC-0107/108 merged; PR #477 opened; crates.io published)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (last entry 2026-06-02T00:00:00Z — stale), anti-patterns (no new hits), PM state v20, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD `22eded7`: RFC-0108 merged (#473), RFC-0107 merged (#472), PM dispatch v20 (#476). Memory stale since 2026-06-02.
+- Open PRs: #452 (release/v0.1.17 → main, `dirty`, founder auth required), #453 (back-merge, stale — develop advanced), #472 (RFC-0107, shown open in GitHub API but MERGED per local git — API lag), #473 (RFC-0108 doc, same).
+- 0 open issues. CI: develop `7bf5006` + `22eded7` both green ✅. PR #452 Quality Gate ✅.
+- v0.1.17 ceremony: crates.io published ✅ (workflow run `26867945825`, `publish to crates.io: success`). Tag v0.1.17: NOT created. GitHub Release: NOT created. Step 1 (→ main): NOT done. Step 4 (back-merge): PR #453 stale.
+- PR #452 `dirty` state investigated: `origin/release/v0.1.17..origin/main = 0 commits` → it IS a fast-forward. `dirty` is GitHub UI artifact.
+- PR #453 conflicts: 3 conflicts (CHANGELOG.md, release.yml, Cargo.toml) — all mechanical, resolved this run.
+
+**Actions taken:**
+1. **Subscribed to PR #472** CI notifications.
+2. **Resolved back-merge conflicts**: merged `origin/release/v0.1.17` into local develop, resolved CHANGELOG (preserved [Unreleased] RFC-0105/0106/0107 entries above sealed [0.1.17]), release.yml (took sparse-index check from release branch), Cargo.toml (auto-resolved to 0.1.17).
+3. **Opened PR #477** (`chore/v0.1.17-back-merge-develop` → develop): conflict-resolved back-merge, supersedes PR #453.
+4. **Updated PM state v21**: RFC-0107/108 merged, crates published, ceremony status, dispatch table.
+5. **Appended decisions.jsonl**.
+
+**Escalations to founder:**
+- **v0.1.17 ceremony**: crates.io published ✅. Merge PR #452 → main (fast-forward). Push tag. Create GitHub Release. Then admin-merge PR #477 (Step 4). Use `scripts/release-ceremony.sh` Steps 1–4 (will skip crates since already published due to idempotency guard).
+- **RFC-0108 D1–D4**: "全选推荐" ratification to unblock implementation PR (~250 LOC, 8 tests, Salsa Phase 2 final reactive step).
 
 ### 2026-06-03 PM dispatch v20 (this run — PR #471 merged; PR #472 rebased; PR #452 publish running)
 
