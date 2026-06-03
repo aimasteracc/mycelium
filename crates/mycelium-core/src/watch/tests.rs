@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use tokio::sync::RwLock;
 
-use super::{CancelToken, FileReindexer, WatchConfig, WatchEngine, WatchEvent};
+use super::{BatchDelta, CancelToken, FileReindexer, WatchConfig, WatchEngine, WatchEvent};
 use crate::store::Store;
 use crate::trunk::TrunkPath;
 use crate::types::NodeKind;
@@ -234,4 +234,153 @@ async fn ignore_rules_skip_target_and_gitignored() {
     assert!(super::is_supported_source_rel("a.rs"));
     assert!(!super::is_supported_source_rel("README.md"));
     assert_eq!(super::source_extension(Path::new("a.rs")), Some("rs"));
+}
+
+/// A [`FileReindexer`] that replaces the file's symbols with a fixed NEW
+/// set on each invocation, so tests can deterministically observe the OLD
+/// → NEW diff the engine emits inside `BatchDelta`.
+struct ProgrammableReindexer {
+    new_paths: Mutex<Vec<String>>,
+}
+
+impl FileReindexer for ProgrammableReindexer {
+    fn reindex(&self, _rel: &str, _src: &[u8], _ext: &str, store: &mut Store) {
+        for p in self.new_paths.lock().unwrap().iter() {
+            if let Ok(parsed) = TrunkPath::parse(p) {
+                let id = store.upsert_node(parsed);
+                store.set_kind(id, NodeKind::Function);
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn batch_delta_classifies_added_modified_removed_per_file() {
+    // RFC-0107 §6 test 2 — canary for the §5 lock discipline: OLD set is
+    // captured BEFORE remove_file, NEW set AFTER reindex, and the diff is
+    // classified into added / modified / removed.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let store = Arc::new(RwLock::new(Store::new()));
+    // OLD: pre-populate the store with the file node + {fn:a, fn:b}.
+    {
+        let mut w = store.write().await;
+        w.upsert_node(TrunkPath::parse("lib.rs").unwrap());
+        w.upsert_node(TrunkPath::parse("lib.rs>fn:a").unwrap());
+        w.upsert_node(TrunkPath::parse("lib.rs>fn:b").unwrap());
+    }
+    // NEW (after reindex): {fn:a, fn:c}. Expected: added=[fn:c],
+    // modified=[fn:a], removed=[fn:b].
+    let reindexer = Arc::new(ProgrammableReindexer {
+        new_paths: Mutex::new(vec![
+            "lib.rs".to_owned(),
+            "lib.rs>fn:a".to_owned(),
+            "lib.rs>fn:c".to_owned(),
+        ]),
+    });
+    let deltas: Arc<Mutex<Vec<BatchDelta>>> = Arc::new(Mutex::new(Vec::new()));
+    let cancel = CancelToken::new();
+
+    let store_h = Arc::clone(&store);
+    let reindexer_h = Arc::clone(&reindexer);
+    let deltas_h = Arc::clone(&deltas);
+    let cancel_h = cancel.clone();
+    let root_h = root.clone();
+    let task = tokio::spawn(async move {
+        let cfg = WatchConfig::new(root_h);
+        let reindexer_ref: &dyn FileReindexer = reindexer_h.as_ref();
+        WatchEngine::run(
+            cfg,
+            store_h,
+            reindexer_ref,
+            None,
+            move |_ev, delta, _store| deltas_h.lock().unwrap().push(delta.clone()),
+            cancel_h,
+        )
+        .await
+        .unwrap();
+    });
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    std::fs::write(root.join("lib.rs"), b"// new contents\n").unwrap();
+
+    let saw = wait_until(Duration::from_secs(3), || {
+        !deltas.lock().unwrap().is_empty()
+    })
+    .await;
+    cancel.cancel();
+    let _ = tokio::time::timeout(Duration::from_secs(2), task).await;
+    assert!(saw, "engine should emit a BatchDelta");
+
+    let delta = deltas.lock().unwrap().first().expect("one batch").clone();
+    let pf = delta
+        .per_file
+        .iter()
+        .find(|f| f.file == "lib.rs")
+        .expect("per-file entry for lib.rs");
+    assert_eq!(
+        pf.added,
+        vec!["lib.rs>fn:c"],
+        "fn:c present in NEW but not OLD"
+    );
+    assert_eq!(
+        pf.modified,
+        vec!["lib.rs>fn:a"],
+        "fn:a in both OLD and NEW (survivor)"
+    );
+    assert_eq!(
+        pf.removed,
+        vec!["lib.rs>fn:b"],
+        "fn:b present in OLD but not NEW"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn on_batch_signature_carries_batch_delta() {
+    // RFC-0107 §6 test 3 — observable that the `on_batch` widened third arg
+    // is non-empty for non-empty batches.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let store = Arc::new(RwLock::new(Store::new()));
+    let reindexer = Arc::new(RecordingReindexer::default());
+    let deltas: Arc<Mutex<Vec<BatchDelta>>> = Arc::new(Mutex::new(Vec::new()));
+    let cancel = CancelToken::new();
+
+    let store_h = Arc::clone(&store);
+    let reindexer_h = Arc::clone(&reindexer);
+    let deltas_h = Arc::clone(&deltas);
+    let cancel_h = cancel.clone();
+    let root_h = root.clone();
+    let task = tokio::spawn(async move {
+        let cfg = WatchConfig::new(root_h);
+        let reindexer_ref: &dyn FileReindexer = reindexer_h.as_ref();
+        WatchEngine::run(
+            cfg,
+            store_h,
+            reindexer_ref,
+            None,
+            move |_ev, delta, _store| deltas_h.lock().unwrap().push(delta.clone()),
+            cancel_h,
+        )
+        .await
+        .unwrap();
+    });
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    std::fs::write(root.join("a.rs"), b"x\n").unwrap();
+
+    let saw = wait_until(Duration::from_secs(3), || {
+        !deltas.lock().unwrap().is_empty()
+    })
+    .await;
+    cancel.cancel();
+    let _ = tokio::time::timeout(Duration::from_secs(2), task).await;
+
+    assert!(saw, "engine should emit a batch");
+    let d = deltas.lock().unwrap().first().expect("delta").clone();
+    assert!(
+        !d.per_file.is_empty(),
+        "non-empty batch should carry non-empty per_file BatchDelta"
+    );
+    assert!(d.per_file.iter().any(|f| f.file == "a.rs"));
 }
