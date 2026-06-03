@@ -79,24 +79,25 @@ const SOURCE_EXTS: &[&str] = &[
 /// indexing threads. `Extractor`'s fields (`tree_sitter::Language`, `Query`)
 /// are `Send + Sync`, so `&Extractors` is safe to hand to many threads; each
 /// `extract` call builds its own `Parser` internally (Issue #342 / R1).
-struct Extractors {
-    js: Extractor,
-    python: Extractor,
-    ts: Extractor,
-    tsx: Extractor,
-    rs: Extractor,
-    go: Extractor,
-    java: Extractor,
-    c: Extractor,
-    ruby: Extractor,
-    cpp: Extractor,
-    csharp: Extractor,
+#[allow(clippy::redundant_pub_crate)]
+pub(super) struct Extractors {
+    pub(super) js: Extractor,
+    pub(super) python: Extractor,
+    pub(super) ts: Extractor,
+    pub(super) tsx: Extractor,
+    pub(super) rs: Extractor,
+    pub(super) go: Extractor,
+    pub(super) java: Extractor,
+    pub(super) c: Extractor,
+    pub(super) ruby: Extractor,
+    pub(super) cpp: Extractor,
+    pub(super) csharp: Extractor,
 }
 
 impl Extractors {
     /// Compile all 11 static extractors. Done once per index run.
     #[allow(clippy::similar_names)]
-    fn build() -> Result<Self> {
+    pub(super) fn build() -> Result<Self> {
         let js_lang: tree_sitter::Language = tree_sitter_javascript::LANGUAGE.into();
         let python_lang: tree_sitter::Language = tree_sitter_python::LANGUAGE.into();
         let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();

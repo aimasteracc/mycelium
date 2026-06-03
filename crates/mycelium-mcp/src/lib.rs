@@ -59,7 +59,7 @@ use mycelium_core::{
     ImportNode, ImporterNode, NodeDegree, OutgoingRefs, SubclassNode, SymbolNeighborhood,
     TopologicalOrder, cortex::Cortex, extractor::Extractor, store::Store, types::EdgeKind,
 };
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+// notify is now used inside `mycelium_core::watch::WatchEngine` (RFC-0105).
 use rmcp::{
     ServerHandler, ServiceExt, handler::server::wrapper::Parameters, model::CallToolResult,
     model::Implementation, model::ServerCapabilities, model::ServerInfo, tool, tool_handler,
@@ -1587,158 +1587,67 @@ impl MyceliumServer {
 
     /// Start the background file-system watch loop for `root`.
     ///
-    /// Events are debounced over a 300 ms window.  Modified/created files
-    /// are re-extracted; deleted files are removed from the store.  A new
-    /// snapshot is saved after each batch.
-    ///
-    /// Calling `start_watch` on an already-watching server replaces the
-    /// previous watcher.
+    /// Drives the surface-agnostic [`mycelium_core::watch::WatchEngine`]
+    /// (RFC-0105) — modified/created files are re-extracted, deleted files
+    /// removed, and a new snapshot is persisted after each batch. Calling
+    /// `start_watch` on an already-watching server replaces the previous
+    /// watcher.
     ///
     /// # Errors
     ///
     /// Returns an error if the OS watcher cannot be created or `root` cannot
     /// be watched.
-    #[allow(clippy::too_many_lines)]
     pub async fn start_watch(&self, root: PathBuf) -> anyhow::Result<()> {
-        use tokio::time::{Duration, Instant, timeout_at};
-
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<notify::Event>();
-
-        let mut watcher = RecommendedWatcher::new(
-            move |res: notify::Result<notify::Event>| {
-                if let Ok(ev) = res {
-                    tx.send(ev).ok();
-                }
-            },
-            Config::default(),
-        )
-        .context("creating file system watcher")?;
-
-        watcher
-            .watch(&root, RecursiveMode::Recursive)
-            .context("starting recursive watch")?;
+        use mycelium_core::watch::{CancelToken, WatchConfig, WatchEngine};
 
         let store = Arc::clone(&self.store);
         let watch_state = Arc::clone(&self.watch_state);
         let cortex = Arc::clone(&self.cortex);
 
-        // Build ignore matcher from root .gitignore / .myceliumignore.
-        let gitignore = {
-            let mut gb = ignore::gitignore::GitignoreBuilder::new(&root);
-            for name in &[".gitignore", ".myceliumignore"] {
-                let p = root.join(name);
-                if p.exists() {
-                    gb.add(p);
-                }
+        let cfg = WatchConfig::new(root.clone());
+        let cancel = CancelToken::new();
+
+        // Attach the OS-level recursive watch SYNCHRONOUSLY in this prologue
+        // (before the spawn) so the watcher is live by the time `start_watch`
+        // returns — i.e. before the caller has a chance to mutate the
+        // filesystem. The async loop runs in the spawned task.
+        let session = WatchEngine::attach(&cfg)?;
+
+        // on_batch: the deliberate emit seam (RFC-0105). For this server it
+        // bumps the batches counter and persists the changed files; PUSH
+        // (RFC-0106) and SUBSCRIBE (RFC-0107) will attach to this same point.
+        let watch_state_cb = Arc::clone(&watch_state);
+        let root_cb = root.clone();
+        let on_batch = move |ev: &mycelium_core::watch::WatchEvent,
+                             store_r: &mycelium_core::store::Store| {
+            watch_state_cb
+                .batches_processed
+                .fetch_add(1, Ordering::Relaxed);
+            // Best-effort persist; failures are non-fatal.
+            if let Err(e) = persist_watch_batch(&root_cb, store_r, &ev.changed_files) {
+                warn!("could not persist watch batch: {e}");
             }
-            gb.build()
-                .unwrap_or_else(|_| ignore::gitignore::Gitignore::empty())
         };
 
         watch_state.watching.store(true, Ordering::Relaxed);
 
+        let watch_state_done = Arc::clone(&watch_state);
         let handle = tokio::spawn(async move {
-            let _watcher = watcher; // keep the watcher alive for the task lifetime
-
-            loop {
-                // Wait for the first event of a batch.
-                let Some(first) = rx.recv().await else {
-                    break; // channel closed
-                };
-
-                let mut batch: Vec<PathBuf> = first.paths;
-
-                // Debounce: collect additional events arriving within 5 ms.
-                // Reduced from 300 ms → 5 ms to satisfy Charter §2 reactive < 10 ms SLA.
-                let deadline = Instant::now() + Duration::from_millis(5);
-                while let Ok(Some(ev)) = timeout_at(deadline, rx.recv()).await {
-                    batch.extend(ev.paths);
-                }
-
-                // Deduplicate and process.
-                batch.sort_unstable();
-                batch.dedup();
-
-                let mut store_w = store.write().await;
-                let mut changed = false;
-                let mut changed_files = Vec::new();
-
-                for abs_path in &batch {
-                    // Skip paths that match the ignore rules or are always excluded.
-                    let is_ignored = abs_path
-                        .strip_prefix(&root)
-                        .ok()
-                        .and_then(|rel| rel.components().next())
-                        .is_some_and(|first_comp| {
-                            matches!(
-                                first_comp.as_os_str().to_string_lossy().as_ref(),
-                                "target" | ".mycelium"
-                            )
-                        });
-                    if is_ignored {
-                        continue;
-                    }
-                    if gitignore.matched(abs_path, abs_path.is_dir()).is_ignore() {
-                        continue;
-                    }
-
-                    let rel = abs_path
-                        .strip_prefix(&root)
-                        .unwrap_or(abs_path)
-                        .to_string_lossy()
-                        .replace('\\', "/");
-
-                    let Some(ext) = source_extension(abs_path) else {
-                        continue;
-                    };
-
-                    // Remove old data for this file regardless of event kind.
-                    store_w.remove_file(&rel);
-
-                    // Re-index if the file still exists and is a known type.
-                    if abs_path.is_file() {
-                        if let Ok(src) = std::fs::read(abs_path) {
-                            let rel_owned = rel.clone();
-                            let src_owned = src;
-                            // ── Cortex (RFC-0003 Phase 1) ─────────────────────────
-                            // Set the file in the Salsa database and retrieve the
-                            // memoised FileIndex.  If content is unchanged, Salsa
-                            // returns the cached result without re-running the
-                            // extractor.  The FileIndex is then applied to the main
-                            // Store via its bridge method.
-                            {
-                                let file = cortex
-                                    .lock()
-                                    .await
-                                    .set_file(abs_path.clone(), src_owned.clone());
-                                let idx = cortex.lock().await.query_file(file);
-                                idx.apply_to_store(&rel_owned, &mut store_w);
-                            }
-                            // Fallback: also run reindex_file for edge kinds that
-                            // FileIndex does not yet propagate (calls, imports, etc.).
-                            // Phase 2 will remove this once FileIndex is complete.
-                            reindex_file(&rel_owned, &src_owned, ext, &mut store_w);
-                        }
-                    }
-                    changed = true;
-                    changed_files.push(rel);
-                }
-                store_w.resolve_bare_call_stubs();
-                drop(store_w);
-
-                if changed {
-                    watch_state
-                        .batches_processed
-                        .fetch_add(1, Ordering::Relaxed);
-                    // Save snapshot (best-effort; failures are non-fatal).
-                    let store_r = store.read().await;
-                    if let Err(e) = persist_watch_batch(&root, &store_r, &changed_files) {
-                        warn!("could not persist watch batch: {e}");
-                    }
-                }
+            let reindexer = McpReindexer;
+            if let Err(e) = WatchEngine::drive(
+                session,
+                cfg,
+                store,
+                &reindexer,
+                Some(cortex),
+                on_batch,
+                cancel,
+            )
+            .await
+            {
+                warn!("watch engine exited with error: {e}");
             }
-
-            watch_state.watching.store(false, Ordering::Relaxed);
+            watch_state_done.watching.store(false, Ordering::Relaxed);
         });
 
         {
@@ -1749,6 +1658,16 @@ impl MyceliumServer {
         }
 
         Ok(())
+    }
+}
+
+/// MCP-side [`FileReindexer`] — wraps the existing per-extension
+/// `reindex_file` (which owns all 11 grammar/QUERIES pairs in this crate).
+struct McpReindexer;
+
+impl mycelium_core::watch::FileReindexer for McpReindexer {
+    fn reindex(&self, rel: &str, src: &[u8], ext: &str, store: &mut mycelium_core::store::Store) {
+        reindex_file(rel, src, ext, store);
     }
 }
 
