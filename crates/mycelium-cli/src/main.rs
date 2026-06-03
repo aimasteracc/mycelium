@@ -449,6 +449,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return symbols at exactly k hops from the given path.
     GetKHopNeighbors {
@@ -1421,9 +1425,17 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             max_depth,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_reachable_to(&canonical, &path, &edge_kind, max_depth, format.into())?;
+            queries::run_get_reachable_to(
+                &canonical,
+                &path,
+                &edge_kind,
+                max_depth,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetKHopNeighbors {
             path,

@@ -18,10 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata. Text mode (`--format text`, the default) is unchanged — one path per
   line. Tools 1–4 of the RFC-0109 graph-list roll-out; the rest follow the same
   pattern.
-- **`get_callees`, `get_callers`, `get_dead_symbols`, `get_isolated_symbols`, and
-  `get_reachable` gain the per-call budget knob (RFC-0102)** on both surfaces: MCP `budget` field / CLI `--budget`
-  (`auto|small|medium|large|disabled`), resolved identically via the shared `OutputBudget::resolve`. (`get_reachable`
-  was already object-shaped on both surfaces, so it is *not* a breaking change —
+- **`get_callees`, `get_callers`, `get_dead_symbols`, `get_isolated_symbols`,
+  `get_reachable`, and `get_reachable_to` gain the per-call budget knob (RFC-0102)** on both surfaces: MCP `budget` field / CLI `--budget`
+  (`auto|small|medium|large|disabled`), resolved identically via the shared `OutputBudget::resolve`. (`get_reachable` /
+  `get_reachable_to` were already object-shaped on both surfaces, so it is *not* a breaking change —
   it only gains the knob + JSON budgeting.) The CLI applies the budget in `--format json` (for
   MCP parity) or when `--budget` is given explicitly; **default text mode prints
   the full list** (no silent truncation of human-facing output — RFC-0102
