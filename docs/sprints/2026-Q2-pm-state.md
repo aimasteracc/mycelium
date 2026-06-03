@@ -112,26 +112,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **fix(packs/rust)**: Capture `Type::method()` and `crate::mod::func()` call sites — dogfood correctness (PR #474).
 - Reactive-completion roadmap: **4/4 COMPLETE** (watch ✅ push ✅ subscribe ✅ salsa ✅).
 
-**v0.1.18 ceremony status:**
+**v0.1.18 ceremony status — BROKEN ⚠️ (same systemic failure as v0.1.15):**
 - [x] Release branch `release/v0.1.18` cut from develop HEAD `5a7ad556`
-- [x] PR #482 (→ main) opened 2026-06-03T08:18Z — **FOUNDER AUTH REQUIRED**
-- [x] PR #483 (→ develop back-merge) opened 2026-06-03T08:19Z — merge after PR #482
-- 🔄 **CI on release/v0.1.18**: RUNNING — fast-lane all green (governance ✅ unit ✅ Skill coverage ✅ clippy ✅ DCO ✅ security ✅ docs ✅ rustfmt ✅); matrix tests in-progress (linux/mac/win stable + nightly + coverage + release build)
-- ❌ Step 1: PR #482 merge — awaiting CI green + **founder authorization**
-- ❌ Step 2: Tag `v0.1.18` — after Step 1
-- ❌ Step 3: crates.io/npm/PyPI publish — after tag
-- ❌ Step 4: PR #483 back-merge → develop — after Step 1
+- [x] CI: Quality Gate ✅ SUCCESS (all 40 checks green — matrix linux/mac/win/nightly + coverage + release build)
+- ⚠️ **`publish to crates.io`**: ✅ SUCCESS (09:09:31Z) — orphan publish (no tag, no main merge yet)
+- ❌ **Step 1**: PR #482 **AUTO-CLOSED** by release.yml at 09:10:59Z WITHOUT merging (same bug as v0.1.6–v0.1.17). main still at v0.1.16.
+- ❌ **Step 2**: Tag `v0.1.18` NOT created (latest tag = v0.1.16).
+- ❌ **Step 3**: GitHub Release NOT created (latest release = v0.1.16).
+- ❌ **Step 4**: PR #483 back-merge blocked on Step 1.
+- **Root cause**: release.yml merge step uses `RELEASE_BOT_TOKEN` for auto-merge; token configured but merge step still fails → workflow closes PR instead of merging. SYSTEMIC since v0.1.6.
+- **Repair path**: Founder uses `scripts/release-ceremony.sh` to directly merge `release/v0.1.18` → main (branch still exists), push tag `v0.1.18`, create GitHub Release. Then merge PR #483.
 
 ---
 
 ## Live priorities (ordered)
 
-**P0 (v0.1.18 ceremony — founder gates):**
-1. **Wait for CI green** on PR #482 (in-progress; fast-lane already green as of 09:03Z).
-2. **Founder: merge PR #482** (`release/v0.1.18` → `main`) once ALL CI checks SUCCESS/SKIPPED. Charter §5.12 release gate: no admin-merge while CI red.
-3. **Founder: push tag `v0.1.18`** and create GitHub Release.
-4. **Founder: publish crates** via `scripts/release-ceremony.sh` (all 5 crates).
-5. **PM/release: merge PR #483** (back-merge → develop) after Step 1. CI already matches #482.
+**P0 (v0.1.18 ceremony — BROKEN, founder repair needed):**
+1. **⚡ URGENT**: PR #482 auto-closed by release.yml (systemic bug). crates.io v0.1.18 likely published (orphan). CI was green.
+2. **Founder: run `scripts/release-ceremony.sh`** targeting `release/v0.1.18` branch (still exists). This merges the branch into main directly (no PR needed), pushes tag `v0.1.18`, creates GitHub Release. (npm/PyPI may already be published by the workflow.)
+3. **PM/release: merge PR #483** (back-merge → develop) once main is updated.
+4. **⚡ Systemic fix needed before v0.1.19**: Audit release.yml merge step — fix or remove auto-close behavior. This has fired on every release since v0.1.6.
 
 **P0 (v0.1.17 cleanup — founder decision):**
 6. **Founder: close PR #452** (v0.1.17 → main) as superseded by v0.1.18. Main will jump v0.1.16 → v0.1.18 after ceremony. Confirm v0.1.17 git ceremony is intentionally skipped (crates.io v0.1.17 exists; acceptable gap).
