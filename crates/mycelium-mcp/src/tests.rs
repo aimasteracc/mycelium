@@ -6554,3 +6554,42 @@ async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
         "with edge_kind=calls, symbol with no Calls edge must appear as dead; got: {dead_calls:?}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v0.1.18 coverage-gate top-up: parse_hash_hex private-fn tests.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn parse_hash_hex_round_trips_with_hash_hex_format() {
+    let bytes: [u8; 16] = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32,
+        0x10,
+    ];
+    let mut hex = String::with_capacity(32);
+    for b in &bytes {
+        use std::fmt::Write as _;
+        write!(&mut hex, "{b:02x}").unwrap();
+    }
+    let s = format!("b3:{hex}");
+    let parsed = parse_hash_hex(&s).expect("valid hash parses");
+    assert_eq!(parsed, bytes);
+}
+
+#[test]
+fn parse_hash_hex_rejects_missing_prefix() {
+    let s = "00112233445566778899aabbccddeeff";
+    assert!(parse_hash_hex(s).is_none(), "no b3: prefix → None");
+}
+
+#[test]
+fn parse_hash_hex_rejects_wrong_length() {
+    assert!(parse_hash_hex("b3:beef").is_none(), "too short → None");
+    let too_long = format!("b3:{}", "a".repeat(33));
+    assert!(parse_hash_hex(&too_long).is_none(), "too long → None");
+}
+
+#[test]
+fn parse_hash_hex_rejects_non_hex() {
+    let bad = format!("b3:{}", "z".repeat(32));
+    assert!(parse_hash_hex(&bad).is_none(), "non-hex digit → None");
+}

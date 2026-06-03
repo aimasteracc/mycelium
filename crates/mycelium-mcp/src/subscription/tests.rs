@@ -2192,3 +2192,162 @@ async fn match_batch_query_paused_subscription_skips() {
     let result = super::match_batch(&sub, &watch_ev, &d, &store);
     assert!(result.is_none(), "paused subscription must Skip");
 }
+
+// ── SubscribeError code() table-driven for the remaining variants ───────────
+
+#[test]
+fn subscribe_error_codes_are_wire_stable() {
+    assert_eq!(SubscribeError::IdCollision.code(), "id_collision");
+    assert_eq!(
+        SubscribeError::InvalidInterest("x".to_owned()).code(),
+        "invalid_interest"
+    );
+    assert_eq!(
+        SubscribeError::SelectorTooLarge.code(),
+        "selector_too_large"
+    );
+    assert_eq!(
+        SubscribeError::SubscriptionLimit { scope: "server" }.code(),
+        "subscription_limit"
+    );
+    assert_eq!(
+        SubscribeError::RootNotAllowed("/etc".to_owned()).code(),
+        "root_not_allowed"
+    );
+}
+
+// ── into_custom_notification: builds the rmcp envelope ──────────────────────
+
+#[test]
+fn into_custom_notification_builds_rmcp_envelope() {
+    use super::PerFileDelta;
+    let evt = SubscriptionDeltaEvent {
+        event: "mycelium/subscriptionDelta".to_owned(),
+        v: 1,
+        subscription_id: "sid".to_owned(),
+        interest_kind: "files".to_owned(),
+        root: "/r".to_owned(),
+        batch_seq: 1,
+        per_file: vec![PerFileDelta {
+            file: "src/a.rs".to_owned(),
+            added: vec!["src/a.rs>fn:x".to_owned()],
+            added_count: 1,
+            added_truncated: false,
+            modified: vec![],
+            modified_count: 0,
+            modified_truncated: false,
+            removed: vec![],
+            removed_count: 0,
+            removed_truncated: false,
+        }],
+        files_truncated: false,
+        hint: "h".to_owned(),
+    };
+    let notif = evt.into_custom_notification().expect("notification builds");
+    // Just check that the public envelope embeds the wire method name.
+    let json = serde_json::to_value(&notif).unwrap();
+    let s = json.to_string();
+    assert!(
+        s.contains("mycelium/subscriptionDelta"),
+        "rmcp notification carries method name; got: {s}"
+    );
+}
+
+// ── status() with Query subscription exposes query_kind ─────────────────────
+
+#[tokio::test]
+async fn status_for_query_subscription_exposes_query_kind() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("qs1".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Impact {
+                path: "src/a.rs>fn:foo".to_owned(),
+                max_paths: None,
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+
+    let resp = status(&s, Some("qs1"), true).await;
+    assert_eq!(resp.subscriptions.len(), 1);
+    let info = &resp.subscriptions[0];
+    assert_eq!(info.interest_kind, "query");
+    assert_eq!(info.query_kind.as_deref(), Some("impact"));
+}
+
+// ── update_last_match_set: truncation at MAX_SELECTOR_LAST_MATCH_SET ────────
+
+#[tokio::test]
+async fn update_last_match_set_truncates_oversized_set() {
+    // RFC-0107: the cached selector match-set is bounded by
+    // MAX_SELECTOR_LAST_MATCH_SET to keep the worst-case memory budget
+    // tractable across 64 selector subs.
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("sel".to_owned()),
+        interest: Interest::Selector {
+            hyphae: "*".to_owned(),
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+
+    // Construct a NEW set just over the cap.
+    let oversize: BTreeSet<String> = (0..(super::MAX_SELECTOR_LAST_MATCH_SET + 5))
+        .map(|i| format!("src/x.rs>fn:f{i:06}"))
+        .collect();
+    update_last_match_set(&s, "sel", oversize).await;
+
+    let r = s.read().await;
+    let sub = r.by_id.get("sel").unwrap();
+    let cached = sub.last_match_set.as_ref().expect("set cached");
+    assert_eq!(
+        cached.len(),
+        super::MAX_SELECTOR_LAST_MATCH_SET,
+        "cached set is truncated to the cap"
+    );
+}
+
+// ── update_query_state: oversized set is truncated at the same cap ──────────
+
+#[tokio::test]
+async fn update_query_state_truncates_oversized_set_value() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("oq".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Callers {
+                path: "src/a.rs>fn:foo".to_owned(),
+                hops: Some(1),
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+
+    let oversize: BTreeSet<String> = (0..(super::MAX_SELECTOR_LAST_MATCH_SET + 7))
+        .map(|i| format!("src/x.rs>fn:g{i:06}"))
+        .collect();
+    super::update_query_state(&s, "oq", [0x55; 16], Some(oversize)).await;
+
+    let r = s.read().await;
+    let sub = r.by_id.get("oq").unwrap();
+    assert_eq!(
+        sub.last_set_value.as_ref().unwrap().len(),
+        super::MAX_SELECTOR_LAST_MATCH_SET,
+        "Query last_set_value is also truncated to the cap"
+    );
+}
