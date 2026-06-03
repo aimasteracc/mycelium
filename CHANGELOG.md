@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `sla_ancestors_100k` macOS CI flake: bumped macOS-specific SLA limit from
+  30 ms → 100 ms (observed 32 ms on loaded runner; Linux contract unchanged at 5 ms).
+
 ### Changed
 
 - **BREAKING (CLI): `mycelium get-callees`, `get-callers`, and `get-dead-symbols`
