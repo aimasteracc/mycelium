@@ -17,13 +17,15 @@ categories    = ["development-tools", "api-bindings"]
 name = "mycelium_mcp"
 
 [features]
-default = []
+# redb is the default storage backend (RFC-0100 Phase 3 flip, 2026-06-02).
+default = ["redb-backend"]
 redb-backend = ["mycelium-core/redb-backend"]
 
 [lints]
 workspace = true
 
 [dependencies]
+blake3                  = { workspace = true }
 mycelium-core           = { workspace = true }
 mycelium-hyphae         = { workspace = true }
 rmcp                    = { workspace = true }
@@ -55,6 +57,8 @@ ignore                  = { workspace = true }
 rmp-serde               = { workspace = true }
 hex                     = "0.4"
 regex                   = "1"
+uuid                    = { workspace = true }
+globset                 = { workspace = true }
 
 [dev-dependencies]
 tempfile  = { workspace = true }

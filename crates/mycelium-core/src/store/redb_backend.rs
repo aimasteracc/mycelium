@@ -2,7 +2,7 @@
 //!
 //! Only compiled when the `redb-backend` cargo feature is enabled.
 //!
-//! ## Schema (ADR-0007 §8-table layout — APPEND-ONLY)
+//! ## Schema (ADR-0008 §8-table layout — APPEND-ONLY)
 //!
 //! | Table | Key | Value | Purpose |
 //! |---|---|---|---|
@@ -28,6 +28,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::store::Store;
 use crate::store::backend::{StorageBackend, StorageError as BackendError};
+use crate::store::redb_codec::{
+    decode_span, encode_span, node_kind_tag, pack_ids, tag_to_node_kind, unpack_ids,
+};
 use crate::store::redb_keys::{decode_adj_key, encode_adj_key, encode_path_key};
 use crate::store::redb_tags::{edge_kind_tag, tag_to_edge_kind};
 use crate::trunk::{TrunkPath, path_to_node_id};
@@ -72,7 +75,7 @@ pub struct FileNode {
 
 /// A directed edge owned by one source file for [`RedbBackend::replace_file`].
 ///
-/// Edge ownership follows ADR-0007/RFC-0098: the source file owns edges whose
+/// Edge ownership follows ADR-0008/RFC-0098: the source file owns edges whose
 /// `src` node belongs to that file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileEdge {
@@ -97,103 +100,7 @@ struct FileEntryEdge {
     dst: u64,
 }
 
-// ── helper: encode/decode span ───────────────────────────────────────────────
-
-fn encode_span(span: SourceSpan) -> [u8; 24] {
-    let mut out = [0u8; 24];
-    out[0..4].copy_from_slice(&span.start_line.to_le_bytes());
-    out[4..8].copy_from_slice(&span.start_col.to_le_bytes());
-    out[8..12].copy_from_slice(&span.end_line.to_le_bytes());
-    out[12..16].copy_from_slice(&span.end_col.to_le_bytes());
-    out[16..20].copy_from_slice(&span.start_byte.to_le_bytes());
-    out[20..24].copy_from_slice(&span.end_byte.to_le_bytes());
-    out
-}
-
-fn decode_span(bytes: &[u8]) -> SourceSpan {
-    if bytes.len() < 24 {
-        return SourceSpan::default();
-    }
-    SourceSpan {
-        start_line: u32::from_le_bytes(bytes[0..4].try_into().unwrap_or([0; 4])),
-        start_col: u32::from_le_bytes(bytes[4..8].try_into().unwrap_or([0; 4])),
-        end_line: u32::from_le_bytes(bytes[8..12].try_into().unwrap_or([0; 4])),
-        end_col: u32::from_le_bytes(bytes[12..16].try_into().unwrap_or([0; 4])),
-        start_byte: u32::from_le_bytes(bytes[16..20].try_into().unwrap_or([0; 4])),
-        end_byte: u32::from_le_bytes(bytes[20..24].try_into().unwrap_or([0; 4])),
-    }
-}
-
-// ── helper: encode/decode NodeKind ───────────────────────────────────────────
-
-#[must_use]
-const fn node_kind_tag(kind: NodeKind) -> u8 {
-    match kind {
-        NodeKind::File => 0,
-        NodeKind::Module => 1,
-        NodeKind::Class => 2,
-        NodeKind::Struct => 3,
-        NodeKind::Interface => 4,
-        NodeKind::Function => 5,
-        NodeKind::Method => 6,
-        NodeKind::Property => 7,
-        NodeKind::Field => 8,
-        NodeKind::Variable => 9,
-        NodeKind::Constant => 10,
-        NodeKind::Enum => 11,
-        NodeKind::EnumMember => 12,
-        NodeKind::TypeAlias => 13,
-        NodeKind::Parameter => 14,
-        NodeKind::Import => 15,
-        NodeKind::Export => 16,
-        NodeKind::Route => 17,
-        NodeKind::Component => 18,
-        #[allow(unreachable_patterns)]
-        _ => 255,
-    }
-}
-
-#[must_use]
-const fn tag_to_node_kind(tag: u8) -> Option<NodeKind> {
-    Some(match tag {
-        0 => NodeKind::File,
-        1 => NodeKind::Module,
-        2 => NodeKind::Class,
-        3 => NodeKind::Struct,
-        4 => NodeKind::Interface,
-        5 => NodeKind::Function,
-        6 => NodeKind::Method,
-        7 => NodeKind::Property,
-        8 => NodeKind::Field,
-        9 => NodeKind::Variable,
-        10 => NodeKind::Constant,
-        11 => NodeKind::Enum,
-        12 => NodeKind::EnumMember,
-        13 => NodeKind::TypeAlias,
-        14 => NodeKind::Parameter,
-        15 => NodeKind::Import,
-        16 => NodeKind::Export,
-        17 => NodeKind::Route,
-        18 => NodeKind::Component,
-        _ => return None,
-    })
-}
-
-// ── helper: pack/unpack adjacency lists ──────────────────────────────────────
-
-fn pack_ids(ids: &[u64]) -> Vec<u8> {
-    let mut ids = ids.to_vec();
-    ids.sort_unstable();
-    ids.dedup();
-    ids.iter().flat_map(|id| id.to_be_bytes()).collect()
-}
-
-fn unpack_ids(bytes: &[u8]) -> Vec<u64> {
-    bytes
-        .chunks_exact(8)
-        .map(|c| u64::from_be_bytes(c.try_into().unwrap_or([0; 8])))
-        .collect()
-}
+// Pure value codecs (span / NodeKind tag / id packing) live in `redb_codec`.
 
 // ── error bridge ─────────────────────────────────────────────────────────────
 

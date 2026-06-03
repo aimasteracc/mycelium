@@ -5,9 +5,204 @@ All notable changes to **Mycelium** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.1.18] - 2026-06-03
+
+### Fixed
+
+- **RFC-0107 SUBSCRIBE: replace `blocking_read()` with `try_read()` in async watch paths.**
+  `RwLock::blocking_read()` inside a Tokio async task blocks the executor thread and panics
+  the watch loop on the first matching subscription batch, making `--subscribe` unusable after
+  the first filesystem change. Replaced with `try_read()` in the MCP `on_batch` fan-out
+  (`lib.rs`) and CLI `watch.rs`; a briefly-contended lock skips that batch rather than
+  crashing. (`crates/mycelium-mcp/src/lib.rs:1759`, `crates/mycelium-cli/src/watch.rs:197`)
+
+- **Rust extractor now captures `Type::method()` and `crate::mod::func()` call
+  sites.** Surfaced by dogfooding the Mycelium repo against itself
+  (2026-06-03): `WatchEngine::drive(...)` from the watch session and CLI
+  produced zero `Calls` edges. The Rust pack's `queries.scm` only matched
+  `(identifier)` and `(field_expression)` function forms, missing every
+  scoped-path call. Added an additive `(scoped_identifier name: ...)` query
+  that captures the last-segment identifier; cross-file stub resolution
+  picks it up unchanged. Two new regression tests
+  (`extractor_rust_scoped_method_call_creates_calls_edge`,
+  `extractor_rust_qualified_path_call_creates_calls_edge`).
+
+### Added
+
+- **Reactive query subscriptions — `mycelium/queryResultChanged` notifications
+  (RFC-0108, founder-ratified D1-D4).** Step 4/4 of the reactive-completion
+  roadmap (watch ✅ push ✅ subscribe ✅ salsa ✅). Whereas RFC-0107 emits a
+  scoped delta on every matching batch, RFC-0108 lets agents subscribe to a
+  **query result** and receive a notification **only when the value actually
+  changes** — Salsa-style backdated equality via a BLAKE3-128 hash of the
+  canonical-JSON result (the v1 hash prefix `b3:` is frozen).
+  `mycelium_subscribe` accepts a new `Interest::Query { query, min_interval_seconds }`
+  variant — additive, no new MCP tool. `QuerySpec` v1 catalogue: `selector`,
+  `callers`, `callees`, `impact`, `context` (D1=(c) — each maps to the
+  existing MCP tool's pure-function body, no new query logic invented). D2=(ii)
+  hybrid result-reporting: set-shaped queries carry a `summary { added,
+  removed }` (matching RFC-0107's truncation discipline at 50 items);
+  tree-shaped (`context`) omit `summary` entirely. D3=(c) 2 s default
+  quiet-period (server-clamped to 2..=300 s), per-query soft / hard wall-clock
+  budgets (50 ms / 200 ms; hard breach pauses the subscription for 60 s — v1
+  simplification: `tracing::warn!` + silent pause, no separate notification).
+  D4=(a) extends the RFC-0105 EXCEPTION — CLI `mycelium watch --subscribe
+  'query:<kind>:<args>' [--subscribe-min-interval <SECONDS>]` streams the new
+  notification as NDJSON, byte-identical to the MCP wire (asserted by
+  `tests/contract_subscription::three_surface_query_byte_identical_payload`).
+  Wire shape (frozen v1): `event="queryResultChanged"`, `v=1`,
+  `subscription_id`, `root`, `batch_seq`, `query_kind`, `result_hash_old?`,
+  `result_hash_new`, `new_result`, `summary?`, `evaluation_ms`, `hint`.
+  `Context` evaluator currently returns a minimal placeholder structure
+  (`task` + `focus` + resolved-symbol list); full Cortex integration deferred
+  (RFC-0108 §8). 8 RED-first tests (RFC-0108 §6) + 6 CLI parser tests + one
+  three-surface contract test all green.
+- **SUBSCRIBE — per-subscription scoped `mycelium/subscriptionDelta`
+  notifications (RFC-0107, founder-ratified D1-D5).** Step 3/4 of the
+  reactive-completion roadmap. Whereas RFC-0106 PUSH broadcasts a single
+  `mycelium/graphChanged` per batch, SUBSCRIBE lets agents register an
+  **Interest** (`Files {paths}` | `Symbols {paths}` | `Selector {hyphae}`)
+  and receive only the matching slice of each batch as added / modified /
+  removed trunk paths per file. Three new MCP tools — `mycelium_subscribe`,
+  `mycelium_unsubscribe`, `mycelium_subscription_status` — manage an
+  in-memory map on `MyceliumServer`. The CLI surface variant is
+  `mycelium watch --subscribe '<SPEC>'` streaming NDJSON to stdout
+  (RFC-0107 §4.3 — extends the RFC-0105 Three-Surface EXCEPTION;
+  byte-identical wire shape asserted by
+  `tests/contract_subscription::three_surface_cli_mcp_byte_identical_payload`).
+  Wire frozen v1: `mycelium/subscriptionDelta` carries `event`, `v`,
+  `subscription_id`, `root`, `batch_seq`, `per_file[]` (each with `file`,
+  `added`/`modified`/`removed` plus `_count`/`_truncated`),
+  `files_truncated`, `interest_kind`, `hint`. Per-array cap 50,
+  per-`per_file` cap 16. Defence-in-depth lifecycle (founder D3): rolling
+  TTL (default 3600s, max 86400s, bumped on every delivery) + caps (256
+  server-wide, 32 per-client, 64 Selector-specific) + peer-close GC
+  primitive + 60s periodic eviction task. Selector removals use the
+  (ii-strict) semantics (founder D2) — a removal is reported only when
+  the path was in the OLD match-set AND its file was touched in this
+  batch, eliminating phantom removals from unrelated state flips. The
+  watch engine emit seam (RFC-0105 `on_batch`) was widened in Phase A
+  to `FnMut(&WatchEvent, &BatchDelta, &Store)`; PUSH ignores the new
+  arg, SUBSCRIBE consumes it.
+
+- **PUSH — server emits `mycelium/graphChanged` notifications when the watched
+  graph changes (RFC-0106, founder-ratified Option B).** After every committed
+  watch batch (RFC-0105's emit seam), the MCP server now fires one rmcp
+  `CustomNotification` with method `"mycelium/graphChanged"` and a frozen v1
+  payload (`event`, `v`, `root`, `batch_seq`, `changed_files` capped at 50,
+  `changed_count`, `truncated`, `hint`). Best-effort delivery — a dead client
+  is logged via `tracing::warn` and never aborts the watch loop. The peer is
+  captured in `serve_stdio` immediately after `server.serve()` returns
+  `RunningService`; batches that fire before that point silently skip the
+  notification. Agents register a handler for the `mycelium/graphChanged`
+  method to react. Step 2/4 of the reactive-completion roadmap; the emit seam
+  inherits the Three-Surface EXCEPTION ratified for RFC-0105.
+
+- **`mycelium watch` — foreground reactive watch on the CLI (RFC-0105).**
+  Step 1 of the reactive-completion roadmap. The reactive watch loop (RFC-0008,
+  previously MCP-only) is extracted into a new surface-agnostic
+  `mycelium_core::watch::WatchEngine`; both `MyceliumServer::start_watch` and a
+  new `mycelium watch [ROOT] [--debounce-ms]` CLI command drive it. Reactive
+  behavior — debounce, ignore matching, per-file re-extract, cross-file stub
+  resolution — is **byte-identical across surfaces by construction** (same
+  pattern as `context` and `OutputBudget`). The `on_batch` callback is the
+  deliberate emit seam PUSH (RFC-0106) and SUBSCRIBE (RFC-0107) will attach to
+  without re-touching the loop. Carries a documented Three-Surface EXCEPTION
+  (Charter §5.13): the foreground CLI lifecycle differs from the server's
+  background `start_watch`/`stop_watch`/`watch_status` trio.
+
+## [0.1.17] - 2026-06-02
+
+### Changed
+
+- **redb is now the default storage backend (RFC-0100 Phase 3 flip).** The
+  `redb-backend` feature is now on by default in `mycelium-core` and
+  `mycelium-mcp`, so the default build persists and loads through redb's
+  memory-mapped ACID B-tree (bounded RAM, per-file incremental writes) instead
+  of the legacy MessagePack-snapshot + journal path. `Store::load` still reads
+  legacy snapshots (soft migration — old index files keep working). Opt back out
+  with `--no-default-features`. Full workspace test suite passes with redb as the
+  default; Charter §2 latency targets are now the **warm/steady-state** contract
+  (RFC-0104 — cold-open budgets pending measured nightly data).
+
+### Added
+
+- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0008
+  Decision-4 (founder-authorized 2026-05-31) required splitting Charter §2's single
+  SLA column into warm (page-cache steady-state, existing targets) and cold (first
+  open after process restart, mmap page-fault path). This RFC formalises that split,
+  proposes placeholder ceiling values (50 ms cold lookup, 200 ms cold 3-hop), and
+  defines the `madvise(MADV_DONTNEED)` measurement protocol. Once the founder approves
+  and nightly CI reports p99 values, the placeholders are replaced and Issue #426
+  AC#4 closes — unblocking AC#2 (RSS-cap CI gate) and AC#5 (flip redb to default).
+
+### Refactored
+
+- **`mycelium-mcp` god-file split — tests submodule extracted (Issue #428 AC#2 slice 1).** `crates/mycelium-mcp/src/lib.rs` reduced from 12,191 → 5,627 lines (~54%) by extracting the 6,564-line `mod tests` block into `src/tests.rs`. The remaining three small test modules (`edge_kind_tests`, `server_info_tests`, `output_budget_tests`) stay in `lib.rs`. Pure mechanical refactor; zero behavior change. All 584 workspace tests green. Remaining AC#2 work: split tool implementations into `tools/context.rs` and `tools/graph.rs`.
+
+### Added
+
+- **100k-node redb SLA gate (RFC-0100 Phase 3, Charter §2).** New env-guarded
+  tests in `redb_sla.rs` exercise the Charter §2 latency targets (cold lookup
+  < 5 ms, 3-hop < 1 ms) on the redb path at the **mandated 100k-node scale** — the
+  existing checks only covered 10k, leaving the contract unproven at scale. A new
+  nightly `redb-sla-100k` job runs them (`MYCELIUM_REDB_BENCH_100K=1`); PR CI stays
+  fast. This must be green before redb can become the default backend.
+
+- **`mycelium context` gains `related_files`, `edge_kinds`, and Hyphae routing
+  (RFC-0101).** The context tool now returns the full seven-key contract
+  (`related_files` was missing), accepts an `edge_kinds` request field / CLI
+  `--edge-kinds calls,imports,extends` to expand beyond calls, and routes a
+  Hyphae-selector task through the DSL evaluator (the response `routing` field
+  reports `"natural"` vs `"hyphae"`). CLI and MCP now share a single builder,
+  `mycelium_core::context`, so their JSON is **identical by construction** —
+  this also fixes a real parity bug where the two surfaces had divergent
+  candidate tokenizers. Added `skills/architecture-context/tests/parity.test.json`.
+
+- **`OutputBudget` moved into `mycelium_core::budget` and applied to
+  `mycelium context` on both surfaces (RFC-0102).** The adaptive output budget
+  (caps `nodes`/`edges`-shaped arrays by project size, with `truncated` /
+  `total_available` metadata) now lives in core, so the CLI applies the *same*
+  truncation as the MCP tool over the *same* payload — closing the item the
+  context work had deferred while keeping CLI↔MCP byte-identical. The two
+  never-enforced budget fields (`max_code_lines`, `max_total_chars`) were
+  removed to make the type honest.
+
+### Changed
+
+- **Governance: supersede discipline is now machine-enforced.** New
+  `scripts/check_supersede_discipline.sh` (wired into the CI `governance` job)
+  fails the build on (1) a `Supersedes:`/`Superseded by` link that points at a
+  non-existent `rfcs/` file, and (2) a source module whose header declares it
+  implements a `Status: Superseded` RFC without a `TRANSITIONAL`/superseded
+  note. Restored the previously-phantom `rfcs/0099-bounded-resident-memory.md`
+  (marked Superseded by RFC-0100), annotated `store/journal.rs` as a sanctioned
+  transitional bridge, and corrected RFC-0100/RFC-0102 statuses to *Partially
+  Implemented* with honest gap lists. Two CLAUDE.md Hard Rules added
+  (supersede-then-close; verify-against-merged-tree). Contributor-facing only;
+  no runtime or API change.
+
+### Removed
+
+- **Orphan LRU eviction (`store::memory_budget::BoundedStore`).** The hand-built
+  LRU segment-eviction cache — the "reinvent what a memory-mapped B-tree already
+  gives you" mechanism RFC-0100 explicitly retired — had zero callers. Removed it
+  with `MemoryBudget`/`FileAccessTracker`. The RFC-0099 *measurement* half
+  (`measure_rss`, `estimate_store_bytes`) is kept for the SLA evidence work.
+
 ## [0.1.16] - 2026-06-02
 
 ### Added
+
+- **`mycelium context` CLI command** (RFC-0101 Phase 2) — CLI twin of the
+  `mycelium_context` MCP tool. Accepts `--task` (natural-language task or
+  Hyphae selector), `--max-nodes`, `--max-code-blocks`, and `--format`.
+  Returns the same JSON envelope as the MCP tool: `entry_points`, `nodes`,
+  `edges`, `code_blocks`, `stats`, and `agent_summary`. Completes the
+  Three-Surface Rule requirement for this capability (CLI ↔ MCP 1:1 strict;
+  `skills/architecture-context/SKILL.md` updated to reflect full coverage).
 
 - **MCP server routing instructions** — `mycelium serve --mcp` now includes
   a routing table in the MCP `InitializeResult.instructions` field (Issue #366).
@@ -77,7 +272,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeping the redb backend feature-gated off by default.
 
 - **RFC-0100 Phase 2 T05a — redb file-scoped replacement foundation** —
-  `RedbBackend` now has the ADR-0007 `file_index` table plus a feature-gated
+  `RedbBackend` now has the ADR-0008 `file_index` table plus a feature-gated
   `replace_file` API that atomically removes one file's old nodes/owned edges,
   strips stale external references, inserts the new file graph, and persists
   the replacement index in one redb write transaction. This advances Issue #343

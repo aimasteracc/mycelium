@@ -1,4 +1,4 @@
-//! RFC-0100 / ADR-0007 de-risk spike T0 — order-preserving composite key encoding.
+//! RFC-0100 / ADR-0008 de-risk spike T0 — order-preserving composite key encoding.
 //!
 //! # What this proves
 //!
@@ -15,7 +15,7 @@
 //!
 //! ## Part B — Trunk path key with NUL separator
 //!
-//! ADR-0007 §4 identifies a defect with the current `>` (0x3E) separator:
+//! ADR-0008 §4 identifies a defect with the current `>` (0x3E) separator:
 //! because 0x3E > 0x00..=0x3D but < 0x3F..=0xFF, a path like `"foo"` and
 //! `"foobar"` are wrongly ordered relative to `"foo>bar"` in a raw byte scan.
 //! The fix: replace `>` with NUL (`\0`, 0x00), the **lowest** printable byte.

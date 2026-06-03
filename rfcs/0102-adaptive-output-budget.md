@@ -1,6 +1,6 @@
 # RFC-0102: Adaptive output budgets for agent-facing results
 
-- **Status**: Draft
+- **Status**: Implemented (#395, completed in the RFC-0101 budget follow-up). `OutputBudget` + `apply_budget` now live in `mycelium_core::budget` and are applied across the MCP tool surface **and** inside `mycelium_context` on both the MCP tool and the CLI twin — the same budget over the same payload, so CLI↔MCP stays byte-identical. The two never-enforced fields (`max_code_lines` / `max_total_chars`) were removed. Truncation stays visible via `truncated` / `total_available`. Remaining nice-to-have (non-blocking): a per-call `--budget`/`budget` override knob (`BudgetOptions`).
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-01
 - **Last updated**: 2026-06-01

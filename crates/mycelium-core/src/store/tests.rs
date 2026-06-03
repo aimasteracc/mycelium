@@ -35,6 +35,33 @@ fn store_lookup_returns_none_for_unknown_path() {
 }
 
 #[test]
+fn symbols_in_file_returns_sorted_descendants_excluding_root() {
+    // RFC-0107 §6 test 1 — `Store::symbols_in_file(file_rel)` is the OLD-set
+    // helper consumed by the watch engine's lock discipline. Returns trunk
+    // paths of every symbol *under* the file, sorted lexicographically, with
+    // the file path itself excluded.
+    let mut store = Store::new();
+    store.upsert_node(path("src/auth.rs"));
+    store.upsert_node(path("src/auth.rs>fn:login"));
+    store.upsert_node(path("src/auth.rs>fn:logout"));
+    store.upsert_node(path("src/auth.rs>AuthService"));
+    store.upsert_node(path("src/auth.rs>AuthService>verify"));
+    // unrelated file — must NOT appear in src/auth.rs's set
+    store.upsert_node(path("src/other.rs>fn:noise"));
+
+    let got = store.symbols_in_file("src/auth.rs");
+    let want = vec![
+        "src/auth.rs>AuthService".to_owned(),
+        "src/auth.rs>AuthService>verify".to_owned(),
+        "src/auth.rs>fn:login".to_owned(),
+        "src/auth.rs>fn:logout".to_owned(),
+    ];
+    assert_eq!(got, want, "sorted lexicographically; file path excluded");
+    // Unknown file path → empty vec (well-defined OLD set for a new file).
+    assert!(store.symbols_in_file("src/nonexistent.rs").is_empty());
+}
+
+#[test]
 fn store_lookup_is_exact_match_only() {
     let mut store = Store::new();
     store.upsert_node(path("src/auth.rs>AuthService>login"));
@@ -6002,6 +6029,97 @@ fn load_with_journal_replays_deltas() {
 
     let loaded = Store::load_with_journal(&snap_path).unwrap();
     assert_eq!(loaded.node_count(), store.node_count());
+}
+
+#[test]
+fn journal_truncate_removes_file_and_resets_header() {
+    // Covers `Journal::truncate` — the path used after a full snapshot save
+    // bypasses the journal.
+    let dir = tempfile::tempdir().unwrap();
+    let snap_path = dir.path().join("index.rmp");
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs"));
+    store.save(&snap_path).unwrap();
+
+    let mut journal = Journal::open(&snap_path).unwrap();
+    let sub = store.extract_file_substore("src/a.rs");
+    journal.append("src/a.rs", &sub).unwrap();
+    assert!(journal.pending_count() > 0);
+
+    journal.truncate().unwrap();
+    let journal_path = dir.path().join("journal.jsonl");
+    assert!(!journal_path.exists(), "truncate removes the journal file");
+    assert_eq!(journal.pending_count(), 0, "header reset to default");
+
+    // Idempotent: truncate when file already gone is OK.
+    journal.truncate().unwrap();
+}
+
+#[test]
+fn journal_replay_on_missing_file_returns_zero() {
+    // Covers the early-return branch in `Journal::replay`: when the
+    // journal file does not exist (e.g. fresh load just after compaction),
+    // replay returns Ok(0) without touching the store.
+    let dir = tempfile::tempdir().unwrap();
+    let snap_path = dir.path().join("index.rmp");
+    let mut store = Store::new();
+    store.upsert_node(path("src/a.rs"));
+    store.save(&snap_path).unwrap();
+
+    let mut journal = Journal::open(&snap_path).unwrap();
+    // Truncate so the journal file is gone.
+    journal.truncate().unwrap();
+
+    let mut target = Store::new();
+    let count = journal.replay(&mut target).unwrap();
+    assert_eq!(count, 0, "replay against missing journal returns 0");
+}
+
+#[test]
+fn journal_replay_handles_empty_delta_store_as_removal_only() {
+    // Covers the `record.delta_store.is_empty()` branch in `replay`:
+    // a delta whose `delta_store` is the empty string represents a pure
+    // file removal — replay should call `remove_file` and skip the merge.
+    use crate::store::journal::DeltaRecord;
+    use std::io::Write;
+
+    let dir = tempfile::tempdir().unwrap();
+    let snap_path = dir.path().join("index.rmp");
+
+    // Build a base store and persist it.
+    let mut store = Store::new();
+    store.upsert_node(path("src/gone.rs"));
+    store.upsert_node(path("src/gone.rs>Goner"));
+    store.save(&snap_path).unwrap();
+
+    // Open the journal (writes header), then hand-craft a removal record
+    // by writing one extra JSON line with an empty delta_store.
+    {
+        let _journal = crate::store::journal::Journal::open(&snap_path).unwrap();
+    }
+    let journal_path = dir.path().join("journal.jsonl");
+    let removal = DeltaRecord {
+        seq: 1,
+        file_path: "src/gone.rs".to_owned(),
+        delta_store: String::new(),
+    };
+    {
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&journal_path)
+            .unwrap();
+        writeln!(f, "{}", serde_json::to_string(&removal).unwrap()).unwrap();
+    }
+
+    let journal = crate::store::journal::Journal::open(&snap_path).unwrap();
+    let mut loaded = Store::load(&snap_path).unwrap();
+    assert!(loaded.lookup("src/gone.rs>Goner").is_some());
+    let replayed = journal.replay(&mut loaded).unwrap();
+    assert_eq!(replayed, 1);
+    assert!(
+        loaded.lookup("src/gone.rs>Goner").is_none(),
+        "empty delta_store should remove the file's subtree"
+    );
 }
 
 #[test]

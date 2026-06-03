@@ -9,6 +9,17 @@ allowed-tools:
   - mcp__mycelium__sync_file
   - mcp__mycelium__set_compact_mode
   - mcp__mycelium__get_token_stats
+  - mcp__mycelium__subscribe
+  - mcp__mycelium__unsubscribe
+  - mcp__mycelium__subscription_status
+  # CLI surface variant of watch (RFC-0105 Three-Surface EXCEPTION:
+  # a foreground CLI watch vs the server's background start/stop/status is a
+  # documented lifecycle mismatch; both drive the same `WatchEngine`).
+  # `mycelium watch --subscribe <SPEC>` is the CLI surface for RFC-0107
+  # (extends the RFC-0105 EXCEPTION — same `subscription::match_batch` code
+  # path; wire shape byte-identical to MCP, asserted by
+  # `tests/contract_subscription`).
+  - cli:mycelium-watch
 category: operations
 icon: 🗃️
 marketplace_examples:
@@ -98,6 +109,147 @@ mcp__mycelium__watch_status({})
 ```
 
 Reports whether the file-watch loop is active and how many change batches have been processed. Use when query results look stale despite recent file edits.
+
+### `mycelium/graphChanged` — server-initiated push notification (RFC-0106)
+
+Whenever the watch loop commits a batch (i.e. one or more watched files have been re-indexed), the MCP server fires **one** notification per batch with this method name. **Register a handler** in your MCP client to react without polling.
+
+```jsonc
+// Notification shape (v1, frozen):
+{
+  "method": "mycelium/graphChanged",
+  "params": {
+    "event": "graphChanged",
+    "v": 1,
+    "root": "/abs/path/to/workspace",
+    "batch_seq": 17,             // monotonic; detect dropped batches
+    "changed_files": ["src/auth.rs", "src/db/query.rs"],
+    "changed_count": 2,
+    "truncated": false,          // true when changed_count > 50
+    "hint": "Re-query mycelium_context for the area you care about."
+  }
+}
+```
+
+`changed_files` is capped at 50. When the underlying batch had more, `truncated` flips true and `changed_count` reports the real magnitude — react by broadly re-querying instead of trying to enumerate every affected file. Delivery is best-effort; if your client dropped or never registered the handler, the server logs and continues (zero impact on indexing).
+
+### `mycelium/subscriptionDelta` — per-subscription scoped notification (RFC-0107)
+
+Where `mycelium/graphChanged` (RFC-0106) broadcasts one notification per batch with the changed file list, **SUBSCRIBE** lets an agent register an **Interest** (Files / Symbols / Hyphae selector) and receive only the matching slice of each batch — as added / modified / removed trunk paths per file. Three new tools manage the in-memory subscription map; one new notification method delivers the matched payloads.
+
+```jsonc
+// Notification shape (v1, frozen):
+{
+  "method": "mycelium/subscriptionDelta",
+  "params": {
+    "event": "subscriptionDelta",
+    "v": 1,
+    "subscription_id": "f3c1...",
+    "root": "/abs/path/to/workspace",
+    "batch_seq": 42,
+    "per_file": [
+      {
+        "file": "src/auth.rs",
+        "added": ["src/auth.rs>fn:login"],
+        "added_count": 1,
+        "added_truncated": false,
+        "modified": [],
+        "modified_count": 0,
+        "modified_truncated": false,
+        "removed": ["src/auth.rs>fn:legacy_signin"],
+        "removed_count": 1,
+        "removed_truncated": false
+      }
+    ],
+    "files_truncated": false,
+    "interest_kind": "files",
+    "hint": "Apply the delta locally or re-query the affected paths."
+  }
+}
+```
+
+```
+mcp__mycelium__subscribe({
+  "interest": { "kind": "files", "paths": ["src/auth/**/*.rs"] },
+  "ttl_seconds": 3600
+})
+→ { "subscription_id": "f3c1...", "root": "/abs/path", "ttl_seconds": 3600,
+    "interest_kind": "files", "active_count": 1 }
+```
+
+`interest` is a tagged union (mutually exclusive): `{"kind":"files","paths":[...]}` | `{"kind":"symbols","paths":[...]}` | `{"kind":"selector","hyphae":"..."}` | `{"kind":"query","query":{...},"min_interval_seconds":N?}` (the `query` variant is added by RFC-0108 — see below). The server enforces caps (256 server-wide, 32 per-client, 64 Selector-specific) and a rolling TTL (default 3600s, max 86400s, bumped on every successful delivery). `mycelium_unsubscribe` is idempotent — unknown ids return `{removed: false}`. `mycelium_subscription_status` returns the active subscription list plus the configured caps for visibility.
+
+Per-array cap = 50; `per_file` cap = 16 entries (above which `files_truncated: true` flips). All arrays are sorted + deduped before send. Selector removals follow the **(ii-strict)** policy — a removal is reported only when the path was in the OLD match-set AND its file was touched this batch — so unrelated state flips never produce phantom removals.
+
+CLI surface (RFC-0105 Three-Surface EXCEPTION, extended): `mycelium watch --subscribe '<SPEC>'` registers the same Interest and streams identical NDJSON payloads to stdout. SPEC = `files:<glob1>,<glob2>,...` | `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>` | `query:<kind>:<args>` (RFC-0108 — see below). The MCP + CLI wire shapes are byte-identical by construction (both surfaces share `subscription::match_batch`); asserted by `tests/contract_subscription`.
+
+### `mycelium/queryResultChanged` — query result reactive notification (RFC-0108)
+
+Step 4/4 of the reactive-completion roadmap (Salsa Phase 2). Whereas RFC-0107's `subscriptionDelta` fires every batch that touches the Interest, **`Interest::Query`** subscriptions evaluate a query (`selector` / `callers` / `callees` / `impact` / `context`) against the post-batch store and emit a `mycelium/queryResultChanged` notification **only when the result actually changed** — Salsa-style backdated equality via a BLAKE3-128 hash of the canonical-JSON result.
+
+```jsonc
+// Notification shape (v1, frozen):
+{
+  "method": "mycelium/queryResultChanged",
+  "params": {
+    "event": "queryResultChanged",
+    "v": 1,
+    "subscription_id": "f3c1...",
+    "root": "/abs/path/to/workspace",
+    "batch_seq": 42,
+    "query_kind": "callers",   // "selector" | "callers" | "callees" | "impact" | "context"
+    "result_hash_old": "b3:8c2e...",  // omitted on first delivery
+    "result_hash_new": "b3:91a4...",
+    "new_result": [             // shape depends on query_kind
+      "src/auth.rs>fn:login",
+      "src/auth_v2.rs>fn:login"
+    ],
+    "summary": {                // present iff query_kind is set-shaped
+      "added":   ["src/auth_v2.rs>fn:login"],
+      "added_count": 1,
+      "added_truncated": false,
+      "removed": [],
+      "removed_count": 0,
+      "removed_truncated": false
+    },
+    "evaluation_ms": 7,
+    "hint": "Query result changed; re-fetch the affected slice if needed."
+  }
+}
+```
+
+```
+mcp__mycelium__subscribe({
+  "interest": {
+    "kind": "query",
+    "query": { "kind": "callers", "path": "src/auth.rs>fn:login", "hops": 1 },
+    "min_interval_seconds": 5
+  },
+  "ttl_seconds": 3600
+})
+→ { "subscription_id": "f3c1...", "root": "/abs/path", "ttl_seconds": 3600,
+    "interest_kind": "query", "query_kind": "callers", "active_count": 2 }
+```
+
+`query` is a tagged union:
+- `{"kind":"selector","hyphae":"<source>"}` — Hyphae selector source.
+- `{"kind":"callers","path":"<trunk path>","hops":N?}` — BFS callers up to N hops (default 1, max 16).
+- `{"kind":"callees","path":"<trunk path>","hops":N?}` — BFS callees up to N hops.
+- `{"kind":"impact","path":"<trunk path>","max_paths":N?}` — BFS frontier across Calls / Imports / Extends (default 100, max 10000).
+- `{"kind":"context","task":"<text>","focus":["<path>"...],"max_tokens":N?}` — reactive Context (currently a minimal placeholder; full Cortex integration deferred).
+
+`min_interval_seconds` is server-clamped to `2..=300`; default 2 s. Per-query soft / hard wall-clock budgets are 50 ms / 200 ms — above the hard cap the subscription is paused for 60 s (logged via `tracing::warn!`). Result-set summaries cap `added` / `removed` at 50 with `_count` + `_truncated` companions; tree-shaped results (`context`) omit `summary` entirely. `result_hash_*` is BLAKE3-128 hex with a frozen `"b3:"` prefix.
+
+CLI surface (RFC-0105 EXCEPTION further extended): `mycelium watch --subscribe 'query:<kind>:<args>' [--subscribe-min-interval <SECONDS>]`. Grammar:
+
+```
+mycelium watch --subscribe 'query:callers:src/auth.rs>fn:login,hops=2'
+mycelium watch --subscribe 'query:selector:fn[name="login"]'
+mycelium watch --subscribe 'query:impact:src/auth.rs>fn:login,max_paths=200'
+mycelium watch --subscribe 'query:context:auth refactor,focus=src/auth.rs+src/db.rs,max_tokens=4000'
+```
+
+Comma-separated `key=value` pairs follow the path; `focus` is `+`-separated (comma is the outer separator). Byte-identical CLI ↔ MCP wire asserted by `tests/contract_subscription::three_surface_query_byte_identical_payload`.
 
 ### `sync_file` — immediate single-file re-index
 

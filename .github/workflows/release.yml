@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v6
       - id: extract
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [["${{ github.event_name }}" == "workflow_dispatch" ]]; then
             VERSION="${{ inputs.version }}"
           else
             BRANCH="${GITHUB_REF#refs/heads/}"
@@ -65,7 +65,7 @@ jobs:
     name: publish to crates.io
     needs: [validate, quality-recheck]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     environment: crates-io
     env:
       VERSION: ${{ needs.validate.outputs.version }}
@@ -86,27 +86,33 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
           crate_published() {
-            local encoded
-            encoded=$(echo "$1" | tr '-' '_')
-            curl -sf "https://crates.io/api/v1/crates/${encoded}" \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('crate',{}).get('max_version','')=='$VERSION' else 1)" \
-              2>/dev/null
+            # Check the crates.io sparse index — the authoritative source cargo
+            # itself uses.  Updated within seconds of a successful publish,
+            # before the REST API reflects the new version.
+            # Path format for names ≥ 4 chars: {first2}/{next2}/{name}
+            local name="$1"
+            local prefix="${name:0:2}/${name:2:2}"
+            curl -sf "https://index.crates.io/${prefix}/${name}" \
+              | grep -qF "\"vers\":\"$VERSION\""
           }
 
           wait_for_crate() {
             pkg="$1"
-            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
               if crate_published "$pkg"; then
                 echo "$pkg v$VERSION is visible on crates.io"
                 return 0
               fi
-              echo "Waiting for $pkg v$VERSION to reach the crates.io index (attempt $attempt/12)..."
-              sleep 10
+              echo "Waiting for $pkg v$VERSION to reach the crates.io index (attempt $attempt/24)..."
+              sleep 30
             done
             echo "::error::$pkg v$VERSION did not become visible on crates.io"
             exit 1
           }
 
+          # crates.io names are `mycelium-rcig-*`; on-disk dirs are `mycelium-*`.
+          # Publish dependency-first so each crate verifies against the version
+          # that this release just uploaded.
           for pair in \
               "mycelium-pack:mycelium-rcig-pack" \
               "mycelium-core:mycelium-rcig-core" \
@@ -125,11 +131,14 @@ jobs:
               cargo publish -p "$pkg" >/tmp/publish_${pkg}.log 2>&1 || {
                 if grep -q "already exists" /tmp/publish_${pkg}.log; then
                   echo "$pkg v$VERSION was published by a previous run; continuing"
+                  continue
                 else
                   cat /tmp/publish_${pkg}.log >&2
                   exit 1
                 fi
               }
+              # Echo publish output so log shows "Uploaded …" confirmation.
+              cat /tmp/publish_${pkg}.log
               wait_for_crate "$pkg"
             fi
           done
@@ -183,6 +192,12 @@ jobs:
 
   finalize:
     name: merge to main, tag, GitHub Release
+    # Charter §5.12: touching main requires founder authorization.
+    # Restrict to workflow_dispatch so a push to release/** never auto-merges
+    # to main even when RELEASE_BOT_TOKEN is present.  The ceremony script
+    # (scripts/release-ceremony.sh) or a manual workflow_dispatch serves as
+    # the explicit human authorization step.
+    if: github.event_name == 'workflow_dispatch'
     needs: [validate, publish-crates, publish-npm, publish-pypi]
     runs-on: ubuntu-latest
     timeout-minutes: 15

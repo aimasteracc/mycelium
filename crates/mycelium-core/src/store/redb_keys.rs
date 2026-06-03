@@ -11,7 +11,7 @@
 //!
 //! NUL separator was chosen over `>` (0x3E) because NUL < any printable ASCII,
 //! ensuring lexicographic order of encoded keys matches prefix-scan semantics
-//! for "all symbols under file F". See ADR-0007 §Key encoding.
+//! for "all symbols under file F". See ADR-0008 §Key encoding.
 //!
 //! RFC-0100 / P1-T05.
 

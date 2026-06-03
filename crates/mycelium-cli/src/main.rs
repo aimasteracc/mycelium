@@ -17,6 +17,7 @@ mod queries;
     reason = "items used by main.rs require pub(crate); bin-crate root cannot consume private child-mod items"
 )]
 mod query;
+mod watch;
 
 /// The `mycelium` CLI. See `mycelium --help` for details.
 #[derive(Debug, Parser)]
@@ -984,6 +985,68 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// One-shot architecture context: find entry points, expand the call graph,
+    /// and return source spans for a natural-language task or Hyphae selector.
+    /// The CLI twin of the `mycelium_context` MCP tool (RFC-0101).
+    Context {
+        /// Natural-language task or Hyphae selector, e.g.
+        /// `"trace ServeHTTP to HandlerFunc"` or `"function:calls(#AuthService)"`.
+        #[arg(long)]
+        task: String,
+        /// Project root (defaults to current directory).
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        /// Maximum graph nodes to return (default: 30, max: 100).
+        #[arg(long)]
+        max_nodes: Option<usize>,
+        /// Maximum source snippets to return (default: 6, max: 25).
+        #[arg(long)]
+        max_code_blocks: Option<usize>,
+        /// Edge kinds to expand during one-hop traversal, comma-separated,
+        /// e.g. `--edge-kinds calls,imports,extends`. Default: `calls`.
+        #[arg(long, value_delimiter = ',')]
+        edge_kinds: Vec<String>,
+        /// Output format.
+        #[arg(long, value_enum, default_value_t = QueryFormat::Json)]
+        format: QueryFormat,
+    },
+    /// Foreground reactive watch mode (RFC-0105). Drive the shared
+    /// `mycelium_core::watch::WatchEngine` on `ROOT` until Ctrl-C.
+    ///
+    /// CLI-side surface variant of the server's `start_watch` /
+    /// `stop_watch` / `watch_status` trio (Charter §5.13 EXCEPTION — a
+    /// foreground command's lifecycle differs from a background server).
+    Watch {
+        /// Project root to watch (defaults to current directory).
+        #[arg(default_value = ".")]
+        root: PathBuf,
+        /// Debounce window in milliseconds (default 5, matches the server).
+        #[arg(long, default_value_t = 5)]
+        debounce_ms: u64,
+        /// SUBSCRIBE shorthand (RFC-0107 + RFC-0108) — register an in-process
+        /// interest and stream `mycelium/subscriptionDelta` (RFC-0107) or
+        /// `mycelium/queryResultChanged` (RFC-0108) payloads to stdout as
+        /// NDJSON. SPEC = `files:<glob1>,<glob2>,...` |
+        /// `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>` |
+        /// `query:selector:<hyphae>` |
+        /// `query:callers:<path>[,hops=N]` |
+        /// `query:callees:<path>[,hops=N]` |
+        /// `query:impact:<path>[,max_paths=N]` |
+        /// `query:context:<task>,focus=p1+p2+...,max_tokens=N`.
+        #[arg(long, value_name = "SPEC")]
+        subscribe: Option<String>,
+        /// Optional client-supplied subscription id (regex `^[A-Za-z0-9_-]{1,64}$`).
+        #[arg(long, value_name = "ID")]
+        subscribe_id: Option<String>,
+        /// Optional rolling TTL in seconds (default 3600, max 86400).
+        #[arg(long, value_name = "SECONDS")]
+        subscribe_ttl: Option<u64>,
+        /// RFC-0108: minimum interval between query-result-changed emits
+        /// (clamped server-side to 2..=300 seconds; default 2). Only meaningful
+        /// for `query:` SPECs.
+        #[arg(long, value_name = "SECONDS")]
+        subscribe_min_interval: Option<u64>,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -1804,6 +1867,42 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_find_import_path(&canonical, &from, &to, max_depth, format.into())?;
+        }
+        Cmd::Context {
+            task,
+            root,
+            max_nodes,
+            max_code_blocks,
+            edge_kinds,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_context(
+                &canonical,
+                &task,
+                max_nodes,
+                max_code_blocks,
+                &edge_kinds,
+                format.into(),
+            )?;
+        }
+        Cmd::Watch {
+            root,
+            debounce_ms,
+            subscribe,
+            subscribe_id,
+            subscribe_ttl,
+            subscribe_min_interval,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            watch::run_foreground(
+                &canonical,
+                debounce_ms,
+                subscribe.as_deref(),
+                subscribe_id.as_deref(),
+                subscribe_ttl,
+                subscribe_min_interval,
+            )?;
         }
         Cmd::Serve {
             mcp: true,

@@ -1926,6 +1926,118 @@ fn print_string_list(items: &[String], format: Format) -> Result<()> {
     Ok(())
 }
 
+// ── context (RFC-0101) ────────────────────────────────────────────────────────
+
+// Candidate extraction, stop-words, and the path/payload helpers used to live
+// here as a near-duplicate of the MCP tool (with a *different* tokenizer — the
+// exact RFC-0101 parity bug). They now live once in `mycelium_core::context`,
+// which both surfaces call, so CLI and MCP JSON are identical by construction.
+
+fn print_context_text(task: &str, value: &serde_json::Value) {
+    let arr = |k: &str| value[k].as_array().cloned().unwrap_or_default();
+    let str_at = |v: &serde_json::Value, k: &str| v[k].as_str().unwrap_or("").to_owned();
+
+    println!("task: {task}");
+    println!("verdict: {}", value["verdict"].as_str().unwrap_or(""));
+    println!("routing: {}", value["routing"].as_str().unwrap_or(""));
+
+    let eps = arr("entry_points");
+    println!("entry_points ({}):", eps.len());
+    for ep in &eps {
+        println!("  {}", ep.as_str().unwrap_or(""));
+    }
+    let nodes = arr("nodes");
+    println!("nodes ({}):", nodes.len());
+    for n in &nodes {
+        println!("  {}", str_at(n, "path"));
+    }
+    let edges = arr("edges");
+    println!("edges ({}):", edges.len());
+    for e in &edges {
+        println!(
+            "  {} --{}--> {}",
+            str_at(e, "source"),
+            str_at(e, "kind"),
+            str_at(e, "target")
+        );
+    }
+    let related = arr("related_files");
+    println!("related_files ({}):", related.len());
+    for f in &related {
+        println!("  {}", f.as_str().unwrap_or(""));
+    }
+    let blocks = arr("code_blocks");
+    println!("code_blocks ({}):", blocks.len());
+    for b in &blocks {
+        println!("  {}", str_at(b, "file"));
+    }
+    println!(
+        "summary: {}",
+        value["agent_summary"]["summary_line"]
+            .as_str()
+            .unwrap_or("")
+    );
+}
+
+pub(crate) fn run_context(
+    root: &Path,
+    task: &str,
+    max_nodes: Option<usize>,
+    max_code_blocks: Option<usize>,
+    edge_kinds: &[String],
+    format: Format,
+) -> Result<()> {
+    use mycelium_core::context::{self, ContextOptions, Routing};
+
+    let store = load_index(root)?;
+    let max_n = max_nodes.unwrap_or(30).min(100);
+    let max_b = max_code_blocks.unwrap_or(6).min(25);
+    let kinds: Vec<EdgeKind> = edge_kinds
+        .iter()
+        .filter_map(|s| context::parse_edge_kind(s))
+        .collect();
+    let opts = ContextOptions {
+        max_nodes: max_n,
+        max_code_blocks: max_b,
+        edge_kinds: kinds,
+    };
+
+    // Same routing logic as the MCP tool, so the two produce identical JSON.
+    let natural = |store: &Store| {
+        let c = context::extract_symbol_candidates(task);
+        let e = context::seed_entry_points(store, &c, max_n);
+        (Routing::Natural, c, e)
+    };
+    let (routing, candidates, entry_points) = if context::looks_like_hyphae(task) {
+        mycelium_hyphae::parse(task).map_or_else(
+            |_| natural(&store),
+            |ast| {
+                let eps = mycelium_hyphae::evaluator::Evaluator::new(&store)
+                    .eval(&ast)
+                    .into_iter()
+                    .take(max_n)
+                    .collect::<Vec<String>>();
+                (Routing::Hyphae, Vec::new(), eps)
+            },
+        )
+    } else {
+        natural(&store)
+    };
+    let mut value =
+        context::build_payload(&store, task, &candidates, &entry_points, routing, &opts);
+    // Same budget as the MCP tool over the same payload → byte-identical JSON.
+    mycelium_core::budget::apply_budget(
+        &mut value,
+        &mycelium_core::budget::OutputBudget::for_project(store.node_count()),
+    );
+
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+        Format::Text => print_context_text(task, &value),
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1945,5 +2057,82 @@ mod tests {
         let store = Store::default();
         let err = symbol_info(&store, "nonexistent").unwrap_err();
         assert!(format!("{err}").contains("path not found"));
+    }
+
+    // RFC-0101 Phase 2 — CLI twin for mycelium_context (RED-first)
+
+    #[test]
+    fn run_context_no_index_errors_clearly() {
+        let dir = tempdir().unwrap();
+        let err = run_context(
+            dir.path(),
+            "trace foo to bar",
+            None,
+            None,
+            &[],
+            Format::Json,
+        )
+        .unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("no index"), "got: {msg}");
+    }
+
+    #[test]
+    fn run_context_gibberish_returns_not_found_json() {
+        let dir = tempdir().unwrap();
+        let index_dir = dir.path().join(".mycelium");
+        std::fs::create_dir_all(&index_dir).unwrap();
+        let store = Store::default();
+        store.save(&index_dir.join("index.rmp")).unwrap();
+
+        let output =
+            capture_context_output(dir.path(), "xyzzy_nonexistent_gibberish_xyz", None, None);
+        let v: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(v["verdict"], "NOT_FOUND");
+    }
+
+    #[test]
+    fn run_context_json_output_has_required_keys() {
+        let dir = tempdir().unwrap();
+        let index_dir = dir.path().join(".mycelium");
+        std::fs::create_dir_all(&index_dir).unwrap();
+        let store = Store::default();
+        store.save(&index_dir.join("index.rmp")).unwrap();
+
+        let output = capture_context_output(dir.path(), "some task", None, None);
+        let v: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert!(v.get("entry_points").is_some(), "missing entry_points");
+        assert!(v.get("nodes").is_some(), "missing nodes");
+        assert!(v.get("edges").is_some(), "missing edges");
+        assert!(v.get("code_blocks").is_some(), "missing code_blocks");
+        assert!(v.get("stats").is_some(), "missing stats");
+        assert!(v.get("agent_summary").is_some(), "missing agent_summary");
+    }
+
+    fn capture_context_output(
+        root: &Path,
+        task: &str,
+        max_nodes: Option<usize>,
+        max_code_blocks: Option<usize>,
+    ) -> String {
+        use mycelium_core::context::{self, ContextOptions, Routing};
+        let store = load_index(root).unwrap();
+        let max_n = max_nodes.unwrap_or(30).min(100);
+        let candidates = context::extract_symbol_candidates(task);
+        let entry_points = context::seed_entry_points(&store, &candidates, max_n);
+        let opts = ContextOptions {
+            max_nodes: max_n,
+            max_code_blocks: max_code_blocks.unwrap_or(6).min(25),
+            edge_kinds: vec![],
+        };
+        let value = context::build_payload(
+            &store,
+            task,
+            &candidates,
+            &entry_points,
+            Routing::Natural,
+            &opts,
+        );
+        serde_json::to_string(&value).unwrap()
     }
 }

@@ -24,7 +24,7 @@ workspace = true
 mycelium-core      = { workspace = true }
 mycelium-hyphae    = { workspace = true }
 mycelium-pack      = { workspace = true }
-mycelium-mcp       = { path = "../mycelium-mcp", version = "0.1.14", package = "mycelium-rcig-mcp" }
+mycelium-mcp       = { path = "../mycelium-mcp", version = "0.1.18", package = "mycelium-rcig-mcp" }
 tree-sitter             = { workspace = true }
 tree-sitter-javascript  = { workspace = true }
 tree-sitter-python      = { workspace = true }

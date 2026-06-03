@@ -36,6 +36,8 @@
 #![doc(html_root_url = "https://docs.rs/mycelium-core")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+pub mod budget;
+pub mod context;
 pub mod cortex;
 pub mod error;
 pub mod extractor;
@@ -43,6 +45,7 @@ pub mod store;
 pub mod synapse;
 pub mod trunk;
 pub mod types;
+pub mod watch;
 
 pub use error::{Error, Result};
 pub use store::{

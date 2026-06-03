@@ -166,6 +166,69 @@ fn redb_three_hop_sla_10k_under_1ms() {
     );
 }
 
+// ── 100k-node gate (Charter §2 mandated scale) ──────────────────────────────
+//
+// Charter §2 specifies the latency SLAs on a **100k-node** graph, but the checks
+// above only exercise 10k — leaving the redb path unproven at the contract's
+// scale. Seeding 100k nodes through `replace_file` (~1000 file transactions) is
+// slow, so these run only when `MYCELIUM_REDB_BENCH_100K=1` (the nightly job sets
+// it). They are the redb-path proof that the §2 cold-lookup / 3-hop targets hold
+// at the mandated scale, and the guard that the path cannot regress invisibly.
+
+#[cfg(target_os = "linux")]
+const SLA_NODES_100K: usize = 100_000;
+
+#[cfg(target_os = "linux")]
+fn bench_100k_enabled() -> bool {
+    std::env::var("MYCELIUM_REDB_BENCH_100K").is_ok_and(|v| v == "1" || v == "true")
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn redb_lookup_sla_100k_under_5ms() {
+    if !bench_100k_enabled() {
+        eprintln!("skipping 100k lookup SLA — set MYCELIUM_REDB_BENCH_100K=1 to run");
+        return;
+    }
+    let (_dir, path, root_symbol) = seed_redb(SLA_NODES_100K);
+    let backend = RedbBackend::open_existing(&path).expect("reopen redb");
+
+    let started = Instant::now();
+    let found = backend.lookup_path(&root_symbol);
+    let elapsed = started.elapsed();
+
+    assert_eq!(found, Some(path_to_node_id(&root_symbol)));
+    assert!(
+        elapsed < LOOKUP_SLA,
+        "redb 100k exact lookup exceeded Charter §2 SLA: elapsed={elapsed:?}, sla={LOOKUP_SLA:?}"
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn redb_three_hop_sla_100k_under_1ms() {
+    if !bench_100k_enabled() {
+        eprintln!("skipping 100k 3-hop SLA — set MYCELIUM_REDB_BENCH_100K=1 to run");
+        return;
+    }
+    let (_dir, path, root_symbol) = seed_redb(SLA_NODES_100K);
+    let backend = RedbBackend::open_existing(&path).expect("reopen redb");
+    let root = backend.lookup_path(&root_symbol).expect("root symbol");
+
+    let started = Instant::now();
+    let reached = three_hop_count(&backend, root);
+    let elapsed = started.elapsed();
+
+    assert!(
+        reached > 0,
+        "fixture must have non-empty 3-hop neighborhood"
+    );
+    assert!(
+        elapsed < THREE_HOP_SLA,
+        "redb 100k 3-hop traversal exceeded Charter §2 SLA: reached={reached}, elapsed={elapsed:?}, sla={THREE_HOP_SLA:?}"
+    );
+}
+
 #[cfg(not(target_os = "linux"))]
 #[test]
 fn redb_sla_checks_are_linux_gated() {

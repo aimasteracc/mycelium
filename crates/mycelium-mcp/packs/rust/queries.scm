@@ -77,3 +77,16 @@
 (call_expression
   function: (field_expression
     field: (field_identifier) @name)) @reference.call
+
+; Scoped / qualified path calls: Type::method() / crate::mod::func()
+;
+; The captured @name is the LAST identifier (the function or method name).
+; Cross-file resolution by `resolve_bare_call_stubs` later links it to the
+; concrete definition once both files have been indexed.
+;
+; Added 2026-06-03 after dogfooding the Mycelium repo against itself surfaced
+; that `WatchEngine::drive(...)` produced no Calls edges — the previous query
+; only matched `(identifier)` and `(field_expression)` function forms.
+(call_expression
+  function: (scoped_identifier
+    name: (identifier) @name)) @reference.call

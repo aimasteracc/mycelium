@@ -1,0 +1,48 @@
+{
+  "skill": "architecture-context",
+  "description": "Parity assertions for the one-shot context capability (RFC-0101). CLI `mycelium context --format json` must equal the MCP `mycelium_context` structured response byte-for-byte. Both surfaces call the single shared builder `mycelium_core::context::build_payload`, so equality holds by construction rather than by hand-synced duplicate logic.",
+  "cases": [
+    {
+      "capability": "context",
+      "name": "natural_language_happy_path",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["context", "--task", "how does login work", "--format", "json"],
+      "mcp_input": { "task": "how does login work" },
+      "expected_field_keys": [
+        "entry_points",
+        "nodes",
+        "edges",
+        "code_blocks",
+        "related_files",
+        "stats",
+        "agent_summary"
+      ],
+      "parity_invariant": "CLI JSON == MCP JSON for the full seven-key RFC-0101 contract, including routing=\"natural\" and the candidates list."
+    },
+    {
+      "capability": "context",
+      "name": "not_found",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["context", "--task", "xyzzy_nonexistent_symbol", "--format", "json"],
+      "mcp_input": { "task": "xyzzy_nonexistent_symbol" },
+      "expected_field_keys": ["entry_points", "nodes", "edges", "related_files", "stats", "agent_summary"],
+      "parity_invariant": "Both surfaces return verdict=\"NOT_FOUND\" with identical empty arrays and the same agent_summary.next_step."
+    },
+    {
+      "capability": "context",
+      "name": "edge_kinds_imports",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["context", "--task", "trace login", "--edge-kinds", "calls,imports", "--format", "json"],
+      "mcp_input": { "task": "trace login", "edge_kinds": ["calls", "imports"] },
+      "parity_invariant": "CLI --edge-kinds calls,imports == MCP edge_kinds:[calls,imports]; both expand the same edge set and label edges identically via EdgeKind::as_str()."
+    },
+    {
+      "capability": "context",
+      "name": "hyphae_selector_routing",
+      "fixture": "tiny_two_function_project",
+      "cli_args": ["context", "--task", "function:calls(#login)", "--format", "json"],
+      "mcp_input": { "task": "function:calls(#login)" },
+      "parity_invariant": "A Hyphae selector task routes through the DSL evaluator on both surfaces (routing=\"hyphae\", candidates=[]) and yields identical entry_points."
+    }
+  ]
+}
