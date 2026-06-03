@@ -293,6 +293,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return symbols with no edges of any kind.
     GetIsolatedSymbols {
@@ -1274,12 +1278,14 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             edge_kind,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_dead_symbols(
                 &canonical,
                 prefix.as_deref(),
                 edge_kind.as_deref(),
+                budget.as_deref(),
                 format.into(),
             )?;
         }

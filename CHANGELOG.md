@@ -9,16 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING (CLI): `mycelium get-callees` and `get-callers` `--format json` now
-  emit an object** (`{"callee_paths":[…]}` / `{"caller_paths":[…]}`) instead of a
-  bare JSON array (RFC-0109 Option A). This makes the CLI output **byte-identical
-  to the MCP `mycelium_get_callees` / `mycelium_get_callers` tools** (both build
-  the payload through one shared `mycelium_core::queries` builder) and lets the
-  response carry budget/truncation metadata. Text mode (`--format text`, the
-  default) is unchanged — one path per line. First two tools of the RFC-0109
-  graph-list roll-out; the rest follow the same pattern.
-- **`get_callees` and `get_callers` gain the per-call budget knob (RFC-0102)** on
-  both surfaces: MCP `budget` field / CLI `--budget`
+- **BREAKING (CLI): `mycelium get-callees`, `get-callers`, and `get-dead-symbols`
+  `--format json` now emit an object** (`{"callee_paths":[…]}` /
+  `{"caller_paths":[…]}` / `{"dead_symbols":[…],"count":N}`) instead of a bare
+  JSON array (RFC-0109 Option A). This makes the CLI output **byte-identical to
+  the matching MCP tools** (both build the payload through one shared
+  `mycelium_core::queries` builder) and lets the response carry budget/truncation
+  metadata. Text mode (`--format text`, the default) is unchanged — one path per
+  line. Tools 1–3 of the RFC-0109 graph-list roll-out; the rest follow the same
+  pattern.
+- **`get_callees`, `get_callers`, and `get_dead_symbols` gain the per-call budget
+  knob (RFC-0102)** on both surfaces: MCP `budget` field / CLI `--budget`
   (`auto|small|medium|large|disabled`), resolved identically via the shared
   `OutputBudget::resolve`. The CLI applies the budget in `--format json` (for
   MCP parity) or when `--budget` is given explicitly; **default text mode prints
