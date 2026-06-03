@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`mycelium watch` — foreground reactive watch on the CLI (RFC-0105).**
+  Step 1 of the reactive-completion roadmap. The reactive watch loop (RFC-0008,
+  previously MCP-only) is extracted into a new surface-agnostic
+  `mycelium_core::watch::WatchEngine`; both `MyceliumServer::start_watch` and a
+  new `mycelium watch [ROOT] [--debounce-ms]` CLI command drive it. Reactive
+  behavior — debounce, ignore matching, per-file re-extract, cross-file stub
+  resolution — is **byte-identical across surfaces by construction** (same
+  pattern as `context` and `OutputBudget`). The `on_batch` callback is the
+  deliberate emit seam PUSH (RFC-0106) and SUBSCRIBE (RFC-0107) will attach to
+  without re-touching the loop. Carries a documented Three-Surface EXCEPTION
+  (Charter §5.13): the foreground CLI lifecycle differs from the server's
+  background `start_watch`/`stop_watch`/`watch_status` trio.
+
 ### Changed
 
 - **redb is now the default storage backend (RFC-0100 Phase 3 flip).** The

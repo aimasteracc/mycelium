@@ -49,11 +49,24 @@ tree-sitter-rust        = { workspace = true }
 tree-sitter-go          = { workspace = true }
 tree-sitter-java        = { workspace = true }
 
+# Watch engine (RFC-0105): notify + ignore + tokio (limited features) are needed
+# in core so the WatchEngine is surface-agnostic and CLI/MCP share one
+# reactive-loop implementation. Tokio features are kept minimal (sync/time/rt
+# only — no rt-multi-thread, no fs/io-util) so library users pay only for what
+# the watch engine itself runs on.
+ignore        = { workspace = true }
+notify        = { workspace = true }
+# Core needs `time` for the WatchEngine debounce; workspace tokio doesn't
+# enable it by default. Library users transitively get only this minimal
+# set — no rt-multi-thread, no fs/io-util.
+tokio         = { workspace = true, features = ["time"] }
+
 [dev-dependencies]
 criterion               = { workspace = true }
 insta                   = { workspace = true }
 proptest                = { workspace = true }
 tempfile                = { workspace = true }
+tokio                   = { workspace = true }
 
 [[bench]]
 name    = "trunk_lookup"

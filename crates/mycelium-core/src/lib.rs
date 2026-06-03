@@ -45,6 +45,7 @@ pub mod store;
 pub mod synapse;
 pub mod trunk;
 pub mod types;
+pub mod watch;
 
 pub use error::{Error, Result};
 pub use store::{

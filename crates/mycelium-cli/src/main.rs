@@ -17,6 +17,7 @@ mod queries;
     reason = "items used by main.rs require pub(crate); bin-crate root cannot consume private child-mod items"
 )]
 mod query;
+mod watch;
 
 /// The `mycelium` CLI. See `mycelium --help` for details.
 #[derive(Debug, Parser)]
@@ -1009,6 +1010,20 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Json)]
         format: QueryFormat,
     },
+    /// Foreground reactive watch mode (RFC-0105). Drive the shared
+    /// `mycelium_core::watch::WatchEngine` on `ROOT` until Ctrl-C.
+    ///
+    /// CLI-side surface variant of the server's `start_watch` /
+    /// `stop_watch` / `watch_status` trio (Charter §5.13 EXCEPTION — a
+    /// foreground command's lifecycle differs from a background server).
+    Watch {
+        /// Project root to watch (defaults to current directory).
+        #[arg(default_value = ".")]
+        root: PathBuf,
+        /// Debounce window in milliseconds (default 5, matches the server).
+        #[arg(long, default_value_t = 5)]
+        debounce_ms: u64,
+    },
     /// Start the MCP server over stdio.
     Serve {
         /// Use MCP protocol over stdio.
@@ -1847,6 +1862,10 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 &edge_kinds,
                 format.into(),
             )?;
+        }
+        Cmd::Watch { root, debounce_ms } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            watch::run_foreground(&canonical, debounce_ms)?;
         }
         Cmd::Serve {
             mcp: true,

@@ -9,6 +9,10 @@ allowed-tools:
   - mcp__mycelium__sync_file
   - mcp__mycelium__set_compact_mode
   - mcp__mycelium__get_token_stats
+  # CLI surface variant of watch (RFC-0105 Three-Surface EXCEPTION:
+  # a foreground CLI watch vs the server's background start/stop/status is a
+  # documented lifecycle mismatch; both drive the same `WatchEngine`).
+  - cli:mycelium-watch
 category: operations
 icon: 🗃️
 marketplace_examples:
