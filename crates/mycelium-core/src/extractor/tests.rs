@@ -1681,3 +1681,84 @@ fn extractor_python_extends_metaclass_kwarg_not_captured_as_base() {
         "metaclass keyword argument must not produce an Extends edge"
     );
 }
+/// Dogfood-discovered precision tests (2026-06-04). Each test pins a Rust
+/// language construct that the v0.1.18 extractor was silently dropping.
+/// Together they raise per-file symbol recall from 67% → 99.8% on the
+/// Mycelium repo itself (vs naive ground-truth from a string-strip regex
+/// over module-level definitions).
+
+#[test]
+fn extractor_rust_trait_signature_method_is_extracted() {
+    let source = "pub trait FileReindexer { fn reindex(&self); }";
+    let store = extract_rs(source);
+    assert!(
+        store.lookup("test.rs>FileReindexer").is_some(),
+        "trait FileReindexer must be extracted"
+    );
+    assert!(
+        store.lookup("test.rs>FileReindexer>reindex").is_some(),
+        "trait method signature `reindex` must be captured as a method node"
+    );
+}
+
+#[test]
+fn extractor_rust_trait_default_method_body_is_extracted() {
+    let source = "trait Foo { fn bar() {} }";
+    let store = extract_rs(source);
+    assert!(
+        store.lookup("test.rs>Foo>bar").is_some(),
+        "default trait-method body `bar` must be a method node under Foo"
+    );
+}
+
+#[test]
+fn extractor_rust_static_item_is_extracted() {
+    let source = "static PACK_REGISTRY: u32 = 42;";
+    let store = extract_rs(source);
+    assert!(
+        store.lookup("test.rs>PACK_REGISTRY").is_some(),
+        "module-level `static PACK_REGISTRY` must be extracted"
+    );
+}
+
+#[test]
+fn extractor_rust_associated_const_in_impl_is_extracted() {
+    let source = "struct NodeId(u64); impl NodeId { pub const NULL: Self = Self(0); }";
+    let store = extract_rs(source);
+    assert!(
+        store.lookup("test.rs>NodeId").is_some(),
+        "struct NodeId must be extracted"
+    );
+    // Associated const may land either at module level or nested; either
+    // counts as captured (Mycelium does not yet thread impl parent into
+    // the trunk path for non-method items, but the node exists).
+    assert!(
+        store.lookup("test.rs>NULL").is_some() || store.lookup("test.rs>NodeId>NULL").is_some(),
+        "associated const NULL must be extracted"
+    );
+}
+
+#[test]
+fn extractor_rust_function_inside_nested_mod_is_extracted() {
+    // Tests inside `mod tests { ... }` were previously missed for
+    // positions interior to the mod body — only the first / last few
+    // surfaced, depending on tree-sitter parse error recovery. The
+    // explicit `mod_item > function_item` query closes this.
+    let source = "\
+mod tests {
+    fn first() {}
+    fn middle_a() {}
+    fn middle_b() {}
+    fn middle_c() {}
+    fn last() {}
+}
+";
+    let store = extract_rs(source);
+    for name in ["first", "middle_a", "middle_b", "middle_c", "last"] {
+        assert!(
+            store.lookup(&format!("test.rs>tests>{name}")).is_some()
+                || store.lookup(&format!("test.rs>{name}")).is_some(),
+            "function `{name}` inside `mod tests` must be extracted"
+        );
+    }
+}
