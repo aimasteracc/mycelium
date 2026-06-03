@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v18 — PR #468 merged to develop; URL fix (`62a2478`) cherry-picked to release/v0.1.17; PR #452 CI re-triggered; PR #469 pending) |
-| Current sprint | **v0.1.17 — RELEASE CEREMONY IN PROGRESS** (PR #452 CI re-running with URL fix `62a2478` — founder can authorize ceremony script once all CI checks pass) |
+| Last updated | 2026-06-03 (PM dispatch v19 — PRs #470+#471 merged/rebased; PR #472 CI fixed (rustdoc+coverage); RFC-0108 doc-only PR #473 opened) |
+| Current sprint | **v0.1.17 — RELEASE CEREMONY + reactive roadmap (RFC-0107 SUBSCRIBE CI fix in flight)** |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -92,13 +92,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
 - [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
 
-**v0.1.17 ceremony status — CI RE-RUNNING (URL fix `62a2478` pushed to release branch):**
+**v0.1.17 ceremony status — CI RE-RUNNING (URL+continue fix pushed to release branch):**
 - [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅ (v12 + re-confirmed v14)
 - [x] **Pre-release**: CHANGELOG Unreleased section verified ✅ (v12)
 - [ ] **Step 1**: `release/v0.1.17` → `main` (founder authorization required)
   - PR #452: Quality Gate ✅ SUCCESS (required branch-protection check)
-  - ~~⚠️ `publish to crates.io` FAILURE (v13: timeout 120s)~~ → ~~PARTIAL FIX (v15): wait 360s~~ → ~~PARTIAL FIX (v16): `max_version` API~~ → **REAL FIX (v18)**: commit `62a2478` removes `tr '-' '_'` URL encoding — crates.io REST API requires hyphens, not underscores. PR #468 merged to develop; cherry-picked to release/v0.1.17. CI re-triggered.
-  - **Once all CI checks SUCCESS/SKIPPED** on PR #452: founder authorizes `scripts/release-ceremony.sh` Steps 1–4.
+  - ~~⚠️ `publish to crates.io` FAILURE (v13: timeout 120s)~~ → ~~PARTIAL FIX (v15): wait 360s~~ → ~~PARTIAL FIX (v16): `max_version` API~~ → **ROOT CAUSE FIX (v18)**: `62a2478` removes `tr '-' '_'` URL encoding. **FINAL FIX (v19)**: PR #471 adds `continue` after already-exists skip (prevents `wait_for_crate` timeout on idempotent re-runs). PR #471 rebased to develop; cherry-pick to release/v0.1.17 pending CI green.
+  - **Once PR #452 all CI checks SUCCESS/SKIPPED**: founder authorizes `scripts/release-ceremony.sh` Steps 1–4.
 - [ ] **Step 2**: Tag `v0.1.17` pushed
 - [ ] **Step 3**: GitHub Release published + 5 crates on crates.io
 - [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` (PR #453)
@@ -112,16 +112,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (v0.1.17 release gates):**
 1. ✓ Security scan post-v0.1.16 — COMPLETE ✅
 2. ✓ Cut `release/v0.1.17` — COMPLETE ✅ (PR #452 + PR #453 open)
-3. ✓ release.yml CI fix: PR #455 (timeout), PR #462 (max_version), **PR #468 (URL fix, ROOT CAUSE)** — all merged to develop; `62a2478` cherry-picked to release/v0.1.17
-4. **Wait for PR #452 CI green** (release workflow re-running with URL fix in `62a2478`) → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
+3. ✓ release.yml CI fix: PR #455 (timeout), PR #462 (max_version), PR #468 (URL fix), **PR #471 (continue fix)** — all merged/rebased to develop
+4. **PR #471** (continue fix): rebased to develop HEAD, CI re-running. Once CI green: merge to develop + cherry-pick to `release/v0.1.17`.
+5. **Wait for PR #452 CI green** → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
 
-**P1 (reactive roadmap — RFC-0105):**
-5. **Founder: ratify or reject RFC-0105 Three-Surface EXCEPTION** — `feature/rfc-0105-watch-engine` branch CI SUCCESS (SHA `05654d96`), implementation complete. Awaiting founder EXCEPTION decision to merge. Watch lifecycle genuinely differs (foreground CLI vs background MCP server); parity bridge = shared WatchEngine + byte-identical `watch --status`.
+**P1 (reactive roadmap — RFC-0107):**
+6. **PR #472** (RFC-0107 SUBSCRIBE): CI fix pushed — rustdoc broken-link + 10 coverage tests (22/22 GREEN locally). CI re-running. Once green: merge to develop.
+7. **PR #473** (RFC-0108 doc-only): CI SUCCESS. Waiting founder D1–D4 ratification before implementation PR can open.
+8. **RFC-0105 Three-Surface EXCEPTION**: `feature/rfc-0105-watch-engine` CI SUCCESS. Awaiting founder EXCEPTION ratification.
 
 **P1 (post-v0.1.17):**
-6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark results needed before Charter §2 table is amended.
-7. **ADR-0008** for redb as default backend (required before v0.2.0).
-8. **Dogfood re-run with redb-as-default** — validate 8/8 CLI commands.
+9. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark results needed before Charter §2 table is amended.
+10. **ADR-0008** for redb as default backend (required before v0.2.0).
+11. **Dogfood re-run with redb-as-default** — validate 8/8 CLI commands.
 
 **P2 (v0.2.0 scope):**
 9. Issue #428 god-file-split remaining slices.
@@ -131,17 +134,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v18 — PR #468 merged; URL fix cherry-picked to release/v0.1.17; PR #452 CI re-triggered)
+## Dispatch state (2026-06-03 v19 — PRs #470+#471 merged/rebased; PR #472 CI fix in flight; RFC-0108 PR #473 opened)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Watch PR #452 CI re-run — URL fix `62a2478` is the definitive root-cause fix. Once ALL checks SUCCESS/SKIPPED: authorize `scripts/release-ceremony.sh` Steps 1–4. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** — `feature/rfc-0105-watch-engine` built+CI-green; awaiting your decision. (4) RFC-0107 D1–D5: five SUBSCRIBE decisions awaiting your ratification. (5) Schedule `sla_ancestors_100k` nightly for RFC-0104 cold numbers. |
-| PM | **DONE ✅** | PR #468 squash-merged; `62a2478` pushed to release/v0.1.17; PR #469 (v17) superseded by this v18 chore PR. |
-| security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN (v12 + re-confirmed v14). |
-| release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 + PR #453 open. URL fix applied. Awaiting founder auth. |
-| rust-implementer | **WAITING** | RFC-0105 WatchEngine built (branch `feature/rfc-0105-watch-engine`, CI SUCCESS). Gated on founder EXCEPTION ratification. |
+| founder | **action requested** | (1) **PR #452 CI**: once ALL checks SUCCESS/SKIPPED, authorize `scripts/release-ceremony.sh` Steps 1–4. Also cherry-pick PR #471 continue-fix to `release/v0.1.17` first if CI hasn't already picked it up. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **RFC-0108 D1–D4**: ratify or reject four reactive-query decisions (PR #473 doc-only — "全选推荐" applies). (4) **RFC-0107 ratification** once PR #472 CI green. (5) **RFC-0105 Three-Surface EXCEPTION**: ratify or reject. |
+| PM | **DONE ✅** | PR #470 merged; PR #471 rebased; PR #472 CI fix pushed; PM state v19 updated. |
+| rust-implementer | **WAITING CI** | PR #472 (RFC-0107 SUBSCRIBE): rustdoc link + 10 coverage tests pushed, CI re-running. Once green: merge to develop. RFC-0105 gated on founder EXCEPTION. |
+| security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN. |
+| release | **WAITING** | PR #452 CI re-running (release workflow). PR #471 continue-fix to cherry-pick after CI green. Awaiting founder ceremony auth. |
 | bench | **P1** | Run `sla_ancestors_100k` nightly for RFC-0104 cold SLA numbers. |
-| e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands under new storage default). |
+| e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands). |
 | architect | idle | ADR-0008: redb as default backend (required before v0.2.0). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 
