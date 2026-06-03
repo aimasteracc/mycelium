@@ -943,8 +943,13 @@ fn cap_suffix_to_kind(suffix: &str) -> Option<NodeKind> {
         "class" => Some(NodeKind::Class),
         "method" => Some(NodeKind::Method),
         "interface" | "trait" => Some(NodeKind::Interface),
-        "type_alias" => Some(NodeKind::TypeAlias),
-        "const" | "constant" => Some(NodeKind::Constant),
+        "type_alias" | "associated_type" => Some(NodeKind::TypeAlias),
+        // `static FOO: T = ...` and `impl T { const X: ... }` are both
+        // compile-time-constant kinds at the language level; reuse
+        // `NodeKind::Constant` so they participate in `get-symbols-by-kind`,
+        // `symbol-count-by-kind`, and the Salsa `FileIndex` round-trip.
+        // (Codex P2 catch on PR #492, 2026-06-04.)
+        "const" | "constant" | "static" | "associated_const" => Some(NodeKind::Constant),
         "struct" => Some(NodeKind::Struct),
         "enum" => Some(NodeKind::Enum),
         other => NodeKind::try_from_wire(other),

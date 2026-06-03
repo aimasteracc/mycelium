@@ -1762,3 +1762,50 @@ mod tests {
         );
     }
 }
+
+#[test]
+fn extractor_rust_static_item_has_constant_kind() {
+    // Codex P2 catch on PR #492 (2026-06-04): the `definition.static`
+    // capture was inserted without a kind, so `get-symbols-by-kind constant`
+    // omitted statics and the Salsa FileIndex fell back to reporting them
+    // as `file`. Map static / associated_const → NodeKind::Constant.
+    let source = "static FOO: u32 = 42;";
+    let store = extract_rs(source);
+    let id = store.lookup("test.rs>FOO").expect("FOO node must exist");
+    assert_eq!(
+        store.kind_of(id),
+        Some(crate::types::NodeKind::Constant),
+        "static FOO must be kinded as Constant"
+    );
+}
+
+#[test]
+fn extractor_rust_associated_const_has_constant_kind() {
+    let source = "struct NodeId(u64); impl NodeId { pub const NULL: Self = Self(0); }";
+    let store = extract_rs(source);
+    let id = store
+        .lookup("test.rs>NULL")
+        .or_else(|| store.lookup("test.rs>NodeId>NULL"))
+        .expect("NULL associated const must exist");
+    assert_eq!(
+        store.kind_of(id),
+        Some(crate::types::NodeKind::Constant),
+        "associated const NULL must be kinded as Constant"
+    );
+}
+
+#[test]
+fn extractor_rust_associated_type_has_type_alias_kind() {
+    let source = "trait Tr { type Out; } struct Foo; impl Tr for Foo { type Out = u32; }";
+    let store = extract_rs(source);
+    // Implementation's associated type is the one carrying our new
+    // capture (`impl_item > type_item`).
+    let id = store
+        .lookup("test.rs>Out")
+        .expect("Out associated type must exist");
+    assert_eq!(
+        store.kind_of(id),
+        Some(crate::types::NodeKind::TypeAlias),
+        "associated type Out must be kinded as TypeAlias"
+    );
+}
