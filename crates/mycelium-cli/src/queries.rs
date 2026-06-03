@@ -342,10 +342,15 @@ pub(crate) fn run_get_callees(
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
     // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
     let mut value = mycelium_core::queries::callees_payload(&store, id, kind);
-    apply_budget(
-        &mut value,
-        &OutputBudget::resolve(budget_override, store.node_count()),
-    );
+    // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
+    // explicit. Default text mode prints the full list — no silent truncation
+    // of human-facing output (RFC-0102 text-mode rule; CLI text unchanged).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
     print_object_with_list(&value, "callee_paths", format)
 }
 
@@ -390,10 +395,15 @@ pub(crate) fn run_get_callers(
     // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
     let mut value =
         mycelium_core::queries::callers_payload(&store, id, path, kind, include_virtual);
-    apply_budget(
-        &mut value,
-        &OutputBudget::resolve(budget_override, store.node_count()),
-    );
+    // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
+    // explicit. Default text mode prints the full list — no silent truncation
+    // of human-facing output (RFC-0102 text-mode rule; CLI text unchanged).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
     print_object_with_list(&value, "caller_paths", format)
 }
 

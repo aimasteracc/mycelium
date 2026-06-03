@@ -20,7 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`get_callees` and `get_callers` gain the per-call budget knob (RFC-0102)** on
   both surfaces: MCP `budget` field / CLI `--budget`
   (`auto|small|medium|large|disabled`), resolved identically via the shared
-  `OutputBudget::resolve`.
+  `OutputBudget::resolve`. The CLI applies the budget in `--format json` (for
+  MCP parity) or when `--budget` is given explicitly; **default text mode prints
+  the full list** (no silent truncation of human-facing output — RFC-0102
+  text-mode rule).
 
 ### Fixed
 
