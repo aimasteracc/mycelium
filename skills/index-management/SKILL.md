@@ -103,6 +103,29 @@ mcp__mycelium__watch_status({})
 
 Reports whether the file-watch loop is active and how many change batches have been processed. Use when query results look stale despite recent file edits.
 
+### `mycelium/graphChanged` — server-initiated push notification (RFC-0106)
+
+Whenever the watch loop commits a batch (i.e. one or more watched files have been re-indexed), the MCP server fires **one** notification per batch with this method name. **Register a handler** in your MCP client to react without polling.
+
+```jsonc
+// Notification shape (v1, frozen):
+{
+  "method": "mycelium/graphChanged",
+  "params": {
+    "event": "graphChanged",
+    "v": 1,
+    "root": "/abs/path/to/workspace",
+    "batch_seq": 17,             // monotonic; detect dropped batches
+    "changed_files": ["src/auth.rs", "src/db/query.rs"],
+    "changed_count": 2,
+    "truncated": false,          // true when changed_count > 50
+    "hint": "Re-query mycelium_context for the area you care about."
+  }
+}
+```
+
+`changed_files` is capped at 50. When the underlying batch had more, `truncated` flips true and `changed_count` reports the real magnitude — react by broadly re-querying instead of trying to enumerate every affected file. Delivery is best-effort; if your client dropped or never registered the handler, the server logs and continues (zero impact on indexing).
+
 ### `sync_file` — immediate single-file re-index
 
 ```

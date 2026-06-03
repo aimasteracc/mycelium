@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PUSH — server emits `mycelium/graphChanged` notifications when the watched
+  graph changes (RFC-0106, founder-ratified Option B).** After every committed
+  watch batch (RFC-0105's emit seam), the MCP server now fires one rmcp
+  `CustomNotification` with method `"mycelium/graphChanged"` and a frozen v1
+  payload (`event`, `v`, `root`, `batch_seq`, `changed_files` capped at 50,
+  `changed_count`, `truncated`, `hint`). Best-effort delivery — a dead client
+  is logged via `tracing::warn` and never aborts the watch loop. The peer is
+  captured in `serve_stdio` immediately after `server.serve()` returns
+  `RunningService`; batches that fire before that point silently skip the
+  notification. Agents register a handler for the `mycelium/graphChanged`
+  method to react. Step 2/4 of the reactive-completion roadmap; the emit seam
+  inherits the Three-Surface EXCEPTION ratified for RFC-0105.
+
 - **`mycelium watch` — foreground reactive watch on the CLI (RFC-0105).**
   Step 1 of the reactive-completion roadmap. The reactive watch loop (RFC-0008,
   previously MCP-only) is extracted into a new surface-agnostic
