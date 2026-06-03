@@ -61,6 +61,83 @@
     (function_item
       name: (identifier) @name))) @definition.method
 
+; ── Trait method declarations (signatures with no body) ──────────────
+;
+; `trait Foo { fn bar(); }` — tree-sitter-rust models this as
+; trait_item > body: declaration_list > function_signature_item.
+; Previously only the trait name was captured; the method declarations
+; were silently dropped. Dogfood-found 2026-06-03 on
+; `FileReindexer::reindex`.
+
+(trait_item
+  body: (declaration_list
+    (function_signature_item
+      name: (identifier) @name))) @definition.method
+
+; ── Trait default-method bodies (impl on the trait itself) ──────────
+;
+; `trait Foo { fn bar() { default_impl } }` — also valid Rust.
+
+(trait_item
+  body: (declaration_list
+    (function_item
+      name: (identifier) @name))) @definition.method
+
+; ── Static items (module-level) ──────────────────────────────────────
+;
+; `static FOO: T = ...;` — previously only `const` was captured.
+; Dogfood-found 2026-06-03 on `static PACK_REGISTRY: OnceLock<...>`.
+
+(source_file
+  (static_item
+    name: (identifier) @name)) @definition.static
+
+; ── Associated constants on impl blocks ─────────────────────────────
+;
+; `impl NodeId { pub const NULL: Self = Self(0); }`
+; Previously the const was dropped because only `source_file > const_item`
+; was matched. Dogfood-found 2026-06-03 on `NodeId::NULL`.
+
+(impl_item
+  body: (declaration_list
+    (const_item
+      name: (identifier) @name))) @definition.associated_const
+
+; ── Associated types on impl blocks ─────────────────────────────────
+;
+; `impl Trait for Foo { type Output = Bar; }` — frequently used in
+; trait implementations. Captured for navigation parity with methods.
+
+(impl_item
+  body: (declaration_list
+    (type_item
+      name: (type_identifier) @name))) @definition.associated_type
+
+; ── Functions and items inside nested module blocks ─────────────────
+;
+; `mod tests { fn foo() {} fn bar() {} }` — test modules are the dominant
+; case. Previously only `source_file > function_item` was captured, so
+; functions inside `mod tests` were silently missed when they happened
+; to be at certain positions in the body. Catching them explicitly via
+; `mod_item > declaration_list > function_item` closes the remaining
+; coverage gap. Dogfood-found 2026-06-03 on `types.rs` where ~10 of 12
+; test fns were missed.
+
+(mod_item
+  body: (declaration_list
+    (function_item
+      name: (identifier) @name))) @definition.function
+
+(mod_item
+  body: (declaration_list
+    (struct_item
+      name: (type_identifier) @name))) @definition.struct
+
+(mod_item
+  body: (declaration_list
+    (const_item
+      name: (identifier) @name))) @definition.const
+
 ; ── Use declarations (Synapse Imports edges) ─────────────────────────
 
 (source_file

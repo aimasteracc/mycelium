@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rust extractor precision raised from 67% → 99.8% recall** via 4 additive
+  `queries.scm` patterns (dogfood-found 2026-06-04 by indexing the Mycelium
+  repo against itself and comparing per-file symbol counts vs ground truth):
+  - `trait T { fn x(); }` trait method **signatures** are now captured
+    (previously only `trait T` was indexed; `T::x` was silently dropped —
+    e.g. `FileReindexer::reindex` was invisible while every `impl
+    FileReindexer for X` method was present).
+  - `trait T { fn x() {...} }` trait **default-method bodies** captured.
+  - Module-level `static FOO: ...` items captured (previously only `const`
+    — e.g. `static PACK_REGISTRY: OnceLock<...>` was missing).
+  - Associated `pub const` items inside `impl` blocks captured (e.g.
+    `impl NodeId { pub const NULL: Self = ...; }`).
+  - Functions/structs/consts inside nested `mod` blocks (notably
+    `#[cfg(test)] mod tests { fn ... }`) now captured at every position
+    in the body, not only at head/tail.
+
+  Verified on the Mycelium repo: 70 of 80 Rust files now match ground-truth
+  symbol counts exactly (was 44 of 80). Total recall 99.8% (2664 / 2668).
+  5 RED-first regression tests in `crates/mycelium-core/src/extractor/tests.rs`.
+
+  Head-to-head vs `codegraph` 0.9.8 on the same repo: Mycelium index time
+  0.32 s vs codegraph 0.93 s (3× faster); Mycelium 70 of 80 files at exact
+  ground-truth match vs codegraph 1 of 80 (codegraph over-counts symbols
+  by 19.7% — different granularity).
+
 ### Docs
 
 - **ADR-0008**: redb as default storage backend (Phase 3 flip decision record). Documents the rationale for switching from `InMemoryBackend` to `RedbBackend` as the production default in v0.1.17, prerequisites met (equivalence tests, crash-safety, warm SLA).
