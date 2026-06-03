@@ -1,4 +1,4 @@
-//! RFC-0100 / ADR-0008 de-risk spike T0 — demo binary.
+//! RFC-0100 / ADR-0009 de-risk spike T0 — demo binary.
 
 use key_encoding::{
     decode_adjacency_key, decode_path_key, encode_adjacency_key, encode_path_key,

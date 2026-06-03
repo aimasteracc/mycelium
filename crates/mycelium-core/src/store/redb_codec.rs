@@ -1,4 +1,4 @@
-//! Pure value codecs for the redb backend (RFC-0100 / ADR-0008).
+//! Pure value codecs for the redb backend (RFC-0100 / ADR-0009).
 //!
 //! Extracted from `redb_backend.rs` to keep that file focused on the storage
 //! engine. These are dependency-free byte ↔ value conversions: span packing,

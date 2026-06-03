@@ -134,7 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0008
+- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0009
   Decision-4 (founder-authorized 2026-05-31) required splitting Charter §2's single
   SLA column into warm (page-cache steady-state, existing targets) and cold (first
   open after process restart, mmap page-fault path). This RFC formalises that split,
@@ -277,7 +277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeping the redb backend feature-gated off by default.
 
 - **RFC-0100 Phase 2 T05a — redb file-scoped replacement foundation** —
-  `RedbBackend` now has the ADR-0008 `file_index` table plus a feature-gated
+  `RedbBackend` now has the ADR-0009 `file_index` table plus a feature-gated
   `replace_file` API that atomically removes one file's old nodes/owned edges,
   strips stale external references, inserts the new file graph, and persists
   the replacement index in one redb write transaction. This advances Issue #343

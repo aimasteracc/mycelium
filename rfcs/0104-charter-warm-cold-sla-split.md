@@ -20,7 +20,7 @@ operating modes: **warm** (pages already in the OS page cache — the steady-sta
 interactive case) and **cold** (first open after a process restart, when mmap pages
 must be paged in from disk).
 
-ADR-0008 Decision-4 (founder-authorized 2026-05-31) explicitly required this split:
+ADR-0009 Decision-4 (founder-authorized 2026-05-31) explicitly required this split:
 
 > "Cold-start SLA → split Charter §2 into warm (steady-state, existing numbers)
 > + a separate cold-open budget; do a warm-up scan on open; the exact cold number
@@ -141,9 +141,9 @@ mechanism (same technique used by jemalloc and RocksDB tests).
    as the `< X ms` cold target.
 3. Future PRs adding redb changes must not regress the p99 by more than 10%.
 
-### Optional warm-up scan on open (ADR-0008 Decision-4)
+### Optional warm-up scan on open (ADR-0009 Decision-4)
 
-ADR-0008 Decision-4 mentions "do a warm-up scan on open." This RFC proposes:
+ADR-0009 Decision-4 mentions "do a warm-up scan on open." This RFC proposes:
 
 ```rust
 impl RedbBackend {
@@ -268,7 +268,7 @@ nightly CI run after this RFC merges.
   to default (Issue #426 AC#5).
 - The warm-up scan API enables a future `mycelium serve --hot` mode optimized for
   interactive use (pre-warm on launch, then sub-millisecond queries).
-- MVCC time-travel queries (ADR-0008 innovation hook) benefit from the warm/cold
+- MVCC time-travel queries (ADR-0009 innovation hook) benefit from the warm/cold
   distinction: time-travel queries are inherently colder (snapshot pages may have
   been evicted), so the cold column gives them a principled SLA home.
 

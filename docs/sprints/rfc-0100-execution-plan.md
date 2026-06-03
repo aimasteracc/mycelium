@@ -234,4 +234,4 @@ The design is sound and the reviews are convergent and source-grounded — the l
 - **Acceptance:** No dead code, no stale feature gates, clippy clean.
 
 ---
-*Each task is build-ready; implementation starts only after ADR-0008 is signed.*
+*Each task is build-ready; implementation starts only after ADR-0009 is signed.*
