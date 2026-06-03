@@ -1039,6 +1039,19 @@ impl Store {
         )
     }
 
+    /// Return the trunk paths of every symbol *under* the given file path,
+    /// sorted lexicographically. The file path itself is **excluded**.
+    ///
+    /// Returns an empty `Vec` if `file_rel` is not present in the trunk —
+    /// callers diff against the result so the empty case is the well-defined
+    /// "OLD set" of a newly-created file (RFC-0107 §5).
+    #[must_use]
+    pub fn symbols_in_file(&self, file_rel: &str) -> Vec<String> {
+        let mut v = self.descendants_of_path(file_rel).unwrap_or_default();
+        v.sort();
+        v
+    }
+
     /// Return callers of `path` that are reachable only via virtual dispatch.
     ///
     /// When a typed variable (e.g. `plugin: AbstractBase`) is used to invoke

@@ -56,6 +56,8 @@ ignore                  = { workspace = true }
 rmp-serde               = { workspace = true }
 hex                     = "0.4"
 regex                   = "1"
+uuid                    = { workspace = true }
+globset                 = { workspace = true }
 
 [dev-dependencies]
 tempfile  = { workspace = true }

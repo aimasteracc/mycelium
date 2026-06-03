@@ -22,6 +22,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **SUBSCRIBE — per-subscription scoped `mycelium/subscriptionDelta`
+  notifications (RFC-0107, founder-ratified D1-D5).** Step 3/4 of the
+  reactive-completion roadmap. Whereas RFC-0106 PUSH broadcasts a single
+  `mycelium/graphChanged` per batch, SUBSCRIBE lets agents register an
+  **Interest** (`Files {paths}` | `Symbols {paths}` | `Selector {hyphae}`)
+  and receive only the matching slice of each batch as added / modified /
+  removed trunk paths per file. Three new MCP tools — `mycelium_subscribe`,
+  `mycelium_unsubscribe`, `mycelium_subscription_status` — manage an
+  in-memory map on `MyceliumServer`. The CLI surface variant is
+  `mycelium watch --subscribe '<SPEC>'` streaming NDJSON to stdout
+  (RFC-0107 §4.3 — extends the RFC-0105 Three-Surface EXCEPTION;
+  byte-identical wire shape asserted by
+  `tests/contract_subscription::three_surface_cli_mcp_byte_identical_payload`).
+  Wire frozen v1: `mycelium/subscriptionDelta` carries `event`, `v`,
+  `subscription_id`, `root`, `batch_seq`, `per_file[]` (each with `file`,
+  `added`/`modified`/`removed` plus `_count`/`_truncated`),
+  `files_truncated`, `interest_kind`, `hint`. Per-array cap 50,
+  per-`per_file` cap 16. Defence-in-depth lifecycle (founder D3): rolling
+  TTL (default 3600s, max 86400s, bumped on every delivery) + caps (256
+  server-wide, 32 per-client, 64 Selector-specific) + peer-close GC
+  primitive + 60s periodic eviction task. Selector removals use the
+  (ii-strict) semantics (founder D2) — a removal is reported only when
+  the path was in the OLD match-set AND its file was touched in this
+  batch, eliminating phantom removals from unrelated state flips. The
+  watch engine emit seam (RFC-0105 `on_batch`) was widened in Phase A
+  to `FnMut(&WatchEvent, &BatchDelta, &Store)`; PUSH ignores the new
+  arg, SUBSCRIBE consumes it.
+
 - **PUSH — server emits `mycelium/graphChanged` notifications when the watched
   graph changes (RFC-0106, founder-ratified Option B).** After every committed
   watch batch (RFC-0105's emit seam), the MCP server now fires one rmcp

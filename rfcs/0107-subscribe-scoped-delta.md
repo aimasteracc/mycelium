@@ -270,12 +270,12 @@ Everything new fan-outs **after** the write lock drops (same discipline as PUSH)
 
 ## 10. Acceptance criteria
 
-- [ ] Founder ratifies D1 / D2 / D3 / D4 / D5.
-- [ ] Implementation PR opened against this RFC.
-- [ ] 10 RED-first tests pass; all RFC-0105 + RFC-0106 tests still green.
-- [ ] `skills/index-management/SKILL.md` documents the three new tools and the CLI shorthand.
-- [ ] `CHANGELOG.md` "Unreleased / Added" entry includes the frozen v1 wire shapes.
-- [ ] Quality gate clean (clippy -D warnings, fmt, cross-OS CI).
+- [x] Founder ratifies D1 / D2 / D3 / D4 / D5.
+- [x] Implementation PR opened against this RFC.
+- [x] 10 RED-first tests pass; all RFC-0105 + RFC-0106 tests still green.
+- [x] `skills/index-management/SKILL.md` documents the three new tools and the CLI shorthand.
+- [x] `CHANGELOG.md` "Unreleased / Added" entry includes the frozen v1 wire shapes.
+- [x] Quality gate clean (clippy -D warnings, fmt, cross-OS CI).
 
 ## 11. The five questions, restated
 

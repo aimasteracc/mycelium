@@ -35,6 +35,33 @@ fn store_lookup_returns_none_for_unknown_path() {
 }
 
 #[test]
+fn symbols_in_file_returns_sorted_descendants_excluding_root() {
+    // RFC-0107 §6 test 1 — `Store::symbols_in_file(file_rel)` is the OLD-set
+    // helper consumed by the watch engine's lock discipline. Returns trunk
+    // paths of every symbol *under* the file, sorted lexicographically, with
+    // the file path itself excluded.
+    let mut store = Store::new();
+    store.upsert_node(path("src/auth.rs"));
+    store.upsert_node(path("src/auth.rs>fn:login"));
+    store.upsert_node(path("src/auth.rs>fn:logout"));
+    store.upsert_node(path("src/auth.rs>AuthService"));
+    store.upsert_node(path("src/auth.rs>AuthService>verify"));
+    // unrelated file — must NOT appear in src/auth.rs's set
+    store.upsert_node(path("src/other.rs>fn:noise"));
+
+    let got = store.symbols_in_file("src/auth.rs");
+    let want = vec![
+        "src/auth.rs>AuthService".to_owned(),
+        "src/auth.rs>AuthService>verify".to_owned(),
+        "src/auth.rs>fn:login".to_owned(),
+        "src/auth.rs>fn:logout".to_owned(),
+    ];
+    assert_eq!(got, want, "sorted lexicographically; file path excluded");
+    // Unknown file path → empty vec (well-defined OLD set for a new file).
+    assert!(store.symbols_in_file("src/nonexistent.rs").is_empty());
+}
+
+#[test]
 fn store_lookup_is_exact_match_only() {
     let mut store = Store::new();
     store.upsert_node(path("src/auth.rs>AuthService>login"));

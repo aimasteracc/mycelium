@@ -1023,6 +1023,18 @@ enum Cmd {
         /// Debounce window in milliseconds (default 5, matches the server).
         #[arg(long, default_value_t = 5)]
         debounce_ms: u64,
+        /// SUBSCRIBE shorthand (RFC-0107) — register an in-process interest
+        /// and stream `mycelium/subscriptionDelta` payloads to stdout as
+        /// NDJSON. SPEC = `files:<glob1>,<glob2>,...` |
+        /// `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>`.
+        #[arg(long, value_name = "SPEC")]
+        subscribe: Option<String>,
+        /// Optional client-supplied subscription id (regex `^[A-Za-z0-9_-]{1,64}$`).
+        #[arg(long, value_name = "ID")]
+        subscribe_id: Option<String>,
+        /// Optional rolling TTL in seconds (default 3600, max 86400).
+        #[arg(long, value_name = "SECONDS")]
+        subscribe_ttl: Option<u64>,
     },
     /// Start the MCP server over stdio.
     Serve {
@@ -1863,9 +1875,21 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 format.into(),
             )?;
         }
-        Cmd::Watch { root, debounce_ms } => {
+        Cmd::Watch {
+            root,
+            debounce_ms,
+            subscribe,
+            subscribe_id,
+            subscribe_ttl,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            watch::run_foreground(&canonical, debounce_ms)?;
+            watch::run_foreground(
+                &canonical,
+                debounce_ms,
+                subscribe.as_deref(),
+                subscribe_id.as_deref(),
+                subscribe_ttl,
+            )?;
         }
         Cmd::Serve {
             mcp: true,

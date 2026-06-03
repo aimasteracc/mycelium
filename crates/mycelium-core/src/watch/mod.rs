@@ -68,6 +68,61 @@ pub struct WatchEvent {
     pub batch_seq: u64,
 }
 
+/// Per-file symbol changes in a single committed batch (RFC-0107).
+///
+/// Populated inside [`WatchEngine::drive`]'s write-lock — the OLD set is
+/// captured **before** `remove_file`, the NEW set **after** the reindexer
+/// runs, so the diff is race-free against any reader.
+///
+/// All three lists are trunk-path strings (e.g. `"src/auth.rs>fn:login"`),
+/// sorted lexicographically and deduped.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SymbolDelta {
+    /// Repository-relative file path (`/`-normalized).
+    pub file: String,
+    /// Trunk paths present in NEW but not OLD.
+    pub added: Vec<String>,
+    /// Trunk paths present in both OLD and NEW (re-extracted; v1 conservatively
+    /// treats every survivor as potentially modified rather than diffing spans).
+    pub modified: Vec<String>,
+    /// Trunk paths present in OLD but not NEW.
+    pub removed: Vec<String>,
+}
+
+/// All per-file deltas for a single committed batch (RFC-0107).
+///
+/// Passed to the [`WatchEngine::drive`] `on_batch` callback alongside
+/// `WatchEvent` and a `&Store` read-borrow. PUSH (RFC-0106) ignores this;
+/// SUBSCRIBE (RFC-0107) fan-outs scoped notifications per matching subscription.
+#[derive(Debug, Clone, Default)]
+pub struct BatchDelta {
+    /// One entry per touched file. Sorted by `file`.
+    pub per_file: Vec<SymbolDelta>,
+}
+
+/// Diff two sorted trunk-path sets (OLD vs NEW) for a single file, producing a
+/// [`SymbolDelta`]. RFC-0107 §5: "modified" is conservatively the intersection
+/// (path-present-in-both); finer per-symbol structural change detection is a
+/// follow-up. The classifier treats unchanged paths as "modified" so the
+/// subscriber sees every symbol the batch touched.
+fn diff_symbol_sets(file: String, old: &[String], new: &[String]) -> SymbolDelta {
+    use std::collections::BTreeSet;
+    let old_set: BTreeSet<&String> = old.iter().collect();
+    let new_set: BTreeSet<&String> = new.iter().collect();
+    let added: Vec<String> = new_set.difference(&old_set).map(|s| (*s).clone()).collect();
+    let removed: Vec<String> = old_set.difference(&new_set).map(|s| (*s).clone()).collect();
+    let modified: Vec<String> = old_set
+        .intersection(&new_set)
+        .map(|s| (*s).clone())
+        .collect();
+    SymbolDelta {
+        file,
+        added,
+        modified,
+        removed,
+    }
+}
+
 /// Surface-supplied per-file re-extraction. The MCP server and the CLI each
 /// implement this with their own grammar/QUERIES table; the watch engine itself
 /// is grammar-agnostic.
@@ -242,7 +297,7 @@ impl WatchEngine {
         cancel: CancelToken,
     ) -> anyhow::Result<()>
     where
-        F: FnMut(&WatchEvent, &Store) + Send,
+        F: FnMut(&WatchEvent, &BatchDelta, &Store) + Send,
     {
         let WatchSession {
             watcher,
@@ -278,6 +333,7 @@ impl WatchEngine {
             batch.dedup();
 
             let mut changed_files: Vec<String> = Vec::new();
+            let mut batch_delta = BatchDelta::default();
             {
                 let mut store_w = store.write().await;
 
@@ -310,6 +366,11 @@ impl WatchEngine {
                         continue;
                     };
 
+                    // OLD set captured INSIDE the write-lock BEFORE remove_file
+                    // (RFC-0107 §5 lock discipline — capturing lazily yields
+                    // empty OLD sets for files processed early in the batch).
+                    let old_set = store_w.symbols_in_file(&rel);
+
                     // Remove old data for this file regardless of event kind.
                     store_w.remove_file(&rel);
 
@@ -328,6 +389,13 @@ impl WatchEngine {
                             reindexer.reindex(&rel, &src, ext, &mut store_w);
                         }
                     }
+
+                    // NEW set AFTER reindex. Diff produces per-file delta.
+                    let new_set = store_w.symbols_in_file(&rel);
+                    batch_delta
+                        .per_file
+                        .push(diff_symbol_sets(rel.clone(), &old_set, &new_set));
+
                     changed_files.push(rel);
                 }
                 store_w.resolve_bare_call_stubs();
@@ -351,7 +419,7 @@ impl WatchEngine {
                     batch_seq,
                 };
                 let store_r = store.read().await;
-                on_batch(&ev, &store_r);
+                on_batch(&ev, &batch_delta, &store_r);
                 drop(store_r);
             }
 
@@ -380,7 +448,7 @@ impl WatchEngine {
         cancel: CancelToken,
     ) -> anyhow::Result<()>
     where
-        F: FnMut(&WatchEvent, &Store) + Send,
+        F: FnMut(&WatchEvent, &BatchDelta, &Store) + Send,
     {
         let session = Self::attach(&cfg)?;
         Self::drive(session, cfg, store, reindexer, cortex, on_batch, cancel).await
