@@ -4,6 +4,10 @@
 > 的真实状态放在一起，用大白话讲清楚：我们计划做到什么程度，现在做到了哪。
 >
 > 最后核对：2026-06-03（已逐条对照源码核实）。
+> 更新（2026-06-03 晚）：**最后一公里的主动推送已闭环** —— RFC-0106
+> (`mycelium/graphChanged` 推送) / RFC-0107 (作用域 delta 订阅 + CLI
+> `watch --subscribe`) / RFC-0108 (反应式查询订阅) 已落地，据此从「❌ 差主动
+> 推送」更新为 ✅。
 > 来源：`wiki/wiki/ai-tech/mycelium-project-bootstrap.md` ·
 > `wiki/raw/ai-tech/mycelium-cowork-session-2026-05-29.md`
 
@@ -14,7 +18,7 @@
 | 比喻 | 落成 | 状态 |
 |---|---|---|
 | **jQuery**（选择器选节点） | **Hyphae 查询语言** —— CSS 选择器风格选**代码符号**（RFC-0003 / ADR-0006）+ 专门的 **jQuery 扩展**（RFC-0091，7 种 jQuery 式形式）。`class.AuthService > method:async:calls(UserRepo)`，伪类 `:calls()/:has()/:not()/:in()` 已实装，`mycelium query` 三端齐全。 | ✅ |
-| **virtual DOM**（只 diff/patch 变化节点） | **反应式符号图**：Trunk（层级树）+ Synapse（关系网）是内存里的"虚拟镜像"；watch-mode（RFC-0008）文件一改**只重建该文件切片并原子换入**——正是 virtual DOM 的"只 patch 变化节点"。底层已翻成 **redb 默认**（mmap、有界内存）。 | ✅ 核心；❌ 差主动推送(push/subscribe) |
+| **virtual DOM**（只 diff/patch 变化节点） | **反应式符号图**：Trunk（层级树）+ Synapse（关系网）是内存里的"虚拟镜像"；watch-mode（RFC-0008）文件一改**只重建该文件切片并原子换入**——正是 virtual DOM 的"只 patch 变化节点"。底层已翻成 **redb 默认**（mmap、有界内存）。**主动推送也已闭环**：`mycelium/graphChanged` server-initiated 通知 + 作用域订阅增量（RFC-0106/0107/0108）。 | ✅ 含主动推送 |
 | **zen coding / Emmet**（极简 DSL 表达） | **AI 原生紧凑序列化**（RFC-0001/0004）：输出紧凑 DSL（text/TOON、msgpack），比 JSON **省约 70% token**（Charter §2 ≤30% JSON 硬指标），`mycelium_get_token_stats` 可验证。 | ✅ |
 
 ---
@@ -27,14 +31,14 @@
 好消息：连蓝图的**灵魂功能（活卡片 / 反应式增量更新）核心都做出来了**
 （RFC-0008 watch-mode 已实现：`notify` 文件监听 + 防抖 + 单文件增量重建）。
 
-两块还差的：
-- **watch 只在 MCP 端**——有 `mycelium_watch_status` / `start_watch` 等 MCP 工具，
-  但 **CLI 没有 `watch` 子命令**，没达到项目自定的"三端齐全"标准。
-- **主动推送**——服务器侦测到变化后**主动通知** AI agent。现在是"卡片自动
-  更新好了，但 agent 得自己再来查一次"（pull），还不是"卡片一变就主动喊
-  agent"（push）。
+两块原本还差的，现在也补上了：
+- **watch CLI 端**——`mycelium watch` 子命令已落地（`crates/mycelium-cli/src/watch.rs`），
+  含 `--subscribe <SPEC>`（RFC-0107 D5），达成"三端齐全"。
+- **主动推送**——服务器侦测到变化后**主动通知** AI agent 已闭环：`mycelium/graphChanged`
+  推送（RFC-0106）+ 作用域 per-batch delta 订阅（RFC-0107）+ 反应式查询订阅（RFC-0108）。
+  从"卡片自动更新好了但 agent 得自己再查"（pull）升级成"卡片一变就主动喊 agent"（push）。
 
-换句话说：**主体蓝图基本兑现，且广度严重超额**；只剩"推送传输层"这最后一公里。
+换句话说：**主体蓝图兑现，广度严重超额，且最后一公里的主动推送也闭环了**。
 
 ---
 
@@ -100,9 +104,9 @@
 |---|---|---|
 | 增量计算（"只重算改动部分"） | ✅ | watch 触发单文件增量重建（RFC-0008）；Salsa memoization 另在 cortex.rs Phase 1（RFC-0011） |
 | 文件监听 file watcher | ✅ | `notify::RecommendedWatcher` + 防抖 + 后台 loop |
-| watch 三端齐全（CLI+MCP+Skill） | 🟡 | **仅 MCP**：`start_watch`/`stop_watch`/`watch_status`；**CLI 无 `watch` 子命令** |
+| watch 三端齐全（CLI+MCP+Skill） | ✅ | MCP `start_watch`/`stop_watch`/`watch_status` + **CLI `mycelium watch` 子命令已落地**（`crates/mycelium-cli/src/watch.rs`，含 `--subscribe <SPEC>`，RFC-0107 D5） |
 | 重建期间查询看到一致快照 | ✅ | 原子换入该文件的 nodes/edges |
-| **主动推送 / 订阅传输给 agent** | ❌ | 0 处 `subscribe`；agent 仍是 pull，留给未来 RFC |
+| **主动推送 / 订阅传输给 agent** | ✅ | **已闭环**：`mycelium/graphChanged` 通知（RFC-0106，`push.rs`）+ 作用域 per-batch delta 订阅（RFC-0107，`subscription.rs`）+ 反应式查询订阅（RFC-0108，Salsa Phase 2）。469 处 `subscribe`，`contract_subscription.rs` 守护 |
 
 ### 五、规模 + 打磨
 
@@ -131,7 +135,7 @@
 地基 · 核心数据结构        ██████████ 100%  ✅ 已交付（还超额换了 radix trie）
 查询 · Hyphae + 语言       ████████░░  80%  🟡 Hyphae✅ + 10/20 语言
 三端 · CLI/MCP/Skill       ██████████ 100%  ✅ 三端齐全 + 三仓库发布
-反应式 · 增量自动更新       ███████░░░  75%  ✅ 监听+增量重建已上线；❌ 只差主动推送
+反应式 · 增量自动更新       ██████████  95%  ✅ 监听+增量重建+主动推送(RFC-0106/0107/0108)全上线
 规模 · SLA/LSP/分层         ██████░░░░  60%  🟡 SLA✅ 10语言✅；LSP/分层存储❌
 ```
 
@@ -140,7 +144,7 @@
 ```
                     蓝图说的价值    实际投入的力气
 反应式核心（监听+增量）  ████████        ███████   ✅ 基本兑现（RFC-0008）
-反应式·主动推送          ████            ░         ❌ 最后一公里，未做
+反应式·主动推送          ████            ████      ✅ 最后一公里已闭环（RFC-0106/0107/0108）
 广度：语言数量          ██              ███████   10 种
 广度：agent 工具         ███             ████████  ~89 工具 · 三端
 治理 / 发布仪式          █               ███████   RFC 至 0097 · 全套仪式
@@ -161,21 +165,22 @@
   ACID 增量写）——scale-gap 的 **R2 增量持久化 + R3 内存边界两块解决了**（只剩
   R1 并行抽取）。`mycelium context` 一站式上下文 + OutputBudget 也已三端落地。
 
+**已闭环（原本列为"还差的"，现已落地）**
+- **主动推送 / 订阅传输层** —— `mycelium/graphChanged` 推送（RFC-0106）+ 作用域
+  delta 订阅（RFC-0107）+ 反应式查询订阅（RFC-0108）。"活卡片"升级成"会主动喊
+  你的活卡片"，最后一公里闭环。
+- **watch CLI 端** —— `mycelium watch` 子命令落地（含 `--subscribe`），三端齐全达成。
+
 **还差的（明确且不大）**
-1. **主动推送 / 订阅传输层** —— 服务器侦测到变化后主动通知 agent。现在
-   watch（RFC-0008）会自动把图更新好，但 agent 仍需主动再查（pull），
-   代码里 0 处 `subscribe`。**这是把"活卡片"升级成"会主动喊你的活卡片"
-   的最后一公里。**
-2. **watch 上 CLI 端** —— 目前只有 MCP 工具，缺 `mycelium watch` 子命令，
-   没满足项目自定的三端齐全（Three-Surface）标准。
-3. **语言数 10/20** —— 明确但次要的广度缺口。
+1. **语言数 10/20** —— 明确但次要的广度缺口。
 4. **Salsa 只到 Phase 1** —— cortex.rs 搭好了数据库骨架 + 1 个 tracked query
    （`dependency_depth`），其余查询仍直接跑在 `Store` 上，按 RFC 逐个迁移。
 
 **给下一阶段的战略问题**
-- 先补 **push/subscription 传输层**（兑现"主动推送"，真正闭环差异化），
-  还是继续加宽语言（10→20）？蓝图的措辞偏向前者——"看不见但谁动一下大家
-  都能感觉到"的菌丝网，最后那下"感觉到"就是 push。
+- push/subscription 已闭环（RFC-0106/0107/0108），差异化兑现。下一步重心
+  转向 **加宽语言（10→20）** 与 **Salsa Phase 2+ 迁移**（更多 tracked query
+  从 Store 迁到记忆化）。蓝图措辞偏重的"看不见但谁动一下大家都能感觉到"的
+  菌丝网，最后那下"感觉到"（push）已经做出来了。
 
 ---
 
