@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v16 — `abdb570` (max_version fix) pushed to release/v0.1.17; PR #460 closed; release.yml fix PR + chore PR opened to develop) |
-| Current sprint | **v0.1.17 — RELEASE BRANCH CUT** (`release/v0.1.17`, PR #452 Quality Gate ✅ — founder can authorize ceremony script once CI re-run passes) |
+| Last updated | 2026-06-03 (PM dispatch v17 — PRs #462+#463 merged to develop; PR #464 conflict resolved via #465; v0.1.17 release awaiting Release CI re-trigger + founder authorization) |
+| Current sprint | **v0.1.17 — RELEASE IN PROGRESS** (`release/v0.1.17` has max_version fix at `abdb570`; Release CI needs re-trigger; PR #452 Quality Gate 21/21 ✅ — founder can authorize after CI green) |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -131,17 +131,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v16 — `abdb570` pushed to release/v0.1.17; fix PR + chore PR opened)
+## Dispatch state (2026-06-03 v17 — PRs #462+#463 merged; RFC-0106 added via #465; ceremony awaiting founder)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Watch PR #452 CI — release.yml re-running with max_version fix (commit `abdb570`). Once all checks SUCCESS/SKIPPED: authorize `scripts/release-ceremony.sh` Steps 1–4. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** — implementation branch `feature/rfc-0105-watch-engine` is built and CI-green; awaiting your decision to merge. (4) Schedule `sla_ancestors_100k` nightly benchmark for RFC-0104 cold numbers. |
-| PM | **DONE ✅** | `abdb570` pushed to release/v0.1.17; PR #460 closed; fix PR + chore PR v16 opened. |
+| founder | **action required** | (1) **Re-trigger Release CI** on `release/v0.1.17`: run `scripts/release-ceremony.sh` OR manually trigger Release workflow on that branch. Fix `abdb570` (max_version) is on the branch; CI hasn't re-run yet. (2) Once all CI checks SUCCESS/SKIPPED: authorize Steps 1–4 of ceremony. (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** — WatchEngine branch CI-green; awaiting decision. (4) **RFC-0106 founder questions** (PR #465): transport A/B/C, payload v1 ratification, cap value. |
+| PM | **DONE ✅** | Merged PRs #462+#463; resolved PR #464 conflict via #465; updated PM state v17. |
 | security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN (v12 + re-confirmed v14). |
-| release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 + PR #453 open. Awaiting founder auth. |
-| rust-implementer | **WAITING** | RFC-0105 WatchEngine built (branch `feature/rfc-0105-watch-engine`, CI SUCCESS). Gated on founder EXCEPTION ratification. |
+| release | **WAITING FOUNDER** | `release/v0.1.17` branch cut; PR #452 (→main, Quality Gate ✅) + PR #453 (back-merge). Release CI needs re-trigger by founder. |
+| rust-implementer | **WAITING** | RFC-0105 WatchEngine built (CI SUCCESS). Gated on founder EXCEPTION ratification. |
 | bench | **P1** | Run `sla_ancestors_100k` nightly for RFC-0104 cold SLA numbers. |
-| e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands under new storage default). |
+| e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands). |
 | architect | idle | ADR-0008: redb as default backend (required before v0.2.0). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 
@@ -170,6 +170,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v17 (this run — PRs #462+#463 merged; PR #464 conflict resolved via #465; v0.1.17 ceremony awaiting founder)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest: `2026-06-03T14:00Z` orchestrator pm-dispatch v16), anti-patterns (no domain hits), PM state (v16), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `f04cdbd` (v16 PM chore merged). 5 open PRs: #452 (release→main, Quality Gate 21/21 ✅, publish-crates ❌ from old run), #453 (back-merge), #462 (crates.io fix, 22/22 ✅), #463 (PM v16 chore, 22/22 ✅), #464 (RFC-0106 doc, 22/22 ✅ but decisions.jsonl conflict). 0 open issues.
+- PR #452: Quality Gate is SUCCESS. The `publish to crates.io` failure is from a run BEFORE the `abdb570` max_version fix was committed. No new Release CI run has triggered since the fix was pushed.
+- PR #462: max_version fix for crates.io — root cause addressed (not just symptom). CI fully green.
+- PR #463: PM state v16 chore. CI green.
+- PR #464: RFC-0106 doc + decisions.jsonl. CI green but conflict with PRs #462+#463 both touching same file base.
+
+**Actions taken:**
+1. Merged PR #462 (squash) — crates.io max_version fix on develop.
+2. Merged PR #463 (squash) — PM state v16 on develop.
+3. PR #464 conflict: created `fix/rfc-0106-conflict-resolve` branch from develop HEAD, copied RFC file from feature branch, appended RFC-0106 decisions entry + this v17 PM entry to decisions.jsonl, updated pm-state.md v17. Opening as PR #465.
+4. (Will close PR #464 as superseded by #465.)
+5. anti-pattern recorded: decisions.jsonl was truncated during RFC-0105 merge resolution (historical entries from 2026-05-28 to 2026-06-02 lost from working tree; preserved in git history).
+
+**Escalations:**
+- Founder (URGENT): re-trigger Release CI on `release/v0.1.17` — Quality Gate is green, fix is on branch, ceremony script ready.
+- Founder: RFC-0105 Three-Surface EXCEPTION decision.
+- Founder: RFC-0106 transport choice (PR #465).
 
 ### 2026-06-03 PM dispatch v16 (this run — max_version fix pushed to release/v0.1.17; fix PR + chore PR opened)
 
