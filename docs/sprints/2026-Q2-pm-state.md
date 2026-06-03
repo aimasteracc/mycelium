@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v18 — PR #468 merged to develop; URL fix (`62a2478`) cherry-picked to release/v0.1.17; PR #452 CI re-triggered; PR #469 pending) |
-| Current sprint | **v0.1.17 — RELEASE CEREMONY IN PROGRESS** (PR #452 CI re-running with URL fix `62a2478` — founder can authorize ceremony script once all CI checks pass) |
-| Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
+| Last updated | 2026-06-03 (PM dispatch v19 — PR #452 CLOSED by founder after 8 publish-crates failures; ALL 5 crates ARE on crates.io v0.1.17; release/v0.1.17 branch still exists; founder action required for Steps 1–4 ceremony) |
+| Current sprint | **v0.1.17 — CRATES.IO PUBLISHED; CEREMONY STEPS 1–4 PENDING** (all 5 crates live on crates.io; main merge not done; PR #452 closed; founder must complete ceremony via `scripts/release-ceremony.sh` or reopen PR) |
+| Active release branch | `release/v0.1.17` — PR #452 CLOSED (founder closed 2026-06-03T~06:35Z) + PR #453 (→ develop, back-merge) — ⚠️ do NOT reopen #452 or open new PR without founder instruction |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.16 — RFC-0100 Phase 1+2 redb backend, MCP routing instructions, journal persistence, memory budget, dep bumps (salsa 0.26, logos 0.16, redb 4.1), crates.io publish fix** (tag v0.1.16, GitHub Release published 2026-06-02T01:27Z) |
@@ -92,16 +92,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
 - [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
 
-**v0.1.17 ceremony status — CI RE-RUNNING (URL fix `62a2478` pushed to release branch):**
-- [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅ (v12 + re-confirmed v14)
-- [x] **Pre-release**: CHANGELOG Unreleased section verified ✅ (v12)
-- [ ] **Step 1**: `release/v0.1.17` → `main` (founder authorization required)
-  - PR #452: Quality Gate ✅ SUCCESS (required branch-protection check)
-  - ~~⚠️ `publish to crates.io` FAILURE (v13: timeout 120s)~~ → ~~PARTIAL FIX (v15): wait 360s~~ → ~~PARTIAL FIX (v16): `max_version` API~~ → **REAL FIX (v18)**: commit `62a2478` removes `tr '-' '_'` URL encoding — crates.io REST API requires hyphens, not underscores. PR #468 merged to develop; cherry-picked to release/v0.1.17. CI re-triggered.
-  - **Once all CI checks SUCCESS/SKIPPED** on PR #452: founder authorizes `scripts/release-ceremony.sh` Steps 1–4.
+**v0.1.17 ceremony status — CRATES.IO DONE; MAIN MERGE PENDING:**
+- [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅
+- [x] **Pre-release**: CHANGELOG Unreleased section verified ✅
+- [ ] **Step 1**: `release/v0.1.17` → `main` — **⚠️ BLOCKED: PR #452 CLOSED by founder 2026-06-03T~06:35Z**
+  - `release/v0.1.17` branch still exists (never deleted)
+  - All 5 crates ARE on crates.io v0.1.17 ✅ (published across runs 6-8)
+  - publish-crates CI was failing because REST API propagation takes 15-20 min; sparse index fix (`6aa1bed`) is now on the branch; run 9 should have passed but PR was closed
+  - **Founder must complete Step 1**: either reopen PR #452 (ask PM) OR run `scripts/release-ceremony.sh` directly against `release/v0.1.17`
 - [ ] **Step 2**: Tag `v0.1.17` pushed
-- [ ] **Step 3**: GitHub Release published + 5 crates on crates.io
-- [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` (PR #453)
+- [ ] **Step 3**: GitHub Release published (crates.io already done ✅)
+- [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` (PR #453 — ⚠️ merge only AFTER Step 1+2+3)
 
 ---
 
@@ -110,10 +111,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0:** none.
 
 **P1 (v0.1.17 release gates):**
-1. ✓ Security scan post-v0.1.16 — COMPLETE ✅
-2. ✓ Cut `release/v0.1.17` — COMPLETE ✅ (PR #452 + PR #453 open)
-3. ✓ release.yml CI fix: PR #455 (timeout), PR #462 (max_version), **PR #468 (URL fix, ROOT CAUSE)** — all merged to develop; `62a2478` cherry-picked to release/v0.1.17
-4. **Wait for PR #452 CI green** (release workflow re-running with URL fix in `62a2478`) → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
+1. ✓ Security scan — COMPLETE ✅
+2. ✓ Cut `release/v0.1.17` — COMPLETE ✅
+3. ✓ release.yml fixes merged to develop; cherry-picked to release branch
+4. ✓ All 5 crates published to crates.io v0.1.17 ✅ (runs 6-8)
+5. **⚠️ PR #452 CLOSED — founder must complete ceremony**: 
+   - Option A: reopen PR #452 (run 9 with sparse index should pass) then merge
+   - Option B: run `scripts/release-ceremony.sh` directly → merges release/v0.1.17 to main, pushes tag, creates Release, back-merges to develop
+   - After Step 1: admin-merge PR #453 (back-merge to develop, Step 4)
 
 **P1 (reactive roadmap — RFC-0105):**
 5. **Founder: ratify or reject RFC-0105 Three-Surface EXCEPTION** — `feature/rfc-0105-watch-engine` branch CI SUCCESS (SHA `05654d96`), implementation complete. Awaiting founder EXCEPTION decision to merge. Watch lifecycle genuinely differs (foreground CLI vs background MCP server); parity bridge = shared WatchEngine + byte-identical `watch --status`.
