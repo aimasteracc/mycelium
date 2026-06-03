@@ -166,8 +166,15 @@ fn get_all_symbols_contains_login_and_logout() {
         .output()
         .unwrap();
     assert!(out.status.success());
-    let parsed: Vec<String> =
+    // RFC-0109 Option A: object shape `{ "symbols": [...], "count", "total_count" }`.
+    let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let parsed: Vec<String> = value["symbols"]
+        .as_array()
+        .expect("symbols array")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
     assert!(
         parsed.iter().any(|p| p.contains("login")) && parsed.iter().any(|p| p.contains("logout")),
         "expected both login and logout in all-symbols, got {parsed:?}"
@@ -189,8 +196,15 @@ fn get_all_symbols_prefix_filter() {
         .output()
         .unwrap();
     assert!(out.status.success());
-    let parsed: Vec<String> =
+    // RFC-0109 Option A: object shape.
+    let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let parsed: Vec<String> = value["symbols"]
+        .as_array()
+        .expect("symbols array")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
     assert!(
         !parsed.is_empty(),
         "prefix filter should return at least one match"

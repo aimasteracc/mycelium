@@ -271,8 +271,15 @@ pub(crate) fn run_get_all_symbols(
     kind_str: Option<&str>,
     limit: usize,
     offset: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = match kind_str {
         None => None,
@@ -282,12 +289,23 @@ pub(crate) fn run_get_all_symbols(
         ),
     };
     let all_symbols = store.all_symbols(prefix, kind);
+    let total_count = all_symbols.len();
     let page: Vec<String> = all_symbols
         .into_iter()
         .skip(offset)
         .take(if limit == 0 { usize::MAX } else { limit })
         .collect();
-    print_string_list(&page, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::all_symbols_payload(&page, total_count);
+    // Budget caps the paginated page; JSON mode (MCP parity) or explicit --budget.
+    // Default text mode prints the full page (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "symbols", format)
 }
 
 // ── server-status ─────────────────────────────────────────────────────────────
