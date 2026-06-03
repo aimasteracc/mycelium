@@ -105,7 +105,7 @@ byte-identical contract test.
 | `get_callees` | `mycelium_core::queries::callees_payload` | ✅ | ✅ | (this RFC's first impl) |
 | `get_callers` | `mycelium_core::queries::callers_payload` | ✅ | ✅ | done |
 | `get_dead_symbols` | `mycelium_core::queries::dead_symbols_payload` | ✅ | ✅ | done |
-| `get_isolated_symbols` | — | — | — | pending |
+| `get_isolated_symbols` | `mycelium_core::queries::isolated_symbols_payload` | ✅ | ✅ | done |
 | `get_reachable` / `get_reachable_to` | — | — | — | pending (already object-shaped on MCP) |
 | `get_all_symbols` | — | — | — | pending (bespoke pagination — reconcile) |
 
