@@ -2,7 +2,7 @@
 
 - **RFC**: 0105
 - **Title**: Extract the watch loop into `mycelium_core::watch` and add a `mycelium watch` CLI command
-- **Status**: Partially Implemented (core engine + MCP rewire + CLI `watch` command landed; `--status` subcommand and CLI integration test deferred to follow-up). Founder ratification of the `EXCEPTION:` line still pending — flag in PR.
+- **Status**: Partially Implemented (core engine + MCP rewire + CLI `watch` command landed; `--status` subcommand and CLI integration test deferred to follow-up). **EXCEPTION ratified by founder 2026-06-03** (Charter §5.13 / RFC-0090) — the foreground CLI watch vs the server's background `start_watch`/`stop_watch`/`watch_status` is a documented lifecycle mismatch; both drive the same `WatchEngine` so reactive behavior is byte-identical by construction.
 - **Author**: .hive team (design workflow) + rust-implementer
 - **Created**: 2026-06-03
 - **Tracking**: reactive-completion roadmap, step 1 of 4 (watch → push → subscribe → salsa)
