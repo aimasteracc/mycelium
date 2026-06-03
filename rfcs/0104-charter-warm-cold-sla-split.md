@@ -9,7 +9,7 @@
 - **Affected paths**:
   - `CHARTER.md` §2 SLA table
   - `crates/mycelium-core/tests/redb_sla.rs`
-  - `docs/adr/0008-redb-storage-engine.md` (Decision-4 cross-ref)
+  - `docs/adr/0009-redb-storage-engine.md` (Decision-4 cross-ref)
 
 ---
 
@@ -224,7 +224,7 @@ The RFC is considered implemented when:
 - [ ] `redb_lookup_cold_open_sla_10k` passes in CI on Linux.
 - [ ] Charter §2 table in `CHARTER.md` has been updated with the measured p99
       values replacing the placeholder ceilings.
-- [ ] `docs/adr/0008-redb-storage-engine.md` Decision-4 cross-references this RFC.
+- [ ] `docs/adr/0009-redb-storage-engine.md` Decision-4 cross-references this RFC.
 - [ ] Issue #426 AC#4 is closed.
 
 ---

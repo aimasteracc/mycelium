@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v24 — PR #484 merged; PR #452 closed as superseded; security scan CLEAN post-v0.1.18; ADR-0008 PR #485 opened; v0.1.18 ceremony BROKEN escalated to founder) |
+| Last updated | 2026-06-03 (PM dispatch v25 — PRs #485+#486 merged; ADR numbering fix: 0008-redb-storage-engine → 0009; v0.1.18 ceremony still BROKEN pending founder) |
 | Current sprint | **v0.1.18 — CEREMONY BROKEN (PR #482 auto-closed; back-merge done; crates.io published orphan); founder action required** |
 | Active release branch | `release/v0.1.18` — PR #482 **AUTO-CLOSED** (main not touched); back-merge PR #483 ✅ MERGED to develop |
 | Next release target | **v0.1.18** — RFC-0107 SUBSCRIBE + RFC-0108 Salsa Phase 2 + Rust scoped-call fix + reactive roadmap 4/4 COMPLETE |
@@ -132,14 +132,16 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 2. **Founder: run `scripts/release-ceremony.sh`** targeting `release/v0.1.18` branch (still exists). Only Steps 1+2 remain: merge branch to main + push tag `v0.1.18` + GitHub Release. Crates and back-merge already done.
 3. **⚡ Systemic fix needed before v0.1.19**: Audit release.yml merge step — fix or remove auto-close behavior. This has fired on every release since v0.1.6.
 
-**P0 done this run ✅:**
+**P0 done this run ✅ (v24+v25):**
 - PR #484 (PM dispatch v23) MERGED ✅
 - PR #452 (v0.1.17 → main) CLOSED as superseded ✅
 - Security scan post-v0.1.18: **CLEAN** ✅ (0 secrets, 0 .env files, 1 legitimate `unsafe` block for macOS RSS measurement — platform-gated MaybeUninit)
-- ADR-0008: PR #485 OPENED ✅ (docs/adr/0008-redb-as-default-backend.md — architect P1 task, v0.2.0 prereq)
+- PR #485 (ADR-0008 docs, 22/22 CI green) MERGED ✅ (architect P1 task, v0.2.0 prereq)
+- PR #486 (PM dispatch v24 chore, 22/22 CI green) MERGED ✅
+- **ADR numbering fix**: `0008-redb-storage-engine.md` → `0009-redb-storage-engine.md` (ADR-0009); all cross-references updated ✅
 
 **P1 (post-v0.1.18 quality):**
-4. **Merge PR #485** (ADR-0008 docs, CI pending) — auto-merge when CI green.
+4. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands).
 5. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands).
 6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark (bench idle).
 7. **RFC-0105 Three-Surface EXCEPTION** — WatchEngine EXCEPTION line awaiting founder ratification.
@@ -152,15 +154,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v24 — v0.1.18 ceremony BROKEN; ADR-0008 PR #485; security CLEAN)
+## Dispatch state (2026-06-03 v25 — PRs #485+#486 merged; ADR-0009 renaming done; v0.1.18 ceremony BROKEN)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action requested** | **(1)** Run `scripts/release-ceremony.sh` for `release/v0.1.18` → main + tag `v0.1.18` + GitHub Release. Crates + back-merge already done. **(2)** Confirm v0.1.17 git ceremony skip is intentional (crates.io v0.1.17 exists; main jumps v0.1.16→v0.1.18). **(3)** Ratify RFC-0105 EXCEPTION (WatchEngine Three-Surface). |
-| PM | **DONE ✅** | v24 complete: PR #484 merged; PR #452 closed; security CLEAN; ADR-0008 PR #485 opened; PM state updated. |
-| release | **WAITING** | Ceremony blocked on founder. PR #485 (ADR-0008): admin-merge when CI green. |
+| PM | **DONE ✅** | v25 complete: PRs #485+#486 merged; ADR-0009 rename done; PM state v25 updated. |
+| release | **WAITING** | Ceremony blocked on founder (Steps 1+2+3 of v0.1.18). |
 | security-reviewer | **DONE ✅** | Post-v0.1.18 scan: CLEAN (0 secrets, 0 .env, 1 legit unsafe block — macOS RSS). |
-| architect | **DONE ✅** | ADR-0008 drafted (PR #485 opened, CI pending). |
+| architect | **DONE ✅** | ADR-0008 merged (PR #485 ✅). ADR-0009 renaming complete (docs/adr/0009-redb-storage-engine.md). |
 | e2e-runner | **P1** | Dogfood re-run with redb-as-default + watch --subscribe (8/8 CLI). |
 | bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
@@ -192,6 +194,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v25 (PRs #485+#486 merged; ADR-0009 renaming; v0.1.18 ceremony escalated)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest: 2026-06-02T00:00:00Z RFC-0101 Phase 2 CLI twin), anti-patterns (no new domain hits), PM state (v24, stale on disk — develop at c7fe2c6 post-merges), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #485 (ADR-0008 docs, 22/22 CI SUCCESS ✅), #486 (PM dispatch v24, 22/22 CI SUCCESS ✅). 0 open issues.
+- develop HEAD after v24 merges: `c7fe2c6` (PM v24 squash). Both PRs target this clean base.
+- Discovered: `docs/adr/0008-redb-storage-engine.md` still present alongside newly-merged `0008-redb-as-default-backend.md` (PR #485) — ADR-0008 double-occupancy collision. Previous v24 run noted this as a follow-up docs task.
+
+**Actions taken:**
+1. **Merged PR #485** (docs(adr): ADR-0008 redb default backend, 22/22 CI green, squash) ✅
+2. **Merged PR #486** (chore(pm): dispatch v24, 22/22 CI green, squash) ✅
+3. **Fixed ADR numbering collision**: `git mv docs/adr/0008-redb-storage-engine.md docs/adr/0009-redb-storage-engine.md`. Updated internal title (ADR-0008 → ADR-0009). Updated all cross-references:
+   - `docs/sprints/rfc-0100-execution-plan.md` (3 occurrences — ADR-0008 link text + 2 path refs)
+   - `rfcs/0104-charter-warm-cold-sla-split.md` (2 occurrences)
+   - `docs/adr/0008-redb-as-default-backend.md` (numbering note + open-issues section)
+4. Updated CHANGELOG Unreleased with ADR rename entry.
+5. Updated PM state header + live priorities + dispatch table to v25.
+6. Appended decisions.jsonl.
+
+**Sprint status:** v0.1.18 content COMPLETE on develop. Ceremony BROKEN (same systemic release.yml bug). All docs hygiene tasks resolved.
+
+**Escalations:**
+- Founder: run `scripts/release-ceremony.sh` for v0.1.18 (Steps 1+2+3 remain). Confirm v0.1.17 git-ceremony skip. Ratify RFC-0105 EXCEPTION.
 
 ### 2026-06-03 PM dispatch v24 (PR #484 merged; PR #452 closed; security CLEAN; ADR-0008 PR #485)
 

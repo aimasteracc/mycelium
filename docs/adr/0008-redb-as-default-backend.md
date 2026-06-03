@@ -4,12 +4,12 @@
 
 Accepted — RFC-0100 Phase 3, PR #448, v0.1.17 (2026-06-02).
 
-> **Note on numbering:** `docs/adr/0007-redb-storage-engine.md` (the original
-> redb architecture ADR, covering the schema, key encoding, and trait design)
-> was accidentally filed as `0007` while `0007-cli-mcp-skill-parity.md` already
-> held that number. The renaming of `0007-redb-storage-engine.md` to the correct
-> `0008` is tracked separately. This document (`0008-redb-as-default-backend.md`)
-> records the Phase 3 flip decision and is the ADR that satisfies the
+> **Note on numbering:** The original redb architecture ADR (schema, key encoding,
+> trait design) was accidentally filed as `0007-redb-storage-engine.md` while
+> `0007-cli-mcp-skill-parity.md` already held that slot. It was subsequently
+> renamed to `0009-redb-storage-engine.md` (ADR-0009) — see PM dispatch v25.
+> This document (`0008-redb-as-default-backend.md`) is **ADR-0008** and records
+> the Phase 3 flip decision, satisfying the
 > `architect | P1 | ADR-0008: redb as default backend` dispatch requirement.
 
 ## Context
@@ -35,7 +35,7 @@ Charter §2 R2/R3 requirements at scale (100 K-node graph).
    adjacency, k-hop, kind-of, span-of).
 2. **Crash-safety proven** — `SIGKILL` mid-write reopens to either of the two last
    committed states; never a torn third state (redb copy-on-write B-tree guarantee).
-3. **Warm latency de-risked (T1 spike, ADR-0007/0008)** — point lookup p99 = 916 ns
+3. **Warm latency de-risked (T1 spike, ADR-0008/0009)** — point lookup p99 = 916 ns
    (5,400× SLA headroom); 3-hop p99 = 5.4 µs (185× headroom) at 100 K nodes.
 4. **Per-file write latency measured** — 10 K-node replace_file ≈ 9.37 ms after
    read-before-write + no-op guard optimisations; 100 K pending nightly gate.
@@ -115,9 +115,8 @@ is emitted per legacy load. This path is removed after one minor release.
 - **RFC-0104 cold SLA numbers**: the `warm/cold` SLA split in Charter §2 carries a
   `TBD` in the cold row until nightly CI produces honest Linux measurements with
   `drop_caches`. This is a follow-up measurement task; it does not block the flip.
-- **ADR-0007/0008 numbering conflict**: `0007-redb-storage-engine.md` carries the
-  wrong number (conflicts with `0007-cli-mcp-skill-parity.md`). The rename to
-  `0009-redb-storage-engine.md` (or similar) is a follow-up docs task.
+- **ADR numbering resolved** (PM dispatch v25): `0007-redb-storage-engine.md` was
+  renamed to `docs/adr/0009-redb-storage-engine.md` (ADR-0009). ✅
 
 ## Alternatives Considered
 

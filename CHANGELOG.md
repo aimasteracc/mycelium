@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
-- **ADR-0008**: redb as default storage backend (Phase 3 flip decision record). Documents the rationale for switching from `InMemoryBackend` to `RedbBackend` as the production default in v0.1.17, prerequisites met (equivalence tests, crash-safety, warm SLA), and open follow-ups (cold SLA measurement via RFC-0104, ADR numbering conflict).
+- **ADR-0008**: redb as default storage backend (Phase 3 flip decision record). Documents the rationale for switching from `InMemoryBackend` to `RedbBackend` as the production default in v0.1.17, prerequisites met (equivalence tests, crash-safety, warm SLA).
+- **ADR numbering fix**: renamed `docs/adr/0008-redb-storage-engine.md` → `docs/adr/0009-redb-storage-engine.md` (ADR-0009) to resolve the 0007/0008 slot collision; updated cross-references in `rfc-0100-execution-plan.md`, `rfcs/0104-charter-warm-cold-sla-split.md`, and `docs/adr/0008-redb-as-default-backend.md`.
 
 ## [0.1.18] - 2026-06-03
 
