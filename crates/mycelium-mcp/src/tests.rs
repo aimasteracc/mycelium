@@ -2509,6 +2509,7 @@ async fn get_isolated_symbols_returns_completely_disconnected() {
         .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
             path_prefix: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2528,6 +2529,7 @@ async fn get_isolated_symbols_empty_store() {
         .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
             path_prefix: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2546,6 +2548,7 @@ async fn get_isolated_symbols_prefix_filter() {
         .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
             path_prefix: Some("src/".to_owned()),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
