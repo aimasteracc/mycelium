@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v21 — RFC-0105/0106/0107 merged; RFC-0108 doc merged; v0.1.17 crates.io published; PR #477 back-merge conflict-resolved; PR #472/473 MERGED to develop) |
-| Current sprint | **v0.1.17 — CEREMONY BLOCKED on founder auth (Steps 1+2+3); Step 4 ready (PR #477)** |
+| Last updated | 2026-06-03 (PM dispatch v22 — reactive roadmap COMPLETE: RFC-0108 impl PR #480 MERGED; fix blocking_read PR #479 MERGED; fix Rust scoped-calls PR #474 MERGED; v0.1.17 Step 4 back-merge PR #477 MERGED; INDEX.md subscribe rows added) |
+| Current sprint | **v0.1.17 — Step 4 ✅ DONE; crates.io ✅ DONE; Steps 1+2 (main merge + tag) founder-gated** |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated, `dirty` in GitHub but fast-forward-mergeable) + **PR #477** (→ develop back-merge, conflict-resolved, supersedes PR #453) |
 | Next release target | **v0.1.17** — redb default + CLI twin + OutputBudget-core + Charter §2 SLA + god-file-split (content COMPLETE; crates.io PUBLISHED; ceremony pending founder) |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -100,7 +100,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
   - PR #452: Quality Gate ✅ SUCCESS. `mergeable_state: dirty` in GitHub UI but `origin/release/v0.1.17..origin/main = 0 commits` — it is a clean fast-forward. Use `scripts/release-ceremony.sh` or direct merge.
 - [ ] **Step 2**: Tag `v0.1.17` pushed (tag does NOT exist yet — latest tag is `v0.1.16`)
 - [ ] **Step 3**: GitHub Release published (crates.io ✅ already published; GitHub Release itself not yet created)
-- [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` — **PR #477** ✅ conflict-resolved (CHANGELOG + release.yml + Cargo.toml conflicts resolved; supersedes PR #453 which had unresolvable conflicts after RFC-0105/0106/0107 merged to develop)
+- [x] **Step 4**: Back-merge `release/v0.1.17` → `develop` — **PR #477 MERGED ✅** 2026-06-03T07:54Z (conflict-resolved: CHANGELOG + release.yml + Cargo.toml; supersedes PR #453)
 
 ---
 
@@ -108,20 +108,21 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P0:** none.
 
-**P1 (v0.1.17 ceremony — founder gates):**
-1. ✓ Security scan, release branch cut, all CI fixes, crates.io published — COMPLETE ✅
-2. **Step 1**: Founder merges PR #452 (`release/v0.1.17` → `main`). Use `scripts/release-ceremony.sh` or direct merge (it's a fast-forward).
+**P0 (v0.1.17 ceremony — founder gates only):**
+1. ✓ crates.io published, back-merge done, all CI fixes complete — DONE ✅
+2. **Step 1**: Founder merges PR #452 (`release/v0.1.17` → `main`). Fast-forward; CI 22/22 green. Use `scripts/release-ceremony.sh`.
 3. **Step 2**: Founder pushes tag `v0.1.17` to origin.
-4. **Step 3**: Founder creates GitHub Release for `v0.1.17` (crates.io already done ✅).
-5. **Step 4**: Admin-merge PR #477 (back-merge → develop, all conflicts resolved). Can merge immediately after Steps 1–3.
+4. ✓ **Step 4**: PR #477 back-merge MERGED 07:54Z ✅
 
-**P1 (reactive roadmap — post-v0.1.17 sprint):**
-6. ✓ RFC-0105 WatchEngine — MERGED to develop ✅
-7. ✓ RFC-0106 graphChanged PUSH — MERGED to develop ✅
-8. ✓ RFC-0107 SUBSCRIBE (93 MCP tools) — MERGED to develop ✅ (PR #472)
-9. ✓ RFC-0108 reactive query subscriptions doc — MERGED to develop ✅ (PR #473)
-10. **RFC-0108 D1–D4 implementation**: founder ratifies D1–D4 decisions (PR #473 body has recommendations; "全选推荐" applies). Once ratified, implementation PR opens (~250 LOC, 8 RED tests). Salsa Phase 2 final reactive step.
-11. **Three-Surface coverage for subscribe/unsubscribe/subscription_status** (93 tools): verify skills/INDEX.md updated for the 3 new tools — check `index-management/SKILL.md` coverage. [⚠️ verify next run]
+**P1 (v0.1.18 content — reactive roadmap COMPLETE ✅):**
+5. ✓ RFC-0105 WatchEngine — MERGED ✅
+6. ✓ RFC-0106 graphChanged PUSH — MERGED ✅
+7. ✓ RFC-0107 SUBSCRIBE (93 MCP tools) — MERGED ✅ (PR #472)
+8. ✓ RFC-0108 reactive query subscriptions doc — MERGED ✅ (PR #473)
+9. ✓ RFC-0108 D1–D4 implementation — MERGED ✅ (PR #480 — Salsa Phase 2, reactive roadmap 4/4 COMPLETE)
+10. ✓ fix(subscribe): blocking_read → try_read (P1 safety) — MERGED ✅ (PR #479)
+11. ✓ fix(packs/rust): scoped call sites — MERGED ✅ (PR #474)
+12. ✓ Three-Surface coverage for subscribe/unsubscribe/subscription_status — VERIFIED ✅ parity CI green; covered by `index-management/SKILL.md` `allowed-tools` (EXCEPTION: RFC-0105). INDEX.md matrix rows added this run.
 
 **P1 (post-v0.1.17 quality):**
 12. **Dogfood re-run with redb-as-default** — validate 8/8 CLI commands.
@@ -136,17 +137,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v21 — RFC-0105/106/107/108 merged; PR #477 opened; crates.io published)
+## Dispatch state (2026-06-03 v22 — reactive roadmap COMPLETE; RFC-0107/108 + fix #479 + INDEX.md subscribe rows landed)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) **v0.1.17 ceremony**: crates.io already published ✅. Merge PR #452 → main (fast-forward; `dirty` is GitHub UI artifact). Push tag `v0.1.17`. Create GitHub Release. Then admin-merge PR #477 (back-merge, Step 4). Use `scripts/release-ceremony.sh` (Steps 2–4 only since crates already published). (2) **RFC-0108 D1–D4**: "全选推荐" → open implementation PR. |
-| PM | **DONE ✅** | This run: PR #477 opened (back-merge conflict-resolved); PM state v21 updated. Subscribed to PR #472 CI. |
-| rust-implementer | **IDLE — await founder** | RFC-0107 MERGED ✅. RFC-0108 implementation gated on founder D1-D4 ratification. |
-| security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN. Post-v0.1.17 scan needed after ceremony completes. |
-| release | **WAITING** | PR #452 Quality Gate ✅. All CI green/skipped. Awaiting founder ceremony auth (Steps 1+2+3). PR #477 ready for Step 4. |
+| founder | **action requested** | **v0.1.17 ceremony**: crates.io ✅ done. Step 4 ✅ done. Merge PR #452 → main (fast-forward, CI 22/22 green). Push tag `v0.1.17`. Create GitHub Release. Use `scripts/release-ceremony.sh` (Steps 1–2 only). |
+| PM | **DONE ✅** | v22 complete: PM state updated; INDEX.md subscribe rows added; decisions.jsonl appended. |
+| rust-implementer | **DONE ✅** | RFC-0107 + RFC-0108 + fix-blocking-read + fix-rust-scoped-calls all MERGED. Reactive roadmap 4/4 COMPLETE. |
+| security-reviewer | **P1** | Post-v0.1.17 scan needed after ceremony completes (Step 1+2). |
+| release | **WAITING** | PR #452 CI 22/22 green. Awaiting founder Steps 1+2. |
 | bench | **P1** | Run `sla_ancestors_100k` nightly for RFC-0104 cold SLA numbers. |
-| e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands). |
+| e2e-runner | **P1** | Dogfood re-run with redb-as-default + RFC-0107 watch --subscribe (8/8 CLI commands). |
 | architect | **P1** | ADR-0008: redb as default backend (required before v0.2.0). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 
@@ -175,6 +176,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v22 (this run — reactive roadmap COMPLETE; INDEX.md subscribe rows; Step 4 done)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (last: 2026-06-02 v21 decision), anti-patterns (no new hits), PM state v21, v0.2 PRD.
+
+**Assessment:**
+- develop HEAD `a3175f6`: RFC-0108 impl (PR #480) MERGED, fix blocking_read (PR #479) MERGED, back-merge (PR #477) MERGED — all since v21 dispatch. Memory: PM state stale by ~3 PRs.
+- 1 open PR: #452 (release/v0.1.17 → main, founder-gated, CI 22/22 green). 0 open issues.
+- v0.1.17 ceremony: crates.io ✅, Step 4 back-merge ✅ (PR #477). Steps 1+2 (main merge + tag) pending founder.
+- Reactive roadmap status: RFC-0105/0106/0107/0108 ALL merged — **COMPLETE 4/4** ✅
+- Three-Surface: develop parity CI success on current HEAD. subscribe/unsubscribe/subscription_status covered by `index-management/SKILL.md` allowed-tools (EXCEPTION: RFC-0105). INDEX.md matrix rows missing — added this run.
+- INDEX.md Phase status stale (said "89/89" — now 93 tools with 3 EXCEPTION subscribe rows).
+
+**Actions taken:**
+1. **Updated PM state v22**: Step 4 marked done, RFC-0108 impl marked done, reactive roadmap COMPLETE, dispatch table updated.
+2. **Added INDEX.md rows** for `subscribe`, `unsubscribe`, `subscription_status` (RFC-0107, EXCEPTION: RFC-0105). Updated Phase status to 93 tools.
+3. **Appended decisions.jsonl**.
+
+**Escalations to founder:**
+- **v0.1.17 ceremony**: Merge PR #452 → main (fast-forward; CI 22/22 green). Push tag `v0.1.17`. Create GitHub Release. Steps 1+2 only (crates.io and back-merge already done). Use `scripts/release-ceremony.sh`.
 
 ### 2026-06-03 PM dispatch v21 (this run — RFC-0107/108 merged; PR #477 opened; crates.io published)
 
