@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **RFC-0107 SUBSCRIBE: replace `blocking_read()` with `try_read()` in async watch paths.**
+  `RwLock::blocking_read()` inside a Tokio async task blocks the executor thread and panics
+  the watch loop on the first matching subscription batch, making `--subscribe` unusable after
+  the first filesystem change. Replaced with `try_read()` in the MCP `on_batch` fan-out
+  (`lib.rs`) and CLI `watch.rs`; a briefly-contended lock skips that batch rather than
+  crashing. (`crates/mycelium-mcp/src/lib.rs:1759`, `crates/mycelium-cli/src/watch.rs:197`)
+
 - **Rust extractor now captures `Type::method()` and `crate::mod::func()` call
   sites.** Surfaced by dogfooding the Mycelium repo against itself
   (2026-06-03): `WatchEngine::drive(...)` from the watch session and CLI
