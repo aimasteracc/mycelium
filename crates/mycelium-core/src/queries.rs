@@ -56,6 +56,16 @@ pub fn callers_payload(
     json!({ "caller_paths": paths })
 }
 
+/// Build the `{ "dead_symbols": [...], "count": N }` payload for
+/// `get_dead_symbols` from an already-computed list of dead symbols.
+///
+/// `count` is the full pre-budget total, so a caller still learns the true size
+/// when [`apply_budget`](crate::budget::apply_budget) later truncates the array.
+#[must_use]
+pub fn dead_symbols_payload(dead: &[String]) -> Value {
+    json!({ "dead_symbols": dead, "count": dead.len() })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,5 +120,12 @@ mod tests {
         assert_eq!(arr[0], "src/b.rs>B>beta");
         assert_eq!(arr[1], "src/z.rs>Z>zeta");
         assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn dead_symbols_payload_has_array_and_count() {
+        let v = dead_symbols_payload(&["a".to_owned(), "b".to_owned()]);
+        assert_eq!(v["dead_symbols"], serde_json::json!(["a", "b"]));
+        assert_eq!(v["count"], 2);
     }
 }

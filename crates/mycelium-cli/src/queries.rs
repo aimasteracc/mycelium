@@ -483,8 +483,15 @@ pub(crate) fn run_get_dead_symbols(
     root: &Path,
     prefix: Option<&str>,
     edge_kind: Option<&str>,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let symbols = match edge_kind {
         None => store.dead_symbols(prefix),
@@ -493,7 +500,17 @@ pub(crate) fn run_get_dead_symbols(
             store.dead_symbols_for_kind(kind, prefix)
         }
     };
-    print_string_list(&symbols, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::dead_symbols_payload(&symbols);
+    // Budget in JSON mode (MCP parity) or with explicit --budget; default text
+    // prints the full list (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "dead_symbols", format)
 }
 
 pub(crate) fn run_get_isolated_symbols(
