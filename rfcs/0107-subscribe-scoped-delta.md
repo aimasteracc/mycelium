@@ -2,7 +2,7 @@
 
 - **RFC**: 0107
 - **Title**: Agents register an *interest*; the server pushes only the matching slice of each batch
-- **Status**: Draft — **awaiting founder decisions** (5 questions in §11)
+- **Status**: **Accepted (all 5 recommendations ratified by founder 2026-06-03)**. D1=(d) tagged union mutually exclusive; D2=(ii-strict) phantom-removal-free; D3=TTL+caps+peer-close GC defence-in-depth; D4=(a) extend `on_batch` to `FnMut(&WatchEvent, &BatchDelta, &Store)`; D5=(a) extend RFC-0105 EXCEPTION with `mycelium watch --subscribe '<spec>'`. Implementation tracked separately.
 - **Author**: .hive team (design workflow) + rust-implementer
 - **Created**: 2026-06-03
 - **Depends on**: [RFC-0105](0105-shared-watch-engine-cli-watch.md) (`on_batch` seam), [RFC-0106](0106-push-graph-changed-notification.md) (Peer capture + CustomNotification transport)
