@@ -1006,6 +1006,11 @@ enum Cmd {
         /// e.g. `--edge-kinds calls,imports,extends`. Default: `calls`.
         #[arg(long, value_delimiter = ',')]
         edge_kinds: Vec<String>,
+        /// Per-call output budget (RFC-0102): `auto` (default, follows project
+        /// size), `small` / `medium` / `large` (pin a tier), or `disabled`
+        /// (no truncation). Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
         /// Output format.
         #[arg(long, value_enum, default_value_t = QueryFormat::Json)]
         format: QueryFormat,
@@ -1874,6 +1879,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             max_nodes,
             max_code_blocks,
             edge_kinds,
+            budget,
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
@@ -1883,6 +1889,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 max_nodes,
                 max_code_blocks,
                 &edge_kinds,
+                budget.as_deref(),
                 format.into(),
             )?;
         }

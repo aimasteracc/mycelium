@@ -16,8 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (added without removing them). `OutputBudget` now exposes its size tier via a
   `mode: BudgetMode` (`small` / `medium` / `large`). Because both the CLI and
   MCP surfaces apply the same `mycelium_core::budget::apply_budget`, the object
-  is byte-identical across surfaces by construction (Three-Surface Rule). The
-  per-call `budget` request knob remains the next RFC-0102 increment.
+  is byte-identical across surfaces by construction (Three-Surface Rule).
+
+- **Per-call output budget override knob (RFC-0102).** `mycelium_context` now
+  accepts a `budget` override — `auto` (default, follows project size),
+  `small` / `medium` / `large` (pin a tier), or `disabled` (no truncation) —
+  via the MCP `budget` field and the CLI `mycelium context --budget` flag.
+  Both surfaces parse the same wire token through a shared `BudgetOverride`
+  `FromStr` and resolve it with `OutputBudget::resolve(over, node_count)`, so
+  the effective budget stays byte-identical across CLI and MCP. Unknown values
+  fail fast (MCP `application_error` / CLI non-zero exit). Rolling the knob
+  across the remaining graph-list tools is a mechanical follow-up.
 
 ## [0.1.19] - 2026-06-04
 

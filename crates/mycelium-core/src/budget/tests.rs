@@ -116,3 +116,85 @@ fn no_nested_budget_object_when_nothing_truncated() {
     assert!(v.get("budget").is_none());
     assert!(v.get("truncated").is_none());
 }
+
+// ---- RFC-0102 pending piece (1): per-call `budget` request override knob ----
+
+use super::BudgetOverride;
+
+#[test]
+fn resolve_none_and_auto_track_project_size() {
+    // No override (and explicit Auto) follow the project-size tier.
+    assert_eq!(
+        OutputBudget::resolve(None, 100),
+        OutputBudget::for_project(100)
+    );
+    assert_eq!(
+        OutputBudget::resolve(Some(BudgetOverride::Auto), 50_000),
+        OutputBudget::for_project(50_000)
+    );
+}
+
+#[test]
+fn resolve_explicit_tiers_ignore_project_size() {
+    // An explicit tier pins the caps regardless of how big the project is.
+    let small = OutputBudget::resolve(Some(BudgetOverride::Small), 50_000);
+    assert_eq!(small.mode, BudgetMode::Small);
+    assert_eq!((small.max_nodes, small.max_edges), (15, 30));
+
+    let medium = OutputBudget::resolve(Some(BudgetOverride::Medium), 10);
+    assert_eq!(medium.mode, BudgetMode::Medium);
+    assert_eq!((medium.max_nodes, medium.max_edges), (30, 60));
+
+    let large = OutputBudget::resolve(Some(BudgetOverride::Large), 10);
+    assert_eq!(large.mode, BudgetMode::Large);
+    assert_eq!((large.max_nodes, large.max_edges), (50, 100));
+}
+
+#[test]
+fn resolve_disabled_imposes_no_caps_and_never_truncates() {
+    let b = OutputBudget::resolve(Some(BudgetOverride::Disabled), 50_000);
+    assert_eq!(b.mode, BudgetMode::Disabled);
+    let mut v = json!({ "nodes": (0..10_000).collect::<Vec<_>>() });
+    apply_budget(&mut v, &b);
+    assert_eq!(v["nodes"].as_array().unwrap().len(), 10_000);
+    assert!(v.get("truncated").is_none());
+    assert!(v.get("budget").is_none());
+}
+
+#[test]
+fn budget_override_parses_case_insensitively() {
+    assert_eq!(
+        "auto".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Auto
+    );
+    assert_eq!(
+        "Small".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Small
+    );
+    assert_eq!(
+        "MEDIUM".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Medium
+    );
+    assert_eq!(
+        "large".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Large
+    );
+    assert_eq!(
+        "disabled".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Disabled
+    );
+}
+
+#[test]
+fn budget_override_rejects_unknown_value() {
+    let err = "huge".parse::<BudgetOverride>().unwrap_err();
+    assert!(
+        err.contains("huge"),
+        "error should name the bad value: {err}"
+    );
+}
+
+#[test]
+fn disabled_mode_wire_token() {
+    assert_eq!(BudgetMode::Disabled.as_str(), "disabled");
+}
