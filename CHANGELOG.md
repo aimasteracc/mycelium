@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Nested `budget {}` response object (RFC-0102).** When a tool response is
+  truncated by the adaptive output budget, it now carries a structured
+  `budget { mode, truncated, truncated_fields, total_available{…}, limits{…} }`
+  object alongside the existing flat `truncated` / `total_available` fields
+  (added without removing them). `OutputBudget` now exposes its size tier via a
+  `mode: BudgetMode` (`small` / `medium` / `large`). Because both the CLI and
+  MCP surfaces apply the same `mycelium_core::budget::apply_budget`, the object
+  is byte-identical across surfaces by construction (Three-Surface Rule). The
+  per-call `budget` request knob remains the next RFC-0102 increment.
+
 ## [0.1.19] - 2026-06-04
 
 ### Fixed
