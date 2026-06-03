@@ -1759,11 +1759,10 @@ impl MyceliumServer {
             let subs_for_match = Arc::clone(&subscriptions_cb);
             let ev_clone = ev.clone();
             let delta_clone = delta.clone();
-            let subs_snapshot: Vec<subscription::Subscription> =
-                subs_for_match
-                    .try_read()
-                    .map(|g| g.by_id.values().cloned().collect())
-                    .unwrap_or_default();
+            let subs_snapshot: Vec<subscription::Subscription> = subs_for_match
+                .try_read()
+                .map(|g| g.by_id.values().cloned().collect())
+                .unwrap_or_default();
             let mut payloads: Vec<(
                 String,
                 bool,
