@@ -2,7 +2,7 @@
 
 - **RFC**: 0106
 - **Title**: Server pushes a single `graphChanged` notification per committed watch batch
-- **Status**: **Accepted (Option B — custom JSON-RPC method `mycelium/graphChanged`)** ratified by founder 2026-06-03. GraphChangedEvent v1 shape (§4) frozen; `changed_files` cap at 50. Implementation tracked separately.
+- **Status**: **Implemented** (PR #466 merged 2026-06-03; shipped in v0.1.17 + v0.1.18). Option B — custom JSON-RPC method `mycelium/graphChanged` — ratified by founder 2026-06-03. GraphChangedEvent v1 shape (§4) frozen; `changed_files` cap at 50.
 - **Author**: rust-implementer
 - **Created**: 2026-06-03
 - **Depends on**: [RFC-0105](0105-shared-watch-engine-cli-watch.md) (provides the `on_batch` emit seam this RFC attaches to)
@@ -274,11 +274,15 @@ no new Three-Surface gate to cross.
 
 - [x] Founder ratified Option B (custom method `mycelium/graphChanged`) 2026-06-03.
 - [x] Founder approved the `GraphChangedEvent` v1 shape (§4) including 50-file cap.
-- [ ] Implementation PR opened against this RFC.
-- [ ] 4 RED-first MCP tests pass; RFC-0105 watch tests still green.
-- [ ] `skills/index-management/SKILL.md` documents how an agent registers a
-      handler for `mycelium/graphChanged`.
-- [ ] `CHANGELOG.md` "Unreleased / Added" entry includes the new transport.
+- [x] Implementation PR opened against this RFC (PR #466, merged 2026-06-03).
+- [x] 4 RED-first MCP tests pass; RFC-0105 watch tests still green
+      (`crates/mycelium-mcp/src/push.rs` test module + `crates/mycelium-mcp/src/tests.rs`).
+- [x] `skills/index-management/SKILL.md` documents how an agent registers a
+      handler for `mycelium/graphChanged` (`### mycelium/graphChanged — server-initiated push notification` section).
+- [x] `CHANGELOG.md` "Unreleased / Added" entry includes the new transport
+      (sealed into `[0.1.17]` and `[0.1.18]` releases).
+
+**Status: Implemented in v0.1.17 (impl) + v0.1.18 (with RFC-0107 fan-out).**
 
 ## 11. What this RFC does NOT do (deferred)
 

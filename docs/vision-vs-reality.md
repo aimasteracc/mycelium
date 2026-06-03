@@ -104,9 +104,9 @@
 |---|---|---|
 | 增量计算（"只重算改动部分"） | ✅ | watch 触发单文件增量重建（RFC-0008）；Salsa memoization 另在 cortex.rs Phase 1（RFC-0011） |
 | 文件监听 file watcher | ✅ | `notify::RecommendedWatcher` + 防抖 + 后台 loop |
-| watch 三端齐全（CLI+MCP+Skill） | ✅ | MCP `start_watch`/`stop_watch`/`watch_status` + **CLI `mycelium watch` 子命令已落地**（`crates/mycelium-cli/src/watch.rs`，含 `--subscribe <SPEC>`，RFC-0107 D5） |
+| watch 三端齐全（CLI+MCP+Skill） | 🟡 大头到位，尾巴未收 | MCP `start_watch`/`stop_watch`/`watch_status` + **CLI `mycelium watch` 子命令已落地**（`crates/mycelium-cli/src/watch.rs`，含 `--subscribe <SPEC>`，RFC-0107 D5）。**未完**：RFC-0105 自己仍标 *Partially Implemented* — `mycelium watch --status` 子命令与 CLI 集成测试延后到 follow-up；Three-Surface `EXCEPTION:` 一行仍待 founder ratification（见 RFC-0105 顶部状态） |
 | 重建期间查询看到一致快照 | ✅ | 原子换入该文件的 nodes/edges |
-| **主动推送 / 订阅传输给 agent** | ✅ | **已闭环**：`mycelium/graphChanged` 通知（RFC-0106，`push.rs`）+ 作用域 per-batch delta 订阅（RFC-0107，`subscription.rs`）+ 反应式查询订阅（RFC-0108，Salsa Phase 2）。469 处 `subscribe`，`contract_subscription.rs` 守护 |
+| **主动推送 / 订阅传输给 agent** | ✅ | **已闭环**：`mycelium/graphChanged` 通知（RFC-0106 **Implemented**，§10 所有 acceptance criteria 已勾，`push.rs`）+ 作用域 per-batch delta 订阅（RFC-0107，`subscription.rs`）+ 反应式查询订阅（RFC-0108 Salsa Phase 2，`query_delta.rs`）。`contract_subscription.rs` 守护三端一致 |
 
 ### 五、规模 + 打磨
 
