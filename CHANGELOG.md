@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
-- **ADR-0008**: redb as default storage backend (Phase 3 flip decision record). Documents the rationale for switching from `InMemoryBackend` to `RedbBackend` as the production default in v0.1.17, prerequisites met (equivalence tests, crash-safety, warm SLA), and open follow-ups (cold SLA measurement via RFC-0104, ADR numbering conflict).
+- **ADR-0008**: redb as default storage backend (Phase 3 flip decision record). Documents the rationale for switching from `InMemoryBackend` to `RedbBackend` as the production default in v0.1.17, prerequisites met (equivalence tests, crash-safety, warm SLA).
+- **ADR numbering fix**: renamed `docs/adr/0008-redb-storage-engine.md` → `docs/adr/0009-redb-storage-engine.md` (ADR-0009) to resolve the 0007/0008 slot collision; updated cross-references in `rfc-0100-execution-plan.md`, `rfcs/0104-charter-warm-cold-sla-split.md`, and `docs/adr/0008-redb-as-default-backend.md`.
 
 ## [0.1.18] - 2026-06-03
 
@@ -133,7 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0008
+- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0009
   Decision-4 (founder-authorized 2026-05-31) required splitting Charter §2's single
   SLA column into warm (page-cache steady-state, existing targets) and cold (first
   open after process restart, mmap page-fault path). This RFC formalises that split,
@@ -276,7 +277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeping the redb backend feature-gated off by default.
 
 - **RFC-0100 Phase 2 T05a — redb file-scoped replacement foundation** —
-  `RedbBackend` now has the ADR-0008 `file_index` table plus a feature-gated
+  `RedbBackend` now has the ADR-0009 `file_index` table plus a feature-gated
   `replace_file` API that atomically removes one file's old nodes/owned edges,
   strips stale external references, inserts the new file graph, and persists
   the replacement index in one redb write transaction. This advances Issue #343

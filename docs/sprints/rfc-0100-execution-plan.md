@@ -1,11 +1,11 @@
 # RFC-0100 Execution Plan — redb Storage Layer
 
 > Hive expert-team workflow (7 agents: 3 design -> 3 adversarial review -> 1 Lead synthesis), 2026-05-31.
-> **Planning only - no code.** Implementation gated on founder signing [ADR-0008](../adr/0008-redb-storage-engine.md).
+> **Planning only - no code.** Implementation gated on founder signing [ADR-0009](../adr/0009-redb-storage-engine.md).
 
 Companion to [RFC-0100](../../rfcs/0100-unified-storage-redb.md). Unifies R2 (#343) + R3 (#344).
 
-> **Founder decision overrides (2026-05-31) — see [ADR-0008 §Founder Decisions](../adr/0008-redb-storage-engine.md).**
+> **Founder decision overrides (2026-05-31) — see [ADR-0009 §Founder Decisions](../adr/0009-redb-storage-engine.md).**
 > Mycelium is **not yet launched**, so two tasks are simplified ("稳中求创新"):
 > - **Migration tasks:** build only a **minimal full-RAM importer**; **no streaming importer**. Pre-redb `.rmp` migration is best-effort dev-continuity, not a supported user path. `--reindex` (bounded rebuild from source) is the primary escape for large repos.
 > - **Phase 4 / legacy reader:** **auto-migrate on first open, then drop the legacy `.rmp` reader entirely** after the Phase-3 flip — no multi-release retention window.
@@ -199,7 +199,7 @@ The design is sound and the reviews are convergent and source-grounded — the l
 #### `P3-T02` Founder go/no-go gate: 6-point checklist sign-off (Lead-owned)
 - **Tier / role:** opus / orchestrator
 - **Depends on:** P3-T01
-- **Files:** `docs/adr/0008-redb-storage-engine.md`, `.hive/memory/decisions.jsonl`
+- **Files:** `docs/adr/0009-redb-storage-engine.md`, `.hive/memory/decisions.jsonl`
 - **Test (TDD, RED first):** Verify: (1) equivalence green full corpus, (2) OOM-divergence green, (3) crash suite green, (4) all 3 SLA tiers green, (5) >=90% line/>=80% branch/>=70% mutation, (6) ADR signed by founder. No specialist self-merge.
 - **Acceptance:** All six checked; decisions.jsonl entry recorded; PR to develop opened (NOT auto-merged) per no-auto-merge memory.
 
@@ -234,4 +234,4 @@ The design is sound and the reviews are convergent and source-grounded — the l
 - **Acceptance:** No dead code, no stale feature gates, clippy clean.
 
 ---
-*Each task is build-ready; implementation starts only after ADR-0008 is signed.*
+*Each task is build-ready; implementation starts only after ADR-0009 is signed.*
