@@ -1,6 +1,6 @@
 # RFC-0102: Adaptive output budgets for agent-facing results
 
-- **Status**: **Partially Implemented** (#395 + the RFC-0101 budget follow-up). `OutputBudget` + `apply_budget` live in `mycelium_core::budget` and are applied across the MCP tool surface **and** inside `mycelium_context` on both the MCP tool and the CLI twin — the same budget over the same payload, so CLI↔MCP stays byte-identical, and the two never-enforced fields (`max_code_lines` / `max_total_chars`) were removed. Truncation is visible via top-level `truncated` and `total_available`. **What's not yet shipped** (see §"What's still pending" + Acceptance Criteria): (1) the per-call `--budget`/`budget` request knob (`BudgetOptions { budget: BudgetOverride }`); (2) the nested `budget { mode, truncated, truncated_fields, total_available{...}, limits{...} }` response object described in §Detailed design — code only writes flat `truncated` + `total_available`.
+- **Status**: **Partially Implemented** (#395 + the RFC-0101 budget follow-up). `OutputBudget` + `apply_budget` live in `mycelium_core::budget` and are applied across the MCP tool surface **and** inside `mycelium_context` on both the MCP tool and the CLI twin — the same budget over the same payload, so CLI↔MCP stays byte-identical, and the two never-enforced fields (`max_code_lines` / `max_total_chars`) were removed. Truncation is visible via top-level `truncated` and `total_available` **and** the nested `budget { mode, truncated, truncated_fields, total_available{...}, limits{...} }` object (shipped on truncation; `OutputBudget` now carries a `mode: BudgetMode` tag; both surfaces call the same core `apply_budget`, so the object is byte-identical by construction). **What's not yet shipped** (see §"What's still pending" + Acceptance Criteria): the per-call `--budget`/`budget` request knob (`BudgetOptions { budget: BudgetOverride }`) — clients still cannot pick a tier or `disabled` per call; the budget remains server-derived. (When the knob lands, budget metadata becomes always-on rather than truncation-only.)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-01
 - **Last updated**: 2026-06-01
@@ -280,12 +280,20 @@ responses, the helper should short-circuit counting until a limit is near.
 - [x] MCP and CLI JSON outputs remain parity-equivalent for covered tools
       (the same `apply_budget` runs on the same payload — proven by the
       RFC-0101 `mycelium_context` byte-identical contract test).
-- [ ] Covered tools include `budget` metadata with `truncated`,
-      `truncated_fields`, `total_available`, and `limits`. **Only the flat
-      `truncated` + `total_available` fields are written today**
-      (`mycelium_core::budget::apply_budget`). The nested `budget {mode,
-      truncated_fields, total_available{nodes,edges}, limits{...}}` shape
-      described in §"Detailed design" is **not yet shipped**.
+- [x] Covered tools include `budget` metadata with `truncated`,
+      `truncated_fields`, `total_available`, and `limits`. The nested
+      `budget {mode, truncated, truncated_fields, total_available{...},
+      limits{max_nodes,max_edges}}` object is emitted by
+      `mycelium_core::budget::apply_budget` on truncation, **additively** —
+      the flat `truncated` + `total_available` fields are retained for
+      backward compatibility (RFC-0102 "add without removing existing keys").
+      Because both surfaces call the same core `apply_budget`, the object is
+      byte-identical across CLI and MCP by construction. *(`limits` carries
+      `max_nodes`/`max_edges`; the originally-sketched `max_total_chars` is
+      omitted because that field was removed from `OutputBudget` — see Status.)*
+      The nested object is currently emitted **only on truncation**, mirroring
+      the flat-field semantics; always-on metadata ships alongside the
+      `BudgetOptions` request knob (next increment).
 - [x] Structured truncation is used; no final-response string slicing
       (`apply_budget` operates on `serde_json::Value`, not the wire string).
 - [x] `get_all_symbols` keeps existing pagination keys (verified by the
