@@ -86,11 +86,14 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
           crate_published() {
-            # Use the version-specific endpoint: returns 200 if published, 404
-            # if not.  More responsive than the top-level crate object whose
-            # max_version field can be CDN-cached for several minutes after a
-            # fresh publish.
-            curl -sf "https://crates.io/api/v1/crates/$1/$VERSION" > /dev/null 2>&1
+            # Check the crates.io sparse index — the authoritative source cargo
+            # itself uses.  Updated within seconds of a successful publish,
+            # before the REST API reflects the new version.
+            # Path format for names ≥ 4 chars: {first2}/{next2}/{name}
+            local name="$1"
+            local prefix="${name:0:2}/${name:2:2}"
+            curl -sf "https://index.crates.io/${prefix}/${name}" \
+              | grep -qF "\"vers\":\"$VERSION\""
           }
 
           wait_for_crate() {
