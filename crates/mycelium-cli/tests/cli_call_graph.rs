@@ -46,11 +46,71 @@ fn get_callees_of_entry_includes_middle() {
         "stderr: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    let parsed: Vec<String> =
+    // RFC-0109 Option A: CLI --format json now emits the same object shape as
+    // the MCP tool (`{ "callee_paths": [...] }`), not a bare array.
+    let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let parsed: Vec<String> = value["callee_paths"]
+        .as_array()
+        .expect("callee_paths array")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
     assert!(
         parsed.iter().any(|p| p.contains("middle")),
         "got {parsed:?}"
+    );
+}
+
+// RFC-0109 Option A + RFC-0102 knob on get-callees (CLI surface).
+
+#[test]
+fn get_callees_json_is_object_with_callee_paths_key() {
+    let project = prepare_chain_project();
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-callees", "src/lib.rs>entry", "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    // Object shape (not a bare array) — the byte-identical twin of the MCP tool.
+    assert!(
+        value
+            .get("callee_paths")
+            .and_then(|v| v.as_array())
+            .is_some(),
+        "expected object with callee_paths array, got: {value}"
+    );
+}
+
+#[test]
+fn get_callees_budget_disabled_accepted_unknown_rejected() {
+    let project = prepare_chain_project();
+    let ok = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args([
+            "get-callees",
+            "src/lib.rs>entry",
+            "--format",
+            "json",
+            "--budget",
+            "disabled",
+        ])
+        .output()
+        .unwrap();
+    assert!(ok.status.success(), "--budget disabled should be accepted");
+
+    let bad = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-callees", "src/lib.rs>entry", "--budget", "huge"])
+        .output()
+        .unwrap();
+    assert!(!bad.status.success(), "unknown --budget must fail");
+    assert!(
+        String::from_utf8_lossy(&bad.stderr).contains("huge"),
+        "error should name the bad value"
     );
 }
 

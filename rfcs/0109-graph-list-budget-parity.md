@@ -98,16 +98,29 @@ shared builders (mirroring `context`) returning the object shape, then:
 Roll out incrementally, one tool per PR, RED-first, each behind a green
 byte-identical contract test.
 
+### Roll-out progress
+
+| Tool | Shared builder | CLI object shape | `--budget`/`budget` | PR |
+|---|---|---|---|---|
+| `get_callees` | `mycelium_core::queries::callees_payload` | ✅ | ✅ | (this RFC's first impl) |
+| `get_callers` | — | — | — | pending |
+| `get_dead_symbols` | — | — | — | pending |
+| `get_isolated_symbols` | — | — | — | pending |
+| `get_reachable` / `get_reachable_to` | — | — | — | pending (already object-shaped on MCP) |
+| `get_all_symbols` | — | — | — | pending (bespoke pagination — reconcile) |
+
 ## Acceptance criteria
 
 - [x] BDFL decision recorded — **Option A** (see Status; ratified 2026-06-03 UTC
       under the autonomous-development mandate, citing ADR-0009's pre-launch
       principle).
-- [ ] (Option A) A shared core builder exists per rolled-out list tool; CLI and
-      MCP both call it; a byte-identical contract test guards each.
-- [ ] (Option A) `--budget`/`budget` accepted on each rolled-out tool, resolving
+- [~] (Option A) A shared core builder exists per rolled-out list tool; CLI and
+      MCP both call it; a byte-identical contract test guards each. **Started:
+      `get_callees` routes both surfaces through
+      `mycelium_core::queries::callees_payload`; remaining tools pending.**
+- [~] (Option A) `--budget`/`budget` accepted on each rolled-out tool, resolving
       via the shared `OutputBudget::resolve`; unknown value fails fast on both
-      surfaces.
+      surfaces. **Started: `get_callees` done on both surfaces.**
 - [ ] CHANGELOG `[Unreleased]` notes the CLI JSON shape change (Option A) or the
       documented EXCEPTION (Option B).
 - [ ] RFC-0102's "roll knob across remaining graph-list tools" item is closed by
