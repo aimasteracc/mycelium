@@ -874,6 +874,46 @@ fn extractor_rust_call_creates_calls_edge() {
     );
 }
 
+/// Dogfood-discovered regression (2026-06-03): the Rust extractor missed
+/// `Type::method()` call expressions because the only call queries matched
+/// `(identifier)` and `(field_expression)` function expressions. `WatchEngine::drive(...)`
+/// in real code produced zero Calls edges. This test pins the additive
+/// `(scoped_identifier name: ...)` query and tracks the regression at the
+/// extractor layer; cross-file resolution to the typed method body is a
+/// separate concern that the bare-stub resolver handles.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_rust_scoped_method_call_creates_calls_edge() {
+    let source = "fn outer() { WatchEngine::drive(); }";
+    let store = extract_rs(source);
+    let caller = store.lookup("test.rs>outer").expect("outer must exist");
+    // Cross-file resolution produces a bare stub `drive` at the top level
+    // (later resolved by `resolve_bare_call_stubs` against the typed body).
+    let callee = store
+        .lookup("drive")
+        .expect("`drive` bare stub must exist after extraction");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "outer should have a Calls edge to the `drive` stub for `WatchEngine::drive(...)`"
+    );
+}
+
+/// Module-qualified path-style call: `crate::module::function()`.
+#[test]
+#[allow(clippy::similar_names)]
+fn extractor_rust_qualified_path_call_creates_calls_edge() {
+    let source = "fn outer() { crate::watch::start(); }";
+    let store = extract_rs(source);
+    let caller = store.lookup("test.rs>outer").expect("outer must exist");
+    let callee = store
+        .lookup("start")
+        .expect("`start` bare stub must exist for `crate::watch::start()`");
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee),
+        "outer should have a Calls edge to the `start` stub"
+    );
+}
+
 // ── RFC-0014: cross-file call stub resolution ────────────────────────────
 
 #[test]
