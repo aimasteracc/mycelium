@@ -26,6 +26,36 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
     json!({ "callee_paths": paths })
 }
 
+/// Build the `{ "caller_paths": [...] }` payload for `get_callers`.
+///
+/// The sorted, deduplicated trunk paths that reach `id` via one incoming `kind`
+/// edge. When `include_virtual` and `kind == Calls`, virtual-dispatch callers of
+/// `path` (callers of an ancestor method of the same name) are merged in.
+#[must_use]
+pub fn callers_payload(
+    store: &Store,
+    id: NodeId,
+    path: &str,
+    kind: EdgeKind,
+    include_virtual: bool,
+) -> Value {
+    let mut paths: Vec<String> = store
+        .incoming(id, kind)
+        .iter()
+        .filter_map(|&src| store.path_of(src).map(str::to_owned))
+        .collect();
+    if kind == EdgeKind::Calls && include_virtual {
+        paths.extend(
+            store
+                .virtual_dispatch_callers_of_path(path)
+                .unwrap_or_default(),
+        );
+    }
+    paths.sort();
+    paths.dedup();
+    json!({ "caller_paths": paths })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -62,5 +92,23 @@ mod tests {
         let leaf = store.upsert_node(p("src/a.rs>A>leaf"));
         let v = callees_payload(&store, leaf, EdgeKind::Calls);
         assert_eq!(v["callee_paths"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn callers_payload_is_a_sorted_deduped_object() {
+        let mut store = Store::new();
+        let target = store.upsert_node(p("src/t.rs>T>target"));
+        let z = store.upsert_node(p("src/z.rs>Z>zeta"));
+        let b = store.upsert_node(p("src/b.rs>B>beta"));
+        store.upsert_edge(EdgeKind::Calls, z, target);
+        store.upsert_edge(EdgeKind::Calls, b, target);
+
+        let v = callers_payload(&store, target, "src/t.rs>T>target", EdgeKind::Calls, false);
+        let arr = v["caller_paths"]
+            .as_array()
+            .expect("caller_paths must be an array");
+        assert_eq!(arr[0], "src/b.rs>B>beta");
+        assert_eq!(arr[1], "src/z.rs>Z>zeta");
+        assert_eq!(arr.len(), 2);
     }
 }

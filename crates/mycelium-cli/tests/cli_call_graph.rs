@@ -64,6 +64,73 @@ fn get_callees_of_entry_includes_middle() {
 
 // RFC-0109 Option A + RFC-0102 knob on get-callees (CLI surface).
 
+/// `entry()` that calls `f0()..f{n-1}()` — a fan-out wide enough to exceed the
+/// small-project edge budget (30) so truncation is observable.
+fn prepare_wide_callee_project(n: usize) -> tempfile::TempDir {
+    use std::fmt::Write as _;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let mut src = String::new();
+    for i in 0..n {
+        let _ = writeln!(src, "pub fn f{i}() {{}}");
+    }
+    src.push_str("pub fn entry() {\n");
+    for i in 0..n {
+        let _ = writeln!(src, "    f{i}();");
+    }
+    src.push_str("}\n");
+    std::fs::write(root.join("src/lib.rs"), src).unwrap();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let status = Command::new(mycelium_bin())
+        .args(["index", root.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    dir
+}
+
+#[test]
+fn get_callees_text_mode_full_but_json_budgeted() {
+    // RFC-0102 / Codex #504 P2: default text mode must NOT silently truncate a
+    // human's list, while JSON mode applies the budget (parity with MCP).
+    let project = prepare_wide_callee_project(35); // 35 > small edge budget (30)
+
+    // JSON (default auto budget) → truncated to 30 with metadata.
+    let json_out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-callees", "src/lib.rs>entry", "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(json_out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(json_out.stdout).unwrap().trim()).unwrap();
+    assert_eq!(
+        value["callee_paths"].as_array().unwrap().len(),
+        30,
+        "JSON mode should apply the default budget"
+    );
+    assert_eq!(value["truncated"], true);
+
+    // Default text mode → full list, no silent truncation.
+    let text_out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-callees", "src/lib.rs>entry"])
+        .output()
+        .unwrap();
+    assert!(text_out.status.success());
+    let lines = String::from_utf8(text_out.stdout)
+        .unwrap()
+        .lines()
+        .filter(|l| l.contains(">f"))
+        .count();
+    assert_eq!(lines, 35, "text mode must print the full caller list");
+}
+
 #[test]
 fn get_callees_json_is_object_with_callee_paths_key() {
     let project = prepare_chain_project();
@@ -123,8 +190,16 @@ fn get_callers_of_leaf_includes_middle() {
         .output()
         .unwrap();
     assert!(out.status.success());
-    let parsed: Vec<String> =
+    // RFC-0109 Option A: object shape `{ "caller_paths": [...] }`, byte-identical
+    // to the MCP tool.
+    let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let parsed: Vec<String> = value["caller_paths"]
+        .as_array()
+        .expect("caller_paths array")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
     assert!(
         parsed.iter().any(|p| p.contains("middle")),
         "got {parsed:?}"

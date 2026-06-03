@@ -720,6 +720,7 @@ async fn get_callers_returns_functions_that_call_path() {
             edge_kind: None,
             include_virtual: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6134,6 +6135,7 @@ async fn get_callers_include_virtual_surfaces_virtual_dispatch_caller() {
             edge_kind: None,
             include_virtual: Some(true),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6155,6 +6157,7 @@ async fn get_callers_default_does_not_include_virtual() {
             edge_kind: None,
             include_virtual: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6198,6 +6201,7 @@ async fn test_get_callers_text_format() {
             edge_kind: None,
             include_virtual: None,
             output_format: Some(OutputFormat::Text),
+            budget: None,
         }))
         .await;
     assert!(
@@ -6469,6 +6473,7 @@ async fn get_callers_edge_kind_extends_returns_extenders() {
             edge_kind: Some("extends".to_string()),
             include_virtual: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
