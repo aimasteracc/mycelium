@@ -198,3 +198,39 @@ fn budget_override_rejects_unknown_value() {
 fn disabled_mode_wire_token() {
     assert_eq!(BudgetMode::Disabled.as_str(), "disabled");
 }
+
+// ---- RFC-0102 key coverage: tools emit `callee_paths` / `caller_paths` /
+//      `dead_symbols` / `isolated_symbols`, which were NOT in the cap list, so
+//      `apply_budget` silently no-opped for get_callees/get_callers/
+//      get_dead_symbols/get_isolated_symbols. These caps close that gap. ----
+
+#[test]
+fn caps_callee_and_caller_paths_at_edge_cap() {
+    for key in ["callee_paths", "caller_paths"] {
+        let mut v = json!({ key: (0..200).collect::<Vec<_>>() });
+        apply_budget(&mut v, &OutputBudget::for_project(100)); // max_edges = 30
+        assert_eq!(
+            v[key].as_array().unwrap().len(),
+            30,
+            "{key} should be capped at max_edges"
+        );
+        assert_eq!(v["truncated"], true);
+        assert_eq!(v["budget"]["truncated_fields"], json!([key]));
+        assert_eq!(v["budget"]["total_available"][key], 200);
+    }
+}
+
+#[test]
+fn caps_dead_and_isolated_symbols_at_node_cap() {
+    for key in ["dead_symbols", "isolated_symbols"] {
+        let mut v = json!({ key: (0..40).collect::<Vec<_>>() });
+        apply_budget(&mut v, &OutputBudget::for_project(100)); // max_nodes = 15
+        assert_eq!(
+            v[key].as_array().unwrap().len(),
+            15,
+            "{key} should be capped at max_nodes"
+        );
+        assert_eq!(v["truncated"], true);
+        assert_eq!(v["budget"]["total_available"][key], 40);
+    }
+}

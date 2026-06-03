@@ -177,10 +177,29 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
         }
     };
 
-    for key in ["nodes", "paths", "results", "symbols"] {
+    // Node-shaped arrays. `dead_symbols` / `isolated_symbols` are the keys the
+    // get_dead_symbols / get_isolated_symbols tools actually emit (they are not
+    // `symbols`), so they must be listed explicitly or their budget no-ops.
+    for key in [
+        "nodes",
+        "paths",
+        "results",
+        "symbols",
+        "dead_symbols",
+        "isolated_symbols",
+    ] {
         cap(key, budget.max_nodes);
     }
-    for key in ["edges", "callees", "callers", "reachable"] {
+    // Edge-shaped arrays. `callee_paths` / `caller_paths` are the keys the
+    // get_callees / get_callers tools actually emit (not `callees`/`callers`).
+    for key in [
+        "edges",
+        "callees",
+        "callers",
+        "reachable",
+        "callee_paths",
+        "caller_paths",
+    ] {
         cap(key, budget.max_edges);
     }
 
