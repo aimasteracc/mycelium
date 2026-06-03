@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v19 — PRs #470+#471 merged/rebased; PR #472 CI fixed (rustdoc+coverage); RFC-0108 doc-only PR #473 opened) |
-| Current sprint | **v0.1.17 — RELEASE CEREMONY + reactive roadmap (RFC-0107 SUBSCRIBE CI fix in flight)** |
+| Last updated | 2026-06-03 (PM dispatch v20 — PR #471 merged; PR #472 rebased on develop; PR #452 `publish to crates.io` running) |
+| Current sprint | **v0.1.17 — RELEASE CEREMONY IN PROGRESS (`publish to crates.io` job running on PR #452)** |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -97,7 +97,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **Pre-release**: CHANGELOG Unreleased section verified ✅ (v12)
 - [ ] **Step 1**: `release/v0.1.17` → `main` (founder authorization required)
   - PR #452: Quality Gate ✅ SUCCESS (required branch-protection check)
-  - ~~⚠️ `publish to crates.io` FAILURE (v13: timeout 120s)~~ → ~~PARTIAL FIX (v15): wait 360s~~ → ~~PARTIAL FIX (v16): `max_version` API~~ → **ROOT CAUSE FIX (v18)**: `62a2478` removes `tr '-' '_'` URL encoding. **FINAL FIX (v19)**: PR #471 adds `continue` after already-exists skip (prevents `wait_for_crate` timeout on idempotent re-runs). PR #471 rebased to develop; cherry-pick to release/v0.1.17 pending CI green.
+  - ~~⚠️ `publish to crates.io` FAILURE (v13: timeout 120s)~~ → ~~PARTIAL FIX (v15): wait 360s~~ → ~~PARTIAL FIX (v16): `max_version` API~~ → **ROOT CAUSE FIX (v18)**: `62a2478` removes `tr '-' '_'` URL encoding. **FINAL FIX (v19)**: PR #471 adds `continue` after already-exists skip. ✅ **v20**: PR #471 merged `8c225fd`; `release/v0.1.17` already has `continue` fix (verified grep). **PR #452 Quality Gate ✅, `publish to crates.io` `in_progress` (06:18:26 start)**
   - **Once PR #452 all CI checks SUCCESS/SKIPPED**: founder authorizes `scripts/release-ceremony.sh` Steps 1–4.
 - [ ] **Step 2**: Tag `v0.1.17` pushed
 - [ ] **Step 3**: GitHub Release published + 5 crates on crates.io
@@ -112,12 +112,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (v0.1.17 release gates):**
 1. ✓ Security scan post-v0.1.16 — COMPLETE ✅
 2. ✓ Cut `release/v0.1.17` — COMPLETE ✅ (PR #452 + PR #453 open)
-3. ✓ release.yml CI fix: PR #455 (timeout), PR #462 (max_version), PR #468 (URL fix), **PR #471 (continue fix)** — all merged/rebased to develop
-4. **PR #471** (continue fix): rebased to develop HEAD, CI re-running. Once CI green: merge to develop + cherry-pick to `release/v0.1.17`.
-5. **Wait for PR #452 CI green** → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
+3. ✓ release.yml CI fix: PR #455 (timeout), PR #462 (max_version), PR #468 (URL fix), **PR #471 (continue fix)** — all merged to develop ✅
+4. ✓ **PR #471** merged to develop (`8c225fd`); `release/v0.1.17` continue fix already present ✅
+5. **PR #452**: Quality Gate ✅, `publish to crates.io` in_progress (v20: job running). Once ALL CI SUCCESS/SKIPPED → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
 
 **P1 (reactive roadmap — RFC-0107):**
-6. **PR #472** (RFC-0107 SUBSCRIBE): CI fix pushed — rustdoc broken-link + 10 coverage tests (22/22 GREEN locally). CI re-running. Once green: merge to develop.
+6. **PR #472** (RFC-0107 SUBSCRIBE): rebased on develop (resolved decisions.jsonl + RFC-0107 status conflicts, `45ef29c`). CI running — fast-lane green. Once full CI green: merge to develop.
 7. **PR #473** (RFC-0108 doc-only): CI SUCCESS. Waiting founder D1–D4 ratification before implementation PR can open.
 8. **RFC-0105 Three-Surface EXCEPTION**: `feature/rfc-0105-watch-engine` CI SUCCESS. Awaiting founder EXCEPTION ratification.
 
@@ -134,15 +134,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v19 — PRs #470+#471 merged/rebased; PR #472 CI fix in flight; RFC-0108 PR #473 opened)
+## Dispatch state (2026-06-03 v20 — PR #471 merged; PR #472 rebased; PR #452 publish in_progress)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) **PR #452 CI**: once ALL checks SUCCESS/SKIPPED, authorize `scripts/release-ceremony.sh` Steps 1–4. Also cherry-pick PR #471 continue-fix to `release/v0.1.17` first if CI hasn't already picked it up. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **RFC-0108 D1–D4**: ratify or reject four reactive-query decisions (PR #473 doc-only — "全选推荐" applies). (4) **RFC-0107 ratification** once PR #472 CI green. (5) **RFC-0105 Three-Surface EXCEPTION**: ratify or reject. |
-| PM | **DONE ✅** | PR #470 merged; PR #471 rebased; PR #472 CI fix pushed; PM state v19 updated. |
-| rust-implementer | **WAITING CI** | PR #472 (RFC-0107 SUBSCRIBE): rustdoc link + 10 coverage tests pushed, CI re-running. Once green: merge to develop. RFC-0105 gated on founder EXCEPTION. |
+| founder | **action requested** | (1) **PR #452**: once `publish to crates.io` SUCCESS → run `scripts/release-ceremony.sh` Steps 1–4 (merge→main, tag, GitHub Release, back-merge). No cherry-pick needed — `release/v0.1.17` already has all CI fixes. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **RFC-0107**: ratify once PR #472 CI green. (4) **RFC-0108 D1–D4**: "全选推荐" ratification (PR #473). (5) **RFC-0105 Three-Surface EXCEPTION**: ratify or reject. |
+| PM | **DONE ✅** | PR #471 merged (`8c225fd`); PR #472 rebased (`45ef29c`); PR #475 merged (v19); PM state v20 updated. |
+| rust-implementer | **WAITING CI** | PR #472 (RFC-0107 SUBSCRIBE): rebased on develop, fast-lane green. Once full CI green: merge to develop. RFC-0105 gated on founder EXCEPTION. |
 | security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN. |
-| release | **WAITING** | PR #452 CI re-running (release workflow). PR #471 continue-fix to cherry-pick after CI green. Awaiting founder ceremony auth. |
+| release | **WAITING** | PR #452 `publish to crates.io` in_progress (first time job has actually run — URL + continue fixes applied). Awaiting founder ceremony auth once publish SUCCESS. |
 | bench | **P1** | Run `sla_ancestors_100k` nightly for RFC-0104 cold SLA numbers. |
 | e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands). |
 | architect | idle | ADR-0008: redb as default backend (required before v0.2.0). |
@@ -173,6 +173,25 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v20 (this run — PR #471 merged; PR #472 rebased; PR #452 publish running)
+
+**Pre-flight:** Resumed from v19 context (summary). Read CHARTER.md, _orchestrator.md, anti-patterns, PM state v19, v0.2 PRD.
+
+**Assessment:**
+- 5 open PRs: #452 (release→main, Quality Gate ✅, publish in_progress), #453 (back-merge), #472 (RFC-0107, dirty/rebased), #473 (RFC-0108 doc-only, CI SUCCESS), #475 (PM chore v19, CI running).
+- develop HEAD: `d3b3f1e` (v19 merged).
+
+**Actions taken:**
+1. **Merged PR #471** (continue fix, squash `8c225fd`) → develop. ✅
+2. **Verified** `release/v0.1.17` already has `continue` fix via grep — no cherry-pick needed. ✅
+3. **Rebased PR #472** (`feature/rfc-0107-subscribe`) onto develop: resolved 2 conflicts (decisions.jsonl vt18 entry append-only; RFC-0107 status kept HEAD "Accepted"). Force-pushed (`45ef29c`). CI triggered. ✅
+4. **Merged PR #475** (PM chore v19, squash `d3b3f1e`) → develop. ✅
+5. PR #452: Quality Gate ✅, `publish to crates.io` in_progress — first time this job is actually running with the correct URL + continue fixes applied. ✅
+
+**Escalations:**
+- Founder: PR #452 `publish to crates.io` running. Once all CI SUCCESS/SKIPPED, run `scripts/release-ceremony.sh` Steps 1–4.
+- Founder: RFC-0107, RFC-0108 D1–D4, RFC-0105 EXCEPTION all pending.
 
 ### 2026-06-03 PM dispatch v18 (this run — PR #468 merged; URL fix cherry-picked to release/v0.1.17 as `62a2478`)
 

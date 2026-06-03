@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rust extractor now captures `Type::method()` and `crate::mod::func()` call
+  sites.** Surfaced by dogfooding the Mycelium repo against itself
+  (2026-06-03): `WatchEngine::drive(...)` from the watch session and CLI
+  produced zero `Calls` edges. The Rust pack's `queries.scm` only matched
+  `(identifier)` and `(field_expression)` function forms, missing every
+  scoped-path call. Added an additive `(scoped_identifier name: ...)` query
+  that captures the last-segment identifier; cross-file stub resolution
+  picks it up unchanged. Two new regression tests
+  (`extractor_rust_scoped_method_call_creates_calls_edge`,
+  `extractor_rust_qualified_path_call_creates_calls_edge`).
+
 ### Added
 
 - **SUBSCRIBE — per-subscription scoped `mycelium/subscriptionDelta`
