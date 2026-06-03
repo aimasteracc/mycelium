@@ -326,21 +326,46 @@ pub(crate) fn run_get_callees(
     root: &Path,
     path: &str,
     edge_kind: &str,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
     let kind = parse_edge_kind(edge_kind)?;
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
-    let mut paths: Vec<String> = store
-        .outgoing(id, kind)
-        .iter()
-        .filter_map(|&t| store.path_of(t).map(str::to_owned))
-        .collect();
-    paths.sort_unstable();
-    paths.dedup();
-    print_string_list(&paths, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::callees_payload(&store, id, kind);
+    apply_budget(
+        &mut value,
+        &OutputBudget::resolve(budget_override, store.node_count()),
+    );
+    print_object_with_list(&value, "callee_paths", format)
+}
+
+/// Print a graph-list payload object: the full object in `--format json` (the
+/// byte-identical twin of the MCP tool), or just the named list, one item per
+/// line, in text mode (RFC-0109 Option A).
+fn print_object_with_list(value: &serde_json::Value, list_key: &str, format: Format) -> Result<()> {
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(value)?),
+        Format::Text => {
+            if let Some(arr) = value[list_key].as_array() {
+                for item in arr {
+                    if let Some(s) = item.as_str() {
+                        println!("{s}");
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn run_get_callers(

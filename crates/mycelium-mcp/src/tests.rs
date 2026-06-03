@@ -691,6 +691,7 @@ async fn get_callees_returns_functions_called_by_path() {
             path: "src/lib.rs>foo".to_string(),
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -746,6 +747,7 @@ async fn get_callees_returns_error_for_unknown_path() {
             path: "no/such/path".to_string(),
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6176,6 +6178,7 @@ async fn test_get_callees_text_format() {
             path: "src/greet.rs>greet".to_owned(),
             edge_kind: None,
             output_format: Some(OutputFormat::Text),
+            budget: None,
         }))
         .await;
     // Text format must not start with a JSON brace.
@@ -6440,6 +6443,7 @@ async fn get_callees_edge_kind_imports_returns_import_targets() {
             path: "src/a.rs>ModA".to_string(),
             edge_kind: Some("imports".to_string()),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();

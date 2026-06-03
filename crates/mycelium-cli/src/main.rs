@@ -226,6 +226,10 @@ enum Cmd {
         /// Edge kind to traverse: calls (default), imports, extends, implements.
         #[arg(long, default_value = "calls")]
         edge_kind: String,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return the direct callers of a symbol (incoming `Calls` edges).
     GetCallers {
@@ -1206,9 +1210,16 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             root,
             format,
             edge_kind,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callees(&canonical, &path, &edge_kind, format.into())?;
+            queries::run_get_callees(
+                &canonical,
+                &path,
+                &edge_kind,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetCallers {
             path,
