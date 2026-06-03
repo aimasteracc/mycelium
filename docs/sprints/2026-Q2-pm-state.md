@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v25 — PRs #485+#486 merged; ADR numbering fix: 0008-redb-storage-engine → 0009; v0.1.18 ceremony still BROKEN pending founder) |
-| Current sprint | **v0.1.18 — CEREMONY BROKEN (PR #482 auto-closed; back-merge done; crates.io published orphan); founder action required** |
-| Active release branch | `release/v0.1.18` — PR #482 **AUTO-CLOSED** (main not touched); back-merge PR #483 ✅ MERGED to develop |
-| Next release target | **v0.1.18** — RFC-0107 SUBSCRIBE + RFC-0108 Salsa Phase 2 + Rust scoped-call fix + reactive roadmap 4/4 COMPLETE |
+| Last updated | 2026-06-03 (PM dispatch v26 — PR #501 merged (RFC-0109 get_callees); PR #496 ADR-0010 Codex P2 fixed; v0.1.17–v0.1.19 ceremonies COMPLETE per founder ceremony script) |
+| Current sprint | **v0.1.20 — RFC-0109 roll-out in progress (get_callees ✅; get_callers / dead_symbols / isolated_symbols / reachable / all_symbols next)** |
+| Active release branch | none — develop clean post-v0.1.19 |
+| Next release target | **v0.1.20** — RFC-0109 shared-builder roll-out for remaining 5 graph-list tools |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.17 (PARTIAL)** — crates.io ✅ npm ✅ PyPI ✅ published; git ceremony INCOMPLETE (tag + main merge + GitHub Release pending). Last *fully* shipped: **v0.1.16** (all 4 ceremony steps 2026-06-02). |
+| Last shipped | **v0.1.19 (COMPLETE)** — Rust extractor precision 67%→99.8% + ADR-0008 redb default; tag ✅ GH Release ✅ (2026-06-03T15:49Z) back-merge ✅ (PR #493). |
 
 ---
 
@@ -78,7 +78,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## ⚠️ v0.1.17 — CRATES PUBLISHED; GIT CEREMONY SUPERSEDED BY v0.1.18
+## ✅ v0.1.17 — RETRO-TAG / CEREMONY COMPLETE (founder ceremony 2026-06-03)
 
 **Content already on develop (post-v0.1.16):**
 - [x] RFC-0101 Phase 2: `mycelium context` CLI twin — Three-Surface Rule fully satisfied (PR #414)
@@ -92,18 +92,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
 - [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
 
-**v0.1.17 ceremony status — PARTIAL (crates only; git superseded by v0.1.18):**
+**v0.1.17 ceremony status — RETRO-TAG COMPLETE ✅ (founder ceremony 2026-06-03T12:31Z):**
 - [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅
-- [x] **Pre-release**: `publish to crates.io/npm/PyPI` ✅ — all 5 crates at v0.1.17. npm + PyPI bindings also published.
+- [x] **Pre-release**: `publish to crates.io/npm/PyPI` ✅ — all 5 crates at v0.1.17.
+- [x] **Step 2**: Retro-tag `v0.1.17` pushed ✅ (SHA 6aa1bede, founder ceremony)
+- [x] **Step 3**: GitHub Release v0.1.17 created ✅ (2026-06-03T12:31Z) — noted as retro-tag; v0.1.18 ceremony folds v0.1.17 → main
 - [x] **Step 4**: Back-merge `release/v0.1.17` → `develop` — **PR #477 MERGED ✅** 2026-06-03T07:54Z
-- ❌ **Step 1**: PR #452 (→ main) — `dirty` in GitHub; main has `.claude/worktrees/wf_*` stale files + `docs/adr/0007-redb-storage-engine.md` that release/v0.1.17 doesn't have. **Superseded by v0.1.18 strategy** (PR #482 branches from develop HEAD which has all v0.1.17 content).
-- ❌ **Step 2**: Tag `v0.1.17` — NOT pushed (latest tag: `v0.1.16`). Skipped per v0.1.18 strategy.
-- ❌ **Step 3**: GitHub Release not created.
-- **⚠️ FOUNDER DECISION NEEDED**: (a) Close PR #452 as superseded by v0.1.18; (b) confirm v0.1.17 git ceremony is intentionally skipped (crates.io version exists; main will jump v0.1.16 → v0.1.18 after PR #482).
+- ℹ️ **Step 1**: main merge folded into v0.1.18 ceremony (not a separate PR).
 
 ---
 
-## 🔥 v0.1.18 — RELEASE IN PROGRESS (CI running, founder auth pending)
+## ✅ v0.1.18 — SHIPPED (ceremony COMPLETE — founder ceremony 2026-06-03T12:30Z)
 
 **What ships in v0.1.18 (from PR #482):**
 - [x] **RFC-0107 SUBSCRIBE**: `mycelium_subscribe`, `mycelium_unsubscribe`, `mycelium_subscription_status` (3 new MCP tools = 93 total). `mycelium watch --subscribe` CLI face. Per-batch delta notifications scoped to `Interest` (Files/Symbols/Hyphae).
@@ -112,61 +111,66 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **fix(packs/rust)**: Capture `Type::method()` and `crate::mod::func()` call sites — dogfood correctness (PR #474).
 - Reactive-completion roadmap: **4/4 COMPLETE** (watch ✅ push ✅ subscribe ✅ salsa ✅).
 
-**v0.1.18 ceremony status — BROKEN ⚠️ (same systemic failure as v0.1.15):**
+**v0.1.18 ceremony status — ALL FOUR STEPS COMPLETE ✅ (founder ceremony script):**
 - [x] Release branch `release/v0.1.18` cut from develop HEAD `5a7ad556`
-- [x] CI: Quality Gate ✅ SUCCESS (all 40 checks green — matrix linux/mac/win/nightly + coverage + release build)
-- ⚠️ **`publish to crates.io`**: ✅ SUCCESS (09:09:31Z) — orphan publish (no tag, no main merge yet)
-- ❌ **Step 1**: PR #482 **AUTO-CLOSED** by release.yml at 09:10:59Z WITHOUT merging (same bug as v0.1.6–v0.1.17). main still at v0.1.16.
-- ❌ **Step 2**: Tag `v0.1.18` NOT created (latest tag = v0.1.16).
-- ❌ **Step 3**: GitHub Release NOT created (latest release = v0.1.16).
-- ✅ **Step 4**: PR #483 back-merge MERGED to develop (2026-06-03T09:10:56Z) — done out of order before Step 1.
-- **Root cause**: release.yml merge step uses `RELEASE_BOT_TOKEN` for auto-merge; token configured but merge step still fails → workflow closes PR instead of merging. SYSTEMIC since v0.1.6.
-- **Repair path**: Founder uses `scripts/release-ceremony.sh` to directly merge `release/v0.1.18` → main (branch still exists), push tag `v0.1.18`, create GitHub Release. Steps 2–4 already done (crates ✅, back-merge ✅).
+- [x] CI: Quality Gate ✅ SUCCESS (all 40 checks green)
+- [x] **`publish to crates.io`**: ✅ SUCCESS — all 5 crates at v0.1.18
+- [x] **Step 1**: `release/v0.1.18` → `main` — founder ceremony (folds v0.1.17 → main also; GH Release notes v0.1.18 confirms)
+- [x] **Step 2**: Tag `v0.1.18` pushed ✅ (SHA e429a224, 2026-06-03T12:30Z)
+- [x] **Step 3**: GitHub Release v0.1.18 created ✅ (2026-06-03T12:30Z) — "reactive-completion roadmap complete"
+- [x] **Step 4**: PR #483 back-merge MERGED to develop (2026-06-03T09:10:56Z) ✅
+- ✅ RFC-0105 EXCEPTION ratified by founder — PR #491 (2026-06-03)
+
+---
+
+## ✅ v0.1.19 — SHIPPED (ceremony COMPLETE — founder ceremony 2026-06-03T15:49Z)
+
+**What shipped:**
+- [x] fix(packs/rust): extractor precision 67% → 99.8% recall (5 additive queries.scm patterns; PR #492)
+- [x] docs(adr): ADR-0008 redb as default backend; ADR-0009 numbering fix (PRs #485, #486)
+- [x] docs(rules): Codex review Hard Rule added to CLAUDE.md (#488); vision scorecard updated (#489)
+
+**v0.1.19 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
+- [x] **Step 1**: `release/v0.1.19` → `main` — founder ceremony ✅
+- [x] **Step 2**: Tag `v0.1.19` pushed ✅ (SHA 55761a85, 2026-06-03)
+- [x] **Step 3**: GitHub Release v0.1.19 created ✅ (2026-06-03T15:49Z) — "precision pass + codegraph benchmark"
+- [x] **Step 4**: Back-merge PR #493 MERGED ✅ (develop HEAD = `55761a8`)
 
 ---
 
 ## Live priorities (ordered)
 
-**P0 (v0.1.18 ceremony — BROKEN, founder repair needed):**
-1. **⚡ URGENT**: PR #482 auto-closed by release.yml (systemic bug). crates.io v0.1.18 + npm + PyPI published ✅ (orphan). CI was 40/40 green. back-merge ✅.
-2. **Founder: run `scripts/release-ceremony.sh`** targeting `release/v0.1.18` branch (still exists). Only Steps 1+2 remain: merge branch to main + push tag `v0.1.18` + GitHub Release. Crates and back-merge already done.
-3. **⚡ Systemic fix needed before v0.1.19**: Audit release.yml merge step — fix or remove auto-close behavior. This has fired on every release since v0.1.6.
+**P0 done this run ✅ (v26):**
+- PR #501 (feat/rfc-0109-get-callees, 22/22 CI ✅, no Codex findings) MERGED ✅
+- PR #496 (docs/adr-0010, 2 Codex P2 findings) — fix pushed (`836ada4`), awaiting CI, then merge
 
-**P0 done this run ✅ (v24+v25):**
-- PR #484 (PM dispatch v23) MERGED ✅
-- PR #452 (v0.1.17 → main) CLOSED as superseded ✅
-- Security scan post-v0.1.18: **CLEAN** ✅ (0 secrets, 0 .env files, 1 legitimate `unsafe` block for macOS RSS measurement — platform-gated MaybeUninit)
-- PR #485 (ADR-0008 docs, 22/22 CI green) MERGED ✅ (architect P1 task, v0.2.0 prereq)
-- PR #486 (PM dispatch v24 chore, 22/22 CI green) MERGED ✅
-- **ADR numbering fix**: `0008-redb-storage-engine.md` → `0009-redb-storage-engine.md` (ADR-0009); all cross-references updated ✅
-
-**P1 (post-v0.1.18 quality):**
-4. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands).
-5. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands).
-6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark (bench idle).
-7. **RFC-0105 Three-Surface EXCEPTION** — WatchEngine EXCEPTION line awaiting founder ratification.
+**P1 (RFC-0109 roll-out — pattern set by get_callees):**
+1. **RFC-0109 get_callers** — shared `callers_payload()` builder + budget knob (same pattern as #501)
+2. **RFC-0109 get_dead_symbols / get_isolated_symbols / get_reachable[_to] / get_all_symbols** — roll-out table in RFC-0109
+3. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands)
+4. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark (bench idle)
 
 **P2 (v0.2.0 scope):**
-11. Issue #428 god-file-split remaining slices.
-12. Skill marketplace submission to Claude Code marketplace.
-13. "First 5 minutes" walkthrough validation.
-14. `release.yml` finalize merge step systemic fix.
+5. Issue #428 god-file-split remaining slices.
+6. Skill marketplace submission to Claude Code marketplace.
+7. "First 5 minutes" walkthrough validation.
+8. `release.yml` finalize merge step systemic fix (release still uses ceremony script workaround).
 
 ---
 
-## Dispatch state (2026-06-03 v25 — PRs #485+#486 merged; ADR-0009 renaming done; v0.1.18 ceremony BROKEN)
+## Dispatch state (2026-06-03 v26 — PR #501 merged; PR #496 fix pending CI; v0.1.17–v0.1.19 ceremonies COMPLETE)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | **(1)** Run `scripts/release-ceremony.sh` for `release/v0.1.18` → main + tag `v0.1.18` + GitHub Release. Crates + back-merge already done. **(2)** Confirm v0.1.17 git ceremony skip is intentional (crates.io v0.1.17 exists; main jumps v0.1.16→v0.1.18). **(3)** Ratify RFC-0105 EXCEPTION (WatchEngine Three-Surface). |
+| founder | idle | v0.1.17–v0.1.19 ceremonies complete ✅. RFC-0105 EXCEPTION ratified ✅. Next: review RFC-0104 cold SLA data when nightly bench runs. |
 | PM | **DONE ✅** | v25 complete: PRs #485+#486 merged; ADR-0009 rename done; PM state v25 updated. |
 | release | **WAITING** | Ceremony blocked on founder (Steps 1+2+3 of v0.1.18). |
-| security-reviewer | **DONE ✅** | Post-v0.1.18 scan: CLEAN (0 secrets, 0 .env, 1 legit unsafe block — macOS RSS). |
-| architect | **DONE ✅** | ADR-0008 merged (PR #485 ✅). ADR-0009 renaming complete (docs/adr/0009-redb-storage-engine.md). |
+| security-reviewer | **DONE ✅** | Post-v0.1.18 scan: CLEAN. |
+| architect | **DONE ✅** | ADR-0010 (no live LSP) opened/fixed; ADR-0009 rename complete. |
 | e2e-runner | **P1** | Dogfood re-run with redb-as-default + watch --subscribe (8/8 CLI). |
 | bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA. |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
-| rust-implementer | **DONE ✅** | RFC-0107 + RFC-0108 + fix-blocking-read + fix-scoped-calls all MERGED. Reactive roadmap 4/4 COMPLETE. |
+| rust-implementer | **P1 — RFC-0109** | get_callees MERGED (#501). Next: get_callers shared builder + budget knob (same pattern). |
 
 ---
 
@@ -178,8 +182,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment (warm/cold split) requires measured nightly data.
-- **RFC-0105 Three-Surface EXCEPTION**: WatchEngine EXCEPTION line in RFC-0105 — founder ratification still pending.
-- **v0.1.17 git ceremony skip**: Confirm intentional (crates.io v0.1.17 exists; main jumps v0.1.16 → v0.1.18).
+- **RFC-0104 cold SLA measurement**: Charter §2 table amendment (warm/cold split) requires measured nightly data (bench P1).
 - **Systemic**: `release.yml` finalize merge step — partially fixed; ceremony script is workaround.
 
 ---
@@ -194,6 +197,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v26 (PR #501 merged; PR #496 ADR-0010 Codex P2 fixed; v0.1.17–v0.1.19 ceremonies confirmed COMPLETE)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, memory INDEX, anti-patterns (no new domain hits), PM state v25, v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #496 (docs/ADR-0010, 22/22 CI ✅, 2 Codex P2 unresolved), #501 (feat/RFC-0109 get_callees, 22/22 CI ✅, no Codex findings). 0 open issues.
+- Major state delta since v25: v0.1.17 retro-tag ✅, v0.1.18 ceremony COMPLETE (GH Release 2026-06-03T12:30Z), v0.1.19 ceremony COMPLETE (GH Release 2026-06-03T15:49Z). All 3 tags on crates.io + GH. RFC-0105 EXCEPTION ratified (PR #491).
+- PRs merged since v25: #488, #489, #490, #491, #492 (Rust 99.8% recall), #493 (v0.1.19).
+
+**Actions taken:**
+1. **Merged PR #501** (feat/rfc-0109-get-callees, 22/22 CI ✅, no Codex, squash bb685def) ✅
+2. **Fixed PR #496 Codex P2 findings**: (a) date 2026-06-04→2026-06-03 (b) Charter §1→§4 for language-pack constraint (4 occurrences in ADR-0010). Pushed commit `836ada4` to `docs/adr-0010-no-live-lsp` branch. CI pending.
+3. **Updated PM state v25→v26**: ceremonies corrected, v0.1.19 section added, live priorities (RFC-0109 roll-out), dispatch table.
+4. **CHANGELOG Unreleased**: added ADR-0010 docs entry.
+5. **Appended decisions.jsonl**.
+
+**Sprint status:** v0.1.19 shipped. v0.1.20 sprint = RFC-0109 graph-list roll-out (get_callees ✅, 5 more tools follow same pattern).
+
+**Escalations:** none (all ceremonies complete; RFC-0105 ratified). Systemic `release.yml` merge bug remains low-priority P2 (ceremony script workaround in place).
 
 ### 2026-06-03 PM dispatch v25 (PRs #485+#486 merged; ADR-0009 renaming; v0.1.18 ceremony escalated)
 
