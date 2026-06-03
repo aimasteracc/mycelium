@@ -66,6 +66,15 @@ pub fn dead_symbols_payload(dead: &[String]) -> Value {
     json!({ "dead_symbols": dead, "count": dead.len() })
 }
 
+/// Build the `{ "isolated_symbols": [...], "count": N }` payload for
+/// `get_isolated_symbols` from an already-computed list.
+///
+/// `count` is the full pre-budget total (see [`dead_symbols_payload`]).
+#[must_use]
+pub fn isolated_symbols_payload(isolated: &[String]) -> Value {
+    json!({ "isolated_symbols": isolated, "count": isolated.len() })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +136,12 @@ mod tests {
         let v = dead_symbols_payload(&["a".to_owned(), "b".to_owned()]);
         assert_eq!(v["dead_symbols"], serde_json::json!(["a", "b"]));
         assert_eq!(v["count"], 2);
+    }
+
+    #[test]
+    fn isolated_symbols_payload_has_array_and_count() {
+        let v = isolated_symbols_payload(&["x".to_owned()]);
+        assert_eq!(v["isolated_symbols"], serde_json::json!(["x"]));
+        assert_eq!(v["count"], 1);
     }
 }
