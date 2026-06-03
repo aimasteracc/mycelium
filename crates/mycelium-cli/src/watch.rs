@@ -29,7 +29,7 @@ use tokio::sync::RwLock;
 
 use crate::index::{Extractors, index_path_parallel};
 
-/// Parse a CLI `--subscribe <SPEC>` string into an [`Interest`].
+/// Parse a CLI `--subscribe <SPEC>` string into an [`subscription::Interest`].
 ///
 /// SPEC grammar (RFC-0107 §4.3):
 /// - `files:<glob1>,<glob2>,...`

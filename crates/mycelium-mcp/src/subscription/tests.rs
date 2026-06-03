@@ -13,9 +13,9 @@ use mycelium_core::types::NodeKind;
 use mycelium_core::watch::{BatchDelta, SymbolDelta, WatchEvent};
 
 use super::{
-    DEFAULT_TTL_SECONDS, Interest, MAX_PER_CLIENT, MAX_SUBSCRIPTIONS, SubscribeError,
-    SubscribeRequest, evict_expired, evict_for_dead_peer, match_batch, new_store, subscribe,
-    unsubscribe,
+    DEFAULT_TTL_SECONDS, Interest, MAX_PER_CLIENT, MAX_SELECTOR, MAX_SUBSCRIPTIONS, SubscribeError,
+    SubscribeRequest, bump_ttl, evaluate_selector_set, evict_expired, evict_for_dead_peer,
+    match_batch, new_store, status, subscribe, unsubscribe, update_last_match_set,
 };
 
 fn ev(root: &str, batch_seq: u64, files: &[&str]) -> WatchEvent {
@@ -604,4 +604,361 @@ async fn selector_evaluates_against_post_batch_trunk() {
     // We don't assert the exact match-set (Hyphae * semantics vary by store
     // contents); the test exists to ensure the Selector path doesn't panic
     // and the evaluator integration compiles.
+}
+
+// ── coverage gap tests: status / bump_ttl / update_last_match_set / selector paths ──
+
+#[tokio::test]
+async fn status_list_all_and_by_id() {
+    let s = new_store();
+
+    // Empty store.
+    let r0 = status(&s, None, false).await;
+    assert_eq!(r0.active_count, 0);
+    assert!(r0.subscriptions.is_empty());
+    assert!(!r0.watching);
+
+    subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: Some("status-test".to_owned()),
+            interest: Interest::Files {
+                paths: vec!["src/a.rs".to_owned()],
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+
+    // List all.
+    let r1 = status(&s, None, true).await;
+    assert_eq!(r1.active_count, 1);
+    assert_eq!(r1.subscriptions.len(), 1);
+    assert_eq!(r1.subscriptions[0].subscription_id, "status-test");
+    assert!(r1.watching);
+
+    // Find by id.
+    let r2 = status(&s, Some("status-test"), false).await;
+    assert_eq!(r2.subscriptions.len(), 1);
+
+    // Not found.
+    let r3 = status(&s, Some("no-such"), false).await;
+    assert!(r3.subscriptions.is_empty());
+}
+
+#[tokio::test]
+async fn bump_ttl_extends_and_noop_on_unknown() {
+    let s = new_store();
+    subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: Some("bump-me".to_owned()),
+            interest: Interest::Files {
+                paths: vec!["src/a.rs".to_owned()],
+            },
+            ttl_seconds: Some(10),
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+
+    bump_ttl(&s, "bump-me").await;
+    bump_ttl(&s, "nonexistent").await; // silent no-op
+
+    let st = status(&s, Some("bump-me"), false).await;
+    assert_eq!(st.subscriptions.len(), 1);
+    assert!(st.subscriptions[0].seconds_until_expiry > 0);
+}
+
+#[tokio::test]
+async fn update_last_match_set_on_selector_and_noop_cases() {
+    let s = new_store();
+    subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: Some("sel-upd".to_owned()),
+            interest: Interest::Selector {
+                hyphae: "*".to_owned(),
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+
+    let mut new_set = BTreeSet::new();
+    new_set.insert("src/a.rs>fn:login".to_owned());
+    update_last_match_set(&s, "sel-upd", new_set).await;
+
+    // No-op: non-existent id.
+    update_last_match_set(&s, "no-such", BTreeSet::new()).await;
+
+    // No-op: Files subscription (not a Selector).
+    subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: Some("files-sub".to_owned()),
+            interest: Interest::Files {
+                paths: vec!["src/a.rs".to_owned()],
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+    update_last_match_set(&s, "files-sub", BTreeSet::new()).await;
+}
+
+#[tokio::test]
+async fn evaluate_selector_set_with_valid_and_invalid_source() {
+    let mut store = Store::new();
+    let p = mycelium_core::trunk::TrunkPath::parse("src/a.rs>fn:login").unwrap();
+    let id = store.upsert_node(p);
+    store.set_kind(id, mycelium_core::types::NodeKind::Function);
+
+    // Valid selector — should return symbol paths.
+    let set = evaluate_selector_set("*", &store);
+    assert!(!set.is_empty());
+
+    // Invalid Hyphae source — should return empty set (not panic).
+    let empty = evaluate_selector_set("!!! invalid %%%", &store);
+    assert!(empty.is_empty());
+}
+
+#[tokio::test]
+async fn invalid_subscription_id_format_rejected() {
+    let s = new_store();
+    let err = subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: Some("invalid id with spaces".to_owned()),
+            interest: Interest::Files {
+                paths: vec!["src/a.rs".to_owned()],
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .expect_err("invalid id format should be rejected");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn selector_count_cap_rejects_overflow() {
+    let s = new_store();
+    for i in 0..MAX_SELECTOR {
+        subscribe(
+            &s,
+            SubscribeRequest {
+                subscription_id: Some(format!("sel-{i}")),
+                interest: Interest::Selector {
+                    hyphae: "*".to_owned(),
+                },
+                ttl_seconds: None,
+                root: None,
+            },
+            format!("peer-{i}"),
+            PathBuf::from("/r"),
+        )
+        .await
+        .unwrap();
+    }
+    let err = subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: Some("sel-overflow".to_owned()),
+            interest: Interest::Selector {
+                hyphae: "*".to_owned(),
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer-new".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .expect_err("selector cap should reject");
+    match err {
+        SubscribeError::SubscriptionLimit { scope } => assert_eq!(scope, "selector"),
+        _ => panic!("expected selector-scope limit, got {err:?}"),
+    }
+}
+
+#[tokio::test]
+async fn unsubscribe_selector_decrements_selector_count() {
+    let s = new_store();
+    subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: Some("my-sel".to_owned()),
+            interest: Interest::Selector {
+                hyphae: "*".to_owned(),
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+    let r = s.read().await;
+    assert_eq!(r.selector_count, 1);
+    drop(r);
+    let resp = unsubscribe(&s, "my-sel").await;
+    assert!(resp.removed);
+    let r = s.read().await;
+    assert_eq!(r.selector_count, 0);
+    drop(r);
+}
+
+#[tokio::test]
+async fn evict_expired_and_dead_peer_decrement_selector_count() {
+    // evict_expired selector path.
+    let s1 = new_store();
+    subscribe(
+        &s1,
+        SubscribeRequest {
+            subscription_id: Some("exp-sel".to_owned()),
+            interest: Interest::Selector {
+                hyphae: "*".to_owned(),
+            },
+            ttl_seconds: Some(0),
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    let n = evict_expired(&s1).await;
+    assert_eq!(n, 1);
+    assert_eq!(s1.read().await.selector_count, 0);
+
+    // evict_for_dead_peer selector path.
+    let s2 = new_store();
+    subscribe(
+        &s2,
+        SubscribeRequest {
+            subscription_id: Some("dead-sel".to_owned()),
+            interest: Interest::Selector {
+                hyphae: "*".to_owned(),
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "dead-peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+    let n = evict_for_dead_peer(&s2, "dead-peer").await;
+    assert_eq!(n, 1);
+    assert_eq!(s2.read().await.selector_count, 0);
+}
+
+#[tokio::test]
+async fn symbols_interest_matches_modified_and_removed() {
+    let s = new_store();
+    let resp = subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: None,
+            interest: Interest::Symbols {
+                paths: vec!["src/auth.rs>fn:*".to_owned()],
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .unwrap();
+
+    let d = delta(vec![SymbolDelta {
+        file: "src/auth.rs".to_owned(),
+        added: vec![],
+        modified: vec!["src/auth.rs>fn:login".to_owned()],
+        removed: vec![
+            "src/auth.rs>fn:logout".to_owned(),
+            "src/auth.rs>struct:Auth".to_owned(), // filtered by glob
+        ],
+    }]);
+    let watch_ev = ev("/r", 5, &["src/auth.rs"]);
+    let trunk = Store::new();
+
+    let r = s.read().await;
+    let payload = match_batch(
+        r.by_id.get(&resp.subscription_id).unwrap(),
+        &watch_ev,
+        &d,
+        &trunk,
+    )
+    .expect("should match modified/removed");
+    drop(r);
+    assert_eq!(payload.per_file[0].modified, vec!["src/auth.rs>fn:login"]);
+    assert_eq!(payload.per_file[0].removed, vec!["src/auth.rs>fn:logout"]);
+    assert!(
+        !payload.per_file[0]
+            .removed
+            .contains(&"src/auth.rs>struct:Auth".to_owned())
+    );
+}
+
+#[tokio::test]
+async fn validate_interest_rejects_empty_path_string_and_empty_selector() {
+    // Empty string in paths list.
+    let s = new_store();
+    let err = subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: None,
+            interest: Interest::Files {
+                paths: vec![String::new()],
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .expect_err("empty path string should be rejected");
+    assert_eq!(err.code(), "invalid_interest");
+
+    // Empty selector source.
+    let err2 = subscribe(
+        &s,
+        SubscribeRequest {
+            subscription_id: None,
+            interest: Interest::Selector {
+                hyphae: "   ".to_owned(),
+            },
+            ttl_seconds: None,
+            root: None,
+        },
+        "peer".to_owned(),
+        PathBuf::from("/r"),
+    )
+    .await
+    .expect_err("whitespace-only selector should be rejected");
+    assert_eq!(err2.code(), "invalid_interest");
 }
