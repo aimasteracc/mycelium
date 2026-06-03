@@ -2434,6 +2434,7 @@ async fn get_dead_symbols_returns_unreferenced_symbols() {
             path_prefix: None,
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2460,6 +2461,7 @@ async fn get_dead_symbols_empty_store() {
             path_prefix: None,
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2475,6 +2477,7 @@ async fn get_dead_symbols_prefix_filter() {
             path_prefix: Some("src/lib.rs".to_owned()),
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6530,6 +6533,7 @@ async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
             path_prefix: None,
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&result_default)).unwrap();
@@ -6549,6 +6553,7 @@ async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
             path_prefix: None,
             edge_kind: Some("calls".to_string()),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val2: serde_json::Value = serde_json::from_str(result_str(&result_calls)).unwrap();
