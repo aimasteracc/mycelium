@@ -95,12 +95,12 @@ jobs:
 
           wait_for_crate() {
             pkg="$1"
-            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
               if crate_published "$pkg"; then
                 echo "$pkg v$VERSION is visible on crates.io"
                 return 0
               fi
-              echo "Waiting for $pkg v$VERSION to reach the crates.io index (attempt $attempt/12)..."
+              echo "Waiting for $pkg v$VERSION to reach the crates.io index (attempt $attempt/24)..."
               sleep 30
             done
             echo "::error::$pkg v$VERSION did not become visible on crates.io"
@@ -134,6 +134,8 @@ jobs:
                   exit 1
                 fi
               }
+              # Echo publish output so log shows "Uploaded …" confirmation.
+              cat /tmp/publish_${pkg}.log
               wait_for_crate "$pkg"
             fi
           done
