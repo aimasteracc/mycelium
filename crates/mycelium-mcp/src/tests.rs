@@ -4902,6 +4902,7 @@ async fn get_reachable_direct_callees() {
             edge_kind: "calls".to_owned(),
             max_depth: Some(1),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4932,6 +4933,7 @@ async fn get_reachable_cycle_safe() {
             edge_kind: "calls".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4948,6 +4950,7 @@ async fn get_reachable_unknown_path_returns_error() {
             edge_kind: "calls".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4967,6 +4970,7 @@ async fn get_reachable_unknown_edge_kind_returns_error() {
             edge_kind: "bogus".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4988,6 +4992,7 @@ async fn get_reachable_max_depth_zero_empty() {
             edge_kind: "calls".to_owned(),
             max_depth: Some(0),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
