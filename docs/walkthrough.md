@@ -150,7 +150,7 @@ Start the server against your indexed project:
 mycelium serve --mcp --root /path/to/your-project
 ```
 
-The server speaks JSON-RPC over stdio and exposes 89 tools — one for every CLI subcommand, with identical names, arguments, and output.
+The server speaks JSON-RPC over stdio and exposes 93 tools — one for every CLI subcommand, with identical names, arguments, and output (plus 3 RFC-0107/0108 SUBSCRIBE tools that are MCP-only by EXCEPTION per Charter §5.13).
 
 ### Add to Claude Desktop
 

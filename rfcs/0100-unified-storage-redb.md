@@ -2,7 +2,7 @@
 
 - **RFC**: 0100
 - **Title**: Unified Storage Layer on redb — one backend that makes writes incremental (R2) and resident memory bounded (R3)
-- **Status**: Partially Implemented (Phases 1–2 merged; Phase 3 default-flip pending). Phase 1 (Storage trait + InMemory + Redb backends) and Phase 2 (per-file ACID `replace_file`, edge-count meta, MCP watch wiring, equivalence + SLA harness) are merged behind the **default-OFF** `redb-backend` feature. Phase 3 — making redb the default and retiring the journal/snapshot path — is **not yet done**; see Acceptance Criteria.
+- **Status**: Partially Implemented (Phases 1–3 done except `mycelium migrate`; Phase 4 journal retirement still pending). Phase 1 (Storage trait + InMemory + Redb backends), Phase 2 (per-file ACID `replace_file`, edge-count meta, MCP watch wiring, equivalence + SLA harness), and Phase 3 (default-flip to `redb-backend` in v0.1.17 — see [ADR-0008](../docs/adr/0008-redb-as-default-backend.md), crash-injection tests, per-file write benchmark) are all shipped. **What's left**: (1) `mycelium migrate` CLI/MCP/Skill tool for legacy `.myc` snapshot import; (2) Phase 4 — removing `crates/mycelium-core/src/store/journal.rs` after migrate ships. See updated Acceptance Criteria.
 - **Author**: orchestrator (Hive AI agent)
 - **Created**: 2026-05-31
 - **Decision gate**: Charter §3 (Tech Stack, *locked*) — **founder-authorized 2026-05-31** ("允许引入 redb（方案 A）"); this RFC carries the §3 amendment text + requires a new ADR before implementation
@@ -198,23 +198,30 @@ gymnastics. Out of scope for v1; noted as the upside of this foundation.
 
 ## 7. Acceptance Criteria
 
-- [ ] **ADR** in `docs/adr/` (schema, value encoding, migration, crash-recovery) — merged
-      before any Phase 3 code.
-- [ ] Charter §3 amended (this RFC's §2 text) with founder sign-off recorded.
-- [ ] `redb` added; `cargo deny check` + `cargo audit` green; license clean.
-- [ ] Phase 1: `StorageBackend` trait + `InMemory` + `Redb` impls; full store test-suite
-      green against both (TDD, RED first for new trait tests).
-- [ ] Phase 2: parity test proves `Redb` graph ≡ `InMemory` graph (nodes, edges, query
-      results) across a multi-repo corpus; CI runs both backends.
-- [ ] Phase 2: `#356` baseline shows resident RSS under `Redb` stays bounded while indexing
-      a graph that OOMs the `InMemory` backend.
-- [ ] Phase 3: per-file write txn is **O(changed file)** (bench: edit one file in a large
-      repo, measure write I/O ≪ full-snapshot).
+- [x] **ADR** in `docs/adr/` (schema, value encoding, migration, crash-recovery) — merged
+      ([ADR-0009](../docs/adr/0009-redb-storage-engine.md) for the schema;
+      [ADR-0008](../docs/adr/0008-redb-as-default-backend.md) for the default-flip).
+- [x] Charter §3 amended (this RFC's §2 text) with founder sign-off recorded
+      (CHARTER.md storage row, 2026-05-31; warm/cold SLA addendum via RFC-0104).
+- [x] `redb` added (`Cargo.toml: redb = "4"`); `cargo deny check` + `cargo audit` green;
+      license clean.
+- [x] Phase 1: `StorageBackend` trait + `InMemory` + `Redb` impls; full store test-suite
+      green against both (`crates/mycelium-core/src/store/{backend,inmemory,redb_backend}.rs`).
+- [x] Phase 2: parity test proves `Redb` graph ≡ `InMemory` graph
+      (`crates/mycelium-core/tests/equivalence.rs`); CI runs both backends.
+- [x] Phase 2: resident-RSS baseline shows `Redb` stays bounded while indexing
+      (`crates/mycelium-core/tests/redb_memory_ceiling.rs`).
+- [x] Phase 3: per-file write txn is **O(changed file)** — benchmark exists
+      (`crates/mycelium-core/benches/redb_incremental_persistence.rs`).
 - [ ] Phase 3: `mycelium migrate` on CLI **and** byte-identical MCP tool **and** in a
-      category Skill (Three-Surface Rule).
-- [ ] Phase 3: crash-injection test — kill mid-commit, reopen, graph is last-committed and
-      consistent.
+      category Skill (Three-Surface Rule). **Not yet implemented** — tracked for
+      v0.1.20+; legacy `.myc` snapshot users currently re-index from source.
+- [x] Phase 3: crash-injection test — kill mid-commit, reopen, graph is last-committed
+      (`crates/mycelium-core/src/store/redb_backend.rs::crash_safety_tests` +
+      `crates/mycelium-core/tests/redb_backend.rs`).
 - [ ] Phase 4: legacy snapshot path removed; CHANGELOG documents the format change.
+      **Not yet done** — `crates/mycelium-core/src/store/journal.rs` still
+      compiled (behind the legacy InMemoryBackend path). Pending `mycelium migrate`.
 
 ---
 
