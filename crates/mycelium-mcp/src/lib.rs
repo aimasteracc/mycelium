@@ -1570,17 +1570,46 @@ impl MyceliumServer {
     /// subscriptions (RFC-0107 D3 defence-in-depth). One task per server
     /// lifetime; subsequent calls replace the previous task.
     ///
+    /// Two evictions per tick:
+    /// 1. **TTL** — drop any subscription whose `expires_at <= now`.
+    /// 2. **Dead-peer GC** — if the captured `Peer<RoleServer>` reports
+    ///    `is_closed()`, evict every subscription owned by that peer's
+    ///    `client_tag`. Stdio is single-peer so this clears the whole map;
+    ///    multi-peer transports get per-peer eviction once `client_tag` is
+    ///    plumbed per-call.
+    ///
     /// Tick interval is 60 s. Cooperatively cancelled when the abort handle
     /// is dropped on server shutdown.
     pub async fn start_subscription_eviction(&self) {
         let subs = Arc::clone(&self.subscriptions);
+        let notifier = Arc::clone(&self.notifier);
         let handle = tokio::spawn(async move {
             let interval = std::time::Duration::from_secs(60);
             loop {
                 tokio::time::sleep(interval).await;
-                let n = subscription::evict_expired(&subs).await;
-                if n > 0 {
-                    tracing::debug!(evicted = n, "subscription TTL eviction tick");
+                let n_ttl = subscription::evict_expired(&subs).await;
+                if n_ttl > 0 {
+                    tracing::debug!(evicted = n_ttl, "subscription TTL eviction tick");
+                }
+                // Dead-peer GC: if the captured rmcp Peer reports closed,
+                // evict every subscription it owns. Stdio currently tags
+                // every subscription `stdio-default` (single peer); future
+                // multi-peer transports keep this loop unchanged — only
+                // the `client_tag` source moves.
+                let peer_closed = notifier
+                    .lock()
+                    .await
+                    .as_ref()
+                    .is_some_and(rmcp::Peer::is_transport_closed);
+                if peer_closed {
+                    let n_peer = subscription::evict_for_dead_peer(&subs, "stdio-default").await;
+                    if n_peer > 0 {
+                        tracing::debug!(
+                            evicted = n_peer,
+                            client_tag = "stdio-default",
+                            "subscription dead-peer GC tick"
+                        );
+                    }
                 }
             }
         });

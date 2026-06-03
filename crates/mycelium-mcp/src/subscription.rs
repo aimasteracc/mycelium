@@ -605,11 +605,12 @@ pub(super) async fn evict_expired(store: &Store_) -> usize {
 
 /// Drop every subscription owned by a peer that has gone away.
 ///
-/// Reserved for the rmcp peer-disconnect hook once that signal is plumbed
-/// through (RFC-0107 D3 defence-in-depth). Until then, TTL eviction is the
-/// primary mechanism — this fn is exercised by unit tests + ready for the
-/// follow-up wire-up.
-#[allow(dead_code)]
+/// Called from the 60 s eviction tick in `MyceliumServer::start_subscription_eviction`
+/// whenever the captured rmcp `Peer<RoleServer>` reports `is_closed()` —
+/// the dead-peer GC half of RFC-0107 D3 defence-in-depth. TTL eviction is
+/// the primary leak-defense; this is the fast-path optimisation for
+/// long-lived sessions where a transport-level close happens between
+/// TTL ticks.
 pub(super) async fn evict_for_dead_peer(store: &Store_, client_tag: &str) -> usize {
     let mut w = store.write().await;
     let to_drop: Vec<String> = w
