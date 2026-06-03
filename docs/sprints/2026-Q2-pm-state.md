@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v16 — `abdb570` (max_version fix) pushed to release/v0.1.17; PR #460 closed; release.yml fix PR + chore PR opened to develop) |
-| Current sprint | **v0.1.17 — RELEASE BRANCH CUT** (`release/v0.1.17`, PR #452 Quality Gate ✅ — founder can authorize ceremony script once CI re-run passes) |
+| Last updated | 2026-06-03 (PM dispatch v17 — PR #467 RFC-0107 merged; PR #468 URL-encoding fix opened; v0.1.17 CI still blocked — URL bug still on release branch) |
+| Current sprint | **v0.1.17 — RELEASE BRANCH CUT** (`release/v0.1.17`, PR #452 Quality Gate ✅ — `publish to crates.io` STILL RED: URL encoding bug persists; see PR #468) |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -97,8 +97,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **Pre-release**: CHANGELOG Unreleased section verified ✅ (v12)
 - [ ] **Step 1**: `release/v0.1.17` → `main` (founder authorization required)
   - PR #452: Quality Gate ✅ SUCCESS (required branch-protection check)
-  - ~~⚠️ `publish to crates.io` FAILURE~~ → **FIXED (v16)**: commit `abdb570` on `release/v0.1.17` uses `max_version` API check (root cause: old `versions[]` iteration was slow to propagate). Release workflow re-triggered.
-  - **Once all CI checks SUCCESS/SKIPPED** on PR #452: founder authorizes `scripts/release-ceremony.sh` Steps 1–4.
+  - ⚠️ **`publish to crates.io` STILL FAILING** — v16 fix (`abdb570` max_version Python check) addressed wrong symptom. **Actual root cause (v17 diagnosis)**: `crate_published()` uses `tr '-' '_'` to build the crates.io API URL → `/crates/mycelium_rcig_pack` (underscores) → **404** → curl -sf exits non-zero → Python json.load fails on empty stdin → function ALWAYS returns "not published". Fix: **PR #468** (`fix/release-crates-url-encoding`) drops the `tr` and uses the correct hyphenated URL.
+  - **To unblock v0.1.17**: founder cherry-pick PR #468 commit to `release/v0.1.17` and re-trigger CI — OR use `scripts/release-ceremony.sh` directly (does not depend on release.yml publish check).
+  - ⚠️ Do NOT push to release branch without founder review — with RELEASE_BOT_TOKEN set, a successful publish-crates run triggers the `finalize` job which auto-merges to main.
 - [ ] **Step 2**: Tag `v0.1.17` pushed
 - [ ] **Step 3**: GitHub Release published + 5 crates on crates.io
 - [ ] **Step 4**: Back-merge `release/v0.1.17` → `develop` (PR #453)
@@ -112,11 +113,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (v0.1.17 release gates):**
 1. ✓ Security scan post-v0.1.16 — COMPLETE ✅
 2. ✓ Cut `release/v0.1.17` — COMPLETE ✅ (PR #452 + PR #453 open)
-3. ✓ release.yml CI fix (PR #455 on develop; `abdb570` max_version fix on release/v0.1.17)
-4. **Wait for PR #452 CI green** (release workflow re-running with max_version fix in `abdb570`) → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
+3. **PR #468 — URL encoding fix for release.yml** (on develop; CI pending). Merge then cherry-pick to `release/v0.1.17` to fix publish-crates CI check.
+4. **Wait for PR #452 all CI SUCCESS/SKIPPED** after cherry-pick → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. **OR** founder uses ceremony script NOW (bypasses release.yml) if confirmed 5 crates already on crates.io.
 
-**P1 (reactive roadmap — RFC-0105):**
-5. **Founder: ratify or reject RFC-0105 Three-Surface EXCEPTION** — `feature/rfc-0105-watch-engine` branch CI SUCCESS (SHA `05654d96`), implementation complete. Awaiting founder EXCEPTION decision to merge. Watch lifecycle genuinely differs (foreground CLI vs background MCP server); parity bridge = shared WatchEngine + byte-identical `watch --status`.
+**P1 (reactive roadmap):**
+5. **Founder: ratify or reject RFC-0105 Three-Surface EXCEPTION** — `feature/rfc-0105-watch-engine` branch CI SUCCESS (SHA `05654d96`), implementation complete. Awaiting founder EXCEPTION decision to merge.
+6. **PR #467 (RFC-0107) merged ✅** — 5 founder-gated decisions (D1–D5) pending ratification before SUBSCRIBE implementation begins.
 
 **P1 (post-v0.1.17):**
 6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark results needed before Charter §2 table is amended.
@@ -131,12 +133,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v16 — `abdb570` pushed to release/v0.1.17; fix PR + chore PR opened)
+## Dispatch state (2026-06-03 v17 — PR #467 merged; PR #468 URL fix opened; v0.1.17 CI still blocked)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Watch PR #452 CI — release.yml re-running with max_version fix (commit `abdb570`). Once all checks SUCCESS/SKIPPED: authorize `scripts/release-ceremony.sh` Steps 1–4. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** — implementation branch `feature/rfc-0105-watch-engine` is built and CI-green; awaiting your decision to merge. (4) Schedule `sla_ancestors_100k` nightly benchmark for RFC-0104 cold numbers. |
-| PM | **DONE ✅** | `abdb570` pushed to release/v0.1.17; PR #460 closed; fix PR + chore PR v16 opened. |
+| founder | **action requested** | (1) **v0.1.17 ceremony**: PR #452 `publish to crates.io` STILL RED (URL encoding bug, not max_version). Options: (a) cherry-pick PR #468 commit to `release/v0.1.17` + re-trigger CI — then authorize ceremony; (b) use `scripts/release-ceremony.sh` directly if 5 crates confirmed on crates.io. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify RFC-0105 Three-Surface EXCEPTION** — implementation complete, CI green. (4) **Ratify 5 RFC-0107 SUBSCRIBE decisions** (D1–D5 in PR #467 description). |
+| PM | **DONE ✅** | PR #467 merged; PR #468 opened; PM state v17; decisions.jsonl appended. |
 | security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN (v12 + re-confirmed v14). |
 | release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 + PR #453 open. Awaiting founder auth. |
 | rust-implementer | **WAITING** | RFC-0105 WatchEngine built (branch `feature/rfc-0105-watch-engine`, CI SUCCESS). Gated on founder EXCEPTION ratification. |
@@ -170,6 +172,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v17 (this run — PR #467 merged; PR #468 URL fix; v0.1.17 CI still blocked)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-5 (latest: 2026-06-03T14:00Z rust-implementer rfc0106-impl), anti-patterns, PM state (stale v16 — develop at 54cc9b6), v0.2 PRD.
+
+**Assessment:**
+- develop HEAD: `54cc9b6` (RFC-0106 PUSH merged). 3 open PRs: #452 (release→main, CI ❌), #453 (back-merge→develop, CI same), #467 (RFC-0107 doc, 20/20 ✅). 0 open issues.
+- PR #452 CI: Quality Gate ✅ SUCCESS, but `publish to crates.io` ❌ FAILURE. Root-cause re-diagnosis: v16's `abdb570` fixed the Python `max_version` field (vs old `versions[]`) but the `crate_published()` URL still uses `tr '-' '_'` → `/crates/mycelium_rcig_pack` → 404 → Python json.load fails → always "not published".
+- PR #467 (RFC-0107 SUBSCRIBE): 20/20 CI SUCCESS. Doc-only with 5 founder-gated decisions. Safe to merge.
+
+**Actions taken:**
+1. **Merged PR #467** (docs(rfc): RFC-0107 SUBSCRIBE scoped per-batch delta, 20/20 CI green, squash). 5 founder decisions (D1–D5) added to founder action queue.
+2. **Fixed release.yml URL encoding bug** (`tr '-' '_'` → direct use of hyphenated crate name) on `fix/release-crates-url-encoding` branch from develop HEAD. **Opened PR #468**.
+3. Did NOT push URL fix to `release/v0.1.17` — with RELEASE_BOT_TOKEN set, `finalize` would auto-merge to main, bypassing Charter §5.12 founder authorization.
+4. Updated PM state + decisions.jsonl.
+
+**Escalations:**
+- **v0.1.17 release**: `publish to crates.io` CI still RED after v16's abdb570 fix. PR #468 is the actual fix. Founder must cherry-pick + re-trigger CI OR use ceremony script directly.
+- **RFC-0105 EXCEPTION**: still awaiting founder ratification.
+- **RFC-0107 decisions D1–D5**: founder must ratify before SUBSCRIBE implementation begins.
 
 ### 2026-06-03 PM dispatch v16 (this run — max_version fix pushed to release/v0.1.17; fix PR + chore PR opened)
 
