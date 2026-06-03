@@ -7,7 +7,7 @@ name        = "key-encoding-spike"
 version     = "0.1.0"
 edition     = "2021"
 publish     = false
-description = "RFC-0100 / ADR-0008 de-risk spike T0 — order-preserving composite key encoding"
+description = "RFC-0100 / ADR-0009 de-risk spike T0 — order-preserving composite key encoding"
 
 [[bin]]
 name = "demo"

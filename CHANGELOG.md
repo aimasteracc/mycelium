@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.19] - 2026-06-04
+
+### Fixed
+
+- **Rust extractor precision raised from 67% → 99.8% recall** via 4 additive
+  `queries.scm` patterns (dogfood-found 2026-06-04 by indexing the Mycelium
+  repo against itself and comparing per-file symbol counts vs ground truth):
+  - `trait T { fn x(); }` trait method **signatures** are now captured
+    (previously only `trait T` was indexed; `T::x` was silently dropped —
+    e.g. `FileReindexer::reindex` was invisible while every `impl
+    FileReindexer for X` method was present).
+  - `trait T { fn x() {...} }` trait **default-method bodies** captured.
+  - Module-level `static FOO: ...` items captured (previously only `const`
+    — e.g. `static PACK_REGISTRY: OnceLock<...>` was missing).
+  - Associated `pub const` items inside `impl` blocks captured (e.g.
+    `impl NodeId { pub const NULL: Self = ...; }`).
+  - Functions/structs/consts inside nested `mod` blocks (notably
+    `#[cfg(test)] mod tests { fn ... }`) now captured at every position
+    in the body, not only at head/tail.
+
+  Verified on the Mycelium repo: 70 of 80 Rust files now match ground-truth
+  symbol counts exactly (was 44 of 80). Total recall 99.8% (2664 / 2668).
+  5 RED-first regression tests in `crates/mycelium-core/src/extractor/tests.rs`.
+
+  Head-to-head vs `codegraph` 0.9.8 on the same repo: Mycelium index time
+  0.32 s vs codegraph 0.93 s (3× faster); Mycelium 70 of 80 files at exact
+  ground-truth match vs codegraph 1 of 80 (codegraph over-counts symbols
+  by 19.7% — different granularity).
+
+### Docs
+
+- **ADR-0008**: redb as default storage backend (Phase 3 flip decision record). Documents the rationale for switching from `InMemoryBackend` to `RedbBackend` as the production default in v0.1.17, prerequisites met (equivalence tests, crash-safety, warm SLA).
+- **ADR numbering fix**: renamed `docs/adr/0008-redb-storage-engine.md` → `docs/adr/0009-redb-storage-engine.md` (ADR-0009) to resolve the 0007/0008 slot collision; updated cross-references in `rfc-0100-execution-plan.md`, `rfcs/0104-charter-warm-cold-sla-split.md`, and `docs/adr/0008-redb-as-default-backend.md`.
+
 ## [0.1.18] - 2026-06-03
 
 ### Fixed
@@ -129,7 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0008
+- **RFC-0104 draft: Charter §2 warm/cold SLA split for redb mmap path.** ADR-0009
   Decision-4 (founder-authorized 2026-05-31) required splitting Charter §2's single
   SLA column into warm (page-cache steady-state, existing targets) and cold (first
   open after process restart, mmap page-fault path). This RFC formalises that split,
@@ -272,7 +306,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeping the redb backend feature-gated off by default.
 
 - **RFC-0100 Phase 2 T05a — redb file-scoped replacement foundation** —
-  `RedbBackend` now has the ADR-0008 `file_index` table plus a feature-gated
+  `RedbBackend` now has the ADR-0009 `file_index` table plus a feature-gated
   `replace_file` API that atomically removes one file's old nodes/owned edges,
   strips stale external references, inserts the new file graph, and persists
   the replacement index in one redb write transaction. This advances Issue #343

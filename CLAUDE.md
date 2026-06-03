@@ -47,6 +47,12 @@ If any of the above fails or is impossible, **stop and report**, do not improvis
 - ✅ **Always close the loop** — after acting, append to `.hive/memory/decisions.jsonl` what was decided and why.
 - ❌ **Never leave a superseded approach actionable.** When an RFC marks another `Status: Superseded`, the **same change** MUST: (1) close/relabel that RFC's tracking issues and any open PRs as `superseded`, (2) ensure the `Supersedes:` link resolves to a real `rfcs/` file (no phantom links — `scripts/check_supersede_discipline.sh` enforces this), and (3) annotate any retained transitional code's module header as a bridge. Rationale: a worker (human or AI) told "deal with the open issues/PRs" will implement whatever is still open — exactly how the v0.1.16 journal/LRU (#343/#344) shipped *after* RFC-0100 retired that approach.
 - ✅ **Always verify a rule against the MERGED tree, not commit-reachability.** Before declaring a Hard Rule (e.g. Three-Surface) "resolved", grep the actual `origin/develop` tree — a squash-merge gives the merged code a new SHA, so `git merge-base <feature-commit>` falsely reports "not merged", and a stale local branch shows pre-merge state. Never mark a rule resolved on PR-*open*; verify on PR-*merge*.
+- ❌ **Never ignore a Codex review on a PR.** After every PR is opened or updated, [`chatgpt-codex-connector`](https://chatgpt.com/codex/cloud/settings/general) automatically reviews the diff and may post inline comments tagged `P1`/`P2`/`P3`. Before *any* merge (admin or otherwise), every Codex finding MUST be one of:
+  - **(a) Fixed** — push a follow-up commit on the same PR addressing the finding (e.g. PR #487's commit `76c6657` propagated the ADR-0008 → ADR-0009 rename that Codex flagged).
+  - **(b) Explicitly rejected** — reply in the PR thread on the specific comment with a one-paragraph justification (e.g. "this is intentional because …"). A 👎 reaction alone does **not** count.
+  - **(c) Spun off** — open a tracking issue and link it from the PR before merge.
+
+  Silently merging over an open Codex finding — even one that looks minor — accumulates invisible technical debt and trains the team to stop reading the reviews. Verification: before `gh pr merge`, run `gh api repos/aimasteracc/mycelium/pulls/<N>/comments --jq '.[] | select(.user.login | test("codex"; "i"))'` and confirm every comment has either a fix-up commit referencing it, a reply, or a linked issue. Codex's `👍` reaction = no findings = safe to merge.
 
 ## TDD Workflow (§5.1 of Charter) — NON-NEGOTIABLE
 
