@@ -19,7 +19,7 @@ use rmcp::{
 
 /// Expected number of registered MCP tools.
 /// Update this constant when you add or remove a tool.
-const EXPECTED_TOOL_COUNT: usize = 90;
+const EXPECTED_TOOL_COUNT: usize = 93;
 
 /// Minimal no-op client handler — only needs to exist for the MCP handshake.
 #[derive(Debug, Clone, Default)]
@@ -81,6 +81,11 @@ fn catch_all_args() -> serde_json::Map<String, serde_json::Value> {
         "iterations": 1,
         // ── boolean flags ─────────────────────────────────────────────────
         "enabled":    false,
+        // ── SUBSCRIBE (RFC-0107) ──────────────────────────────────────────
+        // Tagged-union Interest with a safe Files variant + dummy id for
+        // unsubscribe/status round-trip.
+        "interest":        { "kind": "files", "paths": ["phantom/*.rs"] },
+        "subscription_id": "phantom-sub",
     })
     .as_object()
     .cloned()

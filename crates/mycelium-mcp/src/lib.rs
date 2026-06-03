@@ -47,6 +47,7 @@
 pub mod error;
 pub mod formatter;
 mod push;
+mod subscription;
 
 use std::collections::BTreeSet;
 
@@ -1474,6 +1475,14 @@ pub struct MyceliumServer {
     /// Recomputed after each index operation based on node count.
     /// Prevents a single tool call from flooding the Agent context.
     output_budget: Arc<tokio::sync::Mutex<OutputBudget>>,
+    /// SUBSCRIBE (RFC-0107) in-memory subscription store.
+    ///
+    /// Populated by `mycelium_subscribe`, consumed by the watch `on_batch`
+    /// fan-out, evicted by a periodic background task + dead-peer GC. Survives
+    /// `start_watch` restarts; cleared only on server drop.
+    subscriptions: subscription::Store_,
+    /// Aborts the periodic subscription-eviction task spawned in `serve`.
+    eviction_abort: Arc<tokio::sync::Mutex<Option<tokio::task::AbortHandle>>>,
 }
 
 impl Default for MyceliumServer {
@@ -1499,6 +1508,8 @@ impl MyceliumServer {
             allowed_roots: Arc::new(vec![]),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
             notifier: Arc::new(tokio::sync::Mutex::new(None)),
+            subscriptions: subscription::new_store(),
+            eviction_abort: Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 
@@ -1523,6 +1534,8 @@ impl MyceliumServer {
             allowed_roots: Arc::new(canonical_roots),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
             notifier: Arc::new(tokio::sync::Mutex::new(None)),
+            subscriptions: subscription::new_store(),
+            eviction_abort: Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 
@@ -1551,6 +1564,30 @@ impl MyceliumServer {
     /// still run unchanged.
     pub async fn set_notifier(&self, peer: rmcp::Peer<rmcp::RoleServer>) {
         *self.notifier.lock().await = Some(peer);
+    }
+
+    /// Spawn a periodic background task that evicts expired SUBSCRIBE
+    /// subscriptions (RFC-0107 D3 defence-in-depth). One task per server
+    /// lifetime; subsequent calls replace the previous task.
+    ///
+    /// Tick interval is 60 s. Cooperatively cancelled when the abort handle
+    /// is dropped on server shutdown.
+    pub async fn start_subscription_eviction(&self) {
+        let subs = Arc::clone(&self.subscriptions);
+        let handle = tokio::spawn(async move {
+            let interval = std::time::Duration::from_secs(60);
+            loop {
+                tokio::time::sleep(interval).await;
+                let n = subscription::evict_expired(&subs).await;
+                if n > 0 {
+                    tracing::debug!(evicted = n, "subscription TTL eviction tick");
+                }
+            }
+        });
+        let mut guard = self.eviction_abort.lock().await;
+        if let Some(old) = guard.replace(handle.abort_handle()) {
+            old.abort();
+        }
     }
 
     /// Create a server pre-loaded from `root`, restricted to `allowed_roots` (RFC-0097).
@@ -1619,6 +1656,7 @@ impl MyceliumServer {
     ///
     /// Returns an error if the OS watcher cannot be created or `root` cannot
     /// be watched.
+    #[allow(clippy::too_many_lines)] // single coherent watch-prologue + on_batch closure
     pub async fn start_watch(&self, root: PathBuf) -> anyhow::Result<()> {
         use mycelium_core::watch::{CancelToken, WatchConfig, WatchEngine};
 
@@ -1643,8 +1681,9 @@ impl MyceliumServer {
         let watch_state_cb = Arc::clone(&watch_state);
         let root_cb = root.clone();
         let notifier_cb = Arc::clone(&self.notifier);
+        let subscriptions_cb = Arc::clone(&self.subscriptions);
         let on_batch = move |ev: &mycelium_core::watch::WatchEvent,
-                             _delta: &mycelium_core::watch::BatchDelta,
+                             delta: &mycelium_core::watch::BatchDelta,
                              store_r: &mycelium_core::store::Store| {
             watch_state_cb
                 .batches_processed
@@ -1674,6 +1713,78 @@ impl MyceliumServer {
                 }
                 // notifier None → silently skip (pre-serve / client disconnected).
             });
+
+            // SUBSCRIBE (RFC-0107): per-subscription scoped fan-out. We
+            // build every match payload synchronously here (under no lock —
+            // `subscriptions_cb` is `Arc<RwLock<...>>` so a blocking_read is
+            // fine because the watch loop already dropped its write lock and
+            // this `on_batch` call is synchronous-from-engine), then spawn
+            // one task per matching subscription for the actual send.
+            //
+            // For Selector subscriptions, also recompute the fresh match
+            // set so the next batch can diff against it. Persisted via a
+            // spawned task to avoid blocking the loop.
+            let subs_for_match = Arc::clone(&subscriptions_cb);
+            let ev_clone = ev.clone();
+            let delta_clone = delta.clone();
+            let subs_snapshot: Vec<subscription::Subscription> = subs_for_match
+                .blocking_read()
+                .by_id
+                .values()
+                .cloned()
+                .collect();
+            let mut payloads: Vec<(
+                String,
+                bool,
+                Option<std::collections::BTreeSet<String>>,
+                subscription::SubscriptionDeltaEvent,
+            )> = Vec::new();
+            for sub in &subs_snapshot {
+                if let Some(payload) =
+                    subscription::match_batch(sub, &ev_clone, &delta_clone, store_r)
+                {
+                    let is_selector =
+                        matches!(sub.interest, subscription::Interest::Selector { .. });
+                    // Recompute the canonical NEW set for Selector subs so
+                    // we can persist it as `last_match_set` after delivery.
+                    let new_set = if let subscription::Interest::Selector { hyphae } = &sub.interest
+                    {
+                        Some(subscription::evaluate_selector_set(hyphae, store_r))
+                    } else {
+                        None
+                    };
+                    payloads.push((sub.id.clone(), is_selector, new_set, payload));
+                }
+            }
+            drop(subs_snapshot);
+            for (sub_id, _is_selector, new_set, payload) in payloads {
+                let notifier_for_send = Arc::clone(&notifier_cb);
+                let subs_for_bump = Arc::clone(&subscriptions_cb);
+                tokio::spawn(async move {
+                    let peer = notifier_for_send.lock().await.clone();
+                    if let Some(peer) = peer {
+                        if let Some(custom) = payload.into_custom_notification() {
+                            if let Err(e) = peer
+                                .send_notification(
+                                    rmcp::model::ServerNotification::CustomNotification(custom),
+                                )
+                                .await
+                            {
+                                warn!("could not push subscriptionDelta notification: {e}");
+                                return;
+                            }
+                        }
+                    }
+                    // Delivery attempted (peer present) or skipped (no peer):
+                    // either way we bump the rolling TTL so quiet-but-alive
+                    // subscriptions don't expire mid-session, and update the
+                    // Selector last_match_set so the next batch can diff.
+                    subscription::bump_ttl(&subs_for_bump, &sub_id).await;
+                    if let Some(ns) = new_set {
+                        subscription::update_last_match_set(&subs_for_bump, &sub_id, ns).await;
+                    }
+                });
+            }
         };
 
         watch_state.watching.store(true, Ordering::Relaxed);
@@ -1960,6 +2071,92 @@ impl MyceliumServer {
                 "batches_processed": batches_processed,
             })
             .to_string(),
+        )
+    }
+
+    #[tool(
+        description = "Register a per-batch SUBSCRIBE interest (RFC-0107). Files / Symbols / \
+                       Selector tagged union; subsequent watch batches emit one \
+                       `mycelium/subscriptionDelta` notification per matching subscription. \
+                       Defence-in-depth: rolling TTL (default 3600s, max 86400s) + caps \
+                       (256 server-wide, 32 per-client, 64 Selector-specific) + peer-close GC. \
+                       Frozen-at-v1 wire shape."
+    )]
+    async fn mycelium_subscribe(
+        &self,
+        Parameters(req): Parameters<subscription::SubscribeRequest>,
+    ) -> CallToolResult {
+        let root: PathBuf = match req.root.as_deref() {
+            Some(r) => PathBuf::from(r),
+            None => self
+                .indexed_root
+                .read()
+                .await
+                .clone()
+                .unwrap_or_else(|| PathBuf::from(".")),
+        };
+        // RFC-0097: subscriptions inherit the same root-allowlist as
+        // index/load. Empty allowed_roots = unrestricted (unit-test mode).
+        if !self.allowed_roots.is_empty() {
+            if let Err(e) =
+                check_path_in_allowed_roots(&root.to_string_lossy(), &self.allowed_roots)
+            {
+                let err = subscription::SubscribeError::RootNotAllowed(e);
+                return application_error(&serde_json::json!({
+                    "code": err.code(),
+                    "error": err.to_string(),
+                }));
+            }
+        }
+        let client_tag = "stdio-default".to_owned(); // single-peer stdio transport
+        match subscription::subscribe(&self.subscriptions, req, client_tag, root).await {
+            Ok(resp) => success_str(
+                serde_json::to_value(&resp)
+                    .map_or_else(|e| format!("{{\"error\":\"{e}\"}}"), |v| v.to_string()),
+            ),
+            Err(e) => application_error(&serde_json::json!({
+                "code": e.code(),
+                "error": e.to_string(),
+            })),
+        }
+    }
+
+    #[tool(
+        description = "Idempotently remove a SUBSCRIBE subscription by id (RFC-0107). \
+                       Unknown ids return `{removed: false}` rather than an error, so \
+                       agents can run cleanup blindly on reconnect."
+    )]
+    async fn mycelium_unsubscribe(
+        &self,
+        Parameters(req): Parameters<subscription::UnsubscribeRequest>,
+    ) -> CallToolResult {
+        let resp = subscription::unsubscribe(&self.subscriptions, &req.subscription_id).await;
+        success_str(
+            serde_json::to_value(&resp)
+                .map_or_else(|e| format!("{{\"error\":\"{e}\"}}"), |v| v.to_string()),
+        )
+    }
+
+    #[tool(
+        description = "Inspect SUBSCRIBE subscriptions (RFC-0107). When `subscription_id` is \
+                       supplied returns at most one row; otherwise returns every active \
+                       subscription plus the configured caps and the watch loop's \
+                       `watching` flag."
+    )]
+    async fn mycelium_subscription_status(
+        &self,
+        Parameters(req): Parameters<subscription::SubscriptionStatusRequest>,
+    ) -> CallToolResult {
+        let watching = self.watch_state.watching.load(Ordering::Relaxed);
+        let resp = subscription::status(
+            &self.subscriptions,
+            req.subscription_id.as_deref(),
+            watching,
+        )
+        .await;
+        success_str(
+            serde_json::to_value(&resp)
+                .map_or_else(|e| format!("{{\"error\":\"{e}\"}}"), |v| v.to_string()),
         )
     }
 
@@ -5400,6 +5597,9 @@ pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> 
     // point (e.g. from a constructor's initial index) silently skips the
     // notification (the notifier Option is still None).
     running.service().set_notifier(running.peer().clone()).await;
+    // SUBSCRIBE (RFC-0107): start the 60s periodic TTL-eviction task. One
+    // task per server lifetime; survives client reconnects.
+    running.service().start_subscription_eviction().await;
     running.waiting().await?;
     Ok(())
 }

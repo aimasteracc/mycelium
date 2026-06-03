@@ -87,6 +87,7 @@ schemars           = "1"
 
 # File watching
 notify             = { version = "8", features = ["macos_kqueue"] }
+globset            = "0.4"
 
 # Testing
 insta              = { version = "1", features = ["yaml", "json"] }
