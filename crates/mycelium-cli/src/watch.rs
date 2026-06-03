@@ -190,16 +190,26 @@ pub(super) fn run_foreground(
                     ev.changed_files.len(),
                     ev.changed_files.join(", "),
                 );
-                // RFC-0107 SUBSCRIBE: stream matched payloads as NDJSON on
-                // stdout, byte-identical to the MCP `mycelium_subscribe` wire
-                // shape (one `SubscriptionDeltaEvent` per match per batch).
+                // RFC-0107 + RFC-0108 SUBSCRIBE: stream matched payloads as
+                // NDJSON on stdout, byte-identical to the MCP
+                // `mycelium_subscribe` wire shape (one event per match per
+                // batch — `SubscriptionDeltaEvent` for file/symbol/selector,
+                // `QueryResultChangedEvent` for query subscriptions).
                 if let Some(sub_id) = &registered_sub_id_drive {
                     let r = subscriptions_drive.blocking_read();
                     if let Some(sub) = r.by_id.get(sub_id) {
-                        if let Some(payload) = subscription::match_batch(sub, ev, delta, store_r) {
-                            if let Ok(line) = serde_json::to_string(&payload) {
-                                println!("{line}");
+                        match subscription::match_batch(sub, ev, delta, store_r) {
+                            Some(subscription::BatchMatch::Delta(payload)) => {
+                                if let Ok(line) = serde_json::to_string(&payload) {
+                                    println!("{line}");
+                                }
                             }
+                            Some(subscription::BatchMatch::QueryDelta(payload)) => {
+                                if let Ok(line) = serde_json::to_string(&payload) {
+                                    println!("{line}");
+                                }
+                            }
+                            Some(subscription::BatchMatch::PauseQuery { .. }) | None => {}
                         }
                     }
                 }

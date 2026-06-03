@@ -1069,6 +1069,7 @@ name = "mycelium-rcig-mcp"
 version = "0.1.16"
 dependencies = [
  "anyhow",
+ "blake3",
  "criterion",
  "globset",
  "hex",

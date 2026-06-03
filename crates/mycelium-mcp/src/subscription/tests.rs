@@ -12,11 +12,29 @@ use mycelium_core::trunk::TrunkPath;
 use mycelium_core::types::NodeKind;
 use mycelium_core::watch::{BatchDelta, SymbolDelta, WatchEvent};
 
+use mycelium_core::store::Store as TrunkStore;
+
 use super::{
-    DEFAULT_TTL_SECONDS, Interest, MAX_PER_CLIENT, MAX_SELECTOR, MAX_SUBSCRIPTIONS, SubscribeError,
-    SubscribeRequest, bump_ttl, evaluate_selector_set, evict_expired, evict_for_dead_peer,
-    match_batch, new_store, status, subscribe, unsubscribe, update_last_match_set,
+    BatchMatch, DEFAULT_TTL_SECONDS, Interest, MAX_PER_CLIENT, MAX_SELECTOR, MAX_SUBSCRIPTIONS,
+    SubscribeError, SubscribeRequest, Subscription, SubscriptionDeltaEvent, bump_ttl,
+    evaluate_selector_set, evict_expired, evict_for_dead_peer, new_store, status, subscribe,
+    unsubscribe, update_last_match_set,
 };
+
+/// Test-only wrapper around `subscription::match_batch` that unwraps the
+/// `BatchMatch::Delta` variant — every RFC-0107 test wants the
+/// `SubscriptionDeltaEvent`, never the `QueryDelta` variant.
+fn match_batch(
+    sub: &Subscription,
+    ev: &WatchEvent,
+    delta: &BatchDelta,
+    trunk_store: &TrunkStore,
+) -> Option<SubscriptionDeltaEvent> {
+    match super::match_batch(sub, ev, delta, trunk_store) {
+        Some(BatchMatch::Delta(e)) => Some(e),
+        _ => None,
+    }
+}
 
 fn ev(root: &str, batch_seq: u64, files: &[&str]) -> WatchEvent {
     WatchEvent {
@@ -179,6 +197,11 @@ async fn selector_removal_strict_ii() {
         expires_at: Instant::now() + Duration::from_secs(60),
         client_tag: "peer".to_owned(),
         last_match_set: Some(old_set),
+        min_interval_ms: 0,
+        last_hash: None,
+        last_set_value: None,
+        last_emit_at: None,
+        paused_until: None,
     };
 
     // BatchDelta only mentions src/b.rs (no src/a.rs touch).
@@ -477,6 +500,11 @@ async fn payload_field_names_are_frozen_v1_shape() {
         expires_at: tokio::time::Instant::now() + Duration::from_secs(60),
         client_tag: "peer".to_owned(),
         last_match_set: None,
+        min_interval_ms: 0,
+        last_hash: None,
+        last_set_value: None,
+        last_emit_at: None,
+        paused_until: None,
     };
     let d = delta(vec![SymbolDelta {
         file: "src/a.rs".to_owned(),

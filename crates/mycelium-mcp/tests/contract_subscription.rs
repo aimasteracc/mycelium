@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use mycelium_core::store::Store;
 use mycelium_core::watch::{BatchDelta, SymbolDelta, WatchEvent};
 use mycelium_mcp::subscription::{
-    self, Interest, SubscribeRequest, match_batch, new_store, subscribe,
+    self, BatchMatch, Interest, SubscribeRequest, match_batch, new_store, subscribe,
 };
 
 fn ev(root: &str, seq: u64, files: &[&str]) -> WatchEvent {
@@ -59,7 +59,10 @@ async fn run_through_mcp_surface(
         &trunk,
     );
     drop(r);
-    payload
+    match payload {
+        Some(BatchMatch::Delta(e)) => Some(e),
+        _ => None,
+    }
 }
 
 /// Build a payload using the same code path the CLI runs inside its

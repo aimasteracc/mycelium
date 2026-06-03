@@ -47,7 +47,43 @@
 pub mod error;
 pub mod formatter;
 mod push;
+pub mod query_delta;
+mod query_eval;
 pub mod subscription;
+
+/// Internal fan-out work-item produced inside `start_watch`'s `on_batch`
+/// closure (RFC-0107 + RFC-0108). Lifted to module scope so clippy's
+/// `items_after_statements` is satisfied.
+enum Fanout {
+    Delta {
+        sub_id: String,
+        new_set: Option<std::collections::BTreeSet<String>>,
+        payload: subscription::SubscriptionDeltaEvent,
+    },
+    QueryDelta {
+        sub_id: String,
+        is_set_shaped: bool,
+        payload: query_delta::QueryResultChangedEvent,
+    },
+    PauseQuery {
+        sub_id: String,
+    },
+}
+
+/// Parse a `"b3:<32-hex>"` hash back to its `[u8; 16]` bytes. Returns
+/// `None` on any prefix / length / hex-digit mismatch. RFC-0108.
+fn parse_hash_hex(s: &str) -> Option<[u8; 16]> {
+    let hex_part = s.strip_prefix("b3:")?;
+    if hex_part.len() != 32 {
+        return None;
+    }
+    let mut out = [0_u8; 16];
+    for (i, slot) in out.iter_mut().enumerate() {
+        let byte_hex = hex_part.get(i * 2..i * 2 + 2)?;
+        *slot = u8::from_str_radix(byte_hex, 16).ok()?;
+    }
+    Some(out)
+}
 
 use std::collections::BTreeSet;
 
@@ -1762,57 +1798,137 @@ impl MyceliumServer {
                 .values()
                 .cloned()
                 .collect();
-            let mut payloads: Vec<(
-                String,
-                bool,
-                Option<std::collections::BTreeSet<String>>,
-                subscription::SubscriptionDeltaEvent,
-            )> = Vec::new();
+            // RFC-0107 + RFC-0108: collect every pending fan-out work-item
+            // (file/symbol/selector delta or query delta or pause).
+            let mut payloads: Vec<Fanout> = Vec::new();
             for sub in &subs_snapshot {
-                if let Some(payload) =
-                    subscription::match_batch(sub, &ev_clone, &delta_clone, store_r)
-                {
-                    let is_selector =
-                        matches!(sub.interest, subscription::Interest::Selector { .. });
-                    // Recompute the canonical NEW set for Selector subs so
-                    // we can persist it as `last_match_set` after delivery.
-                    let new_set = if let subscription::Interest::Selector { hyphae } = &sub.interest
-                    {
-                        Some(subscription::evaluate_selector_set(hyphae, store_r))
-                    } else {
-                        None
-                    };
-                    payloads.push((sub.id.clone(), is_selector, new_set, payload));
+                match subscription::match_batch(sub, &ev_clone, &delta_clone, store_r) {
+                    Some(subscription::BatchMatch::Delta(payload)) => {
+                        // Recompute the canonical NEW set for Selector subs so
+                        // we can persist it as `last_match_set` after delivery.
+                        let new_set =
+                            if let subscription::Interest::Selector { hyphae } = &sub.interest {
+                                Some(subscription::evaluate_selector_set(hyphae, store_r))
+                            } else {
+                                None
+                            };
+                        payloads.push(Fanout::Delta {
+                            sub_id: sub.id.clone(),
+                            new_set,
+                            payload,
+                        });
+                    }
+                    Some(subscription::BatchMatch::QueryDelta(payload)) => {
+                        let is_set_shaped = matches!(
+                            &sub.interest,
+                            subscription::Interest::Query { query, .. }
+                                if subscription::query_is_set_shaped(query)
+                        );
+                        payloads.push(Fanout::QueryDelta {
+                            sub_id: sub.id.clone(),
+                            is_set_shaped,
+                            payload,
+                        });
+                    }
+                    Some(subscription::BatchMatch::PauseQuery { subscription_id }) => {
+                        payloads.push(Fanout::PauseQuery {
+                            sub_id: subscription_id,
+                        });
+                    }
+                    None => {}
                 }
             }
             drop(subs_snapshot);
-            for (sub_id, _is_selector, new_set, payload) in payloads {
+            for f in payloads {
                 let notifier_for_send = Arc::clone(&notifier_cb);
                 let subs_for_bump = Arc::clone(&subscriptions_cb);
-                tokio::spawn(async move {
-                    let peer = notifier_for_send.lock().await.clone();
-                    if let Some(peer) = peer {
-                        if let Some(custom) = payload.into_custom_notification() {
-                            if let Err(e) = peer
-                                .send_notification(
-                                    rmcp::model::ServerNotification::CustomNotification(custom),
-                                )
-                                .await
-                            {
-                                warn!("could not push subscriptionDelta notification: {e}");
-                                return;
+                match f {
+                    Fanout::Delta {
+                        sub_id,
+                        new_set,
+                        payload,
+                    } => {
+                        tokio::spawn(async move {
+                            let peer = notifier_for_send.lock().await.clone();
+                            if let Some(peer) = peer {
+                                if let Some(custom) = payload.into_custom_notification() {
+                                    if let Err(e) = peer
+                                        .send_notification(
+                                            rmcp::model::ServerNotification::CustomNotification(
+                                                custom,
+                                            ),
+                                        )
+                                        .await
+                                    {
+                                        warn!("could not push subscriptionDelta notification: {e}");
+                                        return;
+                                    }
+                                }
                             }
-                        }
+                            subscription::bump_ttl(&subs_for_bump, &sub_id).await;
+                            if let Some(ns) = new_set {
+                                subscription::update_last_match_set(&subs_for_bump, &sub_id, ns)
+                                    .await;
+                            }
+                        });
                     }
-                    // Delivery attempted (peer present) or skipped (no peer):
-                    // either way we bump the rolling TTL so quiet-but-alive
-                    // subscriptions don't expire mid-session, and update the
-                    // Selector last_match_set so the next batch can diff.
-                    subscription::bump_ttl(&subs_for_bump, &sub_id).await;
-                    if let Some(ns) = new_set {
-                        subscription::update_last_match_set(&subs_for_bump, &sub_id, ns).await;
+                    Fanout::PauseQuery { sub_id } => {
+                        tokio::spawn(async move {
+                            subscription::pause_query_subscription(&subs_for_bump, &sub_id).await;
+                        });
                     }
-                });
+                    Fanout::QueryDelta {
+                        sub_id,
+                        is_set_shaped,
+                        payload,
+                    } => {
+                        // Extract pieces needed for persistence BEFORE moving
+                        // the payload into the notification envelope. The
+                        // hash is hex `"b3:<32-hex>"` — parse back to 16 bytes
+                        // for storage.
+                        let hash_hex_str = payload.result_hash_new.clone();
+                        let new_set: Option<std::collections::BTreeSet<String>> = if is_set_shaped {
+                            payload.new_result.as_array().map(|a| {
+                                a.iter()
+                                    .filter_map(|v| v.as_str().map(str::to_owned))
+                                    .collect()
+                            })
+                        } else {
+                            None
+                        };
+                        tokio::spawn(async move {
+                            let peer = notifier_for_send.lock().await.clone();
+                            if let Some(peer) = peer {
+                                if let Some(custom) = payload.into_custom_notification() {
+                                    if let Err(e) = peer
+                                        .send_notification(
+                                            rmcp::model::ServerNotification::CustomNotification(
+                                                custom,
+                                            ),
+                                        )
+                                        .await
+                                    {
+                                        warn!(
+                                            "could not push queryResultChanged notification: {e}"
+                                        );
+                                        return;
+                                    }
+                                }
+                            }
+                            subscription::bump_ttl(&subs_for_bump, &sub_id).await;
+                            // Parse `"b3:xx..xx"` back to 16 bytes for storage.
+                            if let Some(bytes) = parse_hash_hex(&hash_hex_str) {
+                                subscription::update_query_state(
+                                    &subs_for_bump,
+                                    &sub_id,
+                                    bytes,
+                                    new_set,
+                                )
+                                .await;
+                            }
+                        });
+                    }
+                }
             }
         };
 
