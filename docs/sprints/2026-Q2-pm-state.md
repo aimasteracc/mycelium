@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-02 (PM dispatch v13 — PR #454 merged; PR #452 `publish to crates.io` failure diagnosed (crates.io indexing lag, not code); release.yml CI fix PR #455 opened) |
+| Last updated | 2026-06-03 (PM dispatch v14 — PRs #455+#456 merged; PR #457 closed/superseded; PR #458 opened (RFC-0105 clean rebase); security scan CLEAN) |
 | Current sprint | **v0.1.17 — RELEASE BRANCH CUT** (`release/v0.1.17`, PR #452 Quality Gate ✅ — founder can authorize ceremony script) |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
@@ -132,10 +132,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0:** none.
 
 **P1 (v0.1.17 release gates):**
-1. ~~**Security scan post-v0.1.16**~~ — COMPLETE ✅
+1. ~~**Security scan post-v0.1.16**~~ — COMPLETE ✅ (v12 + re-confirmed v14: CLEAN)
 2. ~~**Cut `release/v0.1.17`**~~ — COMPLETE ✅ (PR #452 + PR #453 open)
-3. **Founder authorization** — PR #452 Quality Gate ✅. Use `scripts/release-ceremony.sh` for Steps 1–4. ⚠️ `publish to crates.io` CI check is FAILURE (crates.io indexing lag, not code issue); ceremony script does its own publish and is unaffected. (`founder` action — NEXT STEP)
-4. **release.yml CI fix PR #455** — increase crates.io wait 120s→360s + gate `finalize` on `workflow_dispatch` (Charter §5.12 governance). CI-only change, safe to merge. (`rust-implementer`/PM to merge when CI green)
+3. ~~**release.yml CI fix PR #455**~~ — MERGED ✅ (2026-06-03, this run)
+4. **Founder authorization** — PR #452 Quality Gate ✅. Use `scripts/release-ceremony.sh` for Steps 1–4. release.yml now fixed (PR #455 on develop). (`founder` action — NEXT STEP)
+
+**P1 (reactive roadmap — RFC-0105):**
+5. **Founder: ratify or reject RFC-0105 Three-Surface EXCEPTION** — PR #458 (doc-only, CI pending). Watch lifecycle genuinely differs (foreground CLI vs background MCP server); parity bridge = shared WatchEngine + byte-identical `watch --status`. **Implementation is gated on this decision.**
 
 **P1 (post-v0.1.17):**
 4. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark results needed before Charter §2 table is amended from placeholder to measured values. (`bench` agent: set `MYCELIUM_BENCH_LARGE=1` on nightly runner)
@@ -150,17 +153,17 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-02 v13 — PR #454 merged; PR #452 CI failure diagnosed; PR #455 CI fix opened)
+## Dispatch state (2026-06-03 v14 — PRs #455+#456 merged; PR #458 opened; security CLEAN; RFC-0105 founder gate)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Authorize v0.1.17 ceremony: `scripts/release-ceremony.sh` — Step 1 (merge PR #452 → main), Step 2 (tag), Step 3 (crates.io publish + GitHub Release). ⚠️ `publish to crates.io` CI check on PR #452 shows FAILURE (crates.io indexing lag, not code) — Quality Gate IS green; ceremony script does its own fresh publish. (2) **Only after Steps 1+2+3 complete**: admin-merge PR #453 (back-merge → develop, Step 4). ⚠️ Do NOT merge #453 before crates.io publish. (3) Schedule `sla_ancestors_100k` nightly benchmark run for RFC-0104 cold numbers. |
-| PM | **DONE ✅** | PR #454 merged (v12 chore). PR #455 opened (CI fix). PM state v13 updated. |
-| security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN (v12). |
+| founder | **action requested** | (1) Authorize v0.1.17 ceremony: `scripts/release-ceremony.sh` — Steps 1–4. PR #452 Quality Gate ✅; release.yml now fixed (PR #455). (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** (PR #458 — foreground CLI watch vs background MCP; parity bridge = shared WatchEngine + `watch --status`). Implementation gated on your decision. (4) Schedule `sla_ancestors_100k` nightly benchmark for RFC-0104 cold numbers. |
+| PM | **DONE ✅** | PRs #455+#456 merged; PR #457 closed; PR #458 opened; security CLEAN; PM state v14. |
+| security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN (v12 + re-confirmed v14). |
 | release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 + PR #453 open. Awaiting founder auth. |
+| rust-implementer | **WAITING** | RFC-0105 WatchEngine build — gated on founder EXCEPTION ratification (PR #458). |
 | bench | **P1** | Run `sla_ancestors_100k` nightly for RFC-0104 cold SLA numbers. |
 | e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands under new storage default). |
-| rust-implementer | **P1** | Merge PR #455 when CI green (release.yml CI fix, pure workflow change). |
 | architect | idle | ADR-0008: redb as default backend (required before v0.2.0). |
 | tech-writer | idle | Skill marketplace submission prep (P2). |
 
