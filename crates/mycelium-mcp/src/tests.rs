@@ -716,6 +716,7 @@ async fn get_callers_returns_functions_that_call_path() {
     let server = server_with_call_fixture().await;
     let raw = server
         .mycelium_get_callers(Parameters(GetCallersRequest {
+            budget: None,
             path: "src/lib.rs>bar".to_string(),
             edge_kind: None,
             include_virtual: None,
@@ -6130,6 +6131,7 @@ async fn get_callers_include_virtual_surfaces_virtual_dispatch_caller() {
     let server = server_with_virtual_dispatch_fixture().await;
     let raw = server
         .mycelium_get_callers(Parameters(GetCallersRequest {
+            budget: None,
             path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
             edge_kind: None,
             include_virtual: Some(true),
@@ -6151,6 +6153,7 @@ async fn get_callers_default_does_not_include_virtual() {
     let server = server_with_virtual_dispatch_fixture().await;
     let raw = server
         .mycelium_get_callers(Parameters(GetCallersRequest {
+            budget: None,
             path: "pkg/sub.py>ConcretePlugin>analyze".to_string(),
             edge_kind: None,
             include_virtual: None,
@@ -6194,6 +6197,7 @@ async fn test_get_callers_text_format() {
     let server = server_with_fixture().await;
     let result = server
         .mycelium_get_callers(Parameters(GetCallersRequest {
+            budget: None,
             path: "src/greet.rs>greet".to_owned(),
             edge_kind: None,
             include_virtual: None,
@@ -6465,6 +6469,7 @@ async fn get_callers_edge_kind_extends_returns_extenders() {
     }
     let result = server
         .mycelium_get_callers(Parameters(GetCallersRequest {
+            budget: None,
             path: "src/base.rs>Base".to_string(),
             edge_kind: Some("extends".to_string()),
             include_virtual: None,

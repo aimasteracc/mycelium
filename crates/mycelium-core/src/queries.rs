@@ -12,6 +12,37 @@ use serde_json::{Value, json};
 use crate::store::Store;
 use crate::types::{EdgeKind, NodeId};
 
+/// Build the `{ "caller_paths": [...] }` payload for `get_callers`: sorted,
+/// deduplicated trunk paths that reach `id` via one incoming `kind` edge.
+///
+/// When `include_virtual` is true and `kind` is `EdgeKind::Calls`, virtual-
+/// dispatch callers (callers of an ancestor method with the same name) are also
+/// included. `path` is the trunk-string form of `id`, required for the virtual
+/// dispatch lookup.
+#[must_use]
+pub fn callers_payload(
+    store: &Store,
+    id: NodeId,
+    kind: EdgeKind,
+    include_virtual: bool,
+    path: &str,
+) -> Value {
+    let mut paths: Vec<String> = store
+        .incoming(id, kind)
+        .iter()
+        .filter_map(|&src| store.path_of(src).map(str::to_owned))
+        .collect();
+    if kind == EdgeKind::Calls && include_virtual {
+        let virtual_callers = store
+            .virtual_dispatch_callers_of_path(path)
+            .unwrap_or_default();
+        paths.extend(virtual_callers);
+    }
+    paths.sort();
+    paths.dedup();
+    json!({ "caller_paths": paths })
+}
+
 /// Build the `{ "callee_paths": [...] }` payload for `get_callees`: the sorted,
 /// deduplicated trunk paths reachable from `id` via one outgoing `kind` edge.
 #[must_use]
@@ -34,6 +65,63 @@ mod tests {
     fn p(s: &str) -> TrunkPath {
         TrunkPath::parse(s).unwrap()
     }
+
+    // ── callers_payload tests (RFC-0109 Option A) ──────────────────────────────
+
+    #[test]
+    fn callers_payload_is_a_sorted_deduped_object() {
+        let mut store = Store::new();
+        let target = store.upsert_node(p("src/lib.rs>Mod>target"));
+        let a = store.upsert_node(p("src/a.rs>A>alpha"));
+        let z = store.upsert_node(p("src/z.rs>Z>zeta"));
+        store.upsert_edge(EdgeKind::Calls, a, target);
+        store.upsert_edge(EdgeKind::Calls, z, target);
+
+        let v = callers_payload(
+            &store,
+            target,
+            EdgeKind::Calls,
+            false,
+            "src/lib.rs>Mod>target",
+        );
+
+        let arr = v["caller_paths"]
+            .as_array()
+            .expect("caller_paths must be an array");
+        // sorted lexicographically, deduplicated
+        assert_eq!(arr[0], "src/a.rs>A>alpha");
+        assert_eq!(arr[1], "src/z.rs>Z>zeta");
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[test]
+    fn callers_payload_empty_for_root() {
+        let mut store = Store::new();
+        let root = store.upsert_node(p("src/main.rs>main"));
+        let v = callers_payload(&store, root, EdgeKind::Calls, false, "src/main.rs>main");
+        assert_eq!(v["caller_paths"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn callers_payload_deduplicates() {
+        let mut store = Store::new();
+        let target = store.upsert_node(p("src/lib.rs>Mod>target"));
+        let caller = store.upsert_node(p("src/a.rs>A>alpha"));
+        // Insert edge twice (idempotent in Store but verify dedup in output)
+        store.upsert_edge(EdgeKind::Calls, caller, target);
+        store.upsert_edge(EdgeKind::Calls, caller, target);
+
+        let v = callers_payload(
+            &store,
+            target,
+            EdgeKind::Calls,
+            false,
+            "src/lib.rs>Mod>target",
+        );
+        assert_eq!(v["caller_paths"].as_array().unwrap().len(), 1);
+    }
+
+    // ── callees_payload tests (RFC-0109 Option A) ─────────────────────────────
 
     #[test]
     fn callees_payload_is_a_sorted_deduped_object() {

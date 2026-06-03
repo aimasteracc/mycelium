@@ -123,11 +123,18 @@ fn get_callers_of_leaf_includes_middle() {
         .output()
         .unwrap();
     assert!(out.status.success());
-    let parsed: Vec<String> =
+    // RFC-0109 Option A: CLI --format json now emits the same object shape as
+    // the MCP twin: {"caller_paths":[...]} (was a bare array).
+    let parsed: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let paths = parsed["caller_paths"]
+        .as_array()
+        .expect("caller_paths must be an array");
     assert!(
-        parsed.iter().any(|p| p.contains("middle")),
-        "got {parsed:?}"
+        paths
+            .iter()
+            .any(|p| p.as_str().unwrap_or("").contains("middle")),
+        "got {parsed}"
     );
 }
 

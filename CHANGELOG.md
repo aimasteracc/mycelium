@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`get_callees` gains the per-call budget knob (RFC-0102)** on both surfaces:
   MCP `budget` field / CLI `--budget` (`auto|small|medium|large|disabled`),
   resolved identically via the shared `OutputBudget::resolve`.
+- **BREAKING (CLI): `mycelium get-callers --format json` now emits an object**
+  `{"caller_paths":[…]}` instead of a bare JSON array (RFC-0109 Option A). CLI
+  and MCP now route through the shared `mycelium_core::queries::callers_payload`
+  builder — byte-identical by construction. Text mode unchanged. Per-call
+  `--budget` / MCP `budget` field added on both surfaces (same pattern as
+  `get_callees`).
 
 ### Fixed
 

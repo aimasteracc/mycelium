@@ -413,6 +413,11 @@ pub struct GetCallersRequest {
     /// Only applies when `edge_kind` is `"calls"` (the default). Default: false.
     #[serde(default)]
     pub include_virtual: Option<bool>,
+    /// Per-call output budget override (RFC-0102): `"auto"` (default), `"small"`,
+    /// `"medium"`, `"large"`, or `"disabled"`. Resolves via the shared
+    /// `OutputBudget::resolve` — byte-identical with the CLI `--budget` flag.
+    #[serde(default)]
+    pub budget: Option<String>,
     /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
@@ -2373,36 +2378,29 @@ impl MyceliumServer {
             Ok(k) => k,
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
-        let (direct, virtual_opt) = {
-            let store_guard = self.store.read().await;
-            let Some(id) = store_guard.lookup(&req.path) else {
-                return application_error(
-                    &serde_json::json!({ "error": format!("path not found: {}", req.path) }),
-                );
-            };
-            let d: Vec<String> = store_guard
-                .incoming(id, kind)
-                .iter()
-                .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
-                .collect();
-            // virtual dispatch only makes sense for Calls edges
-            let v = if kind == mycelium_core::types::EdgeKind::Calls
-                && req.include_virtual == Some(true)
-            {
-                store_guard
-                    .virtual_dispatch_callers_of_path(&req.path)
-                    .unwrap_or_default()
-            } else {
-                vec![]
-            };
-            (d, v)
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
         };
-        let mut paths = direct;
-        paths.extend(virtual_opt);
-        paths.sort();
-        paths.dedup();
-        let mut value = serde_json::json!({ "caller_paths": paths });
-        apply_budget(&mut value, &self.current_budget().await);
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            drop(store_guard);
+            return not_found(&req.path);
+        };
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::callers_payload(
+            &store_guard,
+            id,
+            kind,
+            req.include_virtual.unwrap_or(false),
+            &req.path,
+        );
+        let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
+        drop(store_guard);
+        apply_budget(&mut value, &budget);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),

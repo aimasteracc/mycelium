@@ -246,6 +246,11 @@ enum Cmd {
         /// Only applies when --edge-kind=calls (the default).
         #[arg(long, default_value_t = false)]
         include_virtual: bool,
+        /// Per-call output budget (RFC-0102): `auto` (default, follows project
+        /// size), `small` / `medium` / `large` (pin a tier), or `disabled`
+        /// (no truncation). Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return the recursive callee tree rooted at a symbol.
     GetCalleeTree {
@@ -1227,6 +1232,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
             edge_kind,
             include_virtual,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_callers(
@@ -1234,6 +1240,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 &path,
                 &edge_kind,
                 include_virtual,
+                budget.as_deref(),
                 format.into(),
             )?;
         }

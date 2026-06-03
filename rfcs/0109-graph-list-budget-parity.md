@@ -103,7 +103,7 @@ byte-identical contract test.
 | Tool | Shared builder | CLI object shape | `--budget`/`budget` | PR |
 |---|---|---|---|---|
 | `get_callees` | `mycelium_core::queries::callees_payload` | ✅ | ✅ | (this RFC's first impl) |
-| `get_callers` | — | — | — | pending |
+| `get_callers` | `mycelium_core::queries::callers_payload` | ✅ | ✅ | pending PR |
 | `get_dead_symbols` | — | — | — | pending |
 | `get_isolated_symbols` | — | — | — | pending |
 | `get_reachable` / `get_reachable_to` | — | — | — | pending (already object-shaped on MCP) |
@@ -115,12 +115,12 @@ byte-identical contract test.
       under the autonomous-development mandate, citing ADR-0009's pre-launch
       principle).
 - [~] (Option A) A shared core builder exists per rolled-out list tool; CLI and
-      MCP both call it; a byte-identical contract test guards each. **Started:
-      `get_callees` routes both surfaces through
-      `mycelium_core::queries::callees_payload`; remaining tools pending.**
+      MCP both call it; a byte-identical contract test guards each. **2/6 done:
+      `get_callees` → `callees_payload`; `get_callers` → `callers_payload`.
+      Remaining 4 tools pending.**
 - [~] (Option A) `--budget`/`budget` accepted on each rolled-out tool, resolving
       via the shared `OutputBudget::resolve`; unknown value fails fast on both
-      surfaces. **Started: `get_callees` done on both surfaces.**
+      surfaces. **2/6 done: `get_callees` and `get_callers` on both surfaces.**
 - [ ] CHANGELOG `[Unreleased]` notes the CLI JSON shape change (Option A) or the
       documented EXCEPTION (Option B).
 - [ ] RFC-0102's "roll knob across remaining graph-list tools" item is closed by
