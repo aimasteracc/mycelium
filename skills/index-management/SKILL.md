@@ -177,11 +177,79 @@ mcp__mycelium__subscribe({
     "interest_kind": "files", "active_count": 1 }
 ```
 
-`interest` is a tagged union (mutually exclusive): `{"kind":"files","paths":[...]}` | `{"kind":"symbols","paths":[...]}` | `{"kind":"selector","hyphae":"..."}`. The server enforces caps (256 server-wide, 32 per-client, 64 Selector-specific) and a rolling TTL (default 3600s, max 86400s, bumped on every successful delivery). `mycelium_unsubscribe` is idempotent — unknown ids return `{removed: false}`. `mycelium_subscription_status` returns the active subscription list plus the configured caps for visibility.
+`interest` is a tagged union (mutually exclusive): `{"kind":"files","paths":[...]}` | `{"kind":"symbols","paths":[...]}` | `{"kind":"selector","hyphae":"..."}` | `{"kind":"query","query":{...},"min_interval_seconds":N?}` (the `query` variant is added by RFC-0108 — see below). The server enforces caps (256 server-wide, 32 per-client, 64 Selector-specific) and a rolling TTL (default 3600s, max 86400s, bumped on every successful delivery). `mycelium_unsubscribe` is idempotent — unknown ids return `{removed: false}`. `mycelium_subscription_status` returns the active subscription list plus the configured caps for visibility.
 
 Per-array cap = 50; `per_file` cap = 16 entries (above which `files_truncated: true` flips). All arrays are sorted + deduped before send. Selector removals follow the **(ii-strict)** policy — a removal is reported only when the path was in the OLD match-set AND its file was touched this batch — so unrelated state flips never produce phantom removals.
 
-CLI surface (RFC-0105 Three-Surface EXCEPTION, extended): `mycelium watch --subscribe '<SPEC>'` registers the same Interest and streams identical NDJSON payloads to stdout. SPEC = `files:<glob1>,<glob2>,...` | `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>`. The MCP + CLI wire shapes are byte-identical by construction (both surfaces share `subscription::match_batch`); asserted by `tests/contract_subscription`.
+CLI surface (RFC-0105 Three-Surface EXCEPTION, extended): `mycelium watch --subscribe '<SPEC>'` registers the same Interest and streams identical NDJSON payloads to stdout. SPEC = `files:<glob1>,<glob2>,...` | `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>` | `query:<kind>:<args>` (RFC-0108 — see below). The MCP + CLI wire shapes are byte-identical by construction (both surfaces share `subscription::match_batch`); asserted by `tests/contract_subscription`.
+
+### `mycelium/queryResultChanged` — query result reactive notification (RFC-0108)
+
+Step 4/4 of the reactive-completion roadmap (Salsa Phase 2). Whereas RFC-0107's `subscriptionDelta` fires every batch that touches the Interest, **`Interest::Query`** subscriptions evaluate a query (`selector` / `callers` / `callees` / `impact` / `context`) against the post-batch store and emit a `mycelium/queryResultChanged` notification **only when the result actually changed** — Salsa-style backdated equality via a BLAKE3-128 hash of the canonical-JSON result.
+
+```jsonc
+// Notification shape (v1, frozen):
+{
+  "method": "mycelium/queryResultChanged",
+  "params": {
+    "event": "queryResultChanged",
+    "v": 1,
+    "subscription_id": "f3c1...",
+    "root": "/abs/path/to/workspace",
+    "batch_seq": 42,
+    "query_kind": "callers",   // "selector" | "callers" | "callees" | "impact" | "context"
+    "result_hash_old": "b3:8c2e...",  // omitted on first delivery
+    "result_hash_new": "b3:91a4...",
+    "new_result": [             // shape depends on query_kind
+      "src/auth.rs>fn:login",
+      "src/auth_v2.rs>fn:login"
+    ],
+    "summary": {                // present iff query_kind is set-shaped
+      "added":   ["src/auth_v2.rs>fn:login"],
+      "added_count": 1,
+      "added_truncated": false,
+      "removed": [],
+      "removed_count": 0,
+      "removed_truncated": false
+    },
+    "evaluation_ms": 7,
+    "hint": "Query result changed; re-fetch the affected slice if needed."
+  }
+}
+```
+
+```
+mcp__mycelium__subscribe({
+  "interest": {
+    "kind": "query",
+    "query": { "kind": "callers", "path": "src/auth.rs>fn:login", "hops": 1 },
+    "min_interval_seconds": 5
+  },
+  "ttl_seconds": 3600
+})
+→ { "subscription_id": "f3c1...", "root": "/abs/path", "ttl_seconds": 3600,
+    "interest_kind": "query", "query_kind": "callers", "active_count": 2 }
+```
+
+`query` is a tagged union:
+- `{"kind":"selector","hyphae":"<source>"}` — Hyphae selector source.
+- `{"kind":"callers","path":"<trunk path>","hops":N?}` — BFS callers up to N hops (default 1, max 16).
+- `{"kind":"callees","path":"<trunk path>","hops":N?}` — BFS callees up to N hops.
+- `{"kind":"impact","path":"<trunk path>","max_paths":N?}` — BFS frontier across Calls / Imports / Extends (default 100, max 10000).
+- `{"kind":"context","task":"<text>","focus":["<path>"...],"max_tokens":N?}` — reactive Context (currently a minimal placeholder; full Cortex integration deferred).
+
+`min_interval_seconds` is server-clamped to `2..=300`; default 2 s. Per-query soft / hard wall-clock budgets are 50 ms / 200 ms — above the hard cap the subscription is paused for 60 s (logged via `tracing::warn!`). Result-set summaries cap `added` / `removed` at 50 with `_count` + `_truncated` companions; tree-shaped results (`context`) omit `summary` entirely. `result_hash_*` is BLAKE3-128 hex with a frozen `"b3:"` prefix.
+
+CLI surface (RFC-0105 EXCEPTION further extended): `mycelium watch --subscribe 'query:<kind>:<args>' [--subscribe-min-interval <SECONDS>]`. Grammar:
+
+```
+mycelium watch --subscribe 'query:callers:src/auth.rs>fn:login,hops=2'
+mycelium watch --subscribe 'query:selector:fn[name="login"]'
+mycelium watch --subscribe 'query:impact:src/auth.rs>fn:login,max_paths=200'
+mycelium watch --subscribe 'query:context:auth refactor,focus=src/auth.rs+src/db.rs,max_tokens=4000'
+```
+
+Comma-separated `key=value` pairs follow the path; `focus` is `+`-separated (comma is the outer separator). Byte-identical CLI ↔ MCP wire asserted by `tests/contract_subscription::three_surface_query_byte_identical_payload`.
 
 ### `sync_file` — immediate single-file re-index
 
