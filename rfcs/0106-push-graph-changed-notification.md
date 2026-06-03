@@ -2,7 +2,7 @@
 
 - **RFC**: 0106
 - **Title**: Server pushes a single `graphChanged` notification per committed watch batch
-- **Status**: Draft — **awaiting founder decision** (transport-contract choice; frozen payload schema)
+- **Status**: **Accepted (Option B — custom JSON-RPC method `mycelium/graphChanged`)** ratified by founder 2026-06-03. GraphChangedEvent v1 shape (§4) frozen; `changed_files` cap at 50. Implementation tracked separately.
 - **Author**: rust-implementer
 - **Created**: 2026-06-03
 - **Depends on**: [RFC-0105](0105-shared-watch-engine-cli-watch.md) (provides the `on_batch` emit seam this RFC attaches to)
@@ -272,16 +272,13 @@ no new Three-Surface gate to cross.
 
 ## 10. Acceptance criteria
 
-- [ ] Founder ratifies one of {A, B, C} in §3 and **commits to it for ≥ 2
-      releases** (changing it is a wire-contract break).
-- [ ] Founder approves the `GraphChangedEvent` v1 shape in §4 (or amends it
-      *before* implementation; once shipped it's frozen).
+- [x] Founder ratified Option B (custom method `mycelium/graphChanged`) 2026-06-03.
+- [x] Founder approved the `GraphChangedEvent` v1 shape (§4) including 50-file cap.
 - [ ] Implementation PR opened against this RFC.
 - [ ] 4 RED-first MCP tests pass; RFC-0105 watch tests still green.
 - [ ] `skills/index-management/SKILL.md` documents how an agent registers a
-      handler for the chosen transport.
-- [ ] `CHANGELOG.md` "Unreleased / Added" entry includes the transport choice
-      and the frozen payload shape.
+      handler for `mycelium/graphChanged`.
+- [ ] `CHANGELOG.md` "Unreleased / Added" entry includes the new transport.
 
 ## 11. What this RFC does NOT do (deferred)
 
