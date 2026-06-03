@@ -44,43 +44,43 @@ use tokio::time::Instant;
 /// Method name of the per-subscription notification.
 ///
 /// **Frozen at v1.** Changing this is a wire-contract break.
-pub(super) const METHOD: &str = "mycelium/subscriptionDelta";
+pub const METHOD: &str = "mycelium/subscriptionDelta";
 
 /// Default subscription TTL when the client omits `ttl_seconds`. **Frozen.**
-pub(super) const DEFAULT_TTL_SECONDS: u64 = 3600;
+pub const DEFAULT_TTL_SECONDS: u64 = 3600;
 
 /// Maximum permitted subscription TTL. **Frozen.**
-pub(super) const MAX_TTL_SECONDS: u64 = 86_400;
+pub const MAX_TTL_SECONDS: u64 = 86_400;
 
 /// Server-wide cap across every connected client.
-pub(super) const MAX_SUBSCRIPTIONS: usize = 256;
+pub const MAX_SUBSCRIPTIONS: usize = 256;
 
 /// Per-client cap.
-pub(super) const MAX_PER_CLIENT: usize = 32;
+pub const MAX_PER_CLIENT: usize = 32;
 
 /// Selector-specific cap (server-wide).
-pub(super) const MAX_SELECTOR: usize = 64;
+pub const MAX_SELECTOR: usize = 64;
 
 /// Per-array cap on `added` / `modified` / `removed` inside a `PerFileDelta`.
 /// Matches RFC-0106's 50-item cap on `changed_files`.
-pub(super) const MAX_PER_ARRAY: usize = 50;
+pub const MAX_PER_ARRAY: usize = 50;
 
 /// Cap on `per_file` entries per notification.
-pub(super) const MAX_FILES_PER_DELTA: usize = 16;
+pub const MAX_FILES_PER_DELTA: usize = 16;
 
 /// Maximum allowed Hyphae selector source length, in bytes.
-pub(super) const MAX_SELECTOR_SOURCE_LEN: usize = 4096;
+pub const MAX_SELECTOR_SOURCE_LEN: usize = 4096;
 
 /// Cap on the per-subscription `last_match_set` cached for Selector
 /// subscriptions. Bounded ≈ 50 MB worst-case at 64 selector subs.
-pub(super) const MAX_SELECTOR_LAST_MATCH_SET: usize = 10_000;
+pub const MAX_SELECTOR_LAST_MATCH_SET: usize = 10_000;
 
 /// Allowed-shape regex for client-supplied `subscription_id`.
-pub(super) const ID_REGEX_STR: &str = r"^[A-Za-z0-9_-]{1,64}$";
+pub const ID_REGEX_STR: &str = r"^[A-Za-z0-9_-]{1,64}$";
 
 /// Human-friendly hint surfaced in `application_error` responses when an
 /// invalid id is supplied.
-pub(super) const SUBSCRIPTION_ID_VALIDATION_HINT: &str = "id must match ^[A-Za-z0-9_-]{1,64}$";
+pub const SUBSCRIPTION_ID_VALIDATION_HINT: &str = "id must match ^[A-Za-z0-9_-]{1,64}$";
 
 /// Default `hint` field surfaced to the agent. Agents may ignore.
 const DEFAULT_HINT: &str = "Apply the delta locally or re-query the affected paths.";
@@ -98,7 +98,7 @@ fn id_regex() -> &'static Regex {
 /// combinator is additive — no v2 wire bump required.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "lowercase")]
-pub(crate) enum Interest {
+pub enum Interest {
     /// File-glob match against `delta.per_file[*].file`.
     Files {
         /// One or more file globs, e.g. `"src/auth/**/*.rs"`.
@@ -119,7 +119,7 @@ pub(crate) enum Interest {
 
 /// Wire-stable name of the Interest variant.
 #[must_use]
-pub(super) const fn interest_kind_str(i: &Interest) -> &'static str {
+pub const fn interest_kind_str(i: &Interest) -> &'static str {
     match i {
         Interest::Files { .. } => "files",
         Interest::Symbols { .. } => "symbols",
@@ -131,7 +131,7 @@ pub(super) const fn interest_kind_str(i: &Interest) -> &'static str {
 ///
 /// Field order matches RFC-0107 §4 exactly. **Frozen v1.**
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub(super) struct PerFileDelta {
+pub struct PerFileDelta {
     /// Repository-relative file path (`/`-normalized).
     pub file: String,
     /// Trunk paths added in this batch that match the Interest.
@@ -158,7 +158,7 @@ pub(super) struct PerFileDelta {
 ///
 /// **Frozen at v1.** Any breaking change increments `v` and gets a new RFC.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub(super) struct SubscriptionDeltaEvent {
+pub struct SubscriptionDeltaEvent {
     /// Constant `"subscriptionDelta"` — disambiguates from other Mycelium events.
     pub event: String,
     /// Schema version.
@@ -195,7 +195,7 @@ impl SubscriptionDeltaEvent {
 
 /// Request shape for `mycelium_subscribe`.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
-pub(crate) struct SubscribeRequest {
+pub struct SubscribeRequest {
     /// Optional client-supplied subscription id (regex `^[A-Za-z0-9_-]{1,64}$`).
     /// When omitted, the server mints a UUID-v4 simple form.
     #[serde(default)]
@@ -214,7 +214,7 @@ pub(crate) struct SubscribeRequest {
 
 /// Response shape for `mycelium_subscribe`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct SubscribeResponse {
+pub struct SubscribeResponse {
     /// The server-canonical subscription id.
     pub subscription_id: String,
     /// Absolute path of the root this subscription is scoped to.
@@ -291,7 +291,7 @@ pub(crate) struct SubscriptionStatusResponse {
 
 /// Errors returnable from `subscribe` / `unsubscribe` / `status`.
 #[derive(Debug, Error)]
-pub(super) enum SubscribeError {
+pub enum SubscribeError {
     /// Client-supplied id collides with an active subscription.
     #[error("subscription id collides with an active subscription")]
     IdCollision,
@@ -330,7 +330,7 @@ impl SubscribeError {
 
 /// One live subscription (in-memory only — server restart = re-subscribe).
 #[derive(Debug, Clone)]
-pub(super) struct Subscription {
+pub struct Subscription {
     /// Server-canonical id.
     pub id: String,
     /// Absolute path of the scoped root.
@@ -350,7 +350,7 @@ pub(super) struct Subscription {
 
 /// In-memory subscription store.
 #[derive(Debug, Default)]
-pub(super) struct Subscriptions {
+pub struct Subscriptions {
     /// All active subscriptions keyed by id.
     pub by_id: HashMap<String, Subscription>,
     /// Count of `Selector`-kind subscriptions (cached so the cap check is
@@ -359,11 +359,11 @@ pub(super) struct Subscriptions {
 }
 
 /// Shared handle into the subscription store.
-pub(super) type Store_ = Arc<RwLock<Subscriptions>>;
+pub type Store_ = Arc<RwLock<Subscriptions>>;
 
 /// Build a fresh empty subscription store.
 #[must_use]
-pub(super) fn new_store() -> Store_ {
+pub fn new_store() -> Store_ {
     Arc::new(RwLock::new(Subscriptions::default()))
 }
 
@@ -428,7 +428,13 @@ fn file_of_trunk_path(p: &str) -> &str {
 /// Insert a new subscription. Caps enforced in the order
 /// `id_collision` → `invalid_interest` → [`MAX_SUBSCRIPTIONS`] →
 /// per-client → [`MAX_SELECTOR`] (founder D3 defence-in-depth).
-pub(super) async fn subscribe(
+///
+/// # Errors
+///
+/// Returns a [`SubscribeError`] when any validation gate (id shape /
+/// id collision / Interest shape / Selector cap / server cap / per-client
+/// cap / Selector cap / root not in allowed roots) rejects the request.
+pub async fn subscribe(
     store: &Store_,
     req: SubscribeRequest,
     client_tag: String,
@@ -693,7 +699,8 @@ fn cap_array(mut v: Vec<String>) -> (Vec<String>, u64, bool) {
 /// `trunk_store` is the read-locked post-batch [`mycelium_core::store::Store`]
 /// supplied by `WatchEngine::drive`'s `on_batch` third arg.
 #[allow(clippy::too_many_lines)] // single coherent match-and-cap pass
-pub(super) fn match_batch(
+#[must_use]
+pub fn match_batch(
     sub: &Subscription,
     ev: &WatchEvent,
     delta: &BatchDelta,

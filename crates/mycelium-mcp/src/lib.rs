@@ -47,7 +47,7 @@
 pub mod error;
 pub mod formatter;
 mod push;
-mod subscription;
+pub mod subscription;
 
 use std::collections::BTreeSet;
 
