@@ -1023,10 +1023,16 @@ enum Cmd {
         /// Debounce window in milliseconds (default 5, matches the server).
         #[arg(long, default_value_t = 5)]
         debounce_ms: u64,
-        /// SUBSCRIBE shorthand (RFC-0107) — register an in-process interest
-        /// and stream `mycelium/subscriptionDelta` payloads to stdout as
+        /// SUBSCRIBE shorthand (RFC-0107 + RFC-0108) — register an in-process
+        /// interest and stream `mycelium/subscriptionDelta` (RFC-0107) or
+        /// `mycelium/queryResultChanged` (RFC-0108) payloads to stdout as
         /// NDJSON. SPEC = `files:<glob1>,<glob2>,...` |
-        /// `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>`.
+        /// `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>` |
+        /// `query:selector:<hyphae>` |
+        /// `query:callers:<path>[,hops=N]` |
+        /// `query:callees:<path>[,hops=N]` |
+        /// `query:impact:<path>[,max_paths=N]` |
+        /// `query:context:<task>,focus=p1+p2+...,max_tokens=N`.
         #[arg(long, value_name = "SPEC")]
         subscribe: Option<String>,
         /// Optional client-supplied subscription id (regex `^[A-Za-z0-9_-]{1,64}$`).
@@ -1035,6 +1041,11 @@ enum Cmd {
         /// Optional rolling TTL in seconds (default 3600, max 86400).
         #[arg(long, value_name = "SECONDS")]
         subscribe_ttl: Option<u64>,
+        /// RFC-0108: minimum interval between query-result-changed emits
+        /// (clamped server-side to 2..=300 seconds; default 2). Only meaningful
+        /// for `query:` SPECs.
+        #[arg(long, value_name = "SECONDS")]
+        subscribe_min_interval: Option<u64>,
     },
     /// Start the MCP server over stdio.
     Serve {
@@ -1881,6 +1892,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             subscribe,
             subscribe_id,
             subscribe_ttl,
+            subscribe_min_interval,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             watch::run_foreground(
@@ -1889,6 +1901,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 subscribe.as_deref(),
                 subscribe_id.as_deref(),
                 subscribe_ttl,
+                subscribe_min_interval,
             )?;
         }
         Cmd::Serve {
