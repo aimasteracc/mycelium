@@ -881,16 +881,31 @@ pub(crate) fn run_get_reachable(
     path: &str,
     edge_kind: &str,
     max_depth: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
     let reachable = store.reachable_from(id, kind, max_depth);
-    let count = reachable.len();
-    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::reachable_payload(&reachable);
+    // Budget in JSON mode (MCP parity) or with explicit --budget; default text
+    // prints the full result (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
     print_tree_value(&value, format)
 }
 
