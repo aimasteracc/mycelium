@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — decision recorded 2026-06-04. **Rejects** adopting the Language Server
+Accepted — decision recorded 2026-06-03. **Rejects** adopting the Language Server
 Protocol (live, server-based) as Mycelium's path to type-level semantic precision.
 **Prefers** an optional, static, file-based semantic-index ingestion layer
 (SCIP / LSIF) if and when type-aware precision is prioritized.
@@ -14,7 +14,7 @@ the failure mode documented in `.hive/memory/anti-patterns.jsonl` (RFC-0099/0100
 a worker implementing a retired/un-nailed approach because nothing recorded the
 decision).
 
-Relates to: ADR-0002 (tree-sitter as parser), Charter §1 (≤3-file language packs),
+Relates to: ADR-0002 (tree-sitter as parser), Charter §4 (≤3-file language packs),
 Charter §2 (performance SLA), Charter §3 (locked tech stack), RFC-0092
 (cross-language alias resolution), RFC-0103 (import-aware cross-file resolution).
 
@@ -61,7 +61,7 @@ Sourcegraph's precise navigation is built on SCIP, not on live LSP at query time
 |---|---|---|
 | 1 | **§2 SLA: cold small query < 5 ms** | `rust-analyzer`/`clangd`/`gopls` cold-start is seconds-to-minutes on large repos. Fronting a sub-ms engine with a minute-scale IPC server voids the SLA. (cf. RFC-0104, where even redb mmap cold pages needed a separate cold budget — LSP is orders of magnitude worse.) |
 | 2 | **README pillar: "single Rust binary, no server, no cloud", embeddable** | Live LSP = one external server process per language; users must install and version-manage `rust-analyzer`, `gopls`, `pyright`, `clangd`, … This destroys the embeddability that is Mycelium's primary differentiation and commercial moat (be the embeddable context layer). |
-| 3 | **§1 hard rule: add a language in ≤3 files, 0 core-code lines** | An LSP integration per language is not a declarative `queries.scm` — it requires locating/spawning external binaries, capability negotiation, and lifecycle management: imperative core complexity per language. Forbidden by Charter and CLAUDE.md. |
+| 3 | **§4 hard rule: add a language in ≤3 files, 0 core-code lines** | An LSP integration per language is not a declarative `queries.scm` — it requires locating/spawning external binaries, capability negotiation, and lifecycle management: imperative core complexity per language. Forbidden by Charter and CLAUDE.md. |
 | 4 | **§3 tech stack: Parser locked to "tree-sitter + declarative .scm"** | Adopting LSP changes the locked parser layer → requires a `meta` RFC amending Charter §3 + founder authorization, not a feature RFC. |
 | 5 | **Reactive identity (RFC-0108 Salsa incremental)** | LSP is itself an incremental engine. Wrapping it makes query latency the LSP's latency and degrades Mycelium's reactive layer to a proxy — two redundant incremental engines. |
 
@@ -100,12 +100,12 @@ live LSP:
 1. The product direction shifts to competing head-on with Serena in the
    IDE-agent *editing* scenario (vs. the embeddable context-layer strategy).
 2. Resources exist to own the cold-start + multi-server distribution cost.
-3. The founder formally amends the locked Charter §1/§2/§3 clauses via a `meta` RFC.
+3. The founder formally amends the locked Charter §4/§2/§3 clauses via a `meta` RFC.
 
 ## References
 
 - ADR-0002 — tree-sitter as parser
-- Charter §1 (language-pack constraint), §2 (performance SLA), §3 (locked stack)
+- Charter §4 (language-pack constraint), §2 (performance SLA), §3 (locked stack)
 - RFC-0092 — cross-language alias resolution
 - RFC-0103 — import-aware cross-file resolution
 - RFC-0104 — Charter warm/cold SLA split (precedent: mmap cold pages needed a
