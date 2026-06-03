@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v16 — `abdb570` (max_version fix) pushed to release/v0.1.17; PR #460 closed; release.yml fix PR + chore PR opened to develop) |
-| Current sprint | **v0.1.17 — RELEASE BRANCH CUT** (`release/v0.1.17`, PR #452 Quality Gate ✅ — founder can authorize ceremony script once CI re-run passes) |
+| Last updated | 2026-06-03 (PM dispatch v18 — PR #468 merged to develop; URL fix (`62a2478`) cherry-picked to release/v0.1.17; PR #452 CI re-triggered; PR #469 pending) |
+| Current sprint | **v0.1.17 — RELEASE CEREMONY IN PROGRESS** (PR #452 CI re-running with URL fix `62a2478` — founder can authorize ceremony script once all CI checks pass) |
 | Active release branch | `release/v0.1.17` — PR #452 (→ main, founder-gated) + PR #453 (→ develop, back-merge) |
 | Next release target | **v0.1.17** — redb default (RFC-0100 Phase 3), CLI twin (RFC-0101), OutputBudget-core (RFC-0102), Charter §2 SLA (RFC-0104), god-file-split slices 1+2 |
 | Final release target | v0.2.0, ETA 2026-07-15 |
@@ -92,12 +92,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
 - [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
 
-**v0.1.17 ceremony status — CI RE-RUNNING (max_version fix pushed to release branch):**
+**v0.1.17 ceremony status — CI RE-RUNNING (URL fix `62a2478` pushed to release branch):**
 - [x] **Pre-release**: Security scan post-v0.1.16 — CLEAN ✅ (v12 + re-confirmed v14)
 - [x] **Pre-release**: CHANGELOG Unreleased section verified ✅ (v12)
 - [ ] **Step 1**: `release/v0.1.17` → `main` (founder authorization required)
   - PR #452: Quality Gate ✅ SUCCESS (required branch-protection check)
-  - ~~⚠️ `publish to crates.io` FAILURE~~ → **FIXED (v16)**: commit `abdb570` on `release/v0.1.17` uses `max_version` API check (root cause: old `versions[]` iteration was slow to propagate). Release workflow re-triggered.
+  - ~~⚠️ `publish to crates.io` FAILURE (v13: timeout 120s)~~ → ~~PARTIAL FIX (v15): wait 360s~~ → ~~PARTIAL FIX (v16): `max_version` API~~ → **REAL FIX (v18)**: commit `62a2478` removes `tr '-' '_'` URL encoding — crates.io REST API requires hyphens, not underscores. PR #468 merged to develop; cherry-picked to release/v0.1.17. CI re-triggered.
   - **Once all CI checks SUCCESS/SKIPPED** on PR #452: founder authorizes `scripts/release-ceremony.sh` Steps 1–4.
 - [ ] **Step 2**: Tag `v0.1.17` pushed
 - [ ] **Step 3**: GitHub Release published + 5 crates on crates.io
@@ -112,8 +112,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (v0.1.17 release gates):**
 1. ✓ Security scan post-v0.1.16 — COMPLETE ✅
 2. ✓ Cut `release/v0.1.17` — COMPLETE ✅ (PR #452 + PR #453 open)
-3. ✓ release.yml CI fix (PR #455 on develop; `abdb570` max_version fix on release/v0.1.17)
-4. **Wait for PR #452 CI green** (release workflow re-running with max_version fix in `abdb570`) → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
+3. ✓ release.yml CI fix: PR #455 (timeout), PR #462 (max_version), **PR #468 (URL fix, ROOT CAUSE)** — all merged to develop; `62a2478` cherry-picked to release/v0.1.17
+4. **Wait for PR #452 CI green** (release workflow re-running with URL fix in `62a2478`) → founder authorizes `scripts/release-ceremony.sh` Steps 1–4. (`founder` action — NEXT STEP)
 
 **P1 (reactive roadmap — RFC-0105):**
 5. **Founder: ratify or reject RFC-0105 Three-Surface EXCEPTION** — `feature/rfc-0105-watch-engine` branch CI SUCCESS (SHA `05654d96`), implementation complete. Awaiting founder EXCEPTION decision to merge. Watch lifecycle genuinely differs (foreground CLI vs background MCP server); parity bridge = shared WatchEngine + byte-identical `watch --status`.
@@ -131,14 +131,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-03 v16 — `abdb570` pushed to release/v0.1.17; fix PR + chore PR opened)
+## Dispatch state (2026-06-03 v18 — PR #468 merged; URL fix cherry-picked to release/v0.1.17; PR #452 CI re-triggered)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested** | (1) Watch PR #452 CI — release.yml re-running with max_version fix (commit `abdb570`). Once all checks SUCCESS/SKIPPED: authorize `scripts/release-ceremony.sh` Steps 1–4. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** — implementation branch `feature/rfc-0105-watch-engine` is built and CI-green; awaiting your decision to merge. (4) Schedule `sla_ancestors_100k` nightly benchmark for RFC-0104 cold numbers. |
-| PM | **DONE ✅** | `abdb570` pushed to release/v0.1.17; PR #460 closed; fix PR + chore PR v16 opened. |
+| founder | **action requested** | (1) Watch PR #452 CI re-run — URL fix `62a2478` is the definitive root-cause fix. Once ALL checks SUCCESS/SKIPPED: authorize `scripts/release-ceremony.sh` Steps 1–4. (2) After Steps 1+2+3: admin-merge PR #453 (back-merge, Step 4). (3) **Ratify or reject RFC-0105 Three-Surface EXCEPTION** — `feature/rfc-0105-watch-engine` built+CI-green; awaiting your decision. (4) RFC-0107 D1–D5: five SUBSCRIBE decisions awaiting your ratification. (5) Schedule `sla_ancestors_100k` nightly for RFC-0104 cold numbers. |
+| PM | **DONE ✅** | PR #468 squash-merged; `62a2478` pushed to release/v0.1.17; PR #469 (v17) superseded by this v18 chore PR. |
 | security-reviewer | **DONE ✅** | Post-v0.1.16 scan: CLEAN (v12 + re-confirmed v14). |
-| release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 + PR #453 open. Awaiting founder auth. |
+| release | **DONE ✅** | `release/v0.1.17` branch cut; PR #452 + PR #453 open. URL fix applied. Awaiting founder auth. |
 | rust-implementer | **WAITING** | RFC-0105 WatchEngine built (branch `feature/rfc-0105-watch-engine`, CI SUCCESS). Gated on founder EXCEPTION ratification. |
 | bench | **P1** | Run `sla_ancestors_100k` nightly for RFC-0104 cold SLA numbers. |
 | e2e-runner | **P1** | Dogfood re-run with redb-as-default (8/8 CLI commands under new storage default). |
@@ -170,6 +170,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-03 PM dispatch v18 (this run — PR #468 merged; URL fix cherry-picked to release/v0.1.17 as `62a2478`)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest: `2026-06-02T00:00:00Z` RFC-0101 Phase 2 CLI twin PR #414), anti-patterns (domain hits: `storage` + `release-governance` + `ci-portability`), PM state (v16 — stale header but body accurate), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #452 (release/v0.1.17 → main, `publish to crates.io` FAILURE despite v16 max_version fix), #453 (back-merge → develop, pending Steps 1–3), #468 (URL fix, CI 22/22 ✅), #469 (PM chore v17, only triage checks).
+- 0 open issues.
+- CI on develop: E2E + CI both SUCCESS ✅ (`b3208a5` develop HEAD after #468 merge). `release/v0.1.17` HEAD was `abdb570`; after this run it's `62a2478`.
+- Root cause of PR #452 persistent failure: `crate_published()` in release.yml used `tr '-' '_'` to convert crate name, producing URL `/crates/mycelium_rcig_pack` (underscore) instead of `/crates/mycelium-rcig-pack` (hyphen). crates.io returns 404 for underscore form → `wait_for_crate` always times out. The v13/v15 wait-time fix and v16 max_version fix did NOT address this encoding. PR #468 (authored by previous PM run) correctly identified and fixed it.
+
+**Actions taken:**
+1. **Merged PR #468** (squash, 22/22 CI SUCCESS) — URL fix lands on develop. ✅
+2. **Cherry-picked URL fix to release/v0.1.17** as commit `62a2478` — same 3-line change: remove `tr '-' '_'`, use `$1` directly. Pushed to origin. PR #452 CI re-triggered. ✅
+3. **Updated PM state v18** — ceremony status, dispatch table, live priorities, archive. ✅
+4. **Will append decisions.jsonl** + open chore PR v18 + merge if CI green.
+
+**Escalations:**
+- Founder: PR #452 CI re-running with definitive URL fix (`62a2478`). Once all CI SUCCESS/SKIPPED → run `scripts/release-ceremony.sh` Steps 1–4.
+- Founder: RFC-0105 EXCEPTION decision still pending.
+- Founder: RFC-0107 D1–D5 decisions pending.
 
 ### 2026-06-03 PM dispatch v16 (this run — max_version fix pushed to release/v0.1.17; fix PR + chore PR opened)
 
