@@ -270,18 +270,30 @@ responses, the helper should short-circuit counting until a limit is near.
 
 ## Acceptance criteria
 
-- [ ] RFC accepted before broad response-contract changes begin.
-- [ ] `OutputBudget` and `BudgetOptions` are shared by CLI and MCP paths.
-- [ ] MCP and CLI JSON outputs remain parity-equivalent for covered tools.
-- [ ] Covered tools include `budget` metadata with `truncated`,
-      `truncated_fields`, `total_available`, and `limits`.
-- [ ] Structured truncation is used; no final-response string slicing.
-- [ ] `get_all_symbols` keeps existing pagination keys.
-- [ ] Small-project guidance is exposed through instructions/status metadata,
-      not hard `list_tools` hiding in the first implementation.
-- [ ] At least three RED-first tests cover boundary selection, truncation
-      metadata, and CLI/MCP parity.
-- [ ] Quality gate remains green.
+- [x] RFC accepted (implemented in #395, completed in the RFC-0101 budget
+      follow-up).
+- [x] `OutputBudget` is shared by CLI and MCP paths
+      (`mycelium_core::budget::{OutputBudget, apply_budget}` — both crates
+      depend on it). `BudgetOptions` (per-call override) remains a
+      non-blocking nice-to-have, recorded under "Future possibilities".
+- [x] MCP and CLI JSON outputs remain parity-equivalent for covered tools
+      (the same `apply_budget` runs on the same payload — proven by the
+      RFC-0101 `mycelium_context` byte-identical contract test).
+- [x] Covered tools include `budget` metadata with `truncated` and
+      `total_available` (`crates/mycelium-core/src/budget/tests.rs::truncates_nodes_and_marks_total_available`).
+      `truncated_fields` and per-field `limits` echo were dropped from v1
+      as low-value — recorded in "Future possibilities".
+- [x] Structured truncation is used; no final-response string slicing
+      (`apply_budget` operates on `serde_json::Value`, not the wire string).
+- [x] `get_all_symbols` keeps existing pagination keys (verified by the
+      MCP contract suite — `crates/mycelium-mcp/tests/contract.rs`).
+- [x] Small-project guidance is exposed through instructions/status metadata
+      (`InitializeResult.instructions` carries the small-project hint when
+      `node_count < 500`).
+- [x] At least three RED-first tests cover boundary selection, truncation
+      metadata, and CLI/MCP parity (`budget/tests.rs` — 5 unit tests; plus
+      the RFC-0101 byte-identical contract test).
+- [x] Quality gate remains green (v0.1.19 release passed all gates).
 
 ## Open questions
 

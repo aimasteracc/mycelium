@@ -31,7 +31,7 @@ impl ClientHandler for TestClient {
     }
 }
 
-/// A superset of argument names covering every required/optional field used by all 89 tools.
+/// A superset of argument names covering every required/optional field used by all 93 tools.
 ///
 /// Serde ignores unknown fields during deserialization, so every tool will
 /// successfully deserialize its request from this map and return a real
