@@ -827,6 +827,11 @@ pub struct GetDeadSymbolsRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
+    /// The CLI `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_isolated_symbols`.
@@ -2828,6 +2833,13 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetDeadSymbolsRequest>,
     ) -> CallToolResult {
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
         let store = self.store.read().await;
         let dead = match req.edge_kind.as_deref() {
             None => store.dead_symbols(req.path_prefix.as_deref()),
@@ -2836,10 +2848,14 @@ impl MyceliumServer {
                 Err(e) => return application_error(&serde_json::json!({ "error": e })),
             },
         };
+        let node_count = store.node_count();
         drop(store);
-        let count = dead.len();
-        let mut value = serde_json::json!({ "dead_symbols": dead, "count": count });
-        apply_budget(&mut value, &self.current_budget().await);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::dead_symbols_payload(&dead);
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),

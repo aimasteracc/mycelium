@@ -282,8 +282,16 @@ fn get_dead_symbols_runs_smoke() {
         .output()
         .unwrap();
     assert!(out.status.success());
-    let _parsed: Vec<String> =
+    // RFC-0109 Option A: object shape `{ "dead_symbols": [...], "count": N }`.
+    let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    assert!(
+        value
+            .get("dead_symbols")
+            .and_then(|v| v.as_array())
+            .is_some(),
+        "expected object with dead_symbols array, got: {value}"
+    );
 }
 
 #[test]
