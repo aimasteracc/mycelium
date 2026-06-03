@@ -2,6 +2,7 @@
 //! (RFC-0107 §6 tests 4–9).
 
 #![allow(clippy::disallowed_methods)] // synchronous test bookkeeping
+#![allow(clippy::significant_drop_tightening)] // tests hold RwLock guards across assertions for readability
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -1469,5 +1470,884 @@ async fn three_surface_query_cli_mcp_byte_identical_payload() {
     assert!(
         v["result_hash_new"].as_str().unwrap().starts_with("b3:"),
         "hash prefix `b3:` is frozen v1"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v0.1.18 coverage-gate top-up: targeted tests for query_eval evaluator
+// branches, subscription state mutators, and validate_query rejection paths.
+// These exercise the existing public APIs only; no production refactors.
+// ─────────────────────────────────────────────────────────────────────────────
+
+use crate::query_eval::evaluate_query;
+use mycelium_core::types::EdgeKind;
+
+/// Helper: build a small store with chain n0 -> n1 -> n2 -> n3 for Calls edges.
+fn calls_chain() -> Store {
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/x.rs>fn:n0");
+    upsert_fn(&mut store, "src/x.rs>fn:n1");
+    upsert_fn(&mut store, "src/x.rs>fn:n2");
+    upsert_fn(&mut store, "src/x.rs>fn:n3");
+    let n0 = store.lookup("src/x.rs>fn:n0").unwrap();
+    let n1 = store.lookup("src/x.rs>fn:n1").unwrap();
+    let n2 = store.lookup("src/x.rs>fn:n2").unwrap();
+    let n3 = store.lookup("src/x.rs>fn:n3").unwrap();
+    store.upsert_edge(EdgeKind::Calls, n0, n1);
+    store.upsert_edge(EdgeKind::Calls, n1, n2);
+    store.upsert_edge(EdgeKind::Calls, n2, n3);
+    store
+}
+
+#[test]
+fn evaluate_query_callees_one_hop_returns_direct_only() {
+    let store = calls_chain();
+    let spec = QuerySpec::Callees {
+        path: "src/x.rs>fn:n0".to_owned(),
+        hops: Some(1),
+    };
+    let value = evaluate_query(&spec, &store);
+    let arr = value.as_array().expect("array shape");
+    let paths: Vec<&str> = arr.iter().filter_map(serde_json::Value::as_str).collect();
+    assert_eq!(paths, vec!["src/x.rs>fn:n1"], "1-hop direct callee only");
+}
+
+#[test]
+fn evaluate_query_callees_multi_hop_bfs_traverses_chain() {
+    let store = calls_chain();
+    let spec = QuerySpec::Callees {
+        path: "src/x.rs>fn:n0".to_owned(),
+        hops: Some(3),
+    };
+    let value = evaluate_query(&spec, &store);
+    let arr = value.as_array().unwrap();
+    let mut paths: Vec<&str> = arr.iter().filter_map(serde_json::Value::as_str).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        vec!["src/x.rs>fn:n1", "src/x.rs>fn:n2", "src/x.rs>fn:n3"],
+        "3-hop BFS reaches n1, n2, n3"
+    );
+}
+
+#[test]
+fn evaluate_query_callees_hops_none_uses_default() {
+    let store = calls_chain();
+    // None hops -> QUERY_DEFAULT_HOPS = 1 -> one direct callee
+    let spec = QuerySpec::Callees {
+        path: "src/x.rs>fn:n0".to_owned(),
+        hops: None,
+    };
+    let value = evaluate_query(&spec, &store);
+    assert_eq!(value.as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn evaluate_query_callees_unknown_path_returns_empty() {
+    let store = Store::new();
+    let spec = QuerySpec::Callees {
+        path: "src/missing.rs>fn:ghost".to_owned(),
+        hops: Some(2),
+    };
+    let value = evaluate_query(&spec, &store);
+    assert!(
+        value.as_array().unwrap().is_empty(),
+        "unknown start path → empty array"
+    );
+}
+
+#[test]
+fn evaluate_query_callers_unknown_path_returns_empty() {
+    let store = Store::new();
+    let spec = QuerySpec::Callers {
+        path: "src/missing.rs>fn:ghost".to_owned(),
+        hops: Some(2),
+    };
+    let value = evaluate_query(&spec, &store);
+    assert!(value.as_array().unwrap().is_empty());
+}
+
+#[test]
+fn evaluate_query_callees_hops_clamped_to_max() {
+    let store = calls_chain();
+    // Pass a hop above QUERY_MAX_HOPS — should clamp, not panic.
+    let spec = QuerySpec::Callees {
+        path: "src/x.rs>fn:n0".to_owned(),
+        hops: Some(super::QUERY_MAX_HOPS + 100),
+    };
+    let value = evaluate_query(&spec, &store);
+    // The chain only has 3 hops, so we expect 3 callees regardless.
+    assert_eq!(value.as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn evaluate_query_impact_walks_both_directions() {
+    // Build a star around `mid`: an upstream and a downstream neighbour.
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/x.rs>fn:mid");
+    upsert_fn(&mut store, "src/x.rs>fn:up");
+    upsert_fn(&mut store, "src/x.rs>fn:down");
+    let mid = store.lookup("src/x.rs>fn:mid").unwrap();
+    let up = store.lookup("src/x.rs>fn:up").unwrap();
+    let down = store.lookup("src/x.rs>fn:down").unwrap();
+    store.upsert_edge(EdgeKind::Calls, up, mid);
+    store.upsert_edge(EdgeKind::Calls, mid, down);
+
+    let spec = QuerySpec::Impact {
+        path: "src/x.rs>fn:mid".to_owned(),
+        max_paths: Some(100),
+    };
+    let value = evaluate_query(&spec, &store);
+    let arr = value.as_array().unwrap();
+    let mut paths: Vec<&str> = arr.iter().filter_map(serde_json::Value::as_str).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        vec!["src/x.rs>fn:down", "src/x.rs>fn:up"],
+        "impact walks both directions on Calls edges"
+    );
+}
+
+#[test]
+fn evaluate_query_impact_caps_at_max_paths() {
+    // Build a hub with many neighbours and verify the cap is enforced.
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/x.rs>fn:hub");
+    let hub = store.lookup("src/x.rs>fn:hub").unwrap();
+    for i in 0..10 {
+        let p = format!("src/x.rs>fn:nx{i}");
+        upsert_fn(&mut store, &p);
+        let n = store.lookup(&p).unwrap();
+        store.upsert_edge(EdgeKind::Calls, hub, n);
+    }
+    let spec = QuerySpec::Impact {
+        path: "src/x.rs>fn:hub".to_owned(),
+        max_paths: Some(3),
+    };
+    let value = evaluate_query(&spec, &store);
+    assert_eq!(
+        value.as_array().unwrap().len(),
+        3,
+        "impact frontier capped at max_paths=3"
+    );
+}
+
+#[test]
+fn evaluate_query_impact_max_paths_none_uses_default() {
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/x.rs>fn:lonely");
+    let spec = QuerySpec::Impact {
+        path: "src/x.rs>fn:lonely".to_owned(),
+        max_paths: None,
+    };
+    let value = evaluate_query(&spec, &store);
+    assert!(
+        value.as_array().unwrap().is_empty(),
+        "no neighbours → empty"
+    );
+}
+
+#[test]
+fn evaluate_query_impact_unknown_path_returns_empty() {
+    let store = Store::new();
+    let spec = QuerySpec::Impact {
+        path: "src/nope.rs>fn:x".to_owned(),
+        max_paths: Some(50),
+    };
+    let value = evaluate_query(&spec, &store);
+    assert!(value.as_array().unwrap().is_empty());
+}
+
+#[test]
+fn evaluate_query_context_resolves_focus_paths() {
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/known.rs>fn:foo");
+    let spec = QuerySpec::Context {
+        task: "audit".to_owned(),
+        focus: vec![
+            "src/known.rs>fn:foo".to_owned(),
+            // not in store, but parseable as TrunkPath → kept
+            "src/parseable.rs>fn:bar".to_owned(),
+        ],
+        max_tokens: Some(1234),
+    };
+    let value = evaluate_query(&spec, &store);
+    let obj = value.as_object().expect("context returns object");
+    assert_eq!(obj["task"], "audit");
+    assert_eq!(obj["max_tokens"], 1234);
+    let symbols = obj["symbols"].as_array().unwrap();
+    assert_eq!(symbols.len(), 2, "both parseable paths kept");
+}
+
+#[test]
+fn evaluate_query_context_max_tokens_none_uses_default() {
+    let store = Store::new();
+    let spec = QuerySpec::Context {
+        task: "ttt".to_owned(),
+        focus: vec![],
+        max_tokens: None,
+    };
+    let value = evaluate_query(&spec, &store);
+    assert_eq!(
+        value["max_tokens"],
+        super::QUERY_DEFAULT_MAX_TOKENS,
+        "None → default"
+    );
+}
+
+#[test]
+fn evaluate_query_selector_returns_sorted_paths() {
+    // A trivial Hyphae selector `*` should match every node; verify the
+    // returned array is sorted (deterministic wire shape).
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/zzz.rs>fn:z");
+    upsert_fn(&mut store, "src/aaa.rs>fn:a");
+    let spec = QuerySpec::Selector {
+        hyphae: "*".to_owned(),
+    };
+    let value = evaluate_query(&spec, &store);
+    let arr = value.as_array().unwrap();
+    let paths: Vec<&str> = arr.iter().filter_map(serde_json::Value::as_str).collect();
+    let mut sorted = paths.clone();
+    sorted.sort_unstable();
+    assert_eq!(paths, sorted, "selector result is sorted");
+}
+
+// ── clamp_min_interval edge cases ────────────────────────────────────────────
+
+#[test]
+fn clamp_min_interval_none_returns_default() {
+    assert_eq!(
+        super::clamp_min_interval(None),
+        super::DEFAULT_QUERY_MIN_INTERVAL_SECONDS
+    );
+}
+
+#[test]
+fn clamp_min_interval_below_min_clamps_up() {
+    assert_eq!(
+        super::clamp_min_interval(Some(0)),
+        super::MIN_QUERY_MIN_INTERVAL_SECONDS
+    );
+}
+
+#[test]
+fn clamp_min_interval_above_max_clamps_down() {
+    assert_eq!(
+        super::clamp_min_interval(Some(super::MAX_QUERY_MIN_INTERVAL_SECONDS + 1000)),
+        super::MAX_QUERY_MIN_INTERVAL_SECONDS
+    );
+}
+
+#[test]
+fn clamp_min_interval_in_window_passes_through() {
+    assert_eq!(super::clamp_min_interval(Some(30)), 30);
+}
+
+// ── update_query_state / pause_query_subscription ───────────────────────────
+
+#[tokio::test]
+async fn update_query_state_persists_hash_and_set_for_query_subs() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("qsid".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Callers {
+                path: "src/a.rs>fn:foo".to_owned(),
+                hops: Some(1),
+            },
+            min_interval_seconds: Some(5),
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect("subscribe ok");
+
+    let mut new_set = BTreeSet::new();
+    new_set.insert("src/b.rs>fn:caller".to_owned());
+
+    super::update_query_state(&s, "qsid", [0x11; 16], Some(new_set.clone())).await;
+
+    let r = s.read().await;
+    let sub = r.by_id.get("qsid").expect("present");
+    assert_eq!(sub.last_hash, Some([0x11; 16]));
+    assert!(sub.last_emit_at.is_some(), "last_emit_at was bumped");
+    assert_eq!(sub.last_set_value.as_ref().unwrap(), &new_set);
+}
+
+#[tokio::test]
+async fn update_query_state_is_noop_for_unknown_id() {
+    let s = new_store();
+    // Should not panic; just a silent no-op.
+    super::update_query_state(&s, "ghost", [0x22; 16], None).await;
+    let r = s.read().await;
+    assert!(r.by_id.is_empty());
+}
+
+#[tokio::test]
+async fn update_query_state_is_noop_for_non_query_sub() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("fsid".to_owned()),
+        interest: Interest::Files {
+            paths: vec!["src/auth.rs".to_owned()],
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+    super::update_query_state(&s, "fsid", [0x33; 16], None).await;
+    let r = s.read().await;
+    let sub = r.by_id.get("fsid").unwrap();
+    assert!(sub.last_hash.is_none(), "Files sub must not gain a hash");
+    assert!(sub.last_emit_at.is_none());
+}
+
+#[tokio::test]
+async fn pause_query_subscription_sets_paused_until_for_query() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("psid".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Context {
+                task: "t".to_owned(),
+                focus: vec![],
+                max_tokens: Some(100),
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+    super::pause_query_subscription(&s, "psid").await;
+    let r = s.read().await;
+    let sub = r.by_id.get("psid").unwrap();
+    let paused = sub.paused_until.expect("paused_until set");
+    let now = tokio::time::Instant::now();
+    assert!(paused > now, "paused_until is in the future");
+}
+
+#[tokio::test]
+async fn pause_query_subscription_noop_for_non_query() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("fsid2".to_owned()),
+        interest: Interest::Files {
+            paths: vec!["a.rs".to_owned()],
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+    super::pause_query_subscription(&s, "fsid2").await;
+    let r = s.read().await;
+    let sub = r.by_id.get("fsid2").unwrap();
+    assert!(
+        sub.paused_until.is_none(),
+        "Files sub does not get a pause cooldown"
+    );
+}
+
+#[tokio::test]
+async fn pause_query_subscription_unknown_id_is_silent() {
+    let s = new_store();
+    super::pause_query_subscription(&s, "ghost").await;
+    let r = s.read().await;
+    assert!(r.by_id.is_empty());
+}
+
+// ── validate_query rejection branches via subscribe() ────────────────────────
+
+#[tokio::test]
+async fn subscribe_rejects_query_callers_with_excessive_hops() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Callers {
+                path: "src/a.rs>fn:x".to_owned(),
+                hops: Some(super::QUERY_MAX_HOPS + 1),
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("hops cap must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_callers_with_empty_path() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Callees {
+                path: "   ".to_owned(),
+                hops: None,
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("empty path must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_impact_with_excessive_max_paths() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Impact {
+                path: "src/a.rs>fn:x".to_owned(),
+                max_paths: Some(super::QUERY_MAX_PATHS + 1),
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("max_paths cap must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_impact_empty_path() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Impact {
+                path: String::new(),
+                max_paths: None,
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("empty impact path must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_context_empty_task() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Context {
+                task: "   ".to_owned(),
+                focus: vec![],
+                max_tokens: None,
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("empty task must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_context_focus_too_large() {
+    let s = new_store();
+    let focus: Vec<String> = (0..(super::QUERY_MAX_CONTEXT_FOCUS + 5))
+        .map(|i| format!("src/a.rs>fn:f{i}"))
+        .collect();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Context {
+                task: "audit".to_owned(),
+                focus,
+                max_tokens: None,
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("focus cap must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_context_max_tokens_too_large() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Context {
+                task: "audit".to_owned(),
+                focus: vec![],
+                max_tokens: Some(super::QUERY_MAX_TOKENS + 1),
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("max_tokens cap must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_selector_empty_hyphae() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Selector {
+                hyphae: "   ".to_owned(),
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("empty selector must reject");
+    assert_eq!(err.code(), "invalid_interest");
+}
+
+#[tokio::test]
+async fn subscribe_rejects_query_selector_too_large() {
+    let s = new_store();
+    let huge = "x".repeat(super::MAX_SELECTOR_SOURCE_LEN + 1);
+    let req = SubscribeRequest {
+        subscription_id: None,
+        interest: Interest::Query {
+            query: QuerySpec::Selector { hyphae: huge },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let err = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect_err("oversized selector must reject");
+    assert_eq!(err.code(), "selector_too_large");
+}
+
+// ── subscribe() Query happy-path: covers min_interval clamping + set_seed ───
+
+#[tokio::test]
+async fn subscribe_query_set_shaped_seeds_empty_last_set() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("setq".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Callers {
+                path: "src/a.rs>fn:x".to_owned(),
+                hops: Some(1),
+            },
+            min_interval_seconds: Some(0), // below MIN → clamps up
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    let resp = subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect("ok");
+    assert_eq!(resp.interest_kind, "query");
+    assert_eq!(resp.query_kind.as_deref(), Some("callers"));
+
+    let r = s.read().await;
+    let sub = r.by_id.get("setq").unwrap();
+    assert_eq!(
+        sub.min_interval_ms,
+        super::MIN_QUERY_MIN_INTERVAL_SECONDS * 1_000,
+        "min_interval below MIN clamped up then ms-scaled"
+    );
+    assert!(
+        sub.last_set_value.is_some(),
+        "set-shaped query gets an empty BTreeSet seed"
+    );
+}
+
+#[tokio::test]
+async fn subscribe_query_tree_shaped_omits_last_set_seed() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("ctxq".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Context {
+                task: "audit".to_owned(),
+                focus: vec![],
+                max_tokens: None,
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+    let r = s.read().await;
+    let sub = r.by_id.get("ctxq").unwrap();
+    assert!(
+        sub.last_set_value.is_none(),
+        "Context (tree-shaped) does NOT seed last_set_value"
+    );
+}
+
+// ── PauseQuery flow through BatchMatch ──────────────────────────────────────
+
+#[tokio::test]
+async fn match_batch_query_pause_returns_pausequery_variant() {
+    use std::sync::atomic::Ordering;
+    let _guard = EVAL_DELAY_GUARD.lock().unwrap();
+    // Force a hard-budget breach.
+    crate::query_eval::TEST_FORCE_EVAL_DELAY_MS.store(250, Ordering::Relaxed);
+    let store = Store::new();
+    let sub = query_sub(
+        "pauseme",
+        QuerySpec::Context {
+            task: "slow".to_owned(),
+            focus: vec![],
+            max_tokens: Some(100),
+        },
+        0,
+    );
+    let watch_ev = ev("/r", 1, &["src/x.rs"]);
+    let d = batch_with_change("src/x.rs", &["src/x.rs>fn:x"]);
+    let result = super::match_batch(&sub, &watch_ev, &d, &store);
+    crate::query_eval::TEST_FORCE_EVAL_DELAY_MS.store(0, Ordering::Relaxed);
+    match result {
+        Some(BatchMatch::PauseQuery { subscription_id }) => {
+            assert_eq!(subscription_id, "pauseme");
+        }
+        other => panic!("expected PauseQuery, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn match_batch_query_skip_on_empty_delta_after_first_emit() {
+    // last_hash set + empty per_file → touched-set gate short-circuits to Skip.
+    let store = Store::new();
+    let mut sub = query_sub(
+        "skipme",
+        QuerySpec::Callers {
+            path: "src/a.rs>fn:foo".to_owned(),
+            hops: Some(1),
+        },
+        0,
+    );
+    sub.last_hash = Some([0xab; 16]);
+    let watch_ev = ev("/r", 1, &[]);
+    let d = delta(vec![]); // empty
+    let result = super::match_batch(&sub, &watch_ev, &d, &store);
+    assert!(
+        result.is_none(),
+        "empty delta after first emit → no event (Skip)"
+    );
+}
+
+#[tokio::test]
+async fn match_batch_query_paused_subscription_skips() {
+    let store = Store::new();
+    let mut sub = query_sub(
+        "paused",
+        QuerySpec::Callers {
+            path: "src/a.rs>fn:foo".to_owned(),
+            hops: Some(1),
+        },
+        0,
+    );
+    // Park 60s in the future.
+    sub.paused_until = Some(tokio::time::Instant::now() + Duration::from_secs(60));
+    let watch_ev = ev("/r", 1, &["src/x.rs"]);
+    let d = batch_with_change("src/x.rs", &["src/x.rs>fn:x"]);
+    let result = super::match_batch(&sub, &watch_ev, &d, &store);
+    assert!(result.is_none(), "paused subscription must Skip");
+}
+
+// ── SubscribeError code() table-driven for the remaining variants ───────────
+
+#[test]
+fn subscribe_error_codes_are_wire_stable() {
+    assert_eq!(SubscribeError::IdCollision.code(), "id_collision");
+    assert_eq!(
+        SubscribeError::InvalidInterest("x".to_owned()).code(),
+        "invalid_interest"
+    );
+    assert_eq!(
+        SubscribeError::SelectorTooLarge.code(),
+        "selector_too_large"
+    );
+    assert_eq!(
+        SubscribeError::SubscriptionLimit { scope: "server" }.code(),
+        "subscription_limit"
+    );
+    assert_eq!(
+        SubscribeError::RootNotAllowed("/etc".to_owned()).code(),
+        "root_not_allowed"
+    );
+}
+
+// ── into_custom_notification: builds the rmcp envelope ──────────────────────
+
+#[test]
+fn into_custom_notification_builds_rmcp_envelope() {
+    use super::PerFileDelta;
+    let evt = SubscriptionDeltaEvent {
+        event: "mycelium/subscriptionDelta".to_owned(),
+        v: 1,
+        subscription_id: "sid".to_owned(),
+        interest_kind: "files".to_owned(),
+        root: "/r".to_owned(),
+        batch_seq: 1,
+        per_file: vec![PerFileDelta {
+            file: "src/a.rs".to_owned(),
+            added: vec!["src/a.rs>fn:x".to_owned()],
+            added_count: 1,
+            added_truncated: false,
+            modified: vec![],
+            modified_count: 0,
+            modified_truncated: false,
+            removed: vec![],
+            removed_count: 0,
+            removed_truncated: false,
+        }],
+        files_truncated: false,
+        hint: "h".to_owned(),
+    };
+    let notif = evt.into_custom_notification().expect("notification builds");
+    // Just check that the public envelope embeds the wire method name.
+    let json = serde_json::to_value(&notif).unwrap();
+    let s = json.to_string();
+    assert!(
+        s.contains("mycelium/subscriptionDelta"),
+        "rmcp notification carries method name; got: {s}"
+    );
+}
+
+// ── status() with Query subscription exposes query_kind ─────────────────────
+
+#[tokio::test]
+async fn status_for_query_subscription_exposes_query_kind() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("qs1".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Impact {
+                path: "src/a.rs>fn:foo".to_owned(),
+                max_paths: None,
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+
+    let resp = status(&s, Some("qs1"), true).await;
+    assert_eq!(resp.subscriptions.len(), 1);
+    let info = &resp.subscriptions[0];
+    assert_eq!(info.interest_kind, "query");
+    assert_eq!(info.query_kind.as_deref(), Some("impact"));
+}
+
+// ── update_last_match_set: truncation at MAX_SELECTOR_LAST_MATCH_SET ────────
+
+#[tokio::test]
+async fn update_last_match_set_truncates_oversized_set() {
+    // RFC-0107: the cached selector match-set is bounded by
+    // MAX_SELECTOR_LAST_MATCH_SET to keep the worst-case memory budget
+    // tractable across 64 selector subs.
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("sel".to_owned()),
+        interest: Interest::Selector {
+            hyphae: "*".to_owned(),
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+
+    // Construct a NEW set just over the cap.
+    let oversize: BTreeSet<String> = (0..(super::MAX_SELECTOR_LAST_MATCH_SET + 5))
+        .map(|i| format!("src/x.rs>fn:f{i:06}"))
+        .collect();
+    update_last_match_set(&s, "sel", oversize).await;
+
+    let r = s.read().await;
+    let sub = r.by_id.get("sel").unwrap();
+    let cached = sub.last_match_set.as_ref().expect("set cached");
+    assert_eq!(
+        cached.len(),
+        super::MAX_SELECTOR_LAST_MATCH_SET,
+        "cached set is truncated to the cap"
+    );
+}
+
+// ── update_query_state: oversized set is truncated at the same cap ──────────
+
+#[tokio::test]
+async fn update_query_state_truncates_oversized_set_value() {
+    let s = new_store();
+    let req = SubscribeRequest {
+        subscription_id: Some("oq".to_owned()),
+        interest: Interest::Query {
+            query: QuerySpec::Callers {
+                path: "src/a.rs>fn:foo".to_owned(),
+                hops: Some(1),
+            },
+            min_interval_seconds: None,
+        },
+        ttl_seconds: None,
+        root: None,
+    };
+    subscribe(&s, req, "peer".to_owned(), PathBuf::from("/r"))
+        .await
+        .unwrap();
+
+    let oversize: BTreeSet<String> = (0..(super::MAX_SELECTOR_LAST_MATCH_SET + 7))
+        .map(|i| format!("src/x.rs>fn:g{i:06}"))
+        .collect();
+    super::update_query_state(&s, "oq", [0x55; 16], Some(oversize)).await;
+
+    let r = s.read().await;
+    let sub = r.by_id.get("oq").unwrap();
+    assert_eq!(
+        sub.last_set_value.as_ref().unwrap().len(),
+        super::MAX_SELECTOR_LAST_MATCH_SET,
+        "Query last_set_value is also truncated to the cap"
     );
 }

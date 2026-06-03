@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.18] - 2026-06-03
+
 ### Fixed
 
 - **RFC-0107 SUBSCRIBE: replace `blocking_read()` with `try_read()` in async watch paths.**

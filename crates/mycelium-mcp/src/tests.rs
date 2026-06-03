@@ -6554,3 +6554,103 @@ async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
         "with edge_kind=calls, symbol with no Calls edge must appear as dead; got: {dead_calls:?}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v0.1.18 coverage-gate top-up: parse_hash_hex private-fn tests.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn parse_hash_hex_round_trips_with_hash_hex_format() {
+    let bytes: [u8; 16] = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32,
+        0x10,
+    ];
+    let mut hex = String::with_capacity(32);
+    for b in &bytes {
+        use std::fmt::Write as _;
+        write!(&mut hex, "{b:02x}").unwrap();
+    }
+    let s = format!("b3:{hex}");
+    let parsed = parse_hash_hex(&s).expect("valid hash parses");
+    assert_eq!(parsed, bytes);
+}
+
+#[test]
+fn parse_hash_hex_rejects_missing_prefix() {
+    let s = "00112233445566778899aabbccddeeff";
+    assert!(parse_hash_hex(s).is_none(), "no b3: prefix → None");
+}
+
+#[test]
+fn parse_hash_hex_rejects_wrong_length() {
+    assert!(parse_hash_hex("b3:beef").is_none(), "too short → None");
+    let too_long = format!("b3:{}", "a".repeat(33));
+    assert!(parse_hash_hex(&too_long).is_none(), "too long → None");
+}
+
+#[test]
+fn parse_hash_hex_rejects_non_hex() {
+    let bad = format!("b3:{}", "z".repeat(32));
+    assert!(parse_hash_hex(&bad).is_none(), "non-hex digit → None");
+}
+
+#[test]
+fn source_extension_recognises_supported_languages() {
+    use std::path::Path;
+    let cases = [
+        ("a.rs", Some("rs")),
+        ("a.py", Some("py")),
+        ("a.pyi", Some("pyi")),
+        ("a.js", Some("js")),
+        ("a.jsx", Some("jsx")),
+        ("a.ts", Some("ts")),
+        ("a.tsx", Some("tsx")),
+        ("a.go", Some("go")),
+        ("a.java", Some("java")),
+        ("a.c", Some("c")),
+        ("a.h", Some("h")),
+        ("a.rb", Some("rb")),
+        ("a.cpp", Some("cpp")),
+        ("a.cc", Some("cc")),
+        ("a.cxx", Some("cxx")),
+        ("a.hpp", Some("hpp")),
+        ("a.cs", Some("cs")),
+        ("a.txt", None),
+        ("a", None),
+        ("Makefile", None),
+    ];
+    for (input, want) in cases {
+        let got = source_extension(Path::new(input));
+        assert_eq!(got, want, "source_extension({input:?}) mismatch");
+    }
+}
+
+#[test]
+fn legacy_index_path_points_under_mycelium_dir() {
+    use std::path::Path;
+    let p = legacy_index_path(Path::new("/r"));
+    let s = p.to_string_lossy();
+    assert!(s.contains(".mycelium"), "path under .mycelium dir: {s}");
+    assert!(s.ends_with("index.rmp"), "ends with index.rmp: {s}");
+}
+
+#[test]
+fn existing_index_path_returns_none_when_no_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let result = existing_index_path(dir.path());
+    assert!(
+        result.is_none(),
+        "fresh dir has no index files, got: {result:?}"
+    );
+}
+
+#[test]
+fn existing_index_path_finds_legacy_snapshot() {
+    let dir = tempfile::tempdir().unwrap();
+    let mycelium_dir = dir.path().join(".mycelium");
+    std::fs::create_dir_all(&mycelium_dir).unwrap();
+    let snap = mycelium_dir.join("index.rmp");
+    std::fs::write(&snap, b"x").unwrap();
+    let result = existing_index_path(dir.path()).expect("found");
+    assert_eq!(result, snap, "found legacy index.rmp");
+}
