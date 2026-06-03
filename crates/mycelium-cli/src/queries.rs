@@ -1985,9 +1985,19 @@ pub(crate) fn run_context(
     max_nodes: Option<usize>,
     max_code_blocks: Option<usize>,
     edge_kinds: &[String],
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::BudgetOverride;
     use mycelium_core::context::{self, ContextOptions, Routing};
+
+    // Per-call budget override (RFC-0102) — parsed via the same core `FromStr`
+    // the MCP tool uses, so both surfaces resolve the identical budget. An
+    // invalid value fails fast (mirrors the MCP application error).
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow::anyhow!(e))?;
 
     let store = load_index(root)?;
     let max_n = max_nodes.unwrap_or(30).min(100);
@@ -2025,10 +2035,11 @@ pub(crate) fn run_context(
     };
     let mut value =
         context::build_payload(&store, task, &candidates, &entry_points, routing, &opts);
-    // Same budget as the MCP tool over the same payload → byte-identical JSON.
+    // Same resolution as the MCP tool over the same payload → byte-identical
+    // JSON (RFC-0102 / Three-Surface Rule).
     mycelium_core::budget::apply_budget(
         &mut value,
-        &mycelium_core::budget::OutputBudget::for_project(store.node_count()),
+        &mycelium_core::budget::OutputBudget::resolve(budget_override, store.node_count()),
     );
 
     match format {
@@ -2070,6 +2081,7 @@ mod tests {
             None,
             None,
             &[],
+            None,
             Format::Json,
         )
         .unwrap_err();

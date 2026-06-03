@@ -1451,6 +1451,12 @@ pub struct GetContextRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default, follows project
+    /// size), `"small"` / `"medium"` / `"large"` (pin a tier), or `"disabled"`
+    /// (no truncation). Unknown values are rejected. The CLI `--budget` flag is
+    /// the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 // ── server ────────────────────────────────────────────────────────────────────
@@ -1459,7 +1465,7 @@ pub struct GetContextRequest {
 // CLI applies the *same* truncation and CLI↔MCP output stays byte-identical
 // (Three-Surface Rule). The two dead fields (`max_code_lines`/`max_total_chars`)
 // were removed there — they were never enforced.
-use mycelium_core::budget::{OutputBudget, apply_budget};
+use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
 
 #[allow(dead_code)]
 fn is_core_tool(name: &str) -> bool {
@@ -5228,6 +5234,20 @@ impl MyceliumServer {
             let eps = context::seed_entry_points(&store, &cands, max_nodes);
             (Routing::Natural, cands, eps)
         };
+        // Per-call budget override (RFC-0102 §"Request knobs"). Parsed here so
+        // an invalid value fails fast with an application error before any
+        // formatting. The CLI twin parses the identical string via the same
+        // core `FromStr`, so both surfaces resolve the same budget.
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => {
+                    return application_error(&serde_json::json!({ "error": e }));
+                }
+            },
+        };
+
         let mut value = context::build_payload(
             &store,
             &req.task,
@@ -5236,10 +5256,13 @@ impl MyceliumServer {
             routing,
             &opts,
         );
-        // Apply the adaptive budget from the live node count — the CLI twin runs
-        // the identical `for_project(node_count)` over the same payload, so the
-        // truncated JSON stays byte-identical (RFC-0102 / Three-Surface Rule).
-        apply_budget(&mut value, &OutputBudget::for_project(store.node_count()));
+        // Apply the resolved budget over the same payload — the CLI twin runs
+        // the identical `resolve(override, node_count)`, so the truncated JSON
+        // stays byte-identical (RFC-0102 / Three-Surface Rule).
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
         drop(store);
 
         success_str(req.output_format.map_or_else(
