@@ -46,6 +46,7 @@
 
 pub mod error;
 pub mod formatter;
+mod push;
 
 use std::collections::BTreeSet;
 
@@ -1446,6 +1447,14 @@ pub struct MyceliumServer {
     indexed_root: Arc<RwLock<Option<PathBuf>>>,
     watch_state: Arc<WatchState>,
     watch_abort: Arc<tokio::sync::Mutex<Option<tokio::task::AbortHandle>>>,
+    /// PUSH notifier (RFC-0106 / Option B).
+    ///
+    /// Holds the rmcp `Peer<RoleServer>` captured after [`Self::serve`] returns
+    /// `RunningService`. The watch `on_batch` closure clones this Arc, gates
+    /// on `Option::is_some`, and best-effort fires `mycelium/graphChanged`
+    /// notifications. Batches that fire before a client has connected (or
+    /// after a disconnect) simply skip the send.
+    notifier: Arc<tokio::sync::Mutex<Option<rmcp::Peer<rmcp::RoleServer>>>>,
     /// When `true`, symbol-search results are returned as `MessagePack` hex
     /// instead of JSON, achieving the Charter §2 AI token-efficiency SLA.
     compact_mode: Arc<AtomicBool>,
@@ -1489,6 +1498,7 @@ impl MyceliumServer {
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(vec![]),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
+            notifier: Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 
@@ -1512,6 +1522,7 @@ impl MyceliumServer {
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(canonical_roots),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
+            notifier: Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 
@@ -1529,6 +1540,17 @@ impl MyceliumServer {
     pub async fn with_root(root: PathBuf) -> anyhow::Result<Self> {
         let allowed = vec![root.clone()];
         Self::with_root_and_allowed_roots(root, allowed).await
+    }
+
+    /// Capture the rmcp `Peer<RoleServer>` for PUSH notifications (RFC-0106).
+    ///
+    /// Call this in the `Cmd::Serve` dispatch **after** `server.serve()`
+    /// returns `RunningService` and before `running.waiting()`. Until this is
+    /// called, every committed watch batch silently skips the `mycelium/
+    /// graphChanged` notification — the watch loop and `persist_watch_batch`
+    /// still run unchanged.
+    pub async fn set_notifier(&self, peer: rmcp::Peer<rmcp::RoleServer>) {
+        *self.notifier.lock().await = Some(peer);
     }
 
     /// Create a server pre-loaded from `root`, restricted to `allowed_roots` (RFC-0097).
@@ -1614,10 +1636,13 @@ impl MyceliumServer {
         let session = WatchEngine::attach(&cfg)?;
 
         // on_batch: the deliberate emit seam (RFC-0105). For this server it
-        // bumps the batches counter and persists the changed files; PUSH
-        // (RFC-0106) and SUBSCRIBE (RFC-0107) will attach to this same point.
+        // (1) bumps the batches counter, (2) persists the changed files, and
+        // (3) PUSH (RFC-0106): best-effort fires one `mycelium/graphChanged`
+        // notification per committed batch via the captured `Peer`. SUBSCRIBE
+        // (RFC-0107) will hook here too with scoped per-subscription deltas.
         let watch_state_cb = Arc::clone(&watch_state);
         let root_cb = root.clone();
+        let notifier_cb = Arc::clone(&self.notifier);
         let on_batch = move |ev: &mycelium_core::watch::WatchEvent,
                              store_r: &mycelium_core::store::Store| {
             watch_state_cb
@@ -1627,6 +1652,27 @@ impl MyceliumServer {
             if let Err(e) = persist_watch_batch(&root_cb, store_r, &ev.changed_files) {
                 warn!("could not persist watch batch: {e}");
             }
+            // PUSH (RFC-0106): fire a CustomNotification per committed batch.
+            // Build payload synchronously, send asynchronously, fire-and-forget.
+            // Dead client → log + continue (never abort the loop).
+            let event = push::GraphChangedEvent::from_watch_event(ev);
+            let notifier_for_send = Arc::clone(&notifier_cb);
+            tokio::spawn(async move {
+                let peer = notifier_for_send.lock().await.clone();
+                if let Some(peer) = peer {
+                    if let Some(custom) = event.into_custom_notification() {
+                        if let Err(e) = peer
+                            .send_notification(rmcp::model::ServerNotification::CustomNotification(
+                                custom,
+                            ))
+                            .await
+                        {
+                            warn!("could not push graphChanged notification: {e}");
+                        }
+                    }
+                }
+                // notifier None → silently skip (pre-serve / client disconnected).
+            });
         };
 
         watch_state.watching.store(true, Ordering::Relaxed);
@@ -5346,6 +5392,13 @@ pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> 
     };
     let transport = rmcp::transport::stdio();
     let running = server.serve(transport).await?;
+    // PUSH (RFC-0106): capture the client peer now that the rmcp service is
+    // running, so the watch loop's on_batch can fire `mycelium/graphChanged`
+    // notifications. Setting this AFTER `.serve()` returns is unavoidable —
+    // the Peer only materialises here. Any watch batch that fires before this
+    // point (e.g. from a constructor's initial index) silently skips the
+    // notification (the notifier Option is still None).
+    running.service().set_notifier(running.peer().clone()).await;
     running.waiting().await?;
     Ok(())
 }
