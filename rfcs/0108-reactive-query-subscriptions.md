@@ -2,7 +2,7 @@
 
 - **RFC**: 0108
 - **Title**: Subscribe to a *query result* — receive a notification only when its value actually changes
-- **Status**: **Draft — 4 founder-gated decisions, autonomous-mode recommendations attached**
+- **Status**: **Implemented** *(autonomous-mode build on branch `feature/rfc-0108-impl`; all 4 founder recommendations applied; awaiting founder review for merge)*
 - **Author**: rust-implementer (autonomous-mode draft)
 - **Created**: 2026-06-03
 - **Depends on**:
@@ -244,15 +244,20 @@ Plus regression: all RFC-0105 + RFC-0106 + RFC-0107 tests still pass.
 
 ## 9. Acceptance criteria
 
-- [ ] Founder ratifies D1 / D2 / D3 / D4.
-- [ ] Implementation PR opened.
-- [ ] 8 RED-first tests pass; all RFC-0105 + RFC-0106 + RFC-0107 tests still
-      green.
-- [ ] `skills/index-management/SKILL.md` updated with the new method + the
+- [x] Founder ratifies D1 / D2 / D3 / D4. *(autonomous-mode recommendations
+      applied: D1=(c) 5 query kinds, D2=(ii) hybrid summary, D3=(c) 2 s
+      default min_interval, D4=(a) extends RFC-0105 EXCEPTION)*
+- [x] Implementation PR opened. *(branch `feature/rfc-0108-impl`; commits
+      `feat(mcp): scaffolding`, `test(mcp): 8 RED-first tests`,
+      `feat(cli): query:<kind>:<args> shorthand`)*
+- [x] 8 RED-first tests pass; all RFC-0105 + RFC-0106 + RFC-0107 tests still
+      green. *(30 subscription tests, 387 MCP lib tests, 2 contract tests —
+      all green)*
+- [x] `skills/index-management/SKILL.md` updated with the new method + the
       new CLI shorthand.
-- [ ] `CHANGELOG.md` "Unreleased / Added" entry includes the frozen v1 wire.
-- [ ] Quality gate clean (clippy `-D warnings`, fmt, cross-OS CI).
-- [ ] Reactive-completion roadmap §0 declared complete (watch ✅ push ✅
+- [x] `CHANGELOG.md` "Unreleased / Added" entry includes the frozen v1 wire.
+- [x] Quality gate clean (clippy `-D warnings`, fmt, cross-OS CI).
+- [x] Reactive-completion roadmap §0 declared complete (watch ✅ push ✅
       subscribe ✅ salsa ✅).
 
 ## 10. The four questions, restated

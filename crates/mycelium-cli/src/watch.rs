@@ -24,18 +24,33 @@ use mycelium_core::store::Store;
 use mycelium_core::watch::{
     BatchDelta, CancelToken, FileReindexer, WatchConfig, WatchEngine, WatchEvent,
 };
-use mycelium_mcp::subscription;
+use mycelium_mcp::subscription::{self, QuerySpec};
 use tokio::sync::RwLock;
 
 use crate::index::{Extractors, index_path_parallel};
 
 /// Parse a CLI `--subscribe <SPEC>` string into an [`subscription::Interest`].
 ///
-/// SPEC grammar (RFC-0107 §4.3):
+/// SPEC grammar (RFC-0107 §4.3 + RFC-0108 §4.3):
 /// - `files:<glob1>,<glob2>,...`
 /// - `symbols:<glob1>,<glob2>,...`
 /// - `selector:<hyphae source>`  (everything after the first `:` is the source)
-fn parse_subscribe_spec(spec: &str) -> Result<subscription::Interest> {
+/// - `query:selector:<hyphae>`
+/// - `query:callers:<path>[,hops=N]`
+/// - `query:callees:<path>[,hops=N]`
+/// - `query:impact:<path>[,max_paths=N]`
+/// - `query:context:<task>,focus=p1+p2+...,max_tokens=N`
+///
+/// For `query:` variants, an optional comma-separated `key=value` tail follows
+/// the path. `focus` is `+`-separated (not comma — comma is the outer separator).
+///
+/// Returns an `Interest::Query { query, min_interval_seconds: min_interval_secs }`
+/// when the spec starts with `query:`. The caller supplies the
+/// `min_interval_secs` from the `--subscribe-min-interval` flag.
+fn parse_subscribe_spec(
+    spec: &str,
+    min_interval_secs: Option<u64>,
+) -> Result<subscription::Interest> {
     let (kind, rest) = spec
         .split_once(':')
         .ok_or_else(|| anyhow!("--subscribe SPEC must be `<kind>:<rest>`"))?;
@@ -67,10 +82,75 @@ fn parse_subscribe_spec(spec: &str) -> Result<subscription::Interest> {
         "selector" => Ok(subscription::Interest::Selector {
             hyphae: rest.to_owned(),
         }),
+        "query" => {
+            let query = parse_query_subspec(rest)?;
+            Ok(subscription::Interest::Query {
+                query,
+                min_interval_seconds: min_interval_secs,
+            })
+        }
         other => Err(anyhow!(
-            "--subscribe SPEC kind must be `files|symbols|selector`, got `{other}`"
+            "--subscribe SPEC kind must be `files|symbols|selector|query`, got `{other}`"
         )),
     }
+}
+
+/// Parse the tail after `query:` — `<kind>:<args>` per RFC-0108 §4.3.
+fn parse_query_subspec(rest: &str) -> Result<QuerySpec> {
+    let (qkind, qrest) = rest
+        .split_once(':')
+        .ok_or_else(|| anyhow!("query: missing sub-kind (expected `query:<kind>:<args>`)"))?;
+    match qkind {
+        "selector" => Ok(QuerySpec::Selector {
+            hyphae: qrest.to_owned(),
+        }),
+        "callers" => {
+            let (path, kv) = split_path_and_kv(qrest);
+            let hops = kv.get("hops").map(|s| s.parse::<u32>()).transpose()?;
+            Ok(QuerySpec::Callers { path, hops })
+        }
+        "callees" => {
+            let (path, kv) = split_path_and_kv(qrest);
+            let hops = kv.get("hops").map(|s| s.parse::<u32>()).transpose()?;
+            Ok(QuerySpec::Callees { path, hops })
+        }
+        "impact" => {
+            let (path, kv) = split_path_and_kv(qrest);
+            let max_paths = kv.get("max_paths").map(|s| s.parse::<u32>()).transpose()?;
+            Ok(QuerySpec::Impact { path, max_paths })
+        }
+        "context" => {
+            let (task, kv) = split_path_and_kv(qrest);
+            let focus: Vec<String> = kv
+                .get("focus")
+                .map(|s| s.split('+').map(str::to_owned).collect())
+                .unwrap_or_default();
+            let max_tokens = kv.get("max_tokens").map(|s| s.parse::<u32>()).transpose()?;
+            Ok(QuerySpec::Context {
+                task,
+                focus,
+                max_tokens,
+            })
+        }
+        other => Err(anyhow!(
+            "query: sub-kind must be `selector|callers|callees|impact|context`, got `{other}`"
+        )),
+    }
+}
+
+/// Split a `<path>[,key1=v1,key2=v2,...]` string into `(path, kv_map)`.
+/// The path is everything before the first `,`; remaining `,`-separated
+/// segments are parsed as `key=value` pairs.
+fn split_path_and_kv(s: &str) -> (String, std::collections::BTreeMap<String, String>) {
+    let mut parts = s.split(',');
+    let path = parts.next().unwrap_or("").to_owned();
+    let mut kv = std::collections::BTreeMap::new();
+    for p in parts {
+        if let Some((k, v)) = p.split_once('=') {
+            kv.insert(k.trim().to_owned(), v.trim().to_owned());
+        }
+    }
+    (path, kv)
 }
 
 /// Bridge to the CLI's existing per-extension extractors so the watch loop
@@ -113,6 +193,7 @@ pub(super) fn run_foreground(
     subscribe_spec: Option<&str>,
     subscribe_id: Option<&str>,
     subscribe_ttl: Option<u64>,
+    subscribe_min_interval: Option<u64>,
 ) -> Result<()> {
     // Build a multi-thread runtime so the engine's async loop, the
     // notify callback (sync), and the Ctrl-C handler can all make progress.
@@ -140,7 +221,8 @@ pub(super) fn run_foreground(
         // so the on_batch closure below can fan-out matched payloads.
         let subscriptions = subscription::new_store();
         let registered_sub_id: Option<String> = if let Some(spec) = subscribe_spec {
-            let interest = parse_subscribe_spec(spec).context("parsing --subscribe SPEC")?;
+            let interest = parse_subscribe_spec(spec, subscribe_min_interval)
+                .context("parsing --subscribe SPEC")?;
             let req = subscription::SubscribeRequest {
                 subscription_id: subscribe_id.map(str::to_owned),
                 interest,
@@ -190,16 +272,26 @@ pub(super) fn run_foreground(
                     ev.changed_files.len(),
                     ev.changed_files.join(", "),
                 );
-                // RFC-0107 SUBSCRIBE: stream matched payloads as NDJSON on
-                // stdout, byte-identical to the MCP `mycelium_subscribe` wire
-                // shape (one `SubscriptionDeltaEvent` per match per batch).
+                // RFC-0107 + RFC-0108 SUBSCRIBE: stream matched payloads as
+                // NDJSON on stdout, byte-identical to the MCP
+                // `mycelium_subscribe` wire shape (one event per match per
+                // batch — `SubscriptionDeltaEvent` for file/symbol/selector,
+                // `QueryResultChangedEvent` for query subscriptions).
                 if let Some(sub_id) = &registered_sub_id_drive {
                     let r = subscriptions_drive.blocking_read();
                     if let Some(sub) = r.by_id.get(sub_id) {
-                        if let Some(payload) = subscription::match_batch(sub, ev, delta, store_r) {
-                            if let Ok(line) = serde_json::to_string(&payload) {
-                                println!("{line}");
+                        match subscription::match_batch(sub, ev, delta, store_r) {
+                            Some(subscription::BatchMatch::Delta(payload)) => {
+                                if let Ok(line) = serde_json::to_string(&payload) {
+                                    println!("{line}");
+                                }
                             }
+                            Some(subscription::BatchMatch::QueryDelta(payload)) => {
+                                if let Ok(line) = serde_json::to_string(&payload) {
+                                    println!("{line}");
+                                }
+                            }
+                            Some(subscription::BatchMatch::PauseQuery { .. }) | None => {}
                         }
                     }
                 }
@@ -225,4 +317,96 @@ pub(super) fn run_foreground(
 
         Ok::<(), anyhow::Error>(())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_files_spec() {
+        let i = parse_subscribe_spec("files:src/*.rs,src/auth/*", None).unwrap();
+        match i {
+            subscription::Interest::Files { paths } => {
+                assert_eq!(paths, vec!["src/*.rs", "src/auth/*"]);
+            }
+            _ => panic!("expected Files"),
+        }
+    }
+
+    #[test]
+    fn parse_query_callers_with_hops() {
+        let i = parse_subscribe_spec("query:callers:src/a.rs>fn:b,hops=2", Some(10)).unwrap();
+        match i {
+            subscription::Interest::Query {
+                query: QuerySpec::Callers { path, hops },
+                min_interval_seconds,
+            } => {
+                assert_eq!(path, "src/a.rs>fn:b");
+                assert_eq!(hops, Some(2));
+                assert_eq!(min_interval_seconds, Some(10));
+            }
+            other => panic!("expected Query::Callers, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_query_impact_with_max_paths() {
+        let i = parse_subscribe_spec("query:impact:src/a.rs>fn:b,max_paths=42", None).unwrap();
+        match i {
+            subscription::Interest::Query {
+                query: QuerySpec::Impact { path, max_paths },
+                ..
+            } => {
+                assert_eq!(path, "src/a.rs>fn:b");
+                assert_eq!(max_paths, Some(42));
+            }
+            _ => panic!("expected Query::Impact"),
+        }
+    }
+
+    #[test]
+    fn parse_query_context_with_focus_and_tokens() {
+        let i = parse_subscribe_spec(
+            "query:context:auth,focus=src/a.rs+src/b.rs,max_tokens=4000",
+            None,
+        )
+        .unwrap();
+        match i {
+            subscription::Interest::Query {
+                query:
+                    QuerySpec::Context {
+                        task,
+                        focus,
+                        max_tokens,
+                    },
+                ..
+            } => {
+                assert_eq!(task, "auth");
+                assert_eq!(focus, vec!["src/a.rs", "src/b.rs"]);
+                assert_eq!(max_tokens, Some(4000));
+            }
+            _ => panic!("expected Query::Context"),
+        }
+    }
+
+    #[test]
+    fn parse_query_selector_takes_rest_verbatim() {
+        let i = parse_subscribe_spec("query:selector:fn[name=\"login\"]", None).unwrap();
+        match i {
+            subscription::Interest::Query {
+                query: QuerySpec::Selector { hyphae },
+                ..
+            } => {
+                assert_eq!(hyphae, "fn[name=\"login\"]");
+            }
+            _ => panic!("expected Query::Selector"),
+        }
+    }
+
+    #[test]
+    fn parse_rejects_unknown_kind() {
+        assert!(parse_subscribe_spec("nope:x", None).is_err());
+        assert!(parse_subscribe_spec("query:nope:x", None).is_err());
+    }
 }

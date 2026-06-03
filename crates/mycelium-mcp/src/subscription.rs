@@ -75,6 +75,54 @@ pub const MAX_SELECTOR_SOURCE_LEN: usize = 4096;
 /// subscriptions. Bounded ≈ 50 MB worst-case at 64 selector subs.
 pub const MAX_SELECTOR_LAST_MATCH_SET: usize = 10_000;
 
+// ── RFC-0108 frozen-at-v1 query subscription constants ──────────────────────
+
+/// Default per-Query-subscription minimum interval between emits (founder D3
+/// recommendation (c)). **Frozen at v1.**
+pub const DEFAULT_QUERY_MIN_INTERVAL_SECONDS: u64 = 2;
+
+/// Upper cap a client may set on `min_interval_seconds` (defence-in-depth: a
+/// client cannot park a cap slot indefinitely by setting `min_interval=10000`).
+/// **Frozen at v1.**
+pub const MAX_QUERY_MIN_INTERVAL_SECONDS: u64 = 300;
+
+/// Lower clamp — even a client requesting `0` gets a 2 s floor so they cannot
+/// thrash the watch loop. **Frozen at v1.**
+pub const MIN_QUERY_MIN_INTERVAL_SECONDS: u64 = 2;
+
+/// Per-query soft wall-clock budget. Above this, we still emit but log a
+/// trace warning. **Frozen at v1.**
+pub const QUERY_BUDGET_SOFT_MS: u64 = 50;
+
+/// Per-query hard wall-clock budget. Above this, the subscription is paused
+/// for [`QUERY_PAUSE_COOLDOWN_SECONDS`]. **Frozen at v1.**
+pub const QUERY_BUDGET_HARD_MS: u64 = 200;
+
+/// Cooldown after a hard-cap breach before the subscription resumes
+/// evaluation. **Frozen at v1.**
+pub const QUERY_PAUSE_COOLDOWN_SECONDS: u64 = 60;
+
+/// `Callers` / `Callees` BFS hop cap.
+pub const QUERY_MAX_HOPS: u32 = 16;
+
+/// Default BFS hops when client omits `hops`.
+pub const QUERY_DEFAULT_HOPS: u32 = 1;
+
+/// `Impact` BFS frontier cap.
+pub const QUERY_MAX_PATHS: u32 = 10_000;
+
+/// Default `Impact` cap when client omits `max_paths`.
+pub const QUERY_DEFAULT_MAX_PATHS: u32 = 100;
+
+/// `Context` token budget cap.
+pub const QUERY_MAX_TOKENS: u32 = 32_000;
+
+/// Default `Context` token budget when client omits `max_tokens`.
+pub const QUERY_DEFAULT_MAX_TOKENS: u32 = 4_000;
+
+/// `Context.focus` array length cap.
+pub const QUERY_MAX_CONTEXT_FOCUS: usize = 32;
+
 /// Allowed-shape regex for client-supplied `subscription_id`.
 pub const ID_REGEX_STR: &str = r"^[A-Za-z0-9_-]{1,64}$";
 
@@ -115,6 +163,99 @@ pub enum Interest {
         /// [`MAX_SELECTOR_SOURCE_LEN`].
         hyphae: String,
     },
+    /// RFC-0108 Salsa Phase 2: reactive query result subscription.
+    ///
+    /// Old clients that don't send `kind:"query"` still work; new clients can
+    /// also send the older three kinds.
+    Query {
+        /// What query to evaluate at every batch boundary against the post-
+        /// batch [`Store`].
+        query: QuerySpec,
+        /// Optional client override of the server's
+        /// [`DEFAULT_QUERY_MIN_INTERVAL_SECONDS`] quiet-period. Server clamps
+        /// `Some(n)` to `MIN(min=2)..=MAX(=300)`; `None` ⇒ default 2 s.
+        min_interval_seconds: Option<u64>,
+    },
+}
+
+/// Reactive query payload — the v1 catalogue (RFC-0108 D1 = (c)). Each variant
+/// maps to an existing MCP tool's pure-function body — re-use, never
+/// re-implement.
+///
+/// **Frozen at v1.** Adding a sixth kind is additive.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum QuerySpec {
+    /// Hyphae selector source (re-uses RFC-0107 Selector behaviour).
+    Selector {
+        /// Hyphae source.
+        hyphae: String,
+    },
+    /// BFS callers of `path` up to `hops` levels (default 1, max 16).
+    Callers {
+        /// Trunk path of the focus symbol.
+        path: String,
+        /// Number of BFS hops (default 1, max 16).
+        #[serde(default)]
+        hops: Option<u32>,
+    },
+    /// BFS callees of `path` up to `hops` levels.
+    Callees {
+        /// Trunk path of the focus symbol.
+        path: String,
+        /// Number of BFS hops (default 1, max 16).
+        #[serde(default)]
+        hops: Option<u32>,
+    },
+    /// Impact frontier (BFS over Calls + Imports + Extends in both
+    /// directions), capped at `max_paths`.
+    Impact {
+        /// Trunk path of the focus symbol.
+        path: String,
+        /// Pre-cap of frontier (default 100, max 10000).
+        #[serde(default)]
+        max_paths: Option<u32>,
+    },
+    /// Reactive Context (Mycelium's flagship query). Re-uses
+    /// `mycelium_core::context` when present; v1 returns a minimal placeholder
+    /// payload pending Cortex integration.
+    Context {
+        /// Free-text task description.
+        task: String,
+        /// Optional set of focus paths (capped at
+        /// [`QUERY_MAX_CONTEXT_FOCUS`]).
+        #[serde(default)]
+        focus: Vec<String>,
+        /// Token budget (default 4000, max 32000).
+        #[serde(default)]
+        max_tokens: Option<u32>,
+    },
+}
+
+/// Wire-stable name of the `QuerySpec` variant — appears in the
+/// `query_kind` field of `mycelium/queryResultChanged`.
+#[must_use]
+pub const fn query_kind_str(q: &QuerySpec) -> &'static str {
+    match q {
+        QuerySpec::Selector { .. } => "selector",
+        QuerySpec::Callers { .. } => "callers",
+        QuerySpec::Callees { .. } => "callees",
+        QuerySpec::Impact { .. } => "impact",
+        QuerySpec::Context { .. } => "context",
+    }
+}
+
+/// `true` iff the query's result is naturally a set of trunk paths (D2 (ii)
+/// hybrid summary applies). `Context` is tree-shaped.
+#[must_use]
+pub const fn query_is_set_shaped(q: &QuerySpec) -> bool {
+    matches!(
+        q,
+        QuerySpec::Selector { .. }
+            | QuerySpec::Callers { .. }
+            | QuerySpec::Callees { .. }
+            | QuerySpec::Impact { .. }
+    )
 }
 
 /// Wire-stable name of the Interest variant.
@@ -124,6 +265,7 @@ pub const fn interest_kind_str(i: &Interest) -> &'static str {
         Interest::Files { .. } => "files",
         Interest::Symbols { .. } => "symbols",
         Interest::Selector { .. } => "selector",
+        Interest::Query { .. } => "query",
     }
 }
 
@@ -221,8 +363,13 @@ pub struct SubscribeResponse {
     pub root: String,
     /// Effective rolling TTL in seconds.
     pub ttl_seconds: u64,
-    /// `"files" | "symbols" | "selector"`.
+    /// `"files" | "symbols" | "selector" | "query"`.
     pub interest_kind: String,
+    /// RFC-0108: when `interest_kind == "query"`, the `QuerySpec` variant
+    /// name (`"selector" | "callers" | "callees" | "impact" | "context"`).
+    /// `None` for non-Query interests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_kind: Option<String>,
     /// Active subscription count after this insert (server-wide).
     pub active_count: u64,
 }
@@ -260,8 +407,12 @@ pub(crate) struct SubscriptionInfo {
     pub subscription_id: String,
     /// Absolute path of the scoped root.
     pub root: String,
-    /// `"files" | "symbols" | "selector"`.
+    /// `"files" | "symbols" | "selector" | "query"`.
     pub interest_kind: String,
+    /// RFC-0108: when `interest_kind == "query"`, the `QuerySpec` variant
+    /// name. `None` for non-Query interests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_kind: Option<String>,
     /// Effective rolling TTL.
     pub ttl_seconds: u64,
     /// Seconds until expiry (approximate; 0 when already expired but not
@@ -346,6 +497,22 @@ pub struct Subscription {
     /// `Some(...)` only for Selector subscriptions — the previous batch's
     /// match-set, used for (ii-strict) removal computation.
     pub last_match_set: Option<BTreeSet<String>>,
+    // ── RFC-0108 Query-subscription state (None for non-Query variants) ──
+    /// Effective `min_interval` in milliseconds. Default
+    /// `DEFAULT_QUERY_MIN_INTERVAL_SECONDS * 1000`. **0 for non-Query subs.**
+    pub min_interval_ms: u64,
+    /// BLAKE3-128 of the previous canonical-JSON result. `None` on first
+    /// delivery so the agent gets the initial state.
+    pub last_hash: Option<[u8; 16]>,
+    /// Cached set of previous trunk paths — only populated for set-shaped
+    /// queries (Selector/Callers/Callees/Impact) so `summary.added` /
+    /// `summary.removed` can be diffed cheaply.
+    pub last_set_value: Option<BTreeSet<String>>,
+    /// Last successful emit wall-clock — gates the `min_interval` quiet-period.
+    pub last_emit_at: Option<Instant>,
+    /// Set when the per-query hard budget is breached; subsequent batches
+    /// short-circuit until `Instant::now() >= paused_until`. RFC-0108 §2.
+    pub paused_until: Option<Instant>,
 }
 
 /// In-memory subscription store.
@@ -401,6 +568,96 @@ fn validate_interest(interest: &Interest) -> Result<(), SubscribeError> {
             }
             Ok(())
         }
+        Interest::Query { query, .. } => validate_query(query),
+    }
+}
+
+/// Validate the shape and caps of a [`QuerySpec`]. RFC-0108 §4 frozen v1.
+fn validate_query(q: &QuerySpec) -> Result<(), SubscribeError> {
+    match q {
+        QuerySpec::Selector { hyphae } => {
+            if hyphae.len() > MAX_SELECTOR_SOURCE_LEN {
+                return Err(SubscribeError::SelectorTooLarge);
+            }
+            if hyphae.trim().is_empty() {
+                return Err(SubscribeError::InvalidInterest(
+                    "query.selector: hyphae source must be non-empty".to_owned(),
+                ));
+            }
+            Ok(())
+        }
+        QuerySpec::Callers { path, hops } | QuerySpec::Callees { path, hops } => {
+            if path.trim().is_empty() {
+                return Err(SubscribeError::InvalidInterest(
+                    "query.callers/callees: path must be non-empty".to_owned(),
+                ));
+            }
+            if let Some(h) = hops {
+                if *h > QUERY_MAX_HOPS {
+                    return Err(SubscribeError::InvalidInterest(format!(
+                        "query.callers/callees: hops > {QUERY_MAX_HOPS}"
+                    )));
+                }
+            }
+            Ok(())
+        }
+        QuerySpec::Impact { path, max_paths } => {
+            if path.trim().is_empty() {
+                return Err(SubscribeError::InvalidInterest(
+                    "query.impact: path must be non-empty".to_owned(),
+                ));
+            }
+            if let Some(m) = max_paths {
+                if *m > QUERY_MAX_PATHS {
+                    return Err(SubscribeError::InvalidInterest(format!(
+                        "query.impact: max_paths > {QUERY_MAX_PATHS}"
+                    )));
+                }
+            }
+            Ok(())
+        }
+        QuerySpec::Context {
+            task,
+            focus,
+            max_tokens,
+        } => {
+            if task.trim().is_empty() {
+                return Err(SubscribeError::InvalidInterest(
+                    "query.context: task must be non-empty".to_owned(),
+                ));
+            }
+            if focus.len() > QUERY_MAX_CONTEXT_FOCUS {
+                return Err(SubscribeError::InvalidInterest(format!(
+                    "query.context: focus.len() > {QUERY_MAX_CONTEXT_FOCUS}"
+                )));
+            }
+            if let Some(t) = max_tokens {
+                if *t > QUERY_MAX_TOKENS {
+                    return Err(SubscribeError::InvalidInterest(format!(
+                        "query.context: max_tokens > {QUERY_MAX_TOKENS}"
+                    )));
+                }
+            }
+            Ok(())
+        }
+    }
+}
+
+/// Server-side clamp of a client-supplied `min_interval_seconds`. Applies
+/// the (MIN, MAX) defence-in-depth window. RFC-0108 D3.
+#[must_use]
+pub const fn clamp_min_interval(req: Option<u64>) -> u64 {
+    match req {
+        Some(n) => {
+            if n < MIN_QUERY_MIN_INTERVAL_SECONDS {
+                MIN_QUERY_MIN_INTERVAL_SECONDS
+            } else if n > MAX_QUERY_MIN_INTERVAL_SECONDS {
+                MAX_QUERY_MIN_INTERVAL_SECONDS
+            } else {
+                n
+            }
+        }
+        None => DEFAULT_QUERY_MIN_INTERVAL_SECONDS,
     }
 }
 
@@ -467,6 +724,26 @@ pub async fn subscribe(
     } else {
         None
     };
+    // RFC-0108: derive Query-subscription state from the requested Interest.
+    let (min_interval_ms, last_set_value) = match &req.interest {
+        Interest::Query {
+            query,
+            min_interval_seconds,
+        } => {
+            let clamped = clamp_min_interval(*min_interval_seconds);
+            let set_seed = if query_is_set_shaped(query) {
+                Some(BTreeSet::new())
+            } else {
+                None
+            };
+            (clamped.saturating_mul(1_000), set_seed)
+        }
+        _ => (0_u64, None),
+    };
+    let query_kind = match &req.interest {
+        Interest::Query { query, .. } => Some(query_kind_str(query).to_owned()),
+        _ => None,
+    };
 
     let mut w = store.write().await;
 
@@ -497,6 +774,11 @@ pub async fn subscribe(
         expires_at: Instant::now() + std::time::Duration::from_secs(ttl_seconds),
         client_tag,
         last_match_set,
+        min_interval_ms,
+        last_hash: None,
+        last_set_value,
+        last_emit_at: None,
+        paused_until: None,
     };
     w.by_id.insert(id.clone(), sub);
     if is_selector {
@@ -511,6 +793,7 @@ pub async fn subscribe(
         root: root.to_string_lossy().into_owned(),
         ttl_seconds,
         interest_kind: kind_str,
+        query_kind,
         active_count,
     })
 }
@@ -569,10 +852,15 @@ fn sub_info(s: &Subscription, now: Instant) -> SubscriptionInfo {
         .expires_at
         .checked_duration_since(now)
         .map_or(0, |d| d.as_secs());
+    let query_kind = match &s.interest {
+        Interest::Query { query, .. } => Some(query_kind_str(query).to_owned()),
+        _ => None,
+    };
     SubscriptionInfo {
         subscription_id: s.id.clone(),
         root: s.root.to_string_lossy().into_owned(),
         interest_kind: interest_kind_str(&s.interest).to_owned(),
+        query_kind,
         ttl_seconds: s.ttl_seconds,
         seconds_until_expiry,
     }
@@ -641,6 +929,41 @@ pub(super) async fn bump_ttl(store: &Store_, id: &str) {
     }
 }
 
+/// After a successful Query-subscription delivery, persist the new hash,
+/// new set (for set-shaped queries), and `last_emit_at`. Silent no-op for
+/// non-Query subs / unknown ids. RFC-0108.
+pub(super) async fn update_query_state(
+    store: &Store_,
+    id: &str,
+    new_hash: [u8; 16],
+    new_set: Option<BTreeSet<String>>,
+) {
+    let mut w = store.write().await;
+    if let Some(s) = w.by_id.get_mut(id) {
+        if matches!(s.interest, Interest::Query { .. }) {
+            s.last_hash = Some(new_hash);
+            s.last_emit_at = Some(Instant::now());
+            if let Some(ns) = new_set {
+                let trimmed: BTreeSet<String> =
+                    ns.into_iter().take(MAX_SELECTOR_LAST_MATCH_SET).collect();
+                s.last_set_value = Some(trimmed);
+            }
+        }
+    }
+}
+
+/// Pause a Query subscription for `QUERY_PAUSE_COOLDOWN_SECONDS` after a
+/// hard-budget breach. Silent no-op for non-Query subs / unknown ids.
+pub(super) async fn pause_query_subscription(store: &Store_, id: &str) {
+    let mut w = store.write().await;
+    if let Some(s) = w.by_id.get_mut(id) {
+        if matches!(s.interest, Interest::Query { .. }) {
+            s.paused_until =
+                Some(Instant::now() + std::time::Duration::from_secs(QUERY_PAUSE_COOLDOWN_SECONDS));
+        }
+    }
+}
+
 /// Persist a freshly-computed match-set onto a Selector subscription.
 /// Silent no-op for non-Selector subs / unknown ids.
 pub(super) async fn update_last_match_set(store: &Store_, id: &str, new_set: BTreeSet<String>) {
@@ -694,8 +1017,28 @@ fn cap_array(mut v: Vec<String>) -> (Vec<String>, u64, bool) {
     (v, pre, truncated)
 }
 
+/// Outcome of one subscription × batch match attempt.
+///
+/// RFC-0108 widened the return shape to admit either an RFC-0107
+/// file/symbol/selector delta OR an RFC-0108 query-result-changed event,
+/// plus a `PauseQuery` sentinel for hard-budget breaches.
+#[derive(Debug, Clone)]
+pub enum BatchMatch {
+    /// RFC-0107 `subscriptionDelta` payload.
+    Delta(SubscriptionDeltaEvent),
+    /// RFC-0108 `queryResultChanged` payload.
+    QueryDelta(crate::query_delta::QueryResultChangedEvent),
+    /// RFC-0108 hard-budget breach — caller MUST mark the named
+    /// subscription paused for [`QUERY_PAUSE_COOLDOWN_SECONDS`].
+    PauseQuery {
+        /// The id of the subscription to pause.
+        subscription_id: String,
+    },
+}
+
 /// Try to derive an event for a subscription against one batch. Returns
-/// `None` when nothing matches.
+/// `None` when nothing matches (or, for Query subs, when the result hash did
+/// not change or the quiet-period gate is still open).
 ///
 /// `trunk_store` is the read-locked post-batch [`mycelium_core::store::Store`]
 /// supplied by `WatchEngine::drive`'s `on_batch` third arg.
@@ -706,7 +1049,24 @@ pub fn match_batch(
     ev: &WatchEvent,
     delta: &BatchDelta,
     trunk_store: &Store,
-) -> Option<SubscriptionDeltaEvent> {
+) -> Option<BatchMatch> {
+    // RFC-0108: Query subscriptions take a different code path entirely.
+    if let Interest::Query { query, .. } = &sub.interest {
+        return match crate::query_eval::match_query_batch_outcome(
+            sub,
+            query,
+            ev,
+            delta,
+            trunk_store,
+        ) {
+            crate::query_eval::QueryOutcome::Emit(e) => Some(BatchMatch::QueryDelta(*e)),
+            crate::query_eval::QueryOutcome::Pause => Some(BatchMatch::PauseQuery {
+                subscription_id: sub.id.clone(),
+            }),
+            crate::query_eval::QueryOutcome::Skip => None,
+        };
+    }
+
     let mut per_file_payload: Vec<PerFileDelta> = Vec::new();
 
     match &sub.interest {
@@ -853,6 +1213,10 @@ pub fn match_batch(
             // NOTE: caller is expected to persist the freshly-computed
             // `new_set` via `update_last_match_set` after delivery succeeds.
         }
+        Interest::Query { .. } => {
+            // Handled above via early return; unreachable here.
+            return None;
+        }
     }
 
     if per_file_payload.is_empty() {
@@ -866,7 +1230,7 @@ pub fn match_batch(
         per_file_payload.truncate(MAX_FILES_PER_DELTA);
     }
 
-    Some(SubscriptionDeltaEvent {
+    Some(BatchMatch::Delta(SubscriptionDeltaEvent {
         event: "subscriptionDelta".to_owned(),
         v: 1,
         subscription_id: sub.id.clone(),
@@ -876,7 +1240,7 @@ pub fn match_batch(
         files_truncated,
         interest_kind: interest_kind_str(&sub.interest).to_owned(),
         hint: DEFAULT_HINT.to_owned(),
-    })
+    }))
 }
 
 /// For Selector subscriptions, recompute (without diffing) the current match

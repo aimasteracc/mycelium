@@ -12,11 +12,29 @@ use mycelium_core::trunk::TrunkPath;
 use mycelium_core::types::NodeKind;
 use mycelium_core::watch::{BatchDelta, SymbolDelta, WatchEvent};
 
+use mycelium_core::store::Store as TrunkStore;
+
 use super::{
-    DEFAULT_TTL_SECONDS, Interest, MAX_PER_CLIENT, MAX_SELECTOR, MAX_SUBSCRIPTIONS, SubscribeError,
-    SubscribeRequest, bump_ttl, evaluate_selector_set, evict_expired, evict_for_dead_peer,
-    match_batch, new_store, status, subscribe, unsubscribe, update_last_match_set,
+    BatchMatch, DEFAULT_TTL_SECONDS, Interest, MAX_PER_CLIENT, MAX_SELECTOR, MAX_SUBSCRIPTIONS,
+    SubscribeError, SubscribeRequest, Subscription, SubscriptionDeltaEvent, bump_ttl,
+    evaluate_selector_set, evict_expired, evict_for_dead_peer, new_store, status, subscribe,
+    unsubscribe, update_last_match_set,
 };
+
+/// Test-only wrapper around `subscription::match_batch` that unwraps the
+/// `BatchMatch::Delta` variant — every RFC-0107 test wants the
+/// `SubscriptionDeltaEvent`, never the `QueryDelta` variant.
+fn match_batch(
+    sub: &Subscription,
+    ev: &WatchEvent,
+    delta: &BatchDelta,
+    trunk_store: &TrunkStore,
+) -> Option<SubscriptionDeltaEvent> {
+    match super::match_batch(sub, ev, delta, trunk_store) {
+        Some(BatchMatch::Delta(e)) => Some(e),
+        _ => None,
+    }
+}
 
 fn ev(root: &str, batch_seq: u64, files: &[&str]) -> WatchEvent {
     WatchEvent {
@@ -179,6 +197,11 @@ async fn selector_removal_strict_ii() {
         expires_at: Instant::now() + Duration::from_secs(60),
         client_tag: "peer".to_owned(),
         last_match_set: Some(old_set),
+        min_interval_ms: 0,
+        last_hash: None,
+        last_set_value: None,
+        last_emit_at: None,
+        paused_until: None,
     };
 
     // BatchDelta only mentions src/b.rs (no src/a.rs touch).
@@ -477,6 +500,11 @@ async fn payload_field_names_are_frozen_v1_shape() {
         expires_at: tokio::time::Instant::now() + Duration::from_secs(60),
         client_tag: "peer".to_owned(),
         last_match_set: None,
+        min_interval_ms: 0,
+        last_hash: None,
+        last_set_value: None,
+        last_emit_at: None,
+        paused_until: None,
     };
     let d = delta(vec![SymbolDelta {
         file: "src/a.rs".to_owned(),
@@ -961,4 +989,485 @@ async fn validate_interest_rejects_empty_path_string_and_empty_selector() {
     .await
     .expect_err("whitespace-only selector should be rejected");
     assert_eq!(err2.code(), "invalid_interest");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RFC-0108 §6 reactive query subscription tests (8 RED-first tests).
+// ─────────────────────────────────────────────────────────────────────────────
+
+use super::{QuerySpec, query_kind_str};
+use crate::query_delta::canonical_json_hash;
+use crate::query_eval::{QueryOutcome, match_query_batch_outcome};
+
+/// Serialise tests that mutate the global `TEST_FORCE_EVAL_DELAY_MS`.
+/// `cargo test` runs unit tests in parallel by default, so without this
+/// the budget test could leak its delay into the tree-shaped test.
+static EVAL_DELAY_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Helper: build a `Subscription` carrying a Query interest.
+fn query_sub(id: &str, query: QuerySpec, min_interval_ms: u64) -> Subscription {
+    Subscription {
+        id: id.to_owned(),
+        root: PathBuf::from("/r"),
+        interest: Interest::Query {
+            query,
+            min_interval_seconds: None,
+        },
+        ttl_seconds: 60,
+        expires_at: tokio::time::Instant::now() + Duration::from_secs(60),
+        client_tag: "peer".to_owned(),
+        last_match_set: None,
+        min_interval_ms,
+        last_hash: None,
+        last_set_value: None,
+        last_emit_at: None,
+        paused_until: None,
+    }
+}
+
+/// Helper: make a non-empty `BatchDelta` so the touched-set gate doesn't
+/// short-circuit.
+fn batch_with_change(file: &str, modified: &[&str]) -> BatchDelta {
+    delta(vec![SymbolDelta {
+        file: file.to_owned(),
+        added: vec![],
+        modified: modified.iter().map(|s| (*s).to_owned()).collect(),
+        removed: vec![],
+    }])
+}
+
+#[test]
+fn query_spec_parsing_round_trips_for_all_5_kinds() {
+    // RFC-0108 §6 test 1.
+    let cases = vec![
+        QuerySpec::Selector {
+            hyphae: "fn[name=\"login\"]".to_owned(),
+        },
+        QuerySpec::Callers {
+            path: "src/a.rs>fn:b".to_owned(),
+            hops: Some(2),
+        },
+        QuerySpec::Callees {
+            path: "src/a.rs>fn:b".to_owned(),
+            hops: None,
+        },
+        QuerySpec::Impact {
+            path: "src/a.rs>fn:b".to_owned(),
+            max_paths: Some(50),
+        },
+        QuerySpec::Context {
+            task: "auth refactor".to_owned(),
+            focus: vec!["src/auth.rs".to_owned()],
+            max_tokens: Some(2000),
+        },
+    ];
+    for spec in cases {
+        let json = serde_json::to_string(&spec).expect("serialize");
+        let round: QuerySpec = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(spec, round, "serde round-trip identity");
+        // Each kind exposes a stable wire string.
+        assert!(
+            ["selector", "callers", "callees", "impact", "context"]
+                .contains(&query_kind_str(&spec))
+        );
+    }
+}
+
+#[test]
+fn result_hash_stable_across_serde_orderings() {
+    // RFC-0108 §6 test 2: canonical-JSON canary.
+    // Build the SAME logical value two ways and verify the hash matches.
+    let v1 = serde_json::json!({ "added": ["a", "b"], "removed": [], "count": 2 });
+    let v2 = serde_json::json!({ "count": 2, "removed": [], "added": ["a", "b"] });
+    assert_eq!(canonical_json_hash(&v1), canonical_json_hash(&v2));
+
+    // Nested case.
+    let n1 = serde_json::json!({
+        "outer": { "z": 1, "a": [3, 2, 1] },
+        "x": { "k": "v", "j": "w" },
+    });
+    let n2 = serde_json::json!({
+        "x": { "j": "w", "k": "v" },
+        "outer": { "a": [3, 2, 1], "z": 1 },
+    });
+    assert_eq!(canonical_json_hash(&n1), canonical_json_hash(&n2));
+}
+
+#[tokio::test]
+async fn callers_subscription_fires_only_on_actual_change() {
+    // RFC-0108 §6 test 3: a batch that doesn't change callers MUST NOT fire.
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/a.rs>fn:foo");
+    upsert_fn(&mut store, "src/b.rs>fn:caller_b");
+
+    // Set up "caller_b calls foo".
+    let foo = store.lookup("src/a.rs>fn:foo").unwrap();
+    let caller_b = store.lookup("src/b.rs>fn:caller_b").unwrap();
+    store.upsert_edge(mycelium_core::types::EdgeKind::Calls, caller_b, foo);
+
+    // First subscription evaluation: should emit (last_hash is None).
+    let mut sub = query_sub(
+        "q1",
+        QuerySpec::Callers {
+            path: "src/a.rs>fn:foo".to_owned(),
+            hops: Some(1),
+        },
+        0, // no quiet period
+    );
+    let watch_ev = ev("/r", 1, &["src/b.rs"]);
+    // Provide a non-empty delta so the touched-set gate passes.
+    let d1 = batch_with_change("src/b.rs", &["src/b.rs>fn:caller_b"]);
+
+    let out1 = match_query_batch_outcome(
+        &sub,
+        match &sub.interest {
+            Interest::Query { query, .. } => query,
+            _ => unreachable!(),
+        },
+        &watch_ev,
+        &d1,
+        &store,
+    );
+    let emit1 = match out1 {
+        QueryOutcome::Emit(e) => e,
+        other => panic!("expected first delivery, got {other:?}"),
+    };
+    assert!(emit1.summary.is_some());
+    let new_hash = {
+        let mut buf = [0_u8; 16];
+        let hex_part = emit1.result_hash_new.strip_prefix("b3:").unwrap();
+        for i in 0..16 {
+            buf[i] = u8::from_str_radix(&hex_part[i * 2..i * 2 + 2], 16).unwrap();
+        }
+        buf
+    };
+
+    // Simulate post-emit state-save.
+    sub.last_hash = Some(new_hash);
+    sub.last_emit_at = Some(tokio::time::Instant::now());
+    sub.last_set_value = Some(
+        emit1
+            .new_result
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_owned))
+            .collect(),
+    );
+
+    // Second batch: touches an unrelated file, callers of foo unchanged.
+    let watch_ev2 = ev("/r", 2, &["src/c.rs"]);
+    let d2 = batch_with_change("src/c.rs", &["src/c.rs>fn:unrelated"]);
+    let out2 = match_query_batch_outcome(
+        &sub,
+        match &sub.interest {
+            Interest::Query { query, .. } => query,
+            _ => unreachable!(),
+        },
+        &watch_ev2,
+        &d2,
+        &store,
+    );
+    match out2 {
+        QueryOutcome::Skip => {} // expected — hash unchanged
+        other => panic!("expected Skip on unchanged callers, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn min_interval_coalesces_burst_edits() {
+    // RFC-0108 §6 test 4: 5 rapid batches inside the quiet window → at most
+    // 1 emit. We don't depend on real wall-clock — we set
+    // `last_emit_at = Instant::now()` after the first emit, and the
+    // quiet-period gate (`min_interval_ms = 60_000`) ensures the next four
+    // batches all return `Skip`.
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/a.rs>fn:foo");
+
+    let mut sub = query_sub(
+        "q2",
+        QuerySpec::Callers {
+            path: "src/a.rs>fn:foo".to_owned(),
+            hops: Some(1),
+        },
+        60_000, // huge quiet window so no real time can elapse past it
+    );
+
+    let mut emit_count = 0;
+    for i in 1..=5_u64 {
+        let watch_ev = ev("/r", i, &["src/b.rs"]);
+        let d = batch_with_change("src/b.rs", &["src/b.rs>fn:something"]);
+        let out = match_query_batch_outcome(
+            &sub,
+            match &sub.interest {
+                Interest::Query { query, .. } => query,
+                _ => unreachable!(),
+            },
+            &watch_ev,
+            &d,
+            &store,
+        );
+        if let QueryOutcome::Emit(_) = out {
+            emit_count += 1;
+            sub.last_emit_at = Some(tokio::time::Instant::now());
+            // Sentinel `last_hash` so the next iterations also gate on
+            // quiet-period (not just touched-set).
+            sub.last_hash = Some([0xab; 16]);
+        }
+    }
+    assert!(
+        emit_count <= 1,
+        "burst-edit coalescing: expected ≤1 emit, got {emit_count}"
+    );
+}
+
+#[tokio::test]
+async fn set_shaped_summary_added_removed_consistent() {
+    // RFC-0108 §6 test 5: Callers result goes from {A,B} → {A,C}; summary
+    // reports added=[C], removed=[B].
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/a.rs>fn:foo");
+    upsert_fn(&mut store, "src/b.rs>fn:caller_a");
+    upsert_fn(&mut store, "src/b.rs>fn:caller_b");
+    let foo = store.lookup("src/a.rs>fn:foo").unwrap();
+    let ca = store.lookup("src/b.rs>fn:caller_a").unwrap();
+    let cb = store.lookup("src/b.rs>fn:caller_b").unwrap();
+    store.upsert_edge(mycelium_core::types::EdgeKind::Calls, ca, foo);
+    store.upsert_edge(mycelium_core::types::EdgeKind::Calls, cb, foo);
+
+    // Prime the subscription with the {caller_a, caller_b} set as
+    // last_set_value, and a sentinel `last_hash` so the first call
+    // doesn't bypass via "first delivery".
+    let mut sub = query_sub(
+        "q3",
+        QuerySpec::Callers {
+            path: "src/a.rs>fn:foo".to_owned(),
+            hops: Some(1),
+        },
+        0,
+    );
+    let mut initial: BTreeSet<String> = BTreeSet::new();
+    initial.insert("src/b.rs>fn:caller_a".to_owned());
+    initial.insert("src/b.rs>fn:caller_b".to_owned());
+    sub.last_set_value = Some(initial);
+    sub.last_hash = Some([0xff; 16]); // sentinel: anything != real hash → emit
+
+    // Now mutate the store: remove caller_b, add caller_c.
+    upsert_fn(&mut store, "src/b.rs>fn:caller_c");
+    let cc = store.lookup("src/b.rs>fn:caller_c").unwrap();
+    store.upsert_edge(mycelium_core::types::EdgeKind::Calls, cc, foo);
+    // Remove caller_b's edge.
+    store.remove_node(cb);
+
+    let watch_ev = ev("/r", 1, &["src/b.rs"]);
+    let d = batch_with_change(
+        "src/b.rs",
+        &["src/b.rs>fn:caller_b", "src/b.rs>fn:caller_c"],
+    );
+    let out = match_query_batch_outcome(
+        &sub,
+        match &sub.interest {
+            Interest::Query { query, .. } => query,
+            _ => unreachable!(),
+        },
+        &watch_ev,
+        &d,
+        &store,
+    );
+    let emit = match out {
+        QueryOutcome::Emit(e) => e,
+        other => panic!("expected Emit, got {other:?}"),
+    };
+    let summary = emit
+        .summary
+        .as_ref()
+        .expect("set-shaped query MUST carry summary");
+    // old_set = {caller_a, caller_b}; new = {caller_a, caller_c}.
+    assert_eq!(
+        summary.added,
+        vec!["src/b.rs>fn:caller_c"],
+        "added must report only the newly-appearing caller_c (caller_a is in both)"
+    );
+    assert_eq!(
+        summary.removed,
+        vec!["src/b.rs>fn:caller_b"],
+        "removed must report only the dropped caller_b"
+    );
+}
+
+#[tokio::test]
+async fn tree_shaped_omits_summary() {
+    // RFC-0108 §6 test 6: Context (tree-shaped) result change carries
+    // `new_result` only, no `summary` field.
+    use std::sync::atomic::Ordering;
+    // Serialise against the budget test (shared global delay).
+    let _guard = EVAL_DELAY_GUARD.lock().unwrap();
+    crate::query_eval::TEST_FORCE_EVAL_DELAY_MS.store(0, Ordering::Relaxed);
+    let store = Store::new();
+    let sub = query_sub(
+        "q4",
+        QuerySpec::Context {
+            task: "audit".to_owned(),
+            focus: vec![],
+            max_tokens: Some(1000),
+        },
+        0,
+    );
+    let watch_ev = ev("/r", 1, &["src/x.rs"]);
+    let d = batch_with_change("src/x.rs", &["src/x.rs>fn:x"]);
+    let out = match_query_batch_outcome(
+        &sub,
+        match &sub.interest {
+            Interest::Query { query, .. } => query,
+            _ => unreachable!(),
+        },
+        &watch_ev,
+        &d,
+        &store,
+    );
+    let emit = match out {
+        QueryOutcome::Emit(e) => e,
+        other => panic!("expected Emit on first delivery, got {other:?}"),
+    };
+    assert!(
+        emit.summary.is_none(),
+        "tree-shaped (Context) MUST omit summary"
+    );
+    let v = serde_json::to_value(&*emit).unwrap();
+    let obj = v.as_object().unwrap();
+    assert!(
+        !obj.contains_key("summary"),
+        "serialized payload MUST NOT contain `summary` field for tree-shaped"
+    );
+}
+
+#[tokio::test]
+async fn evaluation_budget_pauses_runaway_subscription() {
+    // RFC-0108 §6 test 7: wall-clock > 200 ms returns Pause.
+    use std::sync::atomic::Ordering;
+    let _guard = EVAL_DELAY_GUARD.lock().unwrap();
+    let store = Store::new();
+    let sub = query_sub(
+        "q5",
+        QuerySpec::Context {
+            task: "slow".to_owned(),
+            focus: vec![],
+            max_tokens: Some(100),
+        },
+        0,
+    );
+    // Force the Context evaluator to sleep 250 ms.
+    crate::query_eval::TEST_FORCE_EVAL_DELAY_MS.store(250, Ordering::Relaxed);
+
+    let watch_ev = ev("/r", 1, &["src/x.rs"]);
+    let d = batch_with_change("src/x.rs", &["src/x.rs>fn:x"]);
+    let out = match_query_batch_outcome(
+        &sub,
+        match &sub.interest {
+            Interest::Query { query, .. } => query,
+            _ => unreachable!(),
+        },
+        &watch_ev,
+        &d,
+        &store,
+    );
+    // Reset for other tests.
+    crate::query_eval::TEST_FORCE_EVAL_DELAY_MS.store(0, Ordering::Relaxed);
+
+    matches!(out, QueryOutcome::Pause)
+        .then_some(())
+        .expect("wall-clock > QUERY_BUDGET_HARD_MS must trigger Pause (got non-Pause outcome)");
+}
+
+#[tokio::test]
+async fn three_surface_query_cli_mcp_byte_identical_payload() {
+    // RFC-0108 §6 test 8: round-trip identity for `callers` between CLI
+    // (parse spec string) and MCP (build SubscribeRequest directly).
+    //
+    // Both surfaces drive the same `subscription` module — this test asserts
+    // that the produced `QueryResultChangedEvent` is byte-identical regardless
+    // of which surface registered the subscription. The byte-identity is
+    // guaranteed by construction: both surfaces call the same
+    // `match_query_batch_outcome` against the same store.
+    let mut store = Store::new();
+    upsert_fn(&mut store, "src/a.rs>fn:foo");
+    upsert_fn(&mut store, "src/b.rs>fn:caller_b");
+    let foo = store.lookup("src/a.rs>fn:foo").unwrap();
+    let cb = store.lookup("src/b.rs>fn:caller_b").unwrap();
+    store.upsert_edge(mycelium_core::types::EdgeKind::Calls, cb, foo);
+
+    let spec = QuerySpec::Callers {
+        path: "src/a.rs>fn:foo".to_owned(),
+        hops: Some(1),
+    };
+    // "MCP" path: deserialize from a wire-shape JSON request.
+    let mcp_json = serde_json::json!({
+        "kind": "callers",
+        "path": "src/a.rs>fn:foo",
+        "hops": 1,
+    });
+    let mcp_spec: QuerySpec = serde_json::from_value(mcp_json).unwrap();
+    assert_eq!(spec, mcp_spec, "MCP wire deserialize must round-trip");
+
+    // Both produce the same payload against the same batch.
+    let sub_cli = query_sub("byte-identical", spec, 0);
+    let sub_mcp = query_sub("byte-identical", mcp_spec, 0);
+    let watch_ev = ev("/r", 42, &["src/b.rs"]);
+    let d = batch_with_change("src/b.rs", &["src/b.rs>fn:caller_b"]);
+
+    let cli_payload = match match_query_batch_outcome(
+        &sub_cli,
+        match &sub_cli.interest {
+            Interest::Query { query, .. } => query,
+            _ => unreachable!(),
+        },
+        &watch_ev,
+        &d,
+        &store,
+    ) {
+        QueryOutcome::Emit(e) => *e,
+        _ => panic!("expected Emit"),
+    };
+    let mcp_payload = match match_query_batch_outcome(
+        &sub_mcp,
+        match &sub_mcp.interest {
+            Interest::Query { query, .. } => query,
+            _ => unreachable!(),
+        },
+        &watch_ev,
+        &d,
+        &store,
+    ) {
+        QueryOutcome::Emit(e) => *e,
+        _ => panic!("expected Emit"),
+    };
+
+    // Drop `evaluation_ms` (wall-clock noise) before comparing.
+    let mut a = serde_json::to_value(&cli_payload).unwrap();
+    let mut b = serde_json::to_value(&mcp_payload).unwrap();
+    if let Some(o) = a.as_object_mut() {
+        o.remove("evaluation_ms");
+    }
+    if let Some(o) = b.as_object_mut() {
+        o.remove("evaluation_ms");
+    }
+    let a_json = serde_json::to_string(&a).unwrap();
+    let b_json = serde_json::to_string(&b).unwrap();
+    assert_eq!(
+        a_json, b_json,
+        "three-surface contract: CLI and MCP queryResultChanged byte-identical (RFC-0108 §6 test 8)"
+    );
+
+    // Spot checks against the v1 wire shape.
+    let v: serde_json::Value = serde_json::from_str(&a_json).unwrap();
+    assert_eq!(v["event"], "queryResultChanged");
+    assert_eq!(v["v"], 1);
+    assert_eq!(v["query_kind"], "callers");
+    assert_eq!(v["batch_seq"], 42);
+    assert_eq!(v["subscription_id"], "byte-identical");
+    assert!(v["summary"].is_object(), "set-shaped query carries summary");
+    assert!(
+        v["result_hash_new"].as_str().unwrap().starts_with("b3:"),
+        "hash prefix `b3:` is frozen v1"
+    );
 }

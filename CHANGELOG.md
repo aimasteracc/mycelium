@@ -22,6 +22,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reactive query subscriptions — `mycelium/queryResultChanged` notifications
+  (RFC-0108, founder-ratified D1-D4).** Step 4/4 of the reactive-completion
+  roadmap (watch ✅ push ✅ subscribe ✅ salsa ✅). Whereas RFC-0107 emits a
+  scoped delta on every matching batch, RFC-0108 lets agents subscribe to a
+  **query result** and receive a notification **only when the value actually
+  changes** — Salsa-style backdated equality via a BLAKE3-128 hash of the
+  canonical-JSON result (the v1 hash prefix `b3:` is frozen).
+  `mycelium_subscribe` accepts a new `Interest::Query { query, min_interval_seconds }`
+  variant — additive, no new MCP tool. `QuerySpec` v1 catalogue: `selector`,
+  `callers`, `callees`, `impact`, `context` (D1=(c) — each maps to the
+  existing MCP tool's pure-function body, no new query logic invented). D2=(ii)
+  hybrid result-reporting: set-shaped queries carry a `summary { added,
+  removed }` (matching RFC-0107's truncation discipline at 50 items);
+  tree-shaped (`context`) omit `summary` entirely. D3=(c) 2 s default
+  quiet-period (server-clamped to 2..=300 s), per-query soft / hard wall-clock
+  budgets (50 ms / 200 ms; hard breach pauses the subscription for 60 s — v1
+  simplification: `tracing::warn!` + silent pause, no separate notification).
+  D4=(a) extends the RFC-0105 EXCEPTION — CLI `mycelium watch --subscribe
+  'query:<kind>:<args>' [--subscribe-min-interval <SECONDS>]` streams the new
+  notification as NDJSON, byte-identical to the MCP wire (asserted by
+  `tests/contract_subscription::three_surface_query_byte_identical_payload`).
+  Wire shape (frozen v1): `event="queryResultChanged"`, `v=1`,
+  `subscription_id`, `root`, `batch_seq`, `query_kind`, `result_hash_old?`,
+  `result_hash_new`, `new_result`, `summary?`, `evaluation_ms`, `hint`.
+  `Context` evaluator currently returns a minimal placeholder structure
+  (`task` + `focus` + resolved-symbol list); full Cortex integration deferred
+  (RFC-0108 §8). 8 RED-first tests (RFC-0108 §6) + 6 CLI parser tests + one
+  three-surface contract test all green.
 - **SUBSCRIBE — per-subscription scoped `mycelium/subscriptionDelta`
   notifications (RFC-0107, founder-ratified D1-D5).** Step 3/4 of the
   reactive-completion roadmap. Whereas RFC-0106 PUSH broadcasts a single

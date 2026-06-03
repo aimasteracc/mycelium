@@ -19,7 +19,7 @@ use std::path::PathBuf;
 use mycelium_core::store::Store;
 use mycelium_core::watch::{BatchDelta, SymbolDelta, WatchEvent};
 use mycelium_mcp::subscription::{
-    self, Interest, SubscribeRequest, match_batch, new_store, subscribe,
+    self, BatchMatch, Interest, SubscribeRequest, match_batch, new_store, subscribe,
 };
 
 fn ev(root: &str, seq: u64, files: &[&str]) -> WatchEvent {
@@ -59,7 +59,10 @@ async fn run_through_mcp_surface(
         &trunk,
     );
     drop(r);
-    payload
+    match payload {
+        Some(BatchMatch::Delta(e)) => Some(e),
+        _ => None,
+    }
 }
 
 /// Build a payload using the same code path the CLI runs inside its
@@ -114,4 +117,117 @@ async fn three_surface_cli_mcp_byte_identical_payload() {
     let pf = v["per_file"].as_array().expect("per_file array");
     assert_eq!(pf.len(), 1);
     assert_eq!(pf[0]["file"], "src/auth.rs");
+}
+
+/// RFC-0108 §6 test 8 — extends the RFC-0107 three-surface byte-identity
+/// contract to cover the new `Interest::Query` variant + the new
+/// `mycelium/queryResultChanged` wire shape.
+///
+/// Both surfaces drive the same `subscription` module by construction —
+/// the test asserts the serialised payload is byte-identical sans the
+/// wall-clock-noisy `evaluation_ms` field.
+#[tokio::test]
+async fn three_surface_query_byte_identical_payload() {
+    use mycelium_core::trunk::TrunkPath;
+    use mycelium_core::types::{EdgeKind, NodeKind};
+    use mycelium_mcp::subscription::QuerySpec;
+
+    // Build a tiny store with one caller → callee edge.
+    let mut trunk = Store::new();
+    let foo = trunk.upsert_node(TrunkPath::parse("src/a.rs>fn:foo").unwrap());
+    trunk.set_kind(foo, NodeKind::Function);
+    let caller = trunk.upsert_node(TrunkPath::parse("src/b.rs>fn:caller_b").unwrap());
+    trunk.set_kind(caller, NodeKind::Function);
+    trunk.upsert_edge(EdgeKind::Calls, caller, foo);
+
+    let store_a = new_store();
+    let store_b = new_store();
+    let interest = Interest::Query {
+        query: QuerySpec::Callers {
+            path: "src/a.rs>fn:foo".to_owned(),
+            hops: Some(1),
+        },
+        min_interval_seconds: None,
+    };
+
+    let req_a = SubscribeRequest {
+        subscription_id: Some("query-byte-identical".to_owned()),
+        interest: interest.clone(),
+        ttl_seconds: Some(3600),
+        root: None,
+    };
+    let req_b = SubscribeRequest {
+        subscription_id: Some("query-byte-identical".to_owned()),
+        interest,
+        ttl_seconds: Some(3600),
+        root: None,
+    };
+
+    let resp_a = subscribe(&store_a, req_a, "mcp".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect("subscribe a");
+    let resp_b = subscribe(&store_b, req_b, "cli".to_owned(), PathBuf::from("/r"))
+        .await
+        .expect("subscribe b");
+    assert_eq!(resp_a.query_kind.as_deref(), Some("callers"));
+    assert_eq!(resp_b.query_kind.as_deref(), Some("callers"));
+
+    let d = delta(vec![SymbolDelta {
+        file: "src/b.rs".to_owned(),
+        added: vec![],
+        modified: vec!["src/b.rs>fn:caller_b".to_owned()],
+        removed: vec![],
+    }]);
+    let watch_ev = ev("/r", 42, &["src/b.rs"]);
+
+    let r_a = store_a.read().await;
+    let r_b = store_b.read().await;
+    let pa = match_batch(
+        r_a.by_id.get(&resp_a.subscription_id).unwrap(),
+        &watch_ev,
+        &d,
+        &trunk,
+    );
+    let pb = match_batch(
+        r_b.by_id.get(&resp_b.subscription_id).unwrap(),
+        &watch_ev,
+        &d,
+        &trunk,
+    );
+    drop(r_a);
+    drop(r_b);
+
+    let qa = match pa.expect("a emit") {
+        BatchMatch::QueryDelta(e) => e,
+        other => panic!("expected QueryDelta, got {other:?}"),
+    };
+    let qb = match pb.expect("b emit") {
+        BatchMatch::QueryDelta(e) => e,
+        other => panic!("expected QueryDelta, got {other:?}"),
+    };
+
+    // Compare byte-identity, modulo `evaluation_ms`.
+    let mut va = serde_json::to_value(&qa).unwrap();
+    let mut vb = serde_json::to_value(&qb).unwrap();
+    va.as_object_mut().unwrap().remove("evaluation_ms");
+    vb.as_object_mut().unwrap().remove("evaluation_ms");
+    assert_eq!(
+        serde_json::to_string(&va).unwrap(),
+        serde_json::to_string(&vb).unwrap(),
+        "three-surface contract: queryResultChanged byte-identical across surfaces"
+    );
+
+    // Frozen v1 spot checks.
+    assert_eq!(va["event"], "queryResultChanged");
+    assert_eq!(va["v"], 1);
+    assert_eq!(va["query_kind"], "callers");
+    assert_eq!(va["batch_seq"], 42);
+    assert!(
+        va["summary"].is_object(),
+        "set-shaped query carries summary"
+    );
+    assert!(
+        va["result_hash_new"].as_str().unwrap().starts_with("b3:"),
+        "frozen v1 hash prefix"
+    );
 }
