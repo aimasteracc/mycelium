@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Output budget no longer silently no-ops for four tools (RFC-0102).**
+  `apply_budget` capped a fixed key allowlist that omitted the array keys
+  `mycelium_get_callees` (`callee_paths`), `mycelium_get_callers`
+  (`caller_paths`), `mycelium_get_dead_symbols` (`dead_symbols`), and
+  `mycelium_get_isolated_symbols` (`isolated_symbols`) actually emit — so those
+  tools advertised budgeting but returned unbounded arrays. `callee_paths` /
+  `caller_paths` are now capped at `max_edges`, `dead_symbols` /
+  `isolated_symbols` at `max_nodes`, with the same `truncated` / `budget {}`
+  metadata as the other budgeted tools.
+
 ### Added
 
 - **Nested `budget {}` response object (RFC-0102).** When a tool response is
