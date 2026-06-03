@@ -1,6 +1,6 @@
 # RFC-0109: Graph-list tool output-shape parity + budget knob roll-out
 
-- **Status**: **Accepted — Option A** (ratified 2026-06-04 under the founder's
+- **Status**: **Accepted — Option A** (ratified 2026-06-03 UTC under the founder's
   standing autonomous-development mandate + "all rights" grant). Rationale:
   ADR-0009 records the founder's pre-launch principle to "shed conservative
   backward-compat baggage we don't owe anyone yet," and Option A closes a real
@@ -9,7 +9,7 @@
   contract test. *(Founder may downgrade to Option B on review; the EXCEPTION
   path is preserved in §Decision.)*
 - **Author(s)**: orchestrator (Hive AI agent)
-- **Created**: 2026-06-04
+- **Created**: 2026-06-03 (UTC; commit `2026-06-03T19:25Z`)
 - **Supersedes**: none
 - **Depends on**: RFC-0090 (Three-Surface Rule), RFC-0102 (adaptive output budget)
 - **Tracking issue**: TBD (#380 follow-up)
@@ -100,8 +100,9 @@ byte-identical contract test.
 
 ## Acceptance criteria
 
-- [x] BDFL decision recorded — **Option A** (see Status; ratified under the
-      autonomous-development mandate, citing ADR-0009's pre-launch principle).
+- [x] BDFL decision recorded — **Option A** (see Status; ratified 2026-06-03 UTC
+      under the autonomous-development mandate, citing ADR-0009's pre-launch
+      principle).
 - [ ] (Option A) A shared core builder exists per rolled-out list tool; CLI and
       MCP both call it; a byte-identical contract test guards each.
 - [ ] (Option A) `--budget`/`budget` accepted on each rolled-out tool, resolving
