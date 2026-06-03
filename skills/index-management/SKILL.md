@@ -9,9 +9,16 @@ allowed-tools:
   - mcp__mycelium__sync_file
   - mcp__mycelium__set_compact_mode
   - mcp__mycelium__get_token_stats
+  - mcp__mycelium__subscribe
+  - mcp__mycelium__unsubscribe
+  - mcp__mycelium__subscription_status
   # CLI surface variant of watch (RFC-0105 Three-Surface EXCEPTION:
   # a foreground CLI watch vs the server's background start/stop/status is a
   # documented lifecycle mismatch; both drive the same `WatchEngine`).
+  # `mycelium watch --subscribe <SPEC>` is the CLI surface for RFC-0107
+  # (extends the RFC-0105 EXCEPTION — same `subscription::match_batch` code
+  # path; wire shape byte-identical to MCP, asserted by
+  # `tests/contract_subscription`).
   - cli:mycelium-watch
 category: operations
 icon: 🗃️
@@ -125,6 +132,56 @@ Whenever the watch loop commits a batch (i.e. one or more watched files have bee
 ```
 
 `changed_files` is capped at 50. When the underlying batch had more, `truncated` flips true and `changed_count` reports the real magnitude — react by broadly re-querying instead of trying to enumerate every affected file. Delivery is best-effort; if your client dropped or never registered the handler, the server logs and continues (zero impact on indexing).
+
+### `mycelium/subscriptionDelta` — per-subscription scoped notification (RFC-0107)
+
+Where `mycelium/graphChanged` (RFC-0106) broadcasts one notification per batch with the changed file list, **SUBSCRIBE** lets an agent register an **Interest** (Files / Symbols / Hyphae selector) and receive only the matching slice of each batch — as added / modified / removed trunk paths per file. Three new tools manage the in-memory subscription map; one new notification method delivers the matched payloads.
+
+```jsonc
+// Notification shape (v1, frozen):
+{
+  "method": "mycelium/subscriptionDelta",
+  "params": {
+    "event": "subscriptionDelta",
+    "v": 1,
+    "subscription_id": "f3c1...",
+    "root": "/abs/path/to/workspace",
+    "batch_seq": 42,
+    "per_file": [
+      {
+        "file": "src/auth.rs",
+        "added": ["src/auth.rs>fn:login"],
+        "added_count": 1,
+        "added_truncated": false,
+        "modified": [],
+        "modified_count": 0,
+        "modified_truncated": false,
+        "removed": ["src/auth.rs>fn:legacy_signin"],
+        "removed_count": 1,
+        "removed_truncated": false
+      }
+    ],
+    "files_truncated": false,
+    "interest_kind": "files",
+    "hint": "Apply the delta locally or re-query the affected paths."
+  }
+}
+```
+
+```
+mcp__mycelium__subscribe({
+  "interest": { "kind": "files", "paths": ["src/auth/**/*.rs"] },
+  "ttl_seconds": 3600
+})
+→ { "subscription_id": "f3c1...", "root": "/abs/path", "ttl_seconds": 3600,
+    "interest_kind": "files", "active_count": 1 }
+```
+
+`interest` is a tagged union (mutually exclusive): `{"kind":"files","paths":[...]}` | `{"kind":"symbols","paths":[...]}` | `{"kind":"selector","hyphae":"..."}`. The server enforces caps (256 server-wide, 32 per-client, 64 Selector-specific) and a rolling TTL (default 3600s, max 86400s, bumped on every successful delivery). `mycelium_unsubscribe` is idempotent — unknown ids return `{removed: false}`. `mycelium_subscription_status` returns the active subscription list plus the configured caps for visibility.
+
+Per-array cap = 50; `per_file` cap = 16 entries (above which `files_truncated: true` flips). All arrays are sorted + deduped before send. Selector removals follow the **(ii-strict)** policy — a removal is reported only when the path was in the OLD match-set AND its file was touched this batch — so unrelated state flips never produce phantom removals.
+
+CLI surface (RFC-0105 Three-Surface EXCEPTION, extended): `mycelium watch --subscribe '<SPEC>'` registers the same Interest and streams identical NDJSON payloads to stdout. SPEC = `files:<glob1>,<glob2>,...` | `symbols:<glob1>,<glob2>,...` | `selector:<hyphae source>`. The MCP + CLI wire shapes are byte-identical by construction (both surfaces share `subscription::match_batch`); asserted by `tests/contract_subscription`.
 
 ### `sync_file` — immediate single-file re-index
 
