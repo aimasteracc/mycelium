@@ -1780,11 +1780,14 @@ impl MyceliumServer {
             });
 
             // SUBSCRIBE (RFC-0107): per-subscription scoped fan-out. We
-            // build every match payload synchronously here (under no lock —
-            // `subscriptions_cb` is `Arc<RwLock<...>>` so a blocking_read is
-            // fine because the watch loop already dropped its write lock and
-            // this `on_batch` call is synchronous-from-engine), then spawn
-            // one task per matching subscription for the actual send.
+            // build every match payload synchronously here, then spawn one
+            // task per matching subscription for the actual send.
+            //
+            // `on_batch` is called from within a Tokio async task (the watch
+            // loop), so `blocking_read()` would block the executor thread.
+            // Use `try_read()` instead — if the lock is briefly contended
+            // (only possible during concurrent subscribe/unsubscribe), we
+            // skip this batch's notifications rather than panicking.
             //
             // For Selector subscriptions, also recompute the fresh match
             // set so the next batch can diff against it. Persisted via a
@@ -1792,12 +1795,14 @@ impl MyceliumServer {
             let subs_for_match = Arc::clone(&subscriptions_cb);
             let ev_clone = ev.clone();
             let delta_clone = delta.clone();
+            // `try_read()` instead of `blocking_read()` — the latter blocks
+            // the Tokio executor and panics if any concurrent subscribe /
+            // unsubscribe holds the write lock. Briefly contended → skip
+            // this batch's notifications rather than crash the watch loop.
             let subs_snapshot: Vec<subscription::Subscription> = subs_for_match
-                .blocking_read()
-                .by_id
-                .values()
-                .cloned()
-                .collect();
+                .try_read()
+                .map(|g| g.by_id.values().cloned().collect())
+                .unwrap_or_default();
             // RFC-0107 + RFC-0108: collect every pending fan-out work-item
             // (file/symbol/selector delta or query delta or pause).
             let mut payloads: Vec<Fanout> = Vec::new();

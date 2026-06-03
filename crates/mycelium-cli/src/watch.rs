@@ -277,21 +277,27 @@ pub(super) fn run_foreground(
                 // `mycelium_subscribe` wire shape (one event per match per
                 // batch — `SubscriptionDeltaEvent` for file/symbol/selector,
                 // `QueryResultChangedEvent` for query subscriptions).
+                //
+                // `on_batch` runs inside a Tokio async task; `blocking_read()`
+                // would block the executor thread. Use `try_read()` — if the
+                // lock is briefly contended (concurrent subscribe/unsubscribe),
+                // skip this batch's output rather than panicking.
                 if let Some(sub_id) = &registered_sub_id_drive {
-                    let r = subscriptions_drive.blocking_read();
-                    if let Some(sub) = r.by_id.get(sub_id) {
-                        match subscription::match_batch(sub, ev, delta, store_r) {
-                            Some(subscription::BatchMatch::Delta(payload)) => {
-                                if let Ok(line) = serde_json::to_string(&payload) {
-                                    println!("{line}");
+                    if let Ok(r) = subscriptions_drive.try_read() {
+                        if let Some(sub) = r.by_id.get(sub_id) {
+                            match subscription::match_batch(sub, ev, delta, store_r) {
+                                Some(subscription::BatchMatch::Delta(payload)) => {
+                                    if let Ok(line) = serde_json::to_string(&payload) {
+                                        println!("{line}");
+                                    }
                                 }
-                            }
-                            Some(subscription::BatchMatch::QueryDelta(payload)) => {
-                                if let Ok(line) = serde_json::to_string(&payload) {
-                                    println!("{line}");
+                                Some(subscription::BatchMatch::QueryDelta(payload)) => {
+                                    if let Ok(line) = serde_json::to_string(&payload) {
+                                        println!("{line}");
+                                    }
                                 }
+                                Some(subscription::BatchMatch::PauseQuery { .. }) | None => {}
                             }
-                            Some(subscription::BatchMatch::PauseQuery { .. }) | None => {}
                         }
                     }
                 }
