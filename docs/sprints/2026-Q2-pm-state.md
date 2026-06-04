@@ -191,7 +191,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P2 (post-v0.2.0):**
 8. Issue #534 — npm scope E404 tightening once @aimasteracc scope registered.
 9. `release.yml` systemic auto-close fix (ceremony script is current workaround).
-10. ~~**Systemic DCO fix**~~ — ✅ **PR #544 open** (CI running; `fix/dco-check-squash-body`): switches `%(trailers:key=Signed-off-by,valueonly)` → `grep -qiE '^Signed-off-by:'` on `%B` in `ci.yml` `dco-check` job.
+10. **Systemic DCO fix** — PR #544 open (`fix/dco-check-squash-body`), CI ✅, pending merge. Switches `%(trailers:key=Signed-off-by,valueonly)` → `grep -qiE '^Signed-off-by: .+ <.+>'` on `%B` in `ci.yml` `dco-check` job.
 11. Issue #428 god-file-split remaining slices.
 12. Skill marketplace submission to Claude Code marketplace.
 13. "First 5 minutes" walkthrough validation.
@@ -227,7 +227,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - ~~**v0.1.20 ceremony**~~: SUPERSEDED by v0.2.0. Founder confirmed.
 - **v0.2.0 ceremony**: Step 1 ✅ (PR #523). Step 4 ✅ (PR #537 `4e60400f`). **Founder: push tag `v0.2.0` + create GitHub Release.**
 - **Register `@aimasteracc` npm scope**: npmjs.com account creation + org scope registration. One-time founder action.
-- ~~**Systemic DCO config**~~: ✅ PR #544 implements the fix.
+- **Systemic DCO config**: PR #544 open (CI ✅, pending merge — `fix/dco-check-squash-body`).
 
 ---
 
