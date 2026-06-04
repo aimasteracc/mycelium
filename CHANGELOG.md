@@ -24,8 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_reachable_to` were already object-shaped on both surfaces, so it is *not* a breaking change —
   it only gains the knob + JSON budgeting.) The CLI applies the budget in `--format json` (for
   MCP parity) or when `--budget` is given explicitly; **default text mode prints
-  the full list** (no silent truncation of human-facing output — RFC-0102
-  text-mode rule).
+  the full list**, and a budgeted text response prints a truncation footer to
+  stderr (no silent truncation of human-facing output — RFC-0102 text-mode rule).
 
 ### Fixed
 

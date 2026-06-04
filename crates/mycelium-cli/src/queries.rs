@@ -386,6 +386,36 @@ fn print_object_with_list(value: &serde_json::Value, list_key: &str, format: For
                     }
                 }
             }
+            // Text mode prints only the list, so surface a truncation footer when
+            // the budget capped it — otherwise a budgeted text response would
+            // silently hide dropped results (RFC-0102 text-mode rule). Footer
+            // goes to stderr so stdout stays a clean, pipeable list.
+            if value.get("truncated").and_then(serde_json::Value::as_bool) == Some(true) {
+                let shown = value[list_key].as_array().map_or(0, Vec::len);
+                let total = value
+                    .get("budget")
+                    .and_then(|b| b.get("total_available"))
+                    .and_then(|t| t.get(list_key))
+                    .and_then(serde_json::Value::as_u64)
+                    .or_else(|| {
+                        value
+                            .get("total_available")
+                            .and_then(serde_json::Value::as_u64)
+                    });
+                let mode = value
+                    .get("budget")
+                    .and_then(|b| b.get("mode"))
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("auto");
+                match total {
+                    Some(t) => eprintln!(
+                        "… {shown} of {t} shown (budget: {mode}); use --budget disabled for the full list"
+                    ),
+                    None => eprintln!(
+                        "… {shown} shown, output truncated (budget: {mode}); use --budget disabled for the full list"
+                    ),
+                }
+            }
         }
     }
     Ok(())
