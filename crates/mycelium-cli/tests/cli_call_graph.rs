@@ -132,6 +132,26 @@ fn get_callees_text_mode_full_but_json_budgeted() {
 }
 
 #[test]
+fn text_mode_explicit_budget_emits_truncation_footer() {
+    // RFC-0102 / Codex #513 P2: an explicit --budget in text mode truncates,
+    // so it must surface a footer (to stderr) rather than silently drop results.
+    let project = prepare_wide_callee_project(35); // 36 symbols > small node budget (15)
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-all-symbols", "--budget", "small"]) // text mode (default)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout_lines = String::from_utf8(out.stdout).unwrap().lines().count();
+    assert_eq!(stdout_lines, 15, "small budget caps the page at 15 symbols");
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(
+        stderr.contains("shown") && stderr.contains("--budget disabled"),
+        "expected a truncation footer on stderr, got: {stderr:?}"
+    );
+}
+
+#[test]
 fn get_callees_json_is_object_with_callee_paths_key() {
     let project = prepare_chain_project();
     let out = Command::new(mycelium_bin())
