@@ -144,6 +144,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > These commits are on develop but were **not** part of v0.1.19 (per Codex audit).
 > They will ship in v0.1.20.
 
+- [x] docs: align doc claims with code — tool count 89→93, RFC-0100/0102 acceptance criteria synced (PR #495, `dc5883d`)
 - [x] RFC-0102 nested `budget{}` response object + BudgetMode tag (PR #497)
 - [x] RFC-0102 per-call budget override knob on `mycelium_context` + CLI twin (PR #498)
 - [x] fix(budget): cap `callee_paths`/`caller_paths`/`dead_symbols`/`isolated_symbols` in apply_budget (PR #499)
