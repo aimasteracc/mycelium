@@ -50,6 +50,17 @@ function resolveBinary(platform, arch, resolver) {
   }
 }
 
+const SIGNAL_NUMS = Object.freeze({
+  SIGHUP:  1, SIGINT:  2, SIGQUIT: 3, SIGILL:  4, SIGTRAP: 5,
+  SIGABRT: 6, SIGBUS:  7, SIGFPE:  8, SIGKILL: 9, SIGSEGV: 11,
+  SIGPIPE: 13, SIGTERM: 15,
+});
+
+/** Returns the conventional 128+N exit code for a POSIX signal name. */
+function signalToExitCode(signal) {
+  return 128 + (SIGNAL_NUMS[signal] ?? 0);
+}
+
 function main() {
   const bin = resolveBinary(process.platform, process.arch, require.resolve);
   if (!bin) {
@@ -66,14 +77,13 @@ function main() {
     console.error(`mycelium: failed to launch binary: ${result.error.message}`);
     process.exit(1);
   }
-  // Mirror signal-termination as 128+signal, else the exit code.
   if (result.signal) {
-    process.exit(1);
+    process.exit(signalToExitCode(result.signal));
   }
   process.exit(result.status === null ? 1 : result.status);
 }
 
-module.exports = { SCOPE, PLATFORMS, platformPackage, binaryName, resolveBinary };
+module.exports = { SCOPE, PLATFORMS, platformPackage, binaryName, resolveBinary, signalToExitCode };
 
 if (require.main === module) {
   main();
