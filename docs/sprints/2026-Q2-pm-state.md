@@ -179,11 +179,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ## Live priorities (ordered)
 
 **P0 (v0.2.0 ceremony — founder action required):**
-1. **Push tag `v0.2.0`** + publish GitHub Release (Step 2; Steps 1+3+4 already done ✅).
+1. **Push tag `v0.2.0`** (Charter §5.12 Step 2 — sole remaining ceremony gate; Steps 1+3+4 done ✅). GitHub Release follows in the same UX action but is not a ceremony gate.
 2. **Register `@aimasteracc` npm scope** on npmjs.com (Issue #534) — enables real npm publish for v0.2.1+.
 
 **P1 (quality — post v0.2.0 ceremony):**
-4. **Security scan post-v0.2.0** — pending (run after ceremony complete).
+4. ~~**Security scan post-v0.2.0**~~ — ✅ DONE (dispatch v46, CLEAN).
 5. **Dogfood re-run** — RFC-0109 object shapes + RFC-0110 npm launcher + redb-as-default + watch --subscribe (8/8 CLI).
 6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` for Charter §2 cold-open budget.
 7. **Add NPM_TOKEN secret** to `npm` environment — enables npm publish on next release.
@@ -202,10 +202,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` + create GitHub Release (ceremony Steps 2+3). **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534). |
-| PM | **DONE ✅** | v45: PR #537 merged (Step 4); #539/#540 closed; PM state + decisions.jsonl updated. |
-| release | **WAITING** | v0.2.0 ceremony: Steps 1+4 ✅. Step 2 (tag) + Step 3 (GH Release) founder-gated. |
-| security-reviewer | **P1** | Post-v0.2.0 scan pending (after ceremony). |
+| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2 — only remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534). |
+| PM | **DONE ✅** | v46: PR #541 merged (Codex P1+P2 fixed); security scan CLEAN; #542 open. |
+| release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push) founder-gated. |
+| security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
 | e2e-runner | **P1** | Dogfood re-run: RFC-0109 object shapes + RFC-0110 npm + redb-as-default + watch --subscribe. |
 | bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA. |
@@ -260,7 +260,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 6. **Squash-merged PR #541** (commit `e089b66a`) — 19/19 CI ✅. ✅
 
 **Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` + create GitHub Release (ceremony Step 2; Steps 1+3+4 already ✅).
+- **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2; Steps 1+3+4 done ✅). GitHub Release creation follows from the same UX action but is not itself a ceremony gate.
 - **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
 
 ---
