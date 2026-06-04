@@ -104,14 +104,11 @@ cargo install mycelium-rcig-cli
 cargo install --git https://github.com/aimasteracc/mycelium mycelium-rcig-cli
 ```
 
-**No Rust toolchain?** Install the prebuilt binary with `npm` or `bun`
-([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)) — no `cargo` required:
-
-```bash
-npm install -g @aimasteracc/mycelium     # npm
-bun  add     -g @aimasteracc/mycelium     # bun
-bunx @aimasteracc/mycelium --version      # or run without installing
-```
+**No Rust toolchain?** A prebuilt `npm`/`bun` distribution is coming
+([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)) — the npm scope
+`@aimasteracc` is being registered. Until available, use the `cargo`
+path above or download a prebuilt binary from the
+[GitHub Releases](https://github.com/aimasteracc/mycelium/releases) page.
 
 ### Use
 
