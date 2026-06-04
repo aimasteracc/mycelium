@@ -1337,6 +1337,11 @@ pub struct GetAllSymbolsRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Caps the paginated page.
+    /// Unknown values are rejected. The CLI `--budget` flag is the twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_reachable`.
@@ -3013,15 +3018,21 @@ impl MyceliumServer {
                 );
             }
         }
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
         let kind = req
             .kind
             .as_deref()
             .and_then(mycelium_core::types::NodeKind::try_from_wire);
-        let all_symbols = self
-            .store
-            .read()
-            .await
-            .all_symbols(req.path_prefix.as_deref(), kind);
+        let store = self.store.read().await;
+        let all_symbols = store.all_symbols(req.path_prefix.as_deref(), kind);
+        let node_count = store.node_count();
+        drop(store);
         let total_count = all_symbols.len();
         let offset = req.offset.unwrap_or(0);
         let limit = req.limit.unwrap_or(0);
@@ -3030,13 +3041,13 @@ impl MyceliumServer {
             .skip(offset)
             .take(if limit == 0 { usize::MAX } else { limit })
             .collect();
-        let count = page.len();
-        let mut value = serde_json::json!({
-            "symbols": page,
-            "count": count,
-            "total_count": total_count,
-        });
-        apply_budget(&mut value, &self.current_budget().await);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::all_symbols_payload(&page, total_count);
+        // Budget caps the paginated page (RFC-0109 decision).
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),

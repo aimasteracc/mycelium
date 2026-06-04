@@ -4731,6 +4731,7 @@ async fn get_all_symbols_excludes_file_nodes() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4758,6 +4759,7 @@ async fn get_all_symbols_prefix_filter() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4783,6 +4785,7 @@ async fn get_all_symbols_kind_filter() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4801,6 +4804,7 @@ async fn get_all_symbols_unknown_kind_returns_error() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4823,6 +4827,7 @@ async fn get_all_symbols_no_params_returns_all() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4847,6 +4852,7 @@ async fn get_all_symbols_limit_caps_result_count() {
             limit: Some(3),
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4873,6 +4879,7 @@ async fn get_all_symbols_offset_skips_results() {
             limit: None,
             offset: Some(2),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();

@@ -84,6 +84,19 @@ pub fn reachable_payload(reachable: &[String]) -> Value {
     json!({ "reachable": reachable, "count": reachable.len() })
 }
 
+/// Build the `{ "symbols": [...], "count": N, "total_count": M }` payload for
+/// `get_all_symbols` from an already-paginated `page` and the pre-pagination
+/// `total_count`.
+///
+/// `count` is the page length (pre-budget); `total_count` is the full match
+/// count before `limit`/`offset`. Budgeting (if any) is applied by the caller
+/// *after* this, capping the page — so `count`/`total_count` always report the
+/// true sizes (RFC-0109: budget caps the selected page).
+#[must_use]
+pub fn all_symbols_payload(page: &[String], total_count: usize) -> Value {
+    json!({ "symbols": page, "count": page.len(), "total_count": total_count })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,5 +172,14 @@ mod tests {
         let v = reachable_payload(&["a".to_owned(), "b".to_owned(), "c".to_owned()]);
         assert_eq!(v["reachable"], serde_json::json!(["a", "b", "c"]));
         assert_eq!(v["count"], 3);
+    }
+
+    #[test]
+    fn all_symbols_payload_reports_page_and_total() {
+        // A 2-item page out of a 10-match total.
+        let v = all_symbols_payload(&["a".to_owned(), "b".to_owned()], 10);
+        assert_eq!(v["symbols"], serde_json::json!(["a", "b"]));
+        assert_eq!(v["count"], 2);
+        assert_eq!(v["total_count"], 10);
     }
 }

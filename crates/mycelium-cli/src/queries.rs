@@ -271,8 +271,15 @@ pub(crate) fn run_get_all_symbols(
     kind_str: Option<&str>,
     limit: usize,
     offset: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = match kind_str {
         None => None,
@@ -282,12 +289,23 @@ pub(crate) fn run_get_all_symbols(
         ),
     };
     let all_symbols = store.all_symbols(prefix, kind);
+    let total_count = all_symbols.len();
     let page: Vec<String> = all_symbols
         .into_iter()
         .skip(offset)
         .take(if limit == 0 { usize::MAX } else { limit })
         .collect();
-    print_string_list(&page, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::all_symbols_payload(&page, total_count);
+    // Budget caps the paginated page; JSON mode (MCP parity) or explicit --budget.
+    // Default text mode prints the full page (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "symbols", format)
 }
 
 // ── server-status ─────────────────────────────────────────────────────────────
@@ -366,6 +384,36 @@ fn print_object_with_list(value: &serde_json::Value, list_key: &str, format: For
                     if let Some(s) = item.as_str() {
                         println!("{s}");
                     }
+                }
+            }
+            // Text mode prints only the list, so surface a truncation footer when
+            // the budget capped it — otherwise a budgeted text response would
+            // silently hide dropped results (RFC-0102 text-mode rule). Footer
+            // goes to stderr so stdout stays a clean, pipeable list.
+            if value.get("truncated").and_then(serde_json::Value::as_bool) == Some(true) {
+                let shown = value[list_key].as_array().map_or(0, Vec::len);
+                let total = value
+                    .get("budget")
+                    .and_then(|b| b.get("total_available"))
+                    .and_then(|t| t.get(list_key))
+                    .and_then(serde_json::Value::as_u64)
+                    .or_else(|| {
+                        value
+                            .get("total_available")
+                            .and_then(serde_json::Value::as_u64)
+                    });
+                let mode = value
+                    .get("budget")
+                    .and_then(|b| b.get("mode"))
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("auto");
+                match total {
+                    Some(t) => eprintln!(
+                        "… {shown} of {t} shown (budget: {mode}); use --budget disabled for the full list"
+                    ),
+                    None => eprintln!(
+                        "… {shown} shown, output truncated (budget: {mode}); use --budget disabled for the full list"
+                    ),
                 }
             }
         }

@@ -14,23 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING (CLI): `mycelium get-callees`, `get-callers`, `get-dead-symbols`, and
-  `get-isolated-symbols` `--format json` now emit an object** (`{"callee_paths":[…]}` /
-  `{"caller_paths":[…]}` / `{"dead_symbols":[…],"count":N}` / `{"isolated_symbols":[…],"count":N}`) instead of a bare
+- **BREAKING (CLI): `mycelium get-callees`, `get-callers`, `get-dead-symbols`,
+  `get-isolated-symbols`, and `get-all-symbols` `--format json` now emit an object** (`{"callee_paths":[…]}` /
+  `{"caller_paths":[…]}` / `{"dead_symbols":[…],"count":N}` / `{"isolated_symbols":[…],"count":N}` / `{"symbols":[…],"count":N,"total_count":M}`) instead of a bare
   JSON array (RFC-0109 Option A). This makes the CLI output **byte-identical to
   the matching MCP tools** (both build the payload through one shared
   `mycelium_core::queries` builder) and lets the response carry budget/truncation
   metadata. Text mode (`--format text`, the default) is unchanged — one path per
-  line. Tools 1–4 of the RFC-0109 graph-list roll-out; the rest follow the same
-  pattern.
+  line. This **completes the RFC-0109 graph-list roll-out (7/7 tools)** — every
+  graph-list CLI command is now byte-identical to its MCP twin.
 - **`get_callees`, `get_callers`, `get_dead_symbols`, `get_isolated_symbols`,
-  `get_reachable`, and `get_reachable_to` gain the per-call budget knob (RFC-0102)** on both surfaces: MCP `budget` field / CLI `--budget`
+  `get_reachable`, `get_reachable_to`, and `get_all_symbols` gain the per-call budget knob (RFC-0102)** on both surfaces: MCP `budget` field / CLI `--budget`
   (`auto|small|medium|large|disabled`), resolved identically via the shared `OutputBudget::resolve`. (`get_reachable` /
   `get_reachable_to` were already object-shaped on both surfaces, so it is *not* a breaking change —
   it only gains the knob + JSON budgeting.) The CLI applies the budget in `--format json` (for
   MCP parity) or when `--budget` is given explicitly; **default text mode prints
-  the full list** (no silent truncation of human-facing output — RFC-0102
-  text-mode rule).
+  the full list**, and a budgeted text response prints a truncation footer to
+  stderr (no silent truncation of human-facing output — RFC-0102 text-mode rule).
 
 ### Fixed
 

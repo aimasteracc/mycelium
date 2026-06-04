@@ -208,6 +208,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Caps the paginated page. MCP `budget` twin.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Report whether an index is loaded and its node/edge counts.
     ServerStatus {
@@ -1210,6 +1214,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             offset,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_all_symbols(
@@ -1218,6 +1223,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 kind.as_deref(),
                 limit,
                 offset,
+                budget.as_deref(),
                 format.into(),
             )?;
         }

@@ -1,6 +1,6 @@
 # RFC-0109: Graph-list tool output-shape parity + budget knob roll-out
 
-- **Status**: **Accepted — Option A** (ratified 2026-06-03 UTC under the founder's
+- **Status**: **Implemented — Option A (7/7 tools)** (ratified 2026-06-03 UTC under the founder's
   standing autonomous-development mandate + "all rights" grant). Rationale:
   ADR-0009 records the founder's pre-launch principle to "shed conservative
   backward-compat baggage we don't owe anyone yet," and Option A closes a real
@@ -108,18 +108,18 @@ byte-identical contract test.
 | `get_isolated_symbols` | `mycelium_core::queries::isolated_symbols_payload` | ✅ | ✅ | done |
 | `get_reachable` | `mycelium_core::queries::reachable_payload` | ✅ (already object) | ✅ | done |
 | `get_reachable_to` | (shares `reachable_payload`) | ✅ (already object) | ✅ | done |
-| `get_all_symbols` | — | — | — | pending (bespoke pagination — reconcile) |
+| `get_all_symbols` | `mycelium_core::queries::all_symbols_payload` | ✅ | ✅ | done (budget caps the page) |
 
 ## Acceptance criteria
 
 - [x] BDFL decision recorded — **Option A** (see Status; ratified 2026-06-03 UTC
       under the autonomous-development mandate, citing ADR-0009's pre-launch
       principle).
-- [~] (Option A) A shared core builder exists per rolled-out list tool; CLI and
+- [x] (Option A) A shared core builder exists per rolled-out list tool; CLI and
       MCP both call it; a byte-identical contract test guards each. **Started:
       `get_callees` routes both surfaces through
       `mycelium_core::queries::callees_payload`; remaining tools pending.**
-- [~] (Option A) `--budget`/`budget` accepted on each rolled-out tool, resolving
+- [x] (Option A) `--budget`/`budget` accepted on each rolled-out tool, resolving
       via the shared `OutputBudget::resolve`; unknown value fails fast on both
       surfaces. **Started: `get_callees` done on both surfaces.**
 - [ ] CHANGELOG `[Unreleased]` notes the CLI JSON shape change (Option A) or the
