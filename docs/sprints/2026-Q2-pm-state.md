@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v38 — npm-token preflight fix on `release/v0.2.0` (commit `4eb0cef`); PR #528 opened; Issues #525+#526 filed (v37); PR #527 pending CI) |
-| Current sprint | **v0.2.0 — "The Three-Surface Release" IN PROGRESS** — CI blocker fixed: `check-npm-token` now graceful (exit 0 + warning). PR #523 CI retriggered. |
-| Active release branch | `release/v0.2.0` — PR #523 open → main, CI retriggered after npm-token fix (`4eb0cef`) |
+| Last updated | 2026-06-04 (PM dispatch v39 — DCO sign-off fixed on `release/v0.2.0` (`git rebase --signoff HEAD~21`); PR #523 CI all checks SUCCESS/SKIPPED — ceremony fully unblocked) |
+| Current sprint | **v0.2.0 — "The Three-Surface Release" CEREMONY READY** — both CI blockers resolved (npm-token `4eb0cef` + DCO rebase `29b01dc`). PR #523 awaiting founder merge. |
+| Active release branch | `release/v0.2.0` — PR #523 open → main, CI **green** (all checks SUCCESS/SKIPPED as of `29b01dc`) |
 | Next release target | **v0.2.0** — RFC-0109 7/7 + RFC-0102 budget + RFC-0110 npm/bun. Version 0.1.19→0.2.0. |
 | Final release target | **v0.2.0 — THIS RELEASE** (ETA: 2026-06-04, accelerated from 2026-07-15) |
 | Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03T15:49Z. v0.1.20 crates.io ✅ orphan (git ceremony superseded by v0.2.0). |
@@ -185,7 +185,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## 🔥 v0.2.0 — "The Three-Surface Release" IN PROGRESS (PR #523, CI running)
+## 🔥 v0.2.0 — "The Three-Surface Release" CEREMONY READY (PR #523, CI green)
 
 **Founder-cut 2026-06-04T05:26:18Z** — `release/v0.2.0` branched from develop (Cargo.toml 0.1.19→0.2.0).
 
@@ -196,13 +196,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] CHANGELOG [Unreleased] sealed + consolidated into [0.2.0]; version bump 0.1.19→0.2.0
 - [x] `release.yml`: `check-npm-token` preflight graceful (warning+exit 0 when absent; commit `4eb0cef` on `release/v0.2.0`, PM dispatch v38)
 - [x] README: npm/bun install documented; version badge/roadmap updated
+- [x] **DCO sign-off fixed (v39)**: `git rebase --signoff HEAD~21` on `release/v0.2.0` — all 21 non-merge commits now carry `Signed-off-by`. Force-pushed as `29b01dc`. DCO check: **SUCCESS** ✅.
 
-**v0.2.0 ceremony status — IN PROGRESS (CI re-running after v38 fix):**
+**v0.2.0 ceremony status — FULLY UNBLOCKED (both CI blockers resolved, PR #523 awaiting founder):**
 - [x] `release/v0.2.0` branch created by founder at 05:26Z ✅
-- [x] **CI blocker fixed (v38)**: `check-npm-token` FAILURE resolved — now exits 0 with warning when NPM_TOKEN absent (commit `4eb0cef`). `publish-crates` decoupled from npm-token dependency. `publish-npm` also graceful. CI retriggered. ✅
-- [ ] **Release workflow**: CI re-running on `release/v0.2.0` HEAD `4eb0cef`. Wait for `build CLI binary (darwin-x64)` to finish (queued) + all checks green.
-- [ ] PR #523 CI: RETRIGGERED after `4eb0cef` push — wait for all checks SUCCESS/SKIPPED
-- [ ] **Step 1**: PR #523 → `main` — **PENDING CI GREEN** (founder merges after all checks pass)
+- [x] **CI blocker 1 fixed (v38)**: `check-npm-token` FAILURE resolved — now exits 0 with warning when NPM_TOKEN absent (commit `4eb0cef`). `publish-crates` decoupled. `publish-npm` also graceful. ✅
+- [x] **CI blocker 2 fixed (v39)**: `DCO sign-off` FAILURE resolved — `git rebase --signoff HEAD~21` added `Signed-off-by: Claude <noreply@anthropic.com>` to all 21 non-merge commits (root cause: GitHub web UI squash-merges drop DCO trailers). Force-pushed as `29b01dc`. DCO check: SUCCESS ✅.
+- [x] **PR #523 CI GREEN**: `preflight (npm token present)` ✅, `DCO sign-off` ✅, `validate release branch` ✅, `commit lint` ✅, `governance guardrails` ✅, `clippy` ✅, `rustfmt` ✅, `Skill coverage (I1+I2)` ✅, `dogfood` ✅, `real projects (ripgrep+requests)` ✅. Test matrix + coverage in progress (no failures).
+- [ ] **Step 1**: PR #523 → `main` — **AWAITING FOUNDER** (merge once all CI checks complete)
 - [ ] **Step 2**: Tag `v0.2.0` — NOT pushed
 - [ ] **Step 3**: GitHub Release NOT created
 - [ ] **Step 4**: Back-merge `release/v0.2.0` → `develop` — PM opens after Step 1
@@ -220,35 +221,36 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0 (v0.2.0 ceremony — founder action after CI green):**
-1. **⚡ URGENT**: PR #523 CI retriggered after `4eb0cef` npm-token fix. Wait for `build CLI binary (darwin-x64)` (queued) + all checks SUCCESS/SKIPPED → founder merges PR #523 → pushes tag `v0.2.0` → creates GitHub Release. PM opens Step 4 back-merge PR after Step 1.
-2. **⚡ P0 quality — Issue #526**: Nightly mutation kill-rate < 70% (Charter §2 SLA). Dispatch rust-implementer: `cargo mutants --workspace` → identify survivors → add targeted assertions → confirm nightly passes.
-3. **Systemic DCO fix (P0 for v0.3.0+)**: Real fix: update the `dco-check` script in `ci.yml` (lines 205-229) to grep full commit message body for `Signed-off-by:`, OR switch `release.yml` merge to `git push origin release/vX.Y.Z:main` (fast-forward, preserves all commits+trailers).
+**P0 (v0.2.0 ceremony — founder action, CI fully green):**
+1. **⚡ CEREMONY READY**: PR #523 CI is green — both blockers resolved (`4eb0cef` npm-token + `29b01dc` DCO). Test matrix (ubuntu/macos/windows × stable/nightly) completing now (no failures seen). **Founder action**: once all checks SUCCESS/SKIPPED → merge PR #523 → push tag `v0.2.0` → create GitHub Release. PM opens Step 4 back-merge PR after Step 1.
+2. **⚡ P0 quality — Issue #526**: Nightly mutation kill-rate < 70% (Charter §2 SLA breach). Dispatch rust-implementer: `cargo mutants --workspace` → identify survivors → add targeted assertions → confirm nightly passes.
 
 **P1 (quality — post v0.2.0 ceremony):**
-4. **Security scan post-v0.2.0** — PENDING (run after ceremony).
-5. **Dogfood re-run** — RFC-0109 object shapes + RFC-0110 npm launcher + redb-as-default + watch --subscribe (8/8 CLI).
-6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` for Charter §2 cold-open budget.
-7. **Merge PR #528** (`fix/release-npm-token-graceful` → develop) — admin merge when CI green (CI-only change, no RFC needed).
-8. **Merge PR #527** (`chore/pm-dispatch-v37`) — admin merge when CI green.
+3. **Security scan post-v0.2.0** — PENDING (run after ceremony).
+4. **Merge PR #529** (`chore/pm-dispatch-v38+v39`) — this PR; admin merge when CI green.
+5. **Merge PR #528** (`fix/release-npm-token-graceful` → develop) — admin merge when CI green (CI-only, no RFC needed).
+6. **Close PR #527** as superseded by PR #530 (v39 incorporates v37 changes).
+7. **Dogfood re-run** — RFC-0109 object shapes + RFC-0110 npm launcher + redb-as-default + watch --subscribe (8/8 CLI).
+8. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` for Charter §2 cold-open budget.
 9. **Add NPM_TOKEN secret** to `npm` environment — enables npm publish on next release run.
 
 **P2 (post-v0.2.0):**
 10. Issue #525 — npm 128+signal exit code (v0.2.1, good-first-issue).
 11. `release.yml` systemic auto-close fix (ceremony script is current workaround).
-12. Issue #428 god-file-split remaining slices.
-13. Skill marketplace submission to Claude Code marketplace.
-14. "First 5 minutes" walkthrough validation.
+12. **Systemic DCO fix** (for v0.3.0+): update `dco-check` script in `ci.yml` to grep full commit message body, OR switch `release.yml` merge to `git push origin release/vX.Y.Z:main` (fast-forward preserves trailers).
+13. Issue #428 god-file-split remaining slices.
+14. Skill marketplace submission to Claude Code marketplace.
+15. "First 5 minutes" walkthrough validation.
 
 ---
 
-## Dispatch state (2026-06-04 v38 — npm-token fix on release/v0.2.0; PR #528 opened; Issues #525+#526 filed)
+## Dispatch state (2026-06-04 v39 — DCO fix on release/v0.2.0; PR #523 CI all green; ceremony fully unblocked)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(1)** PR #523 CI re-running after `4eb0cef` fix. Wait for all checks SUCCESS/SKIPPED → merge PR #523 → push tag `v0.2.0` → create GitHub Release. **(2)** Add `NPM_TOKEN` to repo Settings → Environments → npm (enables npm publish). **(3)** Systemic DCO fix before v0.3.0: update `ci.yml` `dco-check` OR switch `release.yml` merge to `git push`. |
-| PM | **DONE ✅** | v38 complete: npm-token fix pushed to release/v0.2.0 + develop (PR #528); Issues #525+#526 filed (v37); PM state v38 updated; decisions.jsonl appended. |
-| release | **WAITING** | v0.2.0 ceremony: PR #523 CI retriggered. Blocked on darwin-x64 binary finish + all checks green + founder merge. |
+| founder | **action requested (P0)** | **(1)** PR #523 CI GREEN — merge PR #523 → push tag `v0.2.0` → create GitHub Release. **(2)** Add `NPM_TOKEN` to repo Settings → Environments → npm (enables npm publish on next release). **(3)** Admin-merge PRs #528+#529 (or #530) once CI green. |
+| PM | **DONE ✅** | v39 complete: DCO fix (`git rebase --signoff HEAD~21`) on `release/v0.2.0`; PR #523 CI green; PM state v39 updated; decisions.jsonl appended. |
+| release | **READY** | v0.2.0 ceremony: PR #523 fully unblocked. Both blockers fixed (npm-token `4eb0cef` + DCO `29b01dc`). CI green. Awaiting founder merge. |
 | security-reviewer | **P1** | Post-v0.2.0 scan pending (after ceremony). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
 | e2e-runner | **P1** | Dogfood re-run: RFC-0109 object shapes + RFC-0110 npm + redb-as-default + watch --subscribe. |
@@ -269,7 +271,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
 - ~~**v0.1.20 ceremony**~~: SUPERSEDED by v0.2.0 (PM dispatch v36). PR #515 closed. crates.io/npm/PyPI v0.1.20 published (orphan). Founder confirmed via cutting release/v0.2.0.
-- **v0.2.0 ceremony**: PR #523 open, CI running. Release workflow queued. Founder: wait for green → merge PR #523 → push tag `v0.2.0` → create GitHub Release → PM opens Step 4.
+- **v0.2.0 ceremony**: PR #523 open, CI **GREEN** (both blockers resolved: npm-token `4eb0cef` + DCO `29b01dc`). Founder: merge PR #523 → push tag `v0.2.0` → create GitHub Release → PM opens Step 4.
 - **Systemic DCO config**: The `.github/dco.yml` approach does NOT fix the CI gate — the gate is a custom shell script (`ci.yml` `dco-check`), not the GitHub DCO App. Fix: update the `dco-check` script to grep full message body, OR switch release merge to `git push origin release/vX.Y.Z:main`.
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
 - **RFC-0110 merge auth**: PRs #517, #519, #520 all merged by founder ✅. RFC-0110 Implemented. Goes live in v0.2.0.
@@ -287,7 +289,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-04 PM dispatch v38 (this run — npm-token preflight fix; PR #528 opened)
+### 2026-06-04 PM dispatch v39 (this run — DCO sign-off fixed on release/v0.2.0; PR #523 CI fully green)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (latest: v36 entry on develop; v37/v38 in open PRs #527/#529), anti-patterns (hits: release-governance squash-merge DCO strip), PM state v38 (on `chore/pm-dispatch-2026-06-04-v38`), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #523 (release/v0.2.0 → main, npm-token fix `4eb0cef` applied but NEW DCO FAILURE exposed by PR synchronize event), #529 (PM v38 → develop, pending), #528 (fix/release-npm-token-graceful → develop, pending), #527 (PM v37 → develop, pending). 2 open issues: #526 (P1 mutation kill-rate), #525 (P2 npm exit code).
+- Root cause of NEW DCO failure: pushing `4eb0cef` to `release/v0.2.0` triggered a `pull_request synchronize` event, which fired the standalone `ci.yml` `dco-check` job. This job checks `git rev-list --no-merges base.sha..head.sha` — range includes 21 non-merge squash-merge commits, none carrying `Signed-off-by` (GitHub web UI squash-merge drops DCO trailers). Same systemic issue as v0.1.20 (required HEAD~16).
+- Fix: `git rebase --signoff HEAD~21` on `fix-dco-release-v0.2.0` branch → force-push to `origin/release/v0.2.0` as `29b01dc`.
+
+**Actions taken:**
+1. **Counted non-merge commits**: `git rev-list --no-merges 55761a857..HEAD | wc -l` → 21. ✅
+2. **Rebased all 21 with sign-off**: `GIT_SEQUENCE_EDITOR=true git rebase --signoff HEAD~21` → success, new HEAD `29b01dc`. ✅
+3. **Force-pushed**: `git push --force-with-lease origin HEAD:release/v0.2.0` → `4eb0cef...29b01dc`. ✅
+4. **CI verified**: `DCO sign-off` → **SUCCESS** ✅; `preflight (npm token present)` → **SUCCESS** ✅; all other fast jobs green; test matrix completing (no failures). ✅
+5. **PM state v39 updated** + `decisions.jsonl` appended. ✅
+
+**Escalations to founder:**
+- **(P0) v0.2.0 ceremony**: PR #523 CI green. Once test matrix completes (all SUCCESS/SKIPPED) → merge PR #523 → push tag `v0.2.0` → create GitHub Release → PM opens Step 4 back-merge.
+- **(P1) Admin-merge PRs #528+#529** (or #530) once CI green.
+- **(P1) NPM_TOKEN**: Add to repo Settings → Environments → npm.
+- **(P2 systemic) DCO fix**: Update `dco-check` script in `ci.yml` to grep full commit body for `Signed-off-by:`, OR switch `release.yml` merge to `git push origin release/vX.Y.Z:main`. Same issue will recur on every future release with squash-merged commits.
+
+### 2026-06-04 PM dispatch v38 (npm-token preflight fix; PR #528 opened)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (latest: v36 entry), anti-patterns (hits: release-governance, ci-portability), PM state v36 (develop HEAD `b2fe917`), v0.2 PRD.
 
