@@ -63,7 +63,11 @@ jobs:
 
   publish-crates:
     name: publish to crates.io
-    needs: [validate, quality-recheck]
+    # Gate the first irreversible publish on the CLI binaries building
+    # successfully (RFC-0110 / Codex #519 P1): if any platform build fails we
+    # must NOT publish to a registry, or the release is partial (crates live but
+    # binaries missing). npm/pypi need publish-crates, so they are gated too.
+    needs: [validate, quality-recheck, build-cli-binaries]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: crates-io
