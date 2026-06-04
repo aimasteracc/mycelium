@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **npm / bun install for the CLI — no Rust toolchain required (RFC-0110).**
+  Scaffolded the `npm/` distribution: a universal `@aimasteracc/mycelium`
+  launcher package that resolves and execs the matching prebuilt binary from a
+  per-platform `optionalDependencies` package (esbuild/biome model — no
+  postinstall download, works under both `npm` and `bun`/`bunx`). Includes the
+  launcher (`bin/mycelium.cjs`) with unit-tested platform resolution, the
+  per-platform package template, and `npm/scripts/build-npm.mjs` to assemble the
+  packages from prebuilt binaries. The CI build-matrix + publish wiring lands in
+  follow-up PRs (RFC-0110 §Rollout).
+
 ### Fixed
 
 - `sla_ancestors_100k` macOS CI flake: bumped macOS-specific SLA limit from

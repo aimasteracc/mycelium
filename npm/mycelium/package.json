@@ -1,0 +1,37 @@
+{
+  "name": "@aimasteracc/mycelium",
+  "version": "0.0.0-dev",
+  "description": "Mycelium — the reactive, AI-native code intelligence graph CLI. Prebuilt binary; no Rust/Cargo toolchain required.",
+  "keywords": [
+    "code-intelligence",
+    "code-graph",
+    "mcp",
+    "ai",
+    "cli",
+    "static-analysis",
+    "tree-sitter"
+  ],
+  "homepage": "https://github.com/aimasteracc/mycelium",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aimasteracc/mycelium.git",
+    "directory": "npm/mycelium"
+  },
+  "license": "MIT",
+  "bin": {
+    "mycelium": "bin/mycelium.cjs"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "optionalDependencies": {
+    "@aimasteracc/mycelium-darwin-arm64": "0.0.0-dev",
+    "@aimasteracc/mycelium-darwin-x64": "0.0.0-dev",
+    "@aimasteracc/mycelium-linux-x64-gnu": "0.0.0-dev",
+    "@aimasteracc/mycelium-linux-arm64-gnu": "0.0.0-dev",
+    "@aimasteracc/mycelium-win32-x64": "0.0.0-dev"
+  }
+}
