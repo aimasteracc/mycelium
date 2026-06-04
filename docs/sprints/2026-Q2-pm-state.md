@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v45 — PR #537 merged (Charter §5.12 Step 4 ✅); PR #539/#540 closed; v0.2.0 ceremony Steps 1+4 done; Steps 2+3 await founder) |
-| Current sprint | **v0.2.0 ceremony STEP 4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 4 ✅ (PR #537 back-merge `4e60400f`); Steps 2+3 (tag + GH Release) await founder. |
-| Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Steps 2+3 pending |
+| Last updated | 2026-06-04 (PM dispatch v46 — Codex P1+P2 fixes on #541; v0.2.0 ceremony Steps 1+3+4 done; Step 2 (tag) awaits founder) |
+| Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) awaits founder. |
+| Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) pending |
 | Next release target | **v0.2.1** — npm scope registration + E404 tightening (Issue #534), post-v0.2.0 backlog |
 | Final release target | v0.2.0 ceremony closing; v0.3.0 ETA TBD |
-| Last shipped | **v0.1.19 (ceremony COMPLETE)** — v0.2.0 Steps 1+4 done; tag+GH Release (Steps 2+3) pending founder. |
+| Last shipped | **v0.1.19 (ceremony COMPLETE)** — v0.2.0 Steps 1+3+4 done; Step 2 (tag push) pending founder. |
 
 ---
 
@@ -166,25 +166,21 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] README: npm/bun install documented (coming soon wording; live once Issue #534 resolved)
 - [x] DCO sign-off fixed: all 21 non-merge commits carry `Signed-off-by`
 
-**v0.2.0 ceremony status — STEPS 2+3 PENDING (founder action required):**
-- [x] `release/v0.2.0` branch created by founder at 05:26Z ✅
-- [x] **`publish to crates.io`**: ✅ v0.2.0 crates published
-- [x] **`publish to PyPI`**: ✅ SUCCESS
+**v0.2.0 ceremony status — STEP 2 PENDING (founder action required):**
 - [x] **Step 1**: PR #523 MERGED → `main` ✅ (2026-06-04T10:41:45Z)
-- [ ] **Step 2**: Tag `v0.2.0` — **founder action required**
-- [ ] **Step 3**: GitHub Release — **founder action required**
+- [ ] **Step 2**: Tag `v0.2.0` pushed — **founder action required**
+- [x] **Step 3**: All 5 crates to crates.io ✅ (release.yml, 2026-06-04)
 - [x] **Step 4**: PR #537 MERGED → `develop` ✅ (squash `4e60400f`, 2026-06-04T14:07Z)
 
-**Note on npm:** `@aimasteracc` npm scope not yet registered on npmjs.com. `publish to npm` exits 0 gracefully (warning). Issue #534 tracks re-tightening once scope is registered.
+**Note on npm/PyPI:** PyPI ✅ published. npm `@aimasteracc` scope not yet registered; `publish to npm` exits 0 gracefully (Issue #534). Draft GitHub Release at `untagged-eb9b123` will be published by founder when tag is pushed.
 
 ---
 
 ## Live priorities (ordered)
 
 **P0 (v0.2.0 ceremony — founder action required):**
-1. **Push tag `v0.2.0`** on the `v0.2.0` release commit (Step 2). Steps 1+4 done ✅.
-2. **Create GitHub Release** for `v0.2.0` with the tag (Step 3).
-3. **Register `@aimasteracc` npm scope** on npmjs.com (Issue #534) — enables real npm publish for v0.2.1+.
+1. **Push tag `v0.2.0`** + publish GitHub Release (Step 2; Steps 1+3+4 already done ✅).
+2. **Register `@aimasteracc` npm scope** on npmjs.com (Issue #534) — enables real npm publish for v0.2.1+.
 
 **P1 (quality — post v0.2.0 ceremony):**
 4. **Security scan post-v0.2.0** — pending (run after ceremony complete).
