@@ -4,6 +4,11 @@
 **/*.rs.bk
 Cargo.lock.bak
 
+# npm distribution build artifacts (RFC-0110) — assembled in CI, never committed
+/dist-bin/
+/dist-npm/
+node_modules/
+
 # IDE
 /.idea/
 /.vscode/*
