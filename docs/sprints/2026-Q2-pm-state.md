@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v46 — Codex P1+P2 fixes on #541; v0.2.0 ceremony Steps 1+3+4 done; Step 2 (tag) awaits founder) |
+| Last updated | 2026-06-04 (PM dispatch v46 — PR #541 merged (squash `e089b66a`); Codex P1+P2 fixed; security scan post-v0.2.0 CLEAN; Step 2 tag push awaits founder) |
 | Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) awaits founder. |
 | Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) pending |
 | Next release target | **v0.2.1** — npm scope registration + E404 tightening (Issue #534), post-v0.2.0 backlog |
@@ -179,11 +179,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ## Live priorities (ordered)
 
 **P0 (v0.2.0 ceremony — founder action required):**
-1. **Push tag `v0.2.0`** + publish GitHub Release (Step 2; Steps 1+3+4 already done ✅).
+1. **Push tag `v0.2.0`** (Charter §5.12 Step 2 — sole remaining ceremony gate; Steps 1+3+4 done ✅). GitHub Release follows in the same UX action but is not a ceremony gate.
 2. **Register `@aimasteracc` npm scope** on npmjs.com (Issue #534) — enables real npm publish for v0.2.1+.
 
 **P1 (quality — post v0.2.0 ceremony):**
-4. **Security scan post-v0.2.0** — pending (run after ceremony complete).
+4. ~~**Security scan post-v0.2.0**~~ — ✅ DONE (dispatch v46, CLEAN).
 5. **Dogfood re-run** — RFC-0109 object shapes + RFC-0110 npm launcher + redb-as-default + watch --subscribe (8/8 CLI).
 6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` for Charter §2 cold-open budget.
 7. **Add NPM_TOKEN secret** to `npm` environment — enables npm publish on next release.
@@ -202,10 +202,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` + create GitHub Release (ceremony Steps 2+3). **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534). |
-| PM | **DONE ✅** | v45: PR #537 merged (Step 4); #539/#540 closed; PM state + decisions.jsonl updated. |
-| release | **WAITING** | v0.2.0 ceremony: Steps 1+4 ✅. Step 2 (tag) + Step 3 (GH Release) founder-gated. |
-| security-reviewer | **P1** | Post-v0.2.0 scan pending (after ceremony). |
+| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2 — only remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534). |
+| PM | **DONE ✅** | v46: PR #541 merged (Codex P1+P2 fixed); security scan CLEAN; #542 open. |
+| release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push) founder-gated. |
+| security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
 | e2e-runner | **P1** | Dogfood re-run: RFC-0109 object shapes + RFC-0110 npm + redb-as-default + watch --subscribe. |
 | bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA. |
@@ -242,7 +242,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-04 PM dispatch v45 (this run — PR #537 merged (Step 4); #539/#540 closed)
+### 2026-06-04 PM dispatch v46 (this run — PR #541 merged; Codex P1+P2 fixed; security scan CLEAN)
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (1 new hit: MCP resource-prefix), PM state v45 (PR #541 open), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #541 (chore pm-dispatch-v45, CI 22/22 ✅ on original commit; 2 Codex findings open).
+- 0 open issues.
+- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag) awaits founder.
+
+**Actions taken:**
+1. **Fixed Codex P2** (Hard Rule violation): reverted decisions.jsonl line 1 — MCP GitHub tool prepended resource-reference prefix to `DECISIONS_CONTENT_PLACEHOLDER`, rewriting an append-only line. Reverted. ✅
+2. **Fixed Codex P1** (ceremony tracking): corrected Step 3 label from "GitHub Release" (wrong) to "crates.io publish" (Charter §5.12 correct). Step 3 already done; Step 2 (tag) is sole remaining founder action. ✅
+3. **Replied to both Codex threads** on PR #541 (P1: fixed in `858af01`; P2: fixed in `858af01`). ✅
+4. **Security scan post-v0.2.0**: CLEAN — no secrets, unsafe blocks documented, no shell injection, npm launcher secure. ✅
+5. **Recorded anti-pattern**: MCP GitHub tool read prepends resource-reference prefix; use local Read tool for append-only memory files. ✅
+6. **Squash-merged PR #541** (commit `e089b66a`) — 19/19 CI ✅. ✅
+
+**Escalations to founder:**
+- **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2; Steps 1+3+4 done ✅). GitHub Release creation follows from the same UX action but is not itself a ceremony gate.
+- **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
+
+---
+
+### 2026-06-04 PM dispatch v45 (PR #537 merged (Step 4); #539/#540 closed)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (no new domain hits), PM state v42 (from develop HEAD `4e60400f` post-#537 merge), v0.2 PRD.
 
