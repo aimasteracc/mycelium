@@ -245,7 +245,7 @@ jobs:
           # (between individual commit entries) rather than as trailing lines,
           # so the trailer parser misses them and false-fails those commits.
           for sha in $(git rev-list --no-merges ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
-            if ! git log -1 --format='%B' "$sha" | grep -qiE '^Signed-off-by:'; then
+            if ! git log -1 --format='%B' "$sha" | grep -qiE '^Signed-off-by: .+ <.+>'; then
               echo "::error::Commit $sha lacks Signed-off-by trailer (DCO)."
               MISSING=$((MISSING+1))
             fi
