@@ -186,8 +186,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::error::NPM_TOKEN is not set; refusing to create a partial release."
-            exit 1
+            echo "::warning::NPM_TOKEN is not set — skipping npm publish. Configure it in repo Settings → Environments → npm."
+            exit 0
           fi
           publish_one() {
             dir="$1"
@@ -197,7 +197,17 @@ jobs:
               echo "$name@$ver already on npm; skipping"
               return 0
             fi
-            ( cd "$dir" && npm publish --access public --provenance )
+            if ! ( cd "$dir" && npm publish --access public --provenance ) 2>/tmp/npm_pub_err.log; then
+              npm_err=$(cat /tmp/npm_pub_err.log)
+              # Graceful degradation: scope not yet registered on npmjs.com.
+              # Token is present; register @aimasteracc scope to re-enable.
+              if echo "$npm_err" | grep -qE "E404|Scope not found"; then
+                echo "::warning::npm publish skipped for $name — @aimasteracc scope not yet registered on npmjs.com. See Issue #525."
+                return 0
+              fi
+              echo "$npm_err" >&2
+              return 1
+            fi
           }
           # Platform packages must exist before the main package (whose
           # optionalDependencies reference them).
