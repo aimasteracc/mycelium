@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v41 — PRs #531+#532 merged; npm E404 root cause diagnosed; release/v0.2.0 npm graceful fix `66f91cb`; PR #533 opened for develop; PR #528 closed) |
-| Current sprint | **v0.2.0 — "The Three-Surface Release" CEREMONY RE-UNBLOCKED** — npm E404 (scope not found) diagnosed and fixed on release/v0.2.0 (`66f91cb`). PR #523 awaiting CI re-run + founder merge. |
-| Active release branch | `release/v0.2.0` — PR #523 open → main, CI RE-RUNNING (fix `66f91cb` pushed to release/v0.2.0; npm scope graceful) |
+| Last updated | 2026-06-04 (PM dispatch v42 — PR #533 merged; Issue #526 closed; Issue #534 created; PR #535 opened (Issue #525 signal exit code fix)) |
+| Current sprint | **v0.2.0 — "The Three-Surface Release" CEREMONY RE-UNBLOCKED** — Release workflow in_progress on release/v0.2.0 (run 26947365908). PR #523 awaiting CI + founder merge. |
+| Active release branch | `release/v0.2.0` — PR #523 open → main, CI in_progress (run 26947365908 with npm E404 graceful fix) |
 | Next release target | **v0.2.0** — RFC-0109 7/7 + RFC-0102 budget + RFC-0110 npm/bun. Version 0.1.19→0.2.0. |
 | Final release target | **v0.2.0 — THIS RELEASE** (ETA: 2026-06-04, accelerated from 2026-07-15) |
 | Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03T15:49Z. v0.1.20 crates.io ✅ orphan (git ceremony superseded by v0.2.0). |
@@ -227,23 +227,21 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 1. **⚡ CEREMONY UNBLOCKED**: Commit `66f91cb` pushed to `release/v0.2.0` — `publish_one()` now handles E404 scope-not-found gracefully. CI re-running. **Founder action**: once all checks SUCCESS/SKIPPED → merge PR #523 → push tag `v0.2.0` → create GitHub Release. PM opens Step 4 back-merge after Step 1.
 2. **Register `@aimasteracc` npm scope** on npmjs.com — this is what caused `publish to npm` E404. No code fix will substitute; founder must create the scope. Once done, npm publish on next release will succeed. (See Issue #525 for v0.2.1 scope notes.)
 
-**P0 done this run ✅ (v41):**
-- PR #531 MERGED ✅ (test(mcp): mutation kill-rate fix, 24/24 CI green, squash `b69695313c`) — Issue #526 CLOSED
-- PR #532 MERGED ✅ (chore(pm): dispatch v40, 22/22 CI green, squash `dff97c49bd`)
-- npm E404 root cause diagnosed: `@aimasteracc` scope not registered on npmjs.com
-- Commit `66f91cb` pushed to `release/v0.2.0`: `publish_one()` E404 graceful fix
-- PR #533 opened: `fix/release-npm-graceful-comprehensive` → develop (token-absent + E404)
-- PR #528 CLOSED as superseded by PR #533
+**P0 done this run ✅ (v42):**
+- PR #533 MERGED ✅ (ci(release): npm graceful degradation, squash `fdd35258`) — Codex P1 addressed via Issue #534 spin-off
+- Issue #526 CLOSED ✅ (mutation kill-rate fix already on develop via PR #531)
+- Issue #534 CREATED — tracks re-tightening E404 once @aimasteracc npm scope registered
+- PR #535 OPENED — fix(npm): 128+signal exit code for Issue #525 (9/9 node:test GREEN)
 
 **P1 (quality — post v0.2.0 ceremony):**
-3. **Admin-merge PR #533** (`fix/release-npm-graceful-comprehensive` → develop) once CI green. Supersedes #528.
+3. **Admin-merge PR #535** (`fix/npm-signal-exit-code-issue-525` → develop) once CI green. Closes Issue #525.
 4. **Security scan post-v0.2.0** — PENDING (run after ceremony).
 5. **Dogfood re-run** — RFC-0109 object shapes + RFC-0110 npm launcher + redb-as-default + watch --subscribe (8/8 CLI).
 6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` for Charter §2 cold-open budget.
 7. **Add NPM_TOKEN secret** to `npm` environment — enables npm publish on next release run.
 
 **P2 (post-v0.2.0):**
-10. Issue #525 — npm 128+signal exit code (v0.2.1, good-first-issue).
+10. Issue #534 — npm scope E404 tightening once @aimasteracc scope registered on npmjs.com.
 11. `release.yml` systemic auto-close fix (ceremony script is current workaround).
 12. **Systemic DCO fix** (for v0.3.0+): update `dco-check` script in `ci.yml` to grep full commit message body, OR switch `release.yml` merge to `git push origin release/vX.Y.Z:main` (fast-forward preserves trailers).
 13. Issue #428 god-file-split remaining slices.
@@ -252,19 +250,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-04 v41 — PRs #531+#532 merged; npm E404 fixed; PR #533 opened; PR #528 closed)
+## Dispatch state (2026-06-04 v42 — PR #533 merged; Issue #526 closed; Issue #534 created; PR #535 opened)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0+P1)** | **(P0)** Wait for CI on `release/v0.2.0` commit `66f91cb` → once SUCCESS/SKIPPED → merge PR #523 → push tag `v0.2.0` → GitHub Release. **(P1)** Register `@aimasteracc` scope on npmjs.com (to re-enable npm in v0.2.1). **(P1)** Admin-merge PR #533 once CI green. |
-| PM | **DONE ✅** | v41 complete: PRs #531+#532 merged; npm E404 diagnosed + fixed; PR #533 opened; PR #528 closed; PM state v41 + decisions.jsonl. |
-| release | **WAITING CI** | v0.2.0: `66f91cb` on release/v0.2.0 triggering new Release workflow run. Awaiting results. |
+| founder | **action requested (P0+P1)** | **(P0)** Release CI in_progress (run 26947365908) — once SUCCESS/SKIPPED → merge PR #523 → push tag `v0.2.0` → GitHub Release. **(P1)** Register `@aimasteracc` scope on npmjs.com. **(P1)** Admin-merge PR #535 once CI green (Issue #525 signal exit code). |
+| PM | **DONE ✅** | v42: PR #533 merged; Issue #526 closed; Issue #534 created; PR #535 opened; PM state v42 + decisions.jsonl. |
+| release | **WAITING CI** | v0.2.0 ceremony: Release workflow in_progress (run 26947365908). Founder merge imminent. |
 | security-reviewer | **P1** | Post-v0.2.0 scan pending (after ceremony). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
 | e2e-runner | **P1** | Dogfood re-run: RFC-0109 object shapes + RFC-0110 npm + redb-as-default + watch --subscribe. |
 | bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA. |
 | tech-writer | **P1** | Marketplace submission (v0.2.0 ships npm — right time to submit). |
-| rust-implementer | **DONE ✅** | PR #531 MERGED (mutation kill-rate fix, Issue #526 CLOSED). |
+| rust-implementer | **P1** | PR #535 awaiting CI (fix/npm-signal-exit-code-issue-525 — closes Issue #525). |
 
 ---
 
@@ -296,6 +294,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-04 PM dispatch v42 (this run — PR #533 merged; Issue #526 closed; PR #535 opened; Issue #534 created)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (latest: 2026-06-04T10:30Z v41), anti-patterns (domains: release-governance, ci — no new hits), PM state v41, v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #533 (fix/release-npm-graceful-comprehensive, 20/20 CI ✅, Codex P1 open).
+- 2 open issues: #526 (P1 mutation kill-rate — PR #531 already merged, awaiting formal close), #525 (P2 npm signal exit code).
+- Release workflow in_progress (run 26947365908) on release/v0.2.0. Previous run (26946150331) FAILED. Fix `66f91cb` pushed to release/v0.2.0 in v41.
+
+**Actions taken:**
+1. **Created Issue #534** (P2): `release.yml: re-enable hard E404 failure once @aimasteracc npm scope registered` — spin-off tracking for Codex P1 concern on PR #533. ✅
+2. **Replied to Codex P1** on PR #533 (discussion_r3355193388): rejected with 1-paragraph justification + Issue #534 link. ✅
+3. **Merged PR #533** (squash `fdd35258`) — all Codex findings addressed; 20/20 CI ✅. ✅
+4. **Closed Issue #526** — mutation kill-rate fix already merged (PR #531, `b696953`). ✅
+5. **Fixed Issue #525** (npm 128+signal exit code): TDD RED→GREEN. Created `signalToExitCode(signal)` function, wired into `main()`, exported. 9/9 `node --test` GREEN. CHANGELOG updated. ✅
+6. **Pushed branch** `fix/npm-signal-exit-code-issue-525` and **opened PR #535**. CI running. ✅
+7. **Updated PM state v42** + decisions.jsonl. ✅
+
+**Escalations to founder:**
+- **(P0)** Release CI (run 26947365908) — once all checks SUCCESS/SKIPPED → merge PR #523 → push tag `v0.2.0` → create GitHub Release.
+- **(P1)** Register `@aimasteracc` npm scope on npmjs.com.
+- **(P1)** Admin-merge PR #535 once CI green.
 
 ### 2026-06-04 PM dispatch v41 (this run — PRs #531+#532 merged; npm E404 diagnosed + fixed; PR #533 opened; PR #528 closed)
 
