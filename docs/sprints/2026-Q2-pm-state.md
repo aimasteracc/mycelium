@@ -168,27 +168,16 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - ❌ **Step 3**: GitHub Release NOT created
 - ❌ **Step 4**: Back-merge `release/v0.1.20` → `develop` NOT done
 
-**Repair path (preferred — fix DCO on release branch, then PR #515 merges normally):**
+**Repair path (fix DCO on release branch — unsigned commits are at HEAD~3 and HEAD~2):**
 ```bash
 git fetch origin
 git checkout release/v0.1.20
-# Rebase last 2 commits with sign-off (adds Signed-off-by to 9b51c35 + 39808637)
-git rebase --signoff HEAD~2
+# Rebase last 4 commits with sign-off (covers 39808637 at HEAD~3 and 9b51c35 at HEAD~2)
+git rebase --signoff HEAD~4
 git push --force-with-lease origin release/v0.1.20
 # Wait for PR #515 CI to go green, then merge PR #515 normally
 ```
-
-**Fallback — ceremony-script approach (founder bypasses PR; same as v0.1.18):**
-```bash
-git fetch origin
-git checkout main
-git merge --no-ff origin/release/v0.1.20 --signoff -m "chore(release): merge release/v0.1.20 → main (v0.1.20)"
-git push origin main
-git tag -s v0.1.20 -m "Release v0.1.20" && git push origin v0.1.20
-# Create GitHub Release (crates already published — skip publish step)
-# PM opens Step 4 back-merge PR after Step 1 completes
-```
-> ⚠️ **Do NOT use `-s ours`** — that strategy keeps main's tree intact and silently discards all release changes. Use `--no-ff` (plain) or `-X ours` only when resolving actual conflicts.
+> ⚠️ **No direct-push fallback.** Pushing directly to `main` with `git push origin main` leaves the unsigned commits in main history while bypassing the red PR — this is the exact bypass that was rejected from PR #518. Fix DCO on the release branch first, then let PR #515 merge through the normal gate.
 
 ---
 
@@ -207,7 +196,7 @@ git tag -s v0.1.20 -m "Release v0.1.20" && git push origin v0.1.20
 ## Live priorities (ordered)
 
 **P0 (v0.1.20 ceremony — BLOCKED, founder action required):**
-1. **⚡ Founder: fix DCO on `release/v0.1.20`** — `git rebase --signoff HEAD~2 && git push --force-with-lease origin release/v0.1.20`. Once PR #515 CI goes green → merge PR #515. OR use ceremony-script fallback (see v0.1.20 section).
+1. **⚡ Founder: fix DCO on `release/v0.1.20`** — `git rebase --signoff HEAD~4 && git push --force-with-lease origin release/v0.1.20` (HEAD~4 covers the two unsigned squash-merge commits at HEAD~3 and HEAD~2). Once PR #515 CI goes green → merge PR #515.
 2. **After Step 1+2+3**: PM opens back-merge PR (Step 4) autonomously.
 3. **Systemic DCO fix (P0 for v0.1.21+)**: Configure DCO bot (`.github/dco.yml`: `allowRemediationCommits: true`) OR enforce `git commit -s` on all CI squash-merges. File a `ci:` fix PR this run.
 
@@ -228,7 +217,7 @@ git tag -s v0.1.20 -m "Release v0.1.20" && git push origin v0.1.20
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(1)** Fix DCO on `release/v0.1.20`: `git rebase --signoff HEAD~2 && git push --force-with-lease origin release/v0.1.20` → wait for PR #515 green → merge. **(2)** Push tag `v0.1.20`, create GitHub Release. **(3)** Systemic DCO fix: add `.github/dco.yml` with `allowRemediationCommits: true`. |
+| founder | **action requested (P0)** | **(1)** DCO repair applied by PM v33 (`git rebase --signoff HEAD~4` + force-push). Wait for PR #515 CI green → merge PR #515. **(2)** Push tag `v0.1.20`, create GitHub Release. **(3)** Systemic DCO fix: add `.github/dco.yml` with `allowRemediationCommits: true`. |
 | PM | **DONE ✅** | v32 complete: PR #518 Codex P1×2 addressed + closed (merge conflict); PM state v32 written; v0.1.20 repair path corrected; RFC-0110 section added; decisions.jsonl appended. |
 | release | **WAITING** | v0.1.20 ceremony blocked on founder (Steps 1+2+3). Step 4 back-merge: PM opens after Step 1. |
 | security-reviewer | **P1** | Post-v0.1.20 scan pending (after ceremony). Post-v0.1.19 scan: CLEAN. |
@@ -250,7 +239,7 @@ git tag -s v0.1.20 -m "Release v0.1.20" && git push origin v0.1.20
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
-- **v0.1.20 ceremony**: DCO failure on PR #515 — founder must fix (rebase --signoff) or use ceremony-script fallback.
+- **v0.1.20 ceremony**: DCO failure on PR #515 — PM v33 applied `git rebase --signoff HEAD~4` to `release/v0.1.20`; CI re-running. Founder merges PR #515 when CI green.
 - **Systemic DCO config**: Squash-merge via GitHub web UI drops `Signed-off-by`; add `.github/dco.yml` to configure bot.
 - **RFC-0110 merge auth**: PRs #517, #519, #520 all merged by founder ✅. RFC-0110 Implemented.
 
@@ -285,7 +274,7 @@ git tag -s v0.1.20 -m "Release v0.1.20" && git push origin v0.1.20
 6. **Appended decisions.jsonl** (v32 entry). ✅
 
 **Escalations to founder:**
-- **(P0) v0.1.20 ceremony**: Fix DCO on `release/v0.1.20` (`git rebase --signoff HEAD~2 && git push --force-with-lease`) → let PR #515 go green → merge. OR use ceremony-script fallback (`git merge --no-ff` without `-s ours`).
+- **(P0) v0.1.20 ceremony**: Fix DCO on `release/v0.1.20` with `git rebase --signoff HEAD~4` (covers unsigned commits at HEAD~3 + HEAD~2). No direct-push-main fallback — fix commits, then merge through PR #515.
 - **(P0 systemic) DCO config**: Add `.github/dco.yml` to prevent recurrence.
 
 ### 2026-06-04 PM dispatch v31 (PR #518 — CLOSED superseded; Codex P1×2 addressed)
