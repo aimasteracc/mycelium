@@ -247,7 +247,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **Pre-flight:** CHARTER, _orchestrator, decisions tail-3 (v46 close entry appended), anti-patterns (last entry: MCP resource-prefix), PM state v46 (PR #542 merged via webhook).
 
 **Assessment:**
-- PR #542 (`chore/pm-dispatch-v46`) squash-merged to develop — CI 19/19 ✅ (commit `808f500`).
+- PR #542 (`chore/pm-dispatch-v46`) squash-merged to develop — CI 19/19 ✅ (squash commit `2a7a11b`).
 - No open PRs. No open issues.
 - v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag) awaits founder.
 - Post-flight from v46: decisions.jsonl dispatch-close entry not yet on develop (generated after #542 merge).
