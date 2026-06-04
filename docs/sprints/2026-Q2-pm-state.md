@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v48 — PR #542 merged (squash `2a7a11bb`); PR #543 open (dispatch v47); PR #544 open (ci: systemic DCO fix); Step 2 tag push awaits founder) |
+| Last updated | 2026-06-04 (PM dispatch v49 — PR #543 closed; PR #544 CI ✅ pending merge (Codex P2 fixed e0b999e); PR #545 Codex P2 fixed (582db7f); next session: merge #544 → rebase+merge #545) |
 | Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) awaits founder. |
 | Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) pending |
 | Next release target | **v0.2.1** — npm scope registration + E404 tightening (Issue #534), post-v0.2.0 backlog |
@@ -198,12 +198,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-04 v48 — PR #542 merged; PR #543 open (dispatch v47); PR #544 open (DCO fix, CI running))
+## Dispatch state (2026-06-04 v49 — PR #543 closed; PR #544 CI ✅ pending merge; PR #545 Codex fixed pending rebase+merge)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2 — only remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534). |
-| PM | **DONE ✅** | v48: PR #542 merged; PR #543 open (v47 close by parallel session); PR #544 opened (systemic DCO fix, CI in_progress); decisions.jsonl + PM state updated. |
+| PM | **PARTIAL ⏳** | v49: Codex P2 fixed on #544 (e0b999e) + #545 (582db7f); #543 closed. **Next session**: verify #544 CI green → merge #544 → rebase+mark-done+merge #545. |
 | release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push) founder-gated. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
@@ -242,7 +242,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-04 PM dispatch v48 (this run — PR #542 merged; PR #544 opened (systemic DCO fix))
+### 2026-06-04 PM dispatch v49 (Codex fixes on #544+#545; #543 closed; #544 CI pending)
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (ci/dco/merge-discipline domain hits), PM state v48 (3 PRs #543/#544/#545 open), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #543 (PM v47, Codex P2 outdated, CI 20/20 ✅), #544 (DCO fix, 22/22 fast-lane ✅ + full-lane running, Codex P2 LIVE), #545 (PM v48 Codex fix, CI 22/22 ✅, Codex P2 LIVE).
+- 0 open P0/P1 issues.
+- v0.2.0 ceremony Steps 1+3+4 done; Step 2 (tag) awaits founder.
+- Local checkout stale at v28; fetched origin/develop.
+
+**Actions taken:**
+1. Fixed Codex P2 on PR #544 (`e0b999e`): grep `'^Signed-off-by:'` → `'^Signed-off-by: .+ <.+>'` — requires real signer+email. Replied to Codex thread. ✅
+2. Closed PR #543 (concurrent-session PM v47, superseded by #545). ✅
+3. Fixed Codex P2 on PR #545 (`582db7f`): removed premature strike-through on DCO item; changed to "pending merge PR #544". Replied to Codex thread. ✅
+4. Appended decisions.jsonl. ✅
+
+**Pending (wall-clock limit hit):** #544 full-lane CI still running. Next session: verify Quality Gate green → admin-merge #544 → rebase `chore/pm-dispatch-v48` onto new develop → mark DCO items as ✅ merged → push → merge #545.
+
+**Escalations to founder:**
+- **(P0)** Push tag `v0.2.0` + create GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate).
+- **(P0)** Register `@aimasteracc` npm scope (Issue #534).
+
+---
+
+### 2026-06-04 PM dispatch v48 (PR #542 merged; PR #544 opened (systemic DCO fix))
 
 **Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (domain hits: release-ci/dco), PM state v46 (develop HEAD `2a7a11bb`), v0.2 PRD.
 
