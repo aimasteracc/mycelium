@@ -10,7 +10,7 @@ every change, instantly felt, instantly understood.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-blue.svg)](#)
-[![Version](https://img.shields.io/badge/version-v0.1.4-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.2.0-green.svg)](CHANGELOG.md)
 [![crates.io](https://img.shields.io/crates/v/mycelium-rcig-core.svg)](https://crates.io/crates/mycelium-rcig-core)
 [![Rust](https://img.shields.io/badge/built_with-Rust-dea584.svg)](https://www.rust-lang.org/)
 [![Sponsor](https://img.shields.io/badge/sponsor-aimasteracc-ea4aaa.svg?logo=github-sponsors)](https://github.com/sponsors/aimasteracc)
@@ -41,7 +41,7 @@ everything between sessions.
 
 ## Status
 
-**v0.1.4 — Alpha.** All Charter §2 performance SLAs satisfied. Heavy-graph algorithms complete in < 2 s on 1K-node graphs.
+**v0.2.0 — Alpha.** All Charter §2 performance SLAs satisfied. Heavy-graph algorithms complete in < 2 s on 1K-node graphs.
 
 | Component | Status |
 |---|---|
@@ -53,7 +53,8 @@ everything between sessions.
 | CLI (`mycelium index`, `mycelium serve --mcp`) | ✅ Shipped |
 | Persistence (MessagePack snapshot) | ✅ Shipped |
 | Watch mode (reactive FSE re-index) | ✅ Shipped |
-| npm / PyPI bindings | 🔜 v0.2 |
+| npm / bun CLI install (no cargo) | ✅ v0.2.0 (RFC-0110) |
+| PyPI bindings | 🔜 future |
 
 **Public roadmap:** [GitHub Projects](https://github.com/aimasteracc/mycelium/projects).
 **Changelog:** [CHANGELOG.md](CHANGELOG.md).
@@ -103,12 +104,10 @@ cargo install mycelium-rcig-cli
 cargo install --git https://github.com/aimasteracc/mycelium mycelium-rcig-cli
 ```
 
-**No Rust toolchain?** 🔜 An `npm` / `bun` install of the prebuilt binary
-(`@aimasteracc/mycelium`) is landing via [RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)
-— no `cargo` required:
+**No Rust toolchain?** Install the prebuilt binary with `npm` or `bun`
+([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)) — no `cargo` required:
 
 ```bash
-# Available once the next release wires npm publishing (RFC-0110 §Rollout):
 npm install -g @aimasteracc/mycelium     # npm
 bun  add     -g @aimasteracc/mycelium     # bun
 bunx @aimasteracc/mycelium --version      # or run without installing
