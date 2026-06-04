@@ -61,6 +61,28 @@ jobs:
     needs: validate
     uses: ./.github/workflows/ci.yml
 
+  check-npm-token:
+    # Preflight (RFC-0110): warn when NPM_TOKEN is absent so the operator sees
+    # a clear diagnostic before the publish jobs run.  Graceful exit (no hard
+    # failure) so a missing token produces a SKIPPED npm publish rather than a
+    # failing release — crates.io and PyPI can still complete independently.
+    # Charter §5.12: every check must be SUCCESS or SKIPPED before merging
+    # release/* to main, so this job must never exit non-zero.
+    name: preflight (npm token present)
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - name: Verify NPM_TOKEN is configured
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN:-}" ]; then
+            echo "::warning::NPM_TOKEN is not set in the 'npm' environment — npm publish will be skipped. Configure it in repo Settings → Environments → npm."
+          else
+            echo "NPM_TOKEN present."
+          fi
+
   publish-crates:
     name: publish to crates.io
     # Gate the first irreversible publish on the CLI binaries building
@@ -199,8 +221,10 @@ jobs:
             fi
             if ! ( cd "$dir" && npm publish --access public --provenance ) 2>/tmp/npm_pub_err.log; then
               npm_err=$(cat /tmp/npm_pub_err.log)
-              # Graceful degradation: scope not yet registered on npmjs.com.
-              # Token is present; register @aimasteracc scope to re-enable.
+              # Graceful degradation: scope not yet registered on npmjs.com
+              # (E404 "Scope not found"). Token is present and valid; the @aimasteracc
+              # scope simply needs to be created once via the npmjs.com UI.
+              # Allow ceremony to proceed; npm distribution re-enabled next release.
               if echo "$npm_err" | grep -qE "E404|Scope not found"; then
                 echo "::warning::npm publish skipped for $name — @aimasteracc scope not yet registered on npmjs.com. See Issue #525."
                 return 0
@@ -250,9 +274,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Both macOS targets build on macos-14 (arm64, plentiful runners): arm64
+        # natively, x86_64 by cross-compiling with the universal Apple toolchain
+        # (`cargo build --target x86_64-apple-darwin` — verified locally to
+        # produce an x86_64 Mach-O incl. tree-sitter C). Avoids the deprecated /
+        # scarce macos-13 (Intel) runner queue that stalled the release ~20min.
         include:
           - { key: darwin-arm64, os: macos-14,        target: aarch64-apple-darwin,      exe: mycelium,     cross: false }
-          - { key: darwin-x64,   os: macos-13,        target: x86_64-apple-darwin,       exe: mycelium,     cross: false }
+          - { key: darwin-x64,   os: macos-14,        target: x86_64-apple-darwin,       exe: mycelium,     cross: false }
           - { key: linux-x64,    os: ubuntu-latest,   target: x86_64-unknown-linux-gnu,  exe: mycelium,     cross: false }
           - { key: linux-arm64,  os: ubuntu-latest,   target: aarch64-unknown-linux-gnu, exe: mycelium,     cross: true  }
           - { key: win32-x64,    os: windows-latest,  target: x86_64-pc-windows-msvc,    exe: mycelium.exe, cross: false }
