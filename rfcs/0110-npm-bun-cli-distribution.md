@@ -107,9 +107,12 @@ quality-recheck, exactly like crates.io.
       *(Done in increment 1: `npm/mycelium` launcher with 8 passing `node:test`
       unit tests, main `package.json` with 5-platform `optionalDependencies`,
       and `npm/scripts/build-npm.mjs` verified end-to-end with fixture binaries.)*
-- [ ] `release.yml`: per-platform binary build matrix; binaries attached to the
+- [~] `release.yml`: per-platform binary build matrix; binaries attached to the
       GitHub Release; `publish-npm` assembles + publishes the packages
-      (idempotent).
+      (idempotent). **Increment 2 done:** `build-cli-binaries` matrix (5
+      targets, native + `cross` for linux-arm64) builds + uploads each binary
+      and `finalize` attaches them to the GitHub Release. **Pending:**
+      `publish-npm` rewire (increment 3).
 - [ ] On a cargo-less machine: `npm i -g @aimasteracc/mycelium && mycelium
       --version` works; `bunx @aimasteracc/mycelium --version` works.
 - [ ] README "Install" section documents the npm/bun path alongside cargo.
@@ -118,7 +121,7 @@ quality-recheck, exactly like crates.io.
 ## Rollout
 
 Incremental, each behind green CI:
-1. RFC + `npm/` scaffolding + launcher unit test (**this PR**).
-2. `release.yml` build matrix + GH Release binary upload.
+1. ✅ RFC + `npm/` scaffolding + launcher unit test (#517).
+2. ✅ `release.yml` build matrix + GH Release binary upload (this PR).
 3. `publish-npm` rewire (assemble + publish) + bun/npm install smoke test.
-4. README + CHANGELOG.
+4. README + CHANGELOG (README + initial CHANGELOG done in #517).
