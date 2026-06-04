@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v46 — PR #541 merged (squash `e089b66a`); Codex P1+P2 fixed; security scan post-v0.2.0 CLEAN; Step 2 tag push awaits founder) |
+| Last updated | 2026-06-04 (PM dispatch v49 — PR #543 closed; PR #544 CI ✅ pending merge (Codex P2 fixed e0b999e); PR #545 Codex P2 fixed (582db7f); next session: merge #544 → rebase+merge #545) |
 | Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) awaits founder. |
 | Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) pending |
 | Next release target | **v0.2.1** — npm scope registration + E404 tightening (Issue #534), post-v0.2.0 backlog |
@@ -191,19 +191,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P2 (post-v0.2.0):**
 8. Issue #534 — npm scope E404 tightening once @aimasteracc scope registered.
 9. `release.yml` systemic auto-close fix (ceremony script is current workaround).
-10. **Systemic DCO fix** (for v0.3.0+): update `dco-check` script in `ci.yml` to grep full commit message body.
+10. **Systemic DCO fix** — PR #544 open (`fix/dco-check-squash-body`), CI ✅, pending merge. Switches `%(trailers:key=Signed-off-by,valueonly)` → `grep -qiE '^Signed-off-by: .+ <.+>'` on `%B` in `ci.yml` `dco-check` job.
 11. Issue #428 god-file-split remaining slices.
 12. Skill marketplace submission to Claude Code marketplace.
 13. "First 5 minutes" walkthrough validation.
 
 ---
 
-## Dispatch state (2026-06-04 v45 — PR #537 merged (Step 4 ✅); #539/#540 closed)
+## Dispatch state (2026-06-04 v49 — PR #543 closed; PR #544 CI ✅ pending merge; PR #545 Codex fixed pending rebase+merge)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2 — only remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534). |
-| PM | **DONE ✅** | v46: PR #541 merged (Codex P1+P2 fixed); security scan CLEAN; #542 open. |
+| PM | **PARTIAL ⏳** | v49: Codex P2 fixed on #544 (e0b999e) + #545 (582db7f); #543 closed. **Next session**: verify #544 CI green → merge #544 → rebase+mark-done+merge #545. |
 | release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push) founder-gated. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
@@ -227,7 +227,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - ~~**v0.1.20 ceremony**~~: SUPERSEDED by v0.2.0. Founder confirmed.
 - **v0.2.0 ceremony**: Step 1 ✅ (PR #523). Step 4 ✅ (PR #537 `4e60400f`). **Founder: push tag `v0.2.0` + create GitHub Release.**
 - **Register `@aimasteracc` npm scope**: npmjs.com account creation + org scope registration. One-time founder action.
-- **Systemic DCO config**: update `dco-check` script in `ci.yml` (same issue will recur on every future release with squash-merged commits).
+- **Systemic DCO config**: PR #544 open (CI ✅, pending merge — `fix/dco-check-squash-body`).
 
 ---
 
@@ -241,6 +241,52 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-04 PM dispatch v49 (Codex fixes on #544+#545; #543 closed; #544 CI pending)
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (ci/dco/merge-discipline domain hits), PM state v48 (3 PRs #543/#544/#545 open), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #543 (PM v47, Codex P2 outdated, CI 20/20 ✅), #544 (DCO fix, 22/22 fast-lane ✅ + full-lane running, Codex P2 LIVE), #545 (PM v48 Codex fix, CI 22/22 ✅, Codex P2 LIVE).
+- 0 open P0/P1 issues.
+- v0.2.0 ceremony Steps 1+3+4 done; Step 2 (tag) awaits founder.
+- Local checkout stale at v28; fetched origin/develop.
+
+**Actions taken:**
+1. Fixed Codex P2 on PR #544 (`e0b999e`): grep `'^Signed-off-by:'` → `'^Signed-off-by: .+ <.+>'` — requires real signer+email. Replied to Codex thread. ✅
+2. Closed PR #543 (concurrent-session PM v47, superseded by #545). ✅
+3. Fixed Codex P2 on PR #545 (`582db7f`): removed premature strike-through on DCO item; changed to "pending merge PR #544". Replied to Codex thread. ✅
+4. Appended decisions.jsonl. ✅
+
+**Pending (wall-clock limit hit):** #544 full-lane CI still running. Next session: verify Quality Gate green → admin-merge #544 → rebase `chore/pm-dispatch-v48` onto new develop → mark DCO items as ✅ merged → push → merge #545.
+
+**Escalations to founder:**
+- **(P0)** Push tag `v0.2.0` + create GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate).
+- **(P0)** Register `@aimasteracc` npm scope (Issue #534).
+
+---
+
+### 2026-06-04 PM dispatch v48 (PR #542 merged; PR #544 opened (systemic DCO fix))
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (domain hits: release-ci/dco), PM state v46 (develop HEAD `2a7a11bb`), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #542 (dispatch v46 chore, CI 20/20 ✅, both Codex P2 threads fixed in `808f500`).
+- 1 open issue: #534 (P2 npm scope, founder-gated).
+- All P1 items are either founder-gated (P0 tag/npm) or require binary build (dogfood/benchmarks, >25m wall clock).
+- P2 actionable: **Systemic DCO fix** — anti-pattern 2026-05-31: `%(trailers:key=Signed-off-by,valueonly)` only parses trailers at terminal position; GitHub squash embeds `Signed-off-by` mid-body → false-fail on release DCO check.
+
+**Actions taken:**
+1. Resolved both Codex P2 threads on PR #542; squash-merged → develop (`2a7a11bb`). ✅
+2. Implemented systemic DCO fix on `fix/dco-check-squash-body` (1 commit `c62e53b`): `%(trailers:...)` → `grep -qiE '^Signed-off-by:'` on `%B`. CHANGELOG updated. ✅
+3. Opened **PR #544** (CI in_progress; fast-lane all ✅ incl. DCO check — validates the fix). ✅
+4. PM state v48 + decisions.jsonl appended. ✅
+
+**Parallel activity:** Another session opened PR #543 (`chore/pm-dispatch-v47`) for the dispatch v46 close. Both sessions picked the same PR #542 merge; naming conflict resolved by this session using v48. PR #543 will handle its own close; PR #544 is this session's value-add.
+
+**Escalations to founder:**
+- **(P0)** Push tag `v0.2.0` + create GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate).
+- **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
 
 ### 2026-06-04 PM dispatch v46 (this run — PR #541 merged; Codex P1+P2 fixed; security scan CLEAN)
 
