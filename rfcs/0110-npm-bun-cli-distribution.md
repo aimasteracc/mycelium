@@ -102,8 +102,11 @@ quality-recheck, exactly like crates.io.
 
 ## Acceptance criteria
 
-- [ ] `npm/` package scaffolding: main package + launcher + platform template +
+- [x] `npm/` package scaffolding: main package + launcher + platform template +
       `build-npm.mjs`, with the launcher's platform-resolution logic unit-tested.
+      *(Done in increment 1: `npm/mycelium` launcher with 8 passing `node:test`
+      unit tests, main `package.json` with 5-platform `optionalDependencies`,
+      and `npm/scripts/build-npm.mjs` verified end-to-end with fixture binaries.)*
 - [ ] `release.yml`: per-platform binary build matrix; binaries attached to the
       GitHub Release; `publish-npm` assembles + publishes the packages
       (idempotent).
