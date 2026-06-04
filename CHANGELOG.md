@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **ci(dco-check): use full body grep instead of trailer parser** — GitHub
+  squash-merge embeds `Signed-off-by` lines in the middle of the commit body
+  rather than as terminal trailers, so `%(trailers:key=Signed-off-by,valueonly)`
+  would false-fail those commits. Switched to `grep -qiE '^Signed-off-by:'` on
+  `%B` which correctly detects the sign-off regardless of position.
+
 - **npm launcher signal exit codes (Issue #525)**: `mycelium.cjs` now exits with
   `128 + signal_number` (e.g. SIGTERM → 143, SIGINT → 130) instead of always `1`
   when the child binary is killed by a signal, following POSIX/shell convention.
