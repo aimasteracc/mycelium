@@ -149,28 +149,62 @@ jobs:
 
   publish-npm:
     name: publish to npm
-    needs: [validate, quality-recheck, publish-crates]
+    # RFC-0110: assemble the per-platform + launcher packages from the prebuilt
+    # binaries and publish them. needs build-cli-binaries for the artifacts.
+    needs: [validate, quality-recheck, publish-crates, build-cli-binaries]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: npm
     permissions:
       id-token: write  # for provenance
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-      - run: |
-          if [ -d "bindings/node" ]; then
-            cd bindings/node
-            npm ci
-            npm publish --access public --provenance
-          else
-            echo "no bindings/node yet — skipping"
-          fi
+      - name: Download CLI binaries
+        uses: actions/download-artifact@v7
+        with:
+          pattern: cli-*
+          path: dl
+      - name: Reshape artifacts into a platform-keyed bin dir
+        run: |
+          mkdir -p dist-bin
+          for d in dl/cli-*; do
+            key="${d#dl/cli-}"
+            mkdir -p "dist-bin/$key"
+            cp "$d"/* "dist-bin/$key/"
+          done
+          ls -R dist-bin
+      - name: Assemble npm packages
+        run: node npm/scripts/build-npm.mjs --version "$VERSION" --bin-dir dist-bin --out dist-npm
+      - name: Publish packages (idempotent — platform packages first)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN is not set; refusing to create a partial release."
+            exit 1
+          fi
+          publish_one() {
+            dir="$1"
+            name=$(node -p "require('./$dir/package.json').name")
+            ver=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$ver" version >/dev/null 2>&1; then
+              echo "$name@$ver already on npm; skipping"
+              return 0
+            fi
+            ( cd "$dir" && npm publish --access public --provenance )
+          }
+          # Platform packages must exist before the main package (whose
+          # optionalDependencies reference them).
+          for dir in dist-npm/mycelium-*; do
+            [ -d "$dir" ] && publish_one "$dir"
+          done
+          publish_one "dist-npm/mycelium"
 
   publish-pypi:
     name: publish to PyPI
