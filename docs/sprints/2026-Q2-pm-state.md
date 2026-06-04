@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v34 — deep DCO fix HEAD~16 on release/v0.1.20; DCO check ✅ SUCCESS on PR #515; remaining CI in progress) |
-| Current sprint | **v0.1.20 ceremony — DCO GREEN ✅** — PM v34 applied `git rebase --signoff HEAD~16` (covering all 16 non-merge commits incl. `4bdc4de` ADR-0010 + `bb685def` get_callees). PR #515 DCO check: ✅ SUCCESS. Founder: wait for full CI green → merge PR #515 → push tag → GitHub Release. |
-| Active release branch | `release/v0.1.20` — PR #515 open → main, DCO ✅ GREEN, remaining CI in progress |
+| Last updated | 2026-06-04 (PM dispatch v35 — PR #515 44/44 CI ✅ ALL GREEN; Codex P1 on PR #522 fixed; PR #522 ready to merge) |
+| Current sprint | **v0.1.20 ceremony — ALL CI GREEN ✅** — PR #515 (release/v0.1.20 → main): 44/44 checks SUCCESS/SKIPPED. Codex: 0 findings. Ready for founder ceremony (merge → tag → GitHub Release). |
+| Active release branch | `release/v0.1.20` — PR #515 open → main, **44/44 CI ✅ ALL GREEN**, 0 Codex findings |
 | Next release target | **v0.1.20** — RFC-0109 7/7 + RFC-0102 budget roll-out + ADR-0010 + RFC-0110 npm. Ceremony pending founder. |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03T15:49Z. |
@@ -139,7 +139,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## 🔥 v0.1.20 — CEREMONY BLOCKED (DCO failure on PR #515)
+## 🔥 v0.1.20 — CEREMONY PENDING FOUNDER (PR #515 44/44 CI ✅ ALL GREEN)
 
 **What ships in v0.1.20 (all on `release/v0.1.20` SHA `1b0d7dc`):**
 - [x] docs: align doc claims with code — tool count 89→93, RFC-0100/0102 acceptance criteria synced (PR #495)
@@ -158,12 +158,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] feat(queries): RFC-0109 **get_all_symbols** object shape + budget knob — **RFC-0109 7/7 COMPLETE** (PR #513)
 - [x] CHANGELOG sealed + Cargo.toml 0.1.19 → 0.1.20
 
-**v0.1.20 ceremony status — DCO GREEN ✅ (remaining CI in progress):**
+**v0.1.20 ceremony status — 44/44 CI ✅ ALL GREEN (founder action needed):**
 - [x] Release branch `release/v0.1.20` cut from develop
 - [x] **crates.io v0.1.20 published** ✅ (orphan, 2026-06-04T01:17Z)
 - [x] **npm v0.1.20 published** ✅ (orphan)
 - [x] **PyPI v0.1.20 published** ✅ (orphan)
-- ⚙️ **Step 1**: PR #515 → `main` — **DCO repaired by PM v34** (`git rebase --signoff HEAD~16` applied; all 16 non-merge commits signed, including previously-unsigned `4bdc4de` [ADR-0010] and `bb685def` [get_callees]). **DCO check: ✅ SUCCESS.** Clippy/rustfmt/unit tests in progress. Founder: merge when all checks green.
+- ✅ **Step 1**: PR #515 → `main` — **44/44 CI ✅ ALL GREEN** (DCO ✅, unit tests ✅, coverage ✅, linux/macos/windows stable/nightly ✅, E2E ✅, security ✅). Codex: 0 findings. **Founder: merge this PR now.**
 - ❌ **Step 2**: Tag `v0.1.20` NOT pushed
 - ❌ **Step 3**: GitHub Release NOT created
 - ❌ **Step 4**: Back-merge `release/v0.1.20` → `develop` NOT done (PM opens PR after Step 1)
@@ -184,10 +184,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0 (v0.1.20 ceremony — DCO green, full CI completing):**
-1. **✅ DCO GREEN**: PM v34 applied `git rebase --signoff HEAD~16` to `release/v0.1.20` + force-pushed. DCO check: ✅ SUCCESS. Clippy/rustfmt/unit tests/e2e in progress.
-2. **⚡ Founder: wait for PR #515 all checks green → merge PR #515 → push tag `v0.1.20` → create GitHub Release.** PM opens Step 4 back-merge PR autonomously after Step 1.
-3. **Systemic DCO fix (P0 for v0.1.21+)**: Add `.github/dco.yml` with `allowRemediationCommits: true` to prevent recurrence of squash-merge stripping DCO.
+**P0 (v0.1.20 ceremony — ALL CI GREEN, founder action now):**
+1. **✅ PR #515 ALL GREEN**: 44/44 CI checks SUCCESS/SKIPPED. Codex: 0 findings. **⚡ Founder: merge PR #515 → push tag `v0.1.20` → create GitHub Release.** PM opens Step 4 back-merge PR after Step 1.
+2. **Systemic DCO fix (P0 for v0.1.21+)**: `.github/dco.yml` has no effect — the CI gate is the custom shell script in `ci.yml` lines 205-229 (not the GitHub DCO App). Real fix: update the `dco-check` script to also grep the full commit message body for `Signed-off-by:` text (GitHub squash-merges embed it in the body, not as a formal git trailer), OR switch `release.yml` merge to direct `git push origin release/vX.Y.Z:main` (fast-forward, preserves all original commits including DCO trailers).
 
 **P1 (quality):**
 4. **Security scan post-v0.1.20** — PENDING (run after ceremony).
@@ -202,12 +201,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-04 v34 — DCO GREEN on PR #515; deep rebase HEAD~16 complete; CI completing)
+## Dispatch state (2026-06-04 v35 — PR #515 44/44 CI ✅; Codex P1 on PR #522 fixed; founder ceremony unblocked)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(1)** Wait for PR #515 all CI green (DCO ✅ confirmed; remaining: clippy/rustfmt/unit tests/e2e) → merge PR #515 → push tag `v0.1.20` → create GitHub Release. **(2)** Systemic DCO fix: add `.github/dco.yml` (`allowRemediationCommits: true`). |
-| PM | **DONE ✅** | v34 complete: deep DCO fix `HEAD~16` applied to release/v0.1.20; all 16 non-merge commits signed; DCO check ✅ SUCCESS; PM state v34 written; decisions.jsonl appended. |
+| founder | **action requested (P0)** | **(1)** Merge PR #515 → push tag `v0.1.20` → create GitHub Release (44/44 CI ✅, 0 Codex findings). **(2)** Systemic DCO fix: update `ci.yml` `dco-check` script to check commit message body for `Signed-off-by:`, OR switch `release.yml` to `git push origin release/vX.Y.Z:main` instead of `gh pr merge --squash`. |
+| PM | **IN PROGRESS** | v35 dispatch: Codex P1 on PR #522 fixed (corrected incorrect `.github/dco.yml` recommendation); PR #515 status confirmed 44/44; PM state updated; decisions.jsonl to append. |
 | release | **WAITING** | v0.1.20 ceremony blocked on founder (Steps 1+2+3). Step 4 back-merge: PM opens after Step 1. |
 | security-reviewer | **P1** | Post-v0.1.20 scan pending (after ceremony). Post-v0.1.19 scan: CLEAN. |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
@@ -228,8 +227,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
-- **v0.1.20 ceremony**: DCO GREEN by PM v34 (`git rebase --signoff HEAD~16` — all 16 commits signed, incl. `4bdc4de` + `bb685def`). DCO check ✅ SUCCESS. Remaining CI in progress. Founder merges when all green, pushes tag, creates GH Release.
-- **Systemic DCO config**: Squash-merge via GitHub web UI drops `Signed-off-by`; add `.github/dco.yml` to configure bot.
+- **v0.1.20 ceremony**: **44/44 CI ✅ ALL GREEN** (confirmed PM v35). PR #515 open, 0 Codex findings. Founder: merge PR #515 → push tag `v0.1.20` → create GitHub Release → PM opens Step 4 back-merge.
+- **Systemic DCO config**: Squash-merge via GitHub web UI drops `Signed-off-by` from formal git trailers. The `.github/dco.yml` approach does NOT fix this — the CI gate is a custom shell script (`ci.yml` `dco-check`), not the GitHub DCO App. Fix: update the `dco-check` script to grep full message body, OR switch release merge to direct `git push origin release/vX.Y.Z:main`.
 - **RFC-0110 merge auth**: PRs #517, #519, #520 all merged by founder ✅. RFC-0110 Implemented.
 
 ---
@@ -244,6 +243,24 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-04 PM dispatch v35 (this run — Codex P1 fixed on PR #522; PR #515 44/44 ✅)
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (latest: 2026-06-04T04:35Z v34 — deep DCO fix HEAD~16), anti-patterns (no new domain hits), PM state v34 (on branch v33), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #515 (release/v0.1.20 → main, 44/44 CI ✅ ALL GREEN, 0 Codex findings ✅ — ready for founder ceremony), #522 (chore/pm-dispatch v33, 20/20 CI ✅, **1 Codex P1 blocking merge**).
+- 0 P0/P1 issues. Latest tag: `v0.1.19`. Tags v0.1.18 + v0.1.19 exist — founder completed those ceremonies.
+- Codex P1 on PR #522 (line 190): `.github/dco.yml` recommendation is wrong — the CI gate is the custom shell script in `ci.yml` lines 205-229 (not the GitHub DCO App). Adding `.github/dco.yml` has zero effect on the actual check. This is a genuine documentation bug that would misdirect the founder.
+
+**Actions taken:**
+1. **Fixed Codex P1**: corrected the incorrect `.github/dco.yml` recommendation in 3 locations (lines 190, 209, 232) → now correctly identifies the real fix (update `dco-check` script to check full message body, OR switch `release.yml` merge to direct `git push`). ✅
+2. **Updated PM state v35**: header (44/44 CI green), v0.1.20 ceremony section (all CI confirmed green), dispatch state, decision gates, archive. ✅
+3. **Appended decisions.jsonl** with v35 summary. ✅
+
+**Escalations to founder:**
+- **(P0)** Merge PR #515 → push tag `v0.1.20` → create GitHub Release. 44/44 CI ✅, 0 Codex findings. PM will open Step 4 back-merge PR after Step 1.
+- **(P0 systemic)** DCO systemic fix: update `ci.yml` `dco-check` to grep full message body for `Signed-off-by:`, OR switch `release.yml` merge to `git push origin release/vX.Y.Z:main`.
 
 ### 2026-06-04 PM dispatch v34 (this run)
 
