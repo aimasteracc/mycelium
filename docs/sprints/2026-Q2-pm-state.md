@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v50 — PR #544 MERGED ✅ squash `0554ee7` (systemic DCO fix deployed); PR #545 MERGED ✅ squash `8418632` (v48 wrap-up); 0 open PRs; v0.2.0 tag still pending founder) |
-| Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) awaits founder. DCO systemic fix deployed (PR #544 ✅). |
-| Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) pending |
-| Next release target | **v0.2.1** — npm scope registration + E404 tightening (Issue #534), post-v0.2.0 backlog |
-| Final release target | v0.2.0 ceremony closing; v0.3.0 ETA TBD |
-| Last shipped | **v0.1.19 (ceremony COMPLETE)** — v0.2.0 Steps 1+3+4 done; Step 2 (tag push) pending founder. |
+| Last updated | 2026-06-04 (PM dispatch v51 — PR #546 MERGED ✅ squash `0fe4f99c` (v50 wrap-up); 2 stale P2 items cleared; post-v0.2.0 queue tightened; 0 open PRs; v0.2.0 tag still pending founder) |
+| Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) **founder-gated**. Once tag pushed → v0.2.1 sprint begins. |
+| Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) founder-gated |
+| Next release target | **v0.2.1** — npm scope + dogfood validation + RFC-0104 cold SLA numbers |
+| Final release target | v0.3.0 ETA TBD |
+| Last shipped | **v0.2.0 ceremony 3/4** — Steps 1+3+4 done ✅; Step 2 (tag push) pending founder. |
 
 ---
 
@@ -190,27 +190,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P2 (post-v0.2.0):**
 8. Issue #534 — npm scope E404 tightening once @aimasteracc scope registered.
-9. `release.yml` systemic auto-close fix (ceremony script is current workaround).
+9. ~~`release.yml` systemic auto-close fix~~ — ✅ **RESOLVED** — `finalize` job already uses direct `git push origin main` (RFC-0110 redesign), not GitHub PR API. Auto-close bug is gone.
 10. ~~**Systemic DCO fix**~~ — ✅ **DEPLOYED** PR #544 MERGED squash `0554ee7`. `grep -qiE '^Signed-off-by: .+ <.+>'` on `%B` active on develop.
-11. Issue #428 god-file-split remaining slices.
-12. Skill marketplace submission to Claude Code marketplace.
-13. "First 5 minutes" walkthrough validation.
+11. ~~Issue #428 god-file-split~~ — ✅ **CLOSED** (completed 2026-06-02; slices 1+2 shipped in v0.1.17).
+12. Skill marketplace submission to Claude Code marketplace (founder sign-off on metadata required).
+13. "First 5 minutes" walkthrough validation (requires v0.2.0 binary — post tag-push).
 
 ---
 
-## Dispatch state (2026-06-04 v50 — PR #544 MERGED squash `0554ee7`; PR #545 MERGED squash `8418632`; 0 open PRs)
+## Dispatch state (2026-06-04 v51 — PR #546 MERGED squash `0fe4f99c`; 2 stale P2 items closed; 0 open PRs; all queues idle pending founder tag push)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2 — only remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534). |
-| PM | **DONE ✅** | v50: merged #544 (DCO systemic fix, squash `0554ee7`) + #545 (PM v48 chore, squash `8418632`). 0 open PRs. Decisions.jsonl appended. |
-| release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push) founder-gated. |
+| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534) + add NPM_TOKEN to `npm` environment secret. |
+| PM | **DONE ✅** | v51: merged #546 (v50 chore, squash `0fe4f99c`); cleared stale P2 items (#9 release.yml auto-close RESOLVED, #11 Issue #428 CLOSED); post-v0.2.0 queue tightened. |
+| release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push + GH Release) founder-gated. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
-| e2e-runner | **P1** | Dogfood re-run: RFC-0109 object shapes + RFC-0110 npm + redb-as-default + watch --subscribe. |
-| bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA. |
-| tech-writer | **P1** | Marketplace submission (v0.2.0 ships npm — right time to submit). |
-| rust-implementer | idle | Next sprint backlog (P2 items). |
+| e2e-runner | **BLOCKED** | Dogfood re-run: blocked on v0.2.0 binary (tag push first). |
+| bench | **BLOCKED** | RFC-0104 cold SLA numbers: blocked on v0.2.0 binary + nightly run. |
+| tech-writer | **BLOCKED** | Marketplace submission: blocked on founder sign-off for metadata. |
+| rust-implementer | **idle** | No unblocked P1/P2 backlog items until after tag push. |
 
 ---
 
@@ -225,9 +225,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
 - ~~**v0.1.20 ceremony**~~: SUPERSEDED by v0.2.0. Founder confirmed.
-- **v0.2.0 ceremony**: Step 1 ✅ (PR #523). Step 4 ✅ (PR #537 `4e60400f`). **Founder: push tag `v0.2.0` + create GitHub Release.**
-- **Register `@aimasteracc` npm scope**: npmjs.com account creation + org scope registration. One-time founder action.
+- **v0.2.0 ceremony**: Step 1 ✅ (PR #523). Step 3 ✅ (crates.io). Step 4 ✅ (PR #537 `4e60400f`). **Founder: push tag `v0.2.0` + publish GitHub Release (Step 2).**
+- **Register `@aimasteracc` npm scope**: npmjs.com account creation + org scope registration + add NPM_TOKEN secret. One-time founder action.
 - ~~**Systemic DCO config**~~: ✅ DEPLOYED — PR #544 merged squash `0554ee7` (2026-06-04).
+- ~~**`release.yml` auto-close fix**~~: ✅ RESOLVED — `finalize` job redesigned (RFC-0110) to use `git push origin main` directly; no PR API involved.
 
 ---
 
@@ -241,6 +242,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-04 PM dispatch v51 (PR #546 MERGED; 2 stale P2 items cleared; post-v0.2.0 queue tightened)
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (release-governance/dco/merge-discipline hits), PM state v50 (disk=v28 stale; latest on PR #546 branch = v50), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #546 (chore pm-dispatch-v49 branch, PM v50 wrap-up, CI 22/22 ✅, 0 Codex findings).
+- 1 open issue: #534 (P2 npm scope, founder-gated — not autonomously actionable).
+- Develop CI: GREEN (all jobs success on branch `chore/pm-dispatch-v49` and on `develop`).
+- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag push) founder-gated.
+- P1/P2 review revealed 2 stale items: P2 #9 (release.yml auto-close) already resolved by RFC-0110 finalize redesign; P2 #11 (Issue #428) already closed 2026-06-02. No coding work available that doesn't require a built binary or founder sign-off.
+
+**Actions taken:**
+1. **Squash-merged PR #546** (`0fe4f99c`) — PM v50 wrap-up (CI green, 0 Codex findings). ✅
+2. **Cleared stale P2 items**: release.yml auto-close marked RESOLVED (RFC-0110 `git push` design); Issue #428 marked CLOSED (already completed v0.1.17). ✅
+3. **Updated dispatch state**: all agents except founder marked BLOCKED (waiting on v0.2.0 tag). ✅
+4. **Added NPM_TOKEN to founder P0 list** — required for npm publish on v0.2.1. ✅
+5. **Appended decisions.jsonl v51 entry**. ✅
+
+**Escalations to founder:**
+- **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2).
+- **(P0)** Register `@aimasteracc` npm scope + add `NPM_TOKEN` to `npm` environment secret (required before v0.2.1 npm publish succeeds).
+
+---
 
 ### 2026-06-04 PM dispatch v50 (PR #544 MERGED; PR #545 MERGED; DCO fix deployed)
 
