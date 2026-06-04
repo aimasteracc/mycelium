@@ -16,8 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   postinstall download, works under both `npm` and `bun`/`bunx`). Includes the
   launcher (`bin/mycelium.cjs`) with unit-tested platform resolution, the
   per-platform package template, and `npm/scripts/build-npm.mjs` to assemble the
-  packages from prebuilt binaries. The CI build-matrix + publish wiring lands in
-  follow-up PRs (RFC-0110 §Rollout).
+  packages from prebuilt binaries. The release workflow now **cross-compiles the
+  `mycelium` CLI for 5 targets** (darwin arm64/x64, linux x64/arm64, win32 x64)
+  and **attaches the binaries to the GitHub Release** (a direct download path).
+  The `publish-npm` rewire to assemble + publish the packages lands in the
+  next follow-up (RFC-0110 §Rollout).
 
 ### Fixed
 
