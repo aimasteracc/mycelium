@@ -709,6 +709,11 @@ async fn get_callees_returns_functions_called_by_path() {
         paths.contains(&"src/lib.rs>baz"),
         "callees of foo must include baz"
     );
+    assert_eq!(
+        paths.len(),
+        2,
+        "foo calls exactly bar and baz — no more, no less"
+    );
 }
 
 #[tokio::test]
@@ -738,6 +743,11 @@ async fn get_callers_returns_functions_that_call_path() {
         paths.contains(&"src/lib.rs>baz"),
         "callers of bar must include baz"
     );
+    assert_eq!(
+        paths.len(),
+        2,
+        "bar is called by exactly foo and baz — no more, no less"
+    );
 }
 
 #[tokio::test]
@@ -755,6 +765,11 @@ async fn get_callees_returns_error_for_unknown_path() {
     assert!(
         val.get("error").is_some(),
         "unknown path should return error"
+    );
+    assert_eq!(
+        raw.is_error,
+        Some(true),
+        "error response must carry is_error=true on CallToolResult per RFC-0093 Phase 3"
     );
 }
 
@@ -2451,6 +2466,12 @@ async fn get_dead_symbols_returns_unreferenced_symbols() {
     // file node must not appear
     assert!(!dead.iter().any(|s| s == "src/lib.rs"));
     assert_eq!(val["count"].as_u64().unwrap(), dead.len() as u64);
+    // exact count: fixture has exactly 2 dead symbols (dead_fn + main); helper is live
+    assert_eq!(
+        dead.len(),
+        2,
+        "fixture has exactly 2 dead symbols: dead_fn and main"
+    );
 }
 
 #[tokio::test]
@@ -2491,6 +2512,12 @@ async fn get_dead_symbols_prefix_filter() {
     assert!(dead.iter().all(|s| s.starts_with("src/lib.rs")));
     assert!(dead.contains(&"src/lib.rs>dead_fn".to_owned()));
     assert!(!dead.contains(&"src/main.rs>main".to_owned()));
+    // exact count: only dead_fn is under src/lib.rs; main is under src/main.rs
+    assert_eq!(
+        dead.len(),
+        1,
+        "prefix filter src/lib.rs must return exactly 1 dead symbol"
+    );
 }
 
 // ── RFC-0056: mycelium_get_isolated_symbols ───────────────────────────
@@ -4741,6 +4768,12 @@ async fn get_all_symbols_excludes_file_nodes() {
         symbols
             .iter()
             .any(|s| s.as_str().unwrap() == "src/a.rs>fn1")
+    );
+    // exact count: store has 1 file + 1 symbol; file node must be excluded
+    assert_eq!(
+        symbols.len(),
+        1,
+        "only fn1 is a symbol; file node src/a.rs is excluded"
     );
 }
 
