@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v33 — DCO fix applied to release/v0.1.20; Codex P1×2 on PR #521 addressed + fixed; PR #515 CI re-running) |
-| Current sprint | **v0.1.20 ceremony — DCO REPAIRED** — PM v33 applied `git rebase --signoff HEAD~4` + force-pushed `release/v0.1.20`. PR #515 CI re-running. Founder: wait for green → merge PR #515 → push tag → GitHub Release. |
-| Active release branch | `release/v0.1.20` — PR #515 open → main, DCO repaired (CI re-running, expected green) |
+| Last updated | 2026-06-04 (PM dispatch v34 — deep DCO fix HEAD~16 on release/v0.1.20; DCO check ✅ SUCCESS on PR #515; remaining CI in progress) |
+| Current sprint | **v0.1.20 ceremony — DCO GREEN ✅** — PM v34 applied `git rebase --signoff HEAD~16` (covering all 16 non-merge commits incl. `4bdc4de` ADR-0010 + `bb685def` get_callees). PR #515 DCO check: ✅ SUCCESS. Founder: wait for full CI green → merge PR #515 → push tag → GitHub Release. |
+| Active release branch | `release/v0.1.20` — PR #515 open → main, DCO ✅ GREEN, remaining CI in progress |
 | Next release target | **v0.1.20** — RFC-0109 7/7 + RFC-0102 budget roll-out + ADR-0010 + RFC-0110 npm. Ceremony pending founder. |
 | Final release target | v0.2.0, ETA 2026-07-15 |
 | Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03T15:49Z. |
@@ -158,26 +158,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] feat(queries): RFC-0109 **get_all_symbols** object shape + budget knob — **RFC-0109 7/7 COMPLETE** (PR #513)
 - [x] CHANGELOG sealed + Cargo.toml 0.1.19 → 0.1.20
 
-**v0.1.20 ceremony status — DCO REPAIRED ⚙️ (CI re-running):**
+**v0.1.20 ceremony status — DCO GREEN ✅ (remaining CI in progress):**
 - [x] Release branch `release/v0.1.20` cut from develop
 - [x] **crates.io v0.1.20 published** ✅ (orphan, 2026-06-04T01:17Z)
 - [x] **npm v0.1.20 published** ✅ (orphan)
 - [x] **PyPI v0.1.20 published** ✅ (orphan)
-- ⚙️ **Step 1**: PR #515 → `main` — **DCO repaired by PM v33** (`git rebase --signoff HEAD~4` applied 2026-06-04T04:07Z; root commits `39808637` + `9b51c35` now carry `Signed-off-by: Claude <noreply@anthropic.com>`). CI re-running; expected green. Founder: merge when green.
+- ⚙️ **Step 1**: PR #515 → `main` — **DCO repaired by PM v34** (`git rebase --signoff HEAD~16` applied; all 16 non-merge commits signed, including previously-unsigned `4bdc4de` [ADR-0010] and `bb685def` [get_callees]). **DCO check: ✅ SUCCESS.** Clippy/rustfmt/unit tests in progress. Founder: merge when all checks green.
 - ❌ **Step 2**: Tag `v0.1.20` NOT pushed
 - ❌ **Step 3**: GitHub Release NOT created
 - ❌ **Step 4**: Back-merge `release/v0.1.20` → `develop` NOT done (PM opens PR after Step 1)
-
-**Repair path (fix DCO on release branch — unsigned commits are at HEAD~3 and HEAD~2):**
-```bash
-git fetch origin
-git checkout release/v0.1.20
-# Rebase last 4 commits with sign-off (covers 39808637 at HEAD~3 and 9b51c35 at HEAD~2)
-git rebase --signoff HEAD~4
-git push --force-with-lease origin release/v0.1.20
-# Wait for PR #515 CI to go green, then merge PR #515 normally
-```
-> ⚠️ **No direct-push fallback.** Pushing directly to `main` with `git push origin main` leaves the unsigned commits in main history while bypassing the red PR — this is the exact bypass that was rejected from PR #518. Fix DCO on the release branch first, then let PR #515 merge through the normal gate.
 
 ---
 
@@ -195,9 +184,9 @@ git push --force-with-lease origin release/v0.1.20
 
 ## Live priorities (ordered)
 
-**P0 (v0.1.20 ceremony — DCO repaired by PM v33, founder merge pending):**
-1. **✅ DCO repaired**: PM v33 applied `git rebase --signoff HEAD~4` to `release/v0.1.20` + force-pushed. PR #515 CI re-running.
-2. **⚡ Founder: wait for PR #515 CI green → merge PR #515 → push tag `v0.1.20` → create GitHub Release.** PM opens Step 4 back-merge PR autonomously after Step 1.
+**P0 (v0.1.20 ceremony — DCO green, full CI completing):**
+1. **✅ DCO GREEN**: PM v34 applied `git rebase --signoff HEAD~16` to `release/v0.1.20` + force-pushed. DCO check: ✅ SUCCESS. Clippy/rustfmt/unit tests/e2e in progress.
+2. **⚡ Founder: wait for PR #515 all checks green → merge PR #515 → push tag `v0.1.20` → create GitHub Release.** PM opens Step 4 back-merge PR autonomously after Step 1.
 3. **Systemic DCO fix (P0 for v0.1.21+)**: Add `.github/dco.yml` with `allowRemediationCommits: true` to prevent recurrence of squash-merge stripping DCO.
 
 **P1 (quality):**
@@ -213,12 +202,12 @@ git push --force-with-lease origin release/v0.1.20
 
 ---
 
-## Dispatch state (2026-06-04 v33 — DCO repaired on release/v0.1.20; Codex P1×2 fixed on PR #521; PR #515 CI re-running)
+## Dispatch state (2026-06-04 v34 — DCO GREEN on PR #515; deep rebase HEAD~16 complete; CI completing)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(1)** Wait for PR #515 CI green (DCO repaired by PM v33) → merge PR #515 → push tag `v0.1.20` → create GitHub Release. **(2)** Systemic DCO fix: add `.github/dco.yml` (`allowRemediationCommits: true`). |
-| PM | **DONE ✅** | v33 complete: DCO fix applied to release/v0.1.20; Codex P1×2 on PR #521 fixed + replied; PR #521 CI running (fix commit `374bf8e`); PM state v33 written; decisions.jsonl appended. |
+| founder | **action requested (P0)** | **(1)** Wait for PR #515 all CI green (DCO ✅ confirmed; remaining: clippy/rustfmt/unit tests/e2e) → merge PR #515 → push tag `v0.1.20` → create GitHub Release. **(2)** Systemic DCO fix: add `.github/dco.yml` (`allowRemediationCommits: true`). |
+| PM | **DONE ✅** | v34 complete: deep DCO fix `HEAD~16` applied to release/v0.1.20; all 16 non-merge commits signed; DCO check ✅ SUCCESS; PM state v34 written; decisions.jsonl appended. |
 | release | **WAITING** | v0.1.20 ceremony blocked on founder (Steps 1+2+3). Step 4 back-merge: PM opens after Step 1. |
 | security-reviewer | **P1** | Post-v0.1.20 scan pending (after ceremony). Post-v0.1.19 scan: CLEAN. |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
@@ -239,7 +228,7 @@ git push --force-with-lease origin release/v0.1.20
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
-- **v0.1.20 ceremony**: DCO repaired by PM v33 (`git rebase --signoff HEAD~4` + force-push). PR #515 CI re-running. Founder merges when green, pushes tag, creates GH Release.
+- **v0.1.20 ceremony**: DCO GREEN by PM v34 (`git rebase --signoff HEAD~16` — all 16 commits signed, incl. `4bdc4de` + `bb685def`). DCO check ✅ SUCCESS. Remaining CI in progress. Founder merges when all green, pushes tag, creates GH Release.
 - **Systemic DCO config**: Squash-merge via GitHub web UI drops `Signed-off-by`; add `.github/dco.yml` to configure bot.
 - **RFC-0110 merge auth**: PRs #517, #519, #520 all merged by founder ✅. RFC-0110 Implemented.
 
@@ -256,7 +245,26 @@ git push --force-with-lease origin release/v0.1.20
 
 ## Archive
 
-### 2026-06-04 PM dispatch v33 (this run)
+### 2026-06-04 PM dispatch v34 (this run)
+
+**Pre-flight:** PM state v33 (branch `chore/pm-dispatch-2026-06-04-v33-real`, PR #522). decisions.jsonl tail (latest: 2026-06-04T04:10Z v33 session summary). PR #515 DCO check still failing after v33's `HEAD~4` rebase — discovered 2 more unsigned commits deeper in history.
+
+**Assessment:**
+- PR #515 CI: DCO check FAILED after `HEAD~4` rebase. Root cause: `4bdc4de` (ADR-0010, HEAD~7) and `bb685def` (get_callees, HEAD~10) also lack `Signed-off-by`. `HEAD~4` only covered the top 4 commits, missing 12 earlier ones. Full range: 16 non-merge commits above `8ffcad9` (Merge PR #494, v0.1.19 → main).
+- Fix: `git rebase --signoff HEAD~16` on `fix-dco-release-v0.1.20` branch (HEAD~16 = `8ffcad9` confirmed via `git rev-parse`).
+
+**Actions taken:**
+1. **Deep DCO fix**: ran `git rebase --signoff HEAD~16` on `fix-dco-release-v0.1.20` — replayed all 16 non-merge commits. All now carry `Signed-off-by`. Force-pushed to `origin/release/v0.1.20`. ✅
+2. **DCO verified**: `git show --no-patch --format="%B" d0f6b74 | grep "Signed-off-by"` and `0bc266e` both return `Signed-off-by: Claude <noreply@anthropic.com>`. ✅
+3. **PR #515 CI re-ran**: DCO sign-off check shows `conclusion: success`. Clippy/rustfmt/unit tests/e2e in progress. ✅
+4. **PM state v34**: updated header, v0.1.20 ceremony status, Live priorities, Dispatch table, Decision gates, archive. ✅
+5. **decisions.jsonl**: appended v34 session summary. ✅
+
+**Escalations to founder:**
+- **(P0) v0.1.20 ceremony**: PR #515 DCO ✅ green. Wait for all CI green → merge PR #515 → push tag `v0.1.20` → create GitHub Release. PM opens Step 4 back-merge PR after Step 1.
+- **(P0 systemic) DCO config**: Add `.github/dco.yml` with `allowRemediationCommits: true`.
+
+### 2026-06-04 PM dispatch v33 (superseded by v34)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (latest: 2026-06-04T03:12Z v32 session), anti-patterns (hits: release-governance `HEAD~2` repair depth wrong; async blocking_read; squash-merge DCO strip), PM state (v32 stale — develop at `746826d`; v32 on PR #521 open), v0.2 PRD.
 
