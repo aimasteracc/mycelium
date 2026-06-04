@@ -90,14 +90,30 @@ Install once. Use from terminal, from your AI agent, or as a skill bundle.
 
 ## Quick Start
 
+### Install
+
+**No Rust toolchain? Use npm or bun** (ships a prebuilt binary — RFC-0110):
+
 ```bash
-# Install from crates.io (the `mycelium-rcig-*` prefix is because the short names
-# `mycelium-core` and `mycelium-cli` were taken by unrelated 2019/2025 projects):
+npm install -g @aimasteracc/mycelium     # npm
+bun  add     -g @aimasteracc/mycelium     # bun
+bunx @aimasteracc/mycelium --version      # or run without installing
+```
+
+**Have Rust?** Install from crates.io (the `mycelium-rcig-*` prefix is because
+the short names `mycelium-core`/`mycelium-cli` were taken by unrelated
+2019/2025 projects):
+
+```bash
 cargo install mycelium-rcig-cli
 
 # Or install latest from source:
 cargo install --git https://github.com/aimasteracc/mycelium mycelium-rcig-cli
+```
 
+### Use
+
+```bash
 # Index a project (Python, TS, JS, Rust, Go, Java, C, C++, C#, Ruby)
 mycelium index ./my-project
 
