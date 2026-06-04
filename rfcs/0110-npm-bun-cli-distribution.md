@@ -1,8 +1,10 @@
 # RFC-0110: npm / bun distribution of the Mycelium CLI (prebuilt binary)
 
-- **Status**: **Accepted** (ratified 2026-06-03 UTC under the founder's
+- **Status**: **Implemented** (ratified 2026-06-03 UTC under the founder's
   autonomous-development mandate; goal: "讓客戶沒有 cargo 環境也能使用我們的項目。
-  npm 安裝 bun 安裝支持"). Implementation proceeds incrementally.
+  npm 安裝 bun 安裝支持"). All four rollout increments merged to develop
+  (#517, #519, + the publish-npm rewire). The npm/bun path goes **live at the
+  next release** that runs the updated `release.yml`.
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-03 (UTC)
 - **Depends on**: release.yml (existing `publish-npm` job stub), Charter §3
@@ -107,21 +109,30 @@ quality-recheck, exactly like crates.io.
       *(Done in increment 1: `npm/mycelium` launcher with 8 passing `node:test`
       unit tests, main `package.json` with 5-platform `optionalDependencies`,
       and `npm/scripts/build-npm.mjs` verified end-to-end with fixture binaries.)*
-- [~] `release.yml`: per-platform binary build matrix; binaries attached to the
+- [x] `release.yml`: per-platform binary build matrix; binaries attached to the
       GitHub Release; `publish-npm` assembles + publishes the packages
-      (idempotent). **Increment 2 done:** `build-cli-binaries` matrix (5
-      targets, native + `cross` for linux-arm64) builds + uploads each binary
-      and `finalize` attaches them to the GitHub Release. **Pending:**
-      `publish-npm` rewire (increment 3).
-- [ ] On a cargo-less machine: `npm i -g @aimasteracc/mycelium && mycelium
-      --version` works; `bunx @aimasteracc/mycelium --version` works.
-- [ ] README "Install" section documents the npm/bun path alongside cargo.
-- [ ] CHANGELOG `[Unreleased]` notes the new install channel.
+      (idempotent). `build-cli-binaries` matrix (5 targets, native + `cross` for
+      linux-arm64) → artifacts; `finalize` attaches them to the GitHub Release;
+      `publish-npm` downloads them, runs `build-npm.mjs`, and `npm publish`es the
+      platform packages then the main package (idempotent — skips versions
+      already on npm; gated so a build failure blocks all publishing).
+- [x] On a cargo-less machine the install works. Validated end-to-end in CI
+      (`build (release)` job: assemble → `npm install --install-links` → run the
+      launcher) and locally (registry-style copied install execs the binary +
+      forwards args). Real-registry confirmation happens at the next release.
+- [x] README "Install" section documents the npm/bun path alongside cargo
+      (#517; marked upcoming until the first publish).
+- [x] CHANGELOG `[Unreleased]` notes the new install channel.
 
 ## Rollout
 
 Incremental, each behind green CI:
 1. ✅ RFC + `npm/` scaffolding + launcher unit test (#517).
-2. ✅ `release.yml` build matrix + GH Release binary upload (this PR).
-3. `publish-npm` rewire (assemble + publish) + bun/npm install smoke test.
-4. README + CHANGELOG (README + initial CHANGELOG done in #517).
+2. ✅ `release.yml` build matrix + GH Release binary upload (#519).
+3. ✅ `publish-npm` rewire (assemble + publish) + CI npm-packaging smoke test
+   (this PR).
+4. ✅ README + CHANGELOG.
+
+**Remaining before the npm path is live:** the first release that runs the
+updated `release.yml` (publishes the packages), after which the README's npm/bun
+commands can drop the "upcoming" marker.

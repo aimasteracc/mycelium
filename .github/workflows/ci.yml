@@ -169,6 +169,28 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --workspace --all-features
 
+      # RFC-0110: validate the npm packaging path end-to-end on every PR using
+      # the just-built linux-x64 binary — assemble the packages, install them
+      # (--install-links copies like a registry install), and run the launcher.
+      # Catches packaging/launcher regressions without a real publish.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+      - name: npm launcher unit tests
+        run: node --test
+        working-directory: npm/mycelium
+      - name: npm packaging smoke test (assemble → install → run)
+        run: |
+          set -euo pipefail
+          mkdir -p dist-bin/linux-x64
+          cp target/release/mycelium dist-bin/linux-x64/mycelium
+          node npm/scripts/build-npm.mjs --version 0.0.0-ci --bin-dir dist-bin --out dist-npm
+          mkdir -p smoke && cd smoke && npm init -y >/dev/null
+          npm install --install-links ../dist-npm/mycelium-linux-x64-gnu ../dist-npm/mycelium >/dev/null
+          OUT="$(node_modules/.bin/mycelium --version)"
+          echo "launcher output: $OUT"
+          echo "$OUT" | grep -qi mycelium
+
   doc-build:
     name: docs (rustdoc + mdbook)
     needs: [unit]
