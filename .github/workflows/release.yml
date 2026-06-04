@@ -61,13 +61,33 @@ jobs:
     needs: validate
     uses: ./.github/workflows/ci.yml
 
+  check-npm-token:
+    # Preflight (RFC-0110): NPM_TOKEN is environment-scoped to `npm`, so verify
+    # it here BEFORE any irreversible publish. publish-crates needs this, so a
+    # missing token aborts the whole release cleanly instead of leaving a
+    # partial release (crates.io published but npm not). Charter §5.12.
+    name: preflight (npm token present)
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - name: Verify NPM_TOKEN is configured
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN is not set in the 'npm' environment — aborting before any publish to avoid a partial release. Configure it in repo Settings → Environments → npm, then re-run."
+            exit 1
+          fi
+          echo "NPM_TOKEN present."
+
   publish-crates:
     name: publish to crates.io
-    # Gate the first irreversible publish on the CLI binaries building
-    # successfully (RFC-0110 / Codex #519 P1): if any platform build fails we
-    # must NOT publish to a registry, or the release is partial (crates live but
-    # binaries missing). npm/pypi need publish-crates, so they are gated too.
-    needs: [validate, quality-recheck, build-cli-binaries]
+    # Gate the first irreversible publish on (a) the CLI binaries building
+    # successfully (RFC-0110 / Codex #519 P1) and (b) NPM_TOKEN being present
+    # (check-npm-token): if either fails we must NOT publish to a registry, or
+    # the release is partial. npm/pypi need publish-crates, so they are gated too.
+    needs: [validate, quality-recheck, build-cli-binaries, check-npm-token]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: crates-io
