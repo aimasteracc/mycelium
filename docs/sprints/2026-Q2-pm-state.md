@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v46 — PR #541 merged (squash `e089b66a`); Codex P1+P2 fixed; security scan post-v0.2.0 CLEAN; Step 2 tag push awaits founder) |
+| Last updated | 2026-06-04 (PM dispatch v47 — PR #542 merged (squash `2a7a11b`); v46 close complete; Step 2 tag push awaits founder) |
 | Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) awaits founder. |
 | Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) pending |
 | Next release target | **v0.2.1** — npm scope registration + E404 tightening (Issue #534), post-v0.2.0 backlog |
@@ -198,12 +198,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-04 v45 — PR #537 merged (Step 4 ✅); #539/#540 closed)
+## Dispatch state (2026-06-04 v47 — PR #542 merged; v46 close complete)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2 — only remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534). |
-| PM | **DONE ✅** | v46: PR #541 merged (Codex P1+P2 fixed); security scan CLEAN; #542 open. |
+| PM | **DONE ✅** | v47: PR #542 merged (anti-pattern + pm-state updates); v46 close decisions appended. |
 | release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push) founder-gated. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
@@ -241,6 +241,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-04 PM dispatch v47 (PR #542 merged; v46 close complete)
+
+**Pre-flight:** CHARTER, _orchestrator, decisions tail-3 (v46 close entry appended), anti-patterns (last entry: MCP resource-prefix), PM state v46 (PR #542 merged via webhook).
+
+**Assessment:**
+- PR #542 (`chore/pm-dispatch-v46`) squash-merged to develop — CI 19/19 ✅ (commit `808f500`).
+- No open PRs. No open issues.
+- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag) awaits founder.
+- Post-flight from v46: decisions.jsonl dispatch-close entry not yet on develop (generated after #542 merge).
+
+**Actions taken:**
+1. **Appended v46 dispatch-close entry** to decisions.jsonl (local → new branch `chore/pm-dispatch-v47`). ✅
+2. **Updated PM state v47** (header, dispatch table, archive). ✅
+3. **Opened PR #543** (`chore/pm-dispatch-v47` → develop). ✅
+
+**Escalations to founder:**
+- **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2; Steps 1+3+4 done ✅). GitHub Release follows.
+- **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
+
+---
 
 ### 2026-06-04 PM dispatch v46 (this run — PR #541 merged; Codex P1+P2 fixed; security scan CLEAN)
 
