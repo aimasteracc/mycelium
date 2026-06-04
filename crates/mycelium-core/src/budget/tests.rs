@@ -45,3 +45,192 @@ fn absent_keys_are_ignored() {
     assert!(v.get("truncated").is_none());
     assert_eq!(v["verdict"], "INFO");
 }
+
+// ---- RFC-0102 pending piece (2): nested `budget {}` response object ----
+
+use super::BudgetMode;
+
+#[test]
+fn for_project_tags_mode() {
+    assert_eq!(OutputBudget::for_project(100).mode, BudgetMode::Small);
+    assert_eq!(OutputBudget::for_project(1_000).mode, BudgetMode::Medium);
+    assert_eq!(OutputBudget::for_project(50_000).mode, BudgetMode::Large);
+}
+
+#[test]
+fn budget_mode_serializes_lowercase() {
+    assert_eq!(BudgetMode::Small.as_str(), "small");
+    assert_eq!(BudgetMode::Medium.as_str(), "medium");
+    assert_eq!(BudgetMode::Large.as_str(), "large");
+}
+
+#[test]
+fn truncation_emits_nested_budget_object() {
+    let mut v = json!({
+        "nodes": (0..40).collect::<Vec<_>>(),
+        "edges": (0..200).collect::<Vec<_>>(),
+    });
+    apply_budget(&mut v, &OutputBudget::for_project(100)); // small: 15 nodes / 30 edges
+
+    // Flat fields preserved for backward compatibility.
+    assert_eq!(v["truncated"], true);
+    assert_eq!(v["total_available"], 40);
+
+    // New nested object per RFC-0102 §"Response metadata".
+    let b = &v["budget"];
+    assert_eq!(b["mode"], "small");
+    assert_eq!(b["truncated"], true);
+    // truncated_fields lists every capped key, in deterministic (node-then-edge) order.
+    assert_eq!(b["truncated_fields"], json!(["nodes", "edges"]));
+    // total_available is a per-field map (not the single flat number).
+    assert_eq!(b["total_available"]["nodes"], 40);
+    assert_eq!(b["total_available"]["edges"], 200);
+    // limits echo the budget caps that were applied.
+    assert_eq!(b["limits"]["max_nodes"], 15);
+    assert_eq!(b["limits"]["max_edges"], 30);
+}
+
+#[test]
+fn nested_budget_truncated_fields_only_lists_capped_keys() {
+    // Only edges overflow; nodes are under the cap.
+    let mut v = json!({
+        "nodes": [1, 2, 3],
+        "edges": (0..200).collect::<Vec<_>>(),
+    });
+    apply_budget(&mut v, &OutputBudget::for_project(100));
+    let b = &v["budget"];
+    assert_eq!(b["truncated_fields"], json!(["edges"]));
+    assert_eq!(b["total_available"]["edges"], 200);
+    assert!(
+        b["total_available"].get("nodes").is_none(),
+        "uncapped fields must not appear in total_available"
+    );
+}
+
+#[test]
+fn no_nested_budget_object_when_nothing_truncated() {
+    // Increment 1 scope: nested object mirrors flat-field semantics — only
+    // present on truncation. (Always-on metadata ships with the request knob.)
+    let mut v = json!({ "nodes": [1, 2, 3], "edges": [1, 2] });
+    apply_budget(&mut v, &OutputBudget::for_project(100));
+    assert!(v.get("budget").is_none());
+    assert!(v.get("truncated").is_none());
+}
+
+// ---- RFC-0102 pending piece (1): per-call `budget` request override knob ----
+
+use super::BudgetOverride;
+
+#[test]
+fn resolve_none_and_auto_track_project_size() {
+    // No override (and explicit Auto) follow the project-size tier.
+    assert_eq!(
+        OutputBudget::resolve(None, 100),
+        OutputBudget::for_project(100)
+    );
+    assert_eq!(
+        OutputBudget::resolve(Some(BudgetOverride::Auto), 50_000),
+        OutputBudget::for_project(50_000)
+    );
+}
+
+#[test]
+fn resolve_explicit_tiers_ignore_project_size() {
+    // An explicit tier pins the caps regardless of how big the project is.
+    let small = OutputBudget::resolve(Some(BudgetOverride::Small), 50_000);
+    assert_eq!(small.mode, BudgetMode::Small);
+    assert_eq!((small.max_nodes, small.max_edges), (15, 30));
+
+    let medium = OutputBudget::resolve(Some(BudgetOverride::Medium), 10);
+    assert_eq!(medium.mode, BudgetMode::Medium);
+    assert_eq!((medium.max_nodes, medium.max_edges), (30, 60));
+
+    let large = OutputBudget::resolve(Some(BudgetOverride::Large), 10);
+    assert_eq!(large.mode, BudgetMode::Large);
+    assert_eq!((large.max_nodes, large.max_edges), (50, 100));
+}
+
+#[test]
+fn resolve_disabled_imposes_no_caps_and_never_truncates() {
+    let b = OutputBudget::resolve(Some(BudgetOverride::Disabled), 50_000);
+    assert_eq!(b.mode, BudgetMode::Disabled);
+    let mut v = json!({ "nodes": (0..10_000).collect::<Vec<_>>() });
+    apply_budget(&mut v, &b);
+    assert_eq!(v["nodes"].as_array().unwrap().len(), 10_000);
+    assert!(v.get("truncated").is_none());
+    assert!(v.get("budget").is_none());
+}
+
+#[test]
+fn budget_override_parses_case_insensitively() {
+    assert_eq!(
+        "auto".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Auto
+    );
+    assert_eq!(
+        "Small".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Small
+    );
+    assert_eq!(
+        "MEDIUM".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Medium
+    );
+    assert_eq!(
+        "large".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Large
+    );
+    assert_eq!(
+        "disabled".parse::<BudgetOverride>().unwrap(),
+        BudgetOverride::Disabled
+    );
+}
+
+#[test]
+fn budget_override_rejects_unknown_value() {
+    let err = "huge".parse::<BudgetOverride>().unwrap_err();
+    assert!(
+        err.contains("huge"),
+        "error should name the bad value: {err}"
+    );
+}
+
+#[test]
+fn disabled_mode_wire_token() {
+    assert_eq!(BudgetMode::Disabled.as_str(), "disabled");
+}
+
+// ---- RFC-0102 key coverage: tools emit `callee_paths` / `caller_paths` /
+//      `dead_symbols` / `isolated_symbols`, which were NOT in the cap list, so
+//      `apply_budget` silently no-opped for get_callees/get_callers/
+//      get_dead_symbols/get_isolated_symbols. These caps close that gap. ----
+
+#[test]
+fn caps_callee_and_caller_paths_at_edge_cap() {
+    for key in ["callee_paths", "caller_paths"] {
+        let mut v = json!({ key: (0..200).collect::<Vec<_>>() });
+        apply_budget(&mut v, &OutputBudget::for_project(100)); // max_edges = 30
+        assert_eq!(
+            v[key].as_array().unwrap().len(),
+            30,
+            "{key} should be capped at max_edges"
+        );
+        assert_eq!(v["truncated"], true);
+        assert_eq!(v["budget"]["truncated_fields"], json!([key]));
+        assert_eq!(v["budget"]["total_available"][key], 200);
+    }
+}
+
+#[test]
+fn caps_dead_and_isolated_symbols_at_node_cap() {
+    for key in ["dead_symbols", "isolated_symbols"] {
+        let mut v = json!({ key: (0..40).collect::<Vec<_>>() });
+        apply_budget(&mut v, &OutputBudget::for_project(100)); // max_nodes = 15
+        assert_eq!(
+            v[key].as_array().unwrap().len(),
+            15,
+            "{key} should be capped at max_nodes"
+        );
+        assert_eq!(v["truncated"], true);
+        assert_eq!(v["budget"]["total_available"][key], 40);
+    }
+}

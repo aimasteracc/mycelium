@@ -208,6 +208,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Caps the paginated page. MCP `budget` twin.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Report whether an index is loaded and its node/edge counts.
     ServerStatus {
@@ -226,6 +230,10 @@ enum Cmd {
         /// Edge kind to traverse: calls (default), imports, extends, implements.
         #[arg(long, default_value = "calls")]
         edge_kind: String,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return the direct callers of a symbol (incoming `Calls` edges).
     GetCallers {
@@ -242,6 +250,10 @@ enum Cmd {
         /// Only applies when --edge-kind=calls (the default).
         #[arg(long, default_value_t = false)]
         include_virtual: bool,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return the recursive callee tree rooted at a symbol.
     GetCalleeTree {
@@ -285,6 +297,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return symbols with no edges of any kind.
     GetIsolatedSymbols {
@@ -294,6 +310,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return `imports` + `imported_by` for a file/module.
     GetImports {
@@ -417,6 +437,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Reverse reachability: symbols that can reach the given path.
     GetReachableTo {
@@ -429,6 +453,10 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return symbols at exactly k hops from the given path.
     GetKHopNeighbors {
@@ -1006,6 +1034,11 @@ enum Cmd {
         /// e.g. `--edge-kinds calls,imports,extends`. Default: `calls`.
         #[arg(long, value_delimiter = ',')]
         edge_kinds: Vec<String>,
+        /// Per-call output budget (RFC-0102): `auto` (default, follows project
+        /// size), `small` / `medium` / `large` (pin a tier), or `disabled`
+        /// (no truncation). Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
         /// Output format.
         #[arg(long, value_enum, default_value_t = QueryFormat::Json)]
         format: QueryFormat,
@@ -1181,6 +1214,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             offset,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_all_symbols(
@@ -1189,6 +1223,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 kind.as_deref(),
                 limit,
                 offset,
+                budget.as_deref(),
                 format.into(),
             )?;
         }
@@ -1201,9 +1236,16 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             root,
             format,
             edge_kind,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callees(&canonical, &path, &edge_kind, format.into())?;
+            queries::run_get_callees(
+                &canonical,
+                &path,
+                &edge_kind,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetCallers {
             path,
@@ -1211,6 +1253,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             format,
             edge_kind,
             include_virtual,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_callers(
@@ -1218,6 +1261,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 &path,
                 &edge_kind,
                 include_virtual,
+                budget.as_deref(),
                 format.into(),
             )?;
         }
@@ -1252,12 +1296,14 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             edge_kind,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_dead_symbols(
                 &canonical,
                 prefix.as_deref(),
                 edge_kind.as_deref(),
+                budget.as_deref(),
                 format.into(),
             )?;
         }
@@ -1265,9 +1311,15 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             prefix,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_isolated_symbols(&canonical, prefix.as_deref(), format.into())?;
+            queries::run_get_isolated_symbols(
+                &canonical,
+                prefix.as_deref(),
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetImports { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
@@ -1361,9 +1413,17 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             max_depth,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_reachable(&canonical, &path, &edge_kind, max_depth, format.into())?;
+            queries::run_get_reachable(
+                &canonical,
+                &path,
+                &edge_kind,
+                max_depth,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetReachableTo {
             path,
@@ -1371,9 +1431,17 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             max_depth,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_reachable_to(&canonical, &path, &edge_kind, max_depth, format.into())?;
+            queries::run_get_reachable_to(
+                &canonical,
+                &path,
+                &edge_kind,
+                max_depth,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetKHopNeighbors {
             path,
@@ -1874,6 +1942,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             max_nodes,
             max_code_blocks,
             edge_kinds,
+            budget,
             format,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
@@ -1883,6 +1952,7 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 max_nodes,
                 max_code_blocks,
                 &edge_kinds,
+                budget.as_deref(),
                 format.into(),
             )?;
         }

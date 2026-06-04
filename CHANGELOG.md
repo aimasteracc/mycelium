@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-04
+
+### Added
+
+- **npm / bun install for the CLI — no Rust toolchain required (RFC-0110).** A
+  universal `@aimasteracc/mycelium` launcher package resolves and execs the
+  matching prebuilt binary from a per-platform `optionalDependencies` package
+  (esbuild/biome model — no postinstall download, works under both `npm` and
+  `bun`/`bunx`). The release workflow **cross-compiles the `mycelium` CLI for 5
+  targets** (darwin arm64/x64, linux x64/arm64, win32 x64), **attaches the
+  binaries to the GitHub Release** (a direct download path), and **assembles +
+  publishes** the platform + launcher packages (idempotent; gated so a build
+  failure blocks all publishing — no partial release). CI validates the whole
+  packaging path on every PR (assemble → install → run the launcher).
+  `cargo install mycelium-rcig-cli` remains available for Rust users.
+- **Nested `budget {}` response object (RFC-0102).** When a tool response is
+  truncated by the adaptive output budget, it now carries a structured
+  `budget { mode, truncated, truncated_fields, total_available{…}, limits{…} }`
+  object alongside the existing flat `truncated` / `total_available` fields
+  (added without removing them). `OutputBudget` exposes its size tier via a
+  `mode: BudgetMode`. Byte-identical across CLI and MCP by construction (both
+  apply the same `mycelium_core::budget::apply_budget`).
+- **Per-call output budget knob (RFC-0102)** on `mycelium_context` and all seven
+  graph-list tools — MCP `budget` field / CLI `--budget`
+  (`auto|small|medium|large|disabled`), parsed via a shared `BudgetOverride`
+  `FromStr` and resolved by `OutputBudget::resolve(over, node_count)` (identical
+  on both surfaces). Unknown values fail fast. The CLI applies the budget in
+  `--format json` (MCP parity) or when `--budget` is explicit; default text mode
+  prints the full list, with a truncation footer to stderr when budgeted.
+
+### Changed
+
+- **BREAKING (CLI): `get-callees`, `get-callers`, `get-dead-symbols`,
+  `get-isolated-symbols`, and `get-all-symbols` `--format json` now emit an
+  object** (`{"callee_paths":[…]}` / `{"caller_paths":[…]}` /
+  `{"dead_symbols":[…],"count":N}` / `{"isolated_symbols":[…],"count":N}` /
+  `{"symbols":[…],"count":N,"total_count":M}`) instead of a bare JSON array
+  (RFC-0109 Option A). Each CLI command is now **byte-identical to its MCP twin**
+  (one shared `mycelium_core::queries` builder per tool) and carries
+  budget/truncation metadata. Text mode (`--format text`, the default) is
+  unchanged — one path per line. **Completes the RFC-0109 graph-list roll-out
+  (7/7 tools).**
+
+### Fixed
+
+- **Output budget no longer silently no-ops for four tools (RFC-0102).**
+  `apply_budget` capped a fixed key allowlist that omitted the array keys
+  `get_callees` (`callee_paths`), `get_callers` (`caller_paths`),
+  `get_dead_symbols` (`dead_symbols`), and `get_isolated_symbols`
+  (`isolated_symbols`) actually emit — so those tools advertised budgeting but
+  returned unbounded arrays. `callee_paths` / `caller_paths` are now capped at
+  `max_edges`, `dead_symbols` / `isolated_symbols` at `max_nodes`.
+- `sla_ancestors_100k` macOS CI flake: bumped the macOS-specific SLA limit from
+  30 ms → 100 ms (observed 32 ms on loaded runner; Linux contract unchanged at
+  5 ms).
+
 ## [0.1.19] - 2026-06-04
 
 ### Fixed

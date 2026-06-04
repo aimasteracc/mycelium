@@ -10,7 +10,7 @@ every change, instantly felt, instantly understood.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-blue.svg)](#)
-[![Version](https://img.shields.io/badge/version-v0.1.4-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.2.0-green.svg)](CHANGELOG.md)
 [![crates.io](https://img.shields.io/crates/v/mycelium-rcig-core.svg)](https://crates.io/crates/mycelium-rcig-core)
 [![Rust](https://img.shields.io/badge/built_with-Rust-dea584.svg)](https://www.rust-lang.org/)
 [![Sponsor](https://img.shields.io/badge/sponsor-aimasteracc-ea4aaa.svg?logo=github-sponsors)](https://github.com/sponsors/aimasteracc)
@@ -41,19 +41,20 @@ everything between sessions.
 
 ## Status
 
-**v0.1.4 — Alpha.** All Charter §2 performance SLAs satisfied. Heavy-graph algorithms complete in < 2 s on 1K-node graphs.
+**v0.2.0 — Alpha.** All Charter §2 performance SLAs satisfied. Heavy-graph algorithms complete in < 2 s on 1K-node graphs.
 
 | Component | Status |
 |---|---|
 | Core engine (Trunk + Synapse + Cortex) | ✅ Shipped |
 | Language packs: Python, TS, JS, Rust, Go | ✅ Tier 1 complete |
 | Language packs: Java, C, C++, C#, Ruby | ✅ Tier 2 complete |
-| MCP server (89 tools) | ✅ Shipped |
+| MCP server (93 tools) | ✅ Shipped |
 | Hyphae DSL (lexer + parser + evaluator) | ✅ RFC-0004 complete |
 | CLI (`mycelium index`, `mycelium serve --mcp`) | ✅ Shipped |
 | Persistence (MessagePack snapshot) | ✅ Shipped |
 | Watch mode (reactive FSE re-index) | ✅ Shipped |
-| npm / PyPI bindings | 🔜 v0.2 |
+| npm / bun CLI install (no cargo) | ✅ v0.2.0 (RFC-0110) |
+| PyPI bindings | 🔜 future |
 
 **Public roadmap:** [GitHub Projects](https://github.com/aimasteracc/mycelium/projects).
 **Changelog:** [CHANGELOG.md](CHANGELOG.md).
@@ -90,14 +91,31 @@ Install once. Use from terminal, from your AI agent, or as a skill bundle.
 
 ## Quick Start
 
+### Install
+
+**Have Rust?** Install from crates.io (the `mycelium-rcig-*` prefix is because
+the short names `mycelium-core`/`mycelium-cli` were taken by unrelated
+2019/2025 projects):
+
 ```bash
-# Install from crates.io (the `mycelium-rcig-*` prefix is because the short names
-# `mycelium-core` and `mycelium-cli` were taken by unrelated 2019/2025 projects):
 cargo install mycelium-rcig-cli
 
 # Or install latest from source:
 cargo install --git https://github.com/aimasteracc/mycelium mycelium-rcig-cli
+```
 
+**No Rust toolchain?** Install the prebuilt binary with `npm` or `bun`
+([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)) — no `cargo` required:
+
+```bash
+npm install -g @aimasteracc/mycelium     # npm
+bun  add     -g @aimasteracc/mycelium     # bun
+bunx @aimasteracc/mycelium --version      # or run without installing
+```
+
+### Use
+
+```bash
 # Index a project (Python, TS, JS, Rust, Go, Java, C, C++, C#, Ruby)
 mycelium index ./my-project
 

@@ -271,8 +271,15 @@ pub(crate) fn run_get_all_symbols(
     kind_str: Option<&str>,
     limit: usize,
     offset: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = match kind_str {
         None => None,
@@ -282,12 +289,23 @@ pub(crate) fn run_get_all_symbols(
         ),
     };
     let all_symbols = store.all_symbols(prefix, kind);
+    let total_count = all_symbols.len();
     let page: Vec<String> = all_symbols
         .into_iter()
         .skip(offset)
         .take(if limit == 0 { usize::MAX } else { limit })
         .collect();
-    print_string_list(&page, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::all_symbols_payload(&page, total_count);
+    // Budget caps the paginated page; JSON mode (MCP parity) or explicit --budget.
+    // Default text mode prints the full page (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "symbols", format)
 }
 
 // ── server-status ─────────────────────────────────────────────────────────────
@@ -326,21 +344,81 @@ pub(crate) fn run_get_callees(
     root: &Path,
     path: &str,
     edge_kind: &str,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
     let kind = parse_edge_kind(edge_kind)?;
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
-    let mut paths: Vec<String> = store
-        .outgoing(id, kind)
-        .iter()
-        .filter_map(|&t| store.path_of(t).map(str::to_owned))
-        .collect();
-    paths.sort_unstable();
-    paths.dedup();
-    print_string_list(&paths, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::callees_payload(&store, id, kind);
+    // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
+    // explicit. Default text mode prints the full list — no silent truncation
+    // of human-facing output (RFC-0102 text-mode rule; CLI text unchanged).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "callee_paths", format)
+}
+
+/// Print a graph-list payload object: the full object in `--format json` (the
+/// byte-identical twin of the MCP tool), or just the named list, one item per
+/// line, in text mode (RFC-0109 Option A).
+fn print_object_with_list(value: &serde_json::Value, list_key: &str, format: Format) -> Result<()> {
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(value)?),
+        Format::Text => {
+            if let Some(arr) = value[list_key].as_array() {
+                for item in arr {
+                    if let Some(s) = item.as_str() {
+                        println!("{s}");
+                    }
+                }
+            }
+            // Text mode prints only the list, so surface a truncation footer when
+            // the budget capped it — otherwise a budgeted text response would
+            // silently hide dropped results (RFC-0102 text-mode rule). Footer
+            // goes to stderr so stdout stays a clean, pipeable list.
+            if value.get("truncated").and_then(serde_json::Value::as_bool) == Some(true) {
+                let shown = value[list_key].as_array().map_or(0, Vec::len);
+                let total = value
+                    .get("budget")
+                    .and_then(|b| b.get("total_available"))
+                    .and_then(|t| t.get(list_key))
+                    .and_then(serde_json::Value::as_u64)
+                    .or_else(|| {
+                        value
+                            .get("total_available")
+                            .and_then(serde_json::Value::as_u64)
+                    });
+                let mode = value
+                    .get("budget")
+                    .and_then(|b| b.get("mode"))
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("auto");
+                match total {
+                    Some(t) => eprintln!(
+                        "… {shown} of {t} shown (budget: {mode}); use --budget disabled for the full list"
+                    ),
+                    None => eprintln!(
+                        "… {shown} shown, output truncated (budget: {mode}); use --budget disabled for the full list"
+                    ),
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn run_get_callers(
@@ -348,27 +426,33 @@ pub(crate) fn run_get_callers(
     path: &str,
     edge_kind: &str,
     include_virtual: bool,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
     let kind = parse_edge_kind(edge_kind)?;
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
-    let mut paths: Vec<String> = store
-        .incoming(id, kind)
-        .iter()
-        .filter_map(|&t| store.path_of(t).map(str::to_owned))
-        .collect();
-    if kind == EdgeKind::Calls && include_virtual {
-        let virtual_callers = store
-            .virtual_dispatch_callers_of_path(path)
-            .unwrap_or_default();
-        paths.extend(virtual_callers);
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value =
+        mycelium_core::queries::callers_payload(&store, id, path, kind, include_virtual);
+    // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
+    // explicit. Default text mode prints the full list — no silent truncation
+    // of human-facing output (RFC-0102 text-mode rule; CLI text unchanged).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
     }
-    paths.sort_unstable();
-    paths.dedup();
-    print_string_list(&paths, format)
+    print_object_with_list(&value, "caller_paths", format)
 }
 
 // ── call-graph: get-callee-tree / get-caller-tree ─────────────────────────────
@@ -447,8 +531,15 @@ pub(crate) fn run_get_dead_symbols(
     root: &Path,
     prefix: Option<&str>,
     edge_kind: Option<&str>,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let symbols = match edge_kind {
         None => store.dead_symbols(prefix),
@@ -457,17 +548,44 @@ pub(crate) fn run_get_dead_symbols(
             store.dead_symbols_for_kind(kind, prefix)
         }
     };
-    print_string_list(&symbols, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::dead_symbols_payload(&symbols);
+    // Budget in JSON mode (MCP parity) or with explicit --budget; default text
+    // prints the full list (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "dead_symbols", format)
 }
 
 pub(crate) fn run_get_isolated_symbols(
     root: &Path,
     prefix: Option<&str>,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let symbols = store.isolated_symbols(prefix);
-    print_string_list(&symbols, format)
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::isolated_symbols_payload(&symbols);
+    // Budget in JSON mode (MCP parity) or with explicit --budget; default text
+    // prints the full list (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "isolated_symbols", format)
 }
 
 // ── import-graph: get-imports / get-import-tree / get-importers-tree ──────────
@@ -811,16 +929,31 @@ pub(crate) fn run_get_reachable(
     path: &str,
     edge_kind: &str,
     max_depth: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
     let reachable = store.reachable_from(id, kind, max_depth);
-    let count = reachable.len();
-    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::reachable_payload(&reachable);
+    // Budget in JSON mode (MCP parity) or with explicit --budget; default text
+    // prints the full result (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
     print_tree_value(&value, format)
 }
 
@@ -829,16 +962,31 @@ pub(crate) fn run_get_reachable_to(
     path: &str,
     edge_kind: &str,
     max_depth: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
     let id = store
         .lookup(path)
         .ok_or_else(|| anyhow!("path not found: {path}"))?;
     let reachable = store.reachable_to(id, kind, max_depth);
-    let count = reachable.len();
-    let value = serde_json::json!({ "reachable": reachable, "count": count });
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::reachable_payload(&reachable);
+    // Budget in JSON mode (MCP parity) or with explicit --budget; default text
+    // prints the full result (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
     print_tree_value(&value, format)
 }
 
@@ -1985,9 +2133,19 @@ pub(crate) fn run_context(
     max_nodes: Option<usize>,
     max_code_blocks: Option<usize>,
     edge_kinds: &[String],
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::BudgetOverride;
     use mycelium_core::context::{self, ContextOptions, Routing};
+
+    // Per-call budget override (RFC-0102) — parsed via the same core `FromStr`
+    // the MCP tool uses, so both surfaces resolve the identical budget. An
+    // invalid value fails fast (mirrors the MCP application error).
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow::anyhow!(e))?;
 
     let store = load_index(root)?;
     let max_n = max_nodes.unwrap_or(30).min(100);
@@ -2025,10 +2183,11 @@ pub(crate) fn run_context(
     };
     let mut value =
         context::build_payload(&store, task, &candidates, &entry_points, routing, &opts);
-    // Same budget as the MCP tool over the same payload → byte-identical JSON.
+    // Same resolution as the MCP tool over the same payload → byte-identical
+    // JSON (RFC-0102 / Three-Surface Rule).
     mycelium_core::budget::apply_budget(
         &mut value,
-        &mycelium_core::budget::OutputBudget::for_project(store.node_count()),
+        &mycelium_core::budget::OutputBudget::resolve(budget_override, store.node_count()),
     );
 
     match format {
@@ -2070,6 +2229,7 @@ mod tests {
             None,
             None,
             &[],
+            None,
             Format::Json,
         )
         .unwrap_err();

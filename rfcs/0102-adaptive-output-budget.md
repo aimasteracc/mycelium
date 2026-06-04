@@ -1,6 +1,6 @@
 # RFC-0102: Adaptive output budgets for agent-facing results
 
-- **Status**: Implemented (#395, completed in the RFC-0101 budget follow-up). `OutputBudget` + `apply_budget` now live in `mycelium_core::budget` and are applied across the MCP tool surface **and** inside `mycelium_context` on both the MCP tool and the CLI twin — the same budget over the same payload, so CLI↔MCP stays byte-identical. The two never-enforced fields (`max_code_lines` / `max_total_chars`) were removed. Truncation stays visible via `truncated` / `total_available`. Remaining nice-to-have (non-blocking): a per-call `--budget`/`budget` override knob (`BudgetOptions`).
+- **Status**: **Partially Implemented** (#395 + the RFC-0101 budget follow-up). `OutputBudget` + `apply_budget` live in `mycelium_core::budget` and are applied across the MCP tool surface **and** inside `mycelium_context` on both the MCP tool and the CLI twin — the same budget over the same payload, so CLI↔MCP stays byte-identical, and the two never-enforced fields (`max_code_lines` / `max_total_chars`) were removed. Truncation is visible via top-level `truncated` and `total_available` **and** the nested `budget { mode, truncated, truncated_fields, total_available{...}, limits{...} }` object (shipped on truncation; `OutputBudget` carries a `mode: BudgetMode` tag; both surfaces call the same core `apply_budget`, so the object is byte-identical by construction). The **per-call override knob** is now shipped on the flagship `mycelium_context` tool + its CLI twin: `BudgetOverride { Auto, Small, Medium, Large, Disabled }` resolved by `OutputBudget::resolve(over, node_count)`, exposed as the MCP `budget` field and CLI `--budget`, parsed via a shared `FromStr` (unknown value → fail-fast). **What remains**: rolling the same `resolve`-before-`apply_budget` helper across the other graph-list tools (`get_all_symbols`, `get_callee_tree`, …) — mechanical, no new design — and flipping budget metadata to always-on (currently truncation-only).
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-01
 - **Last updated**: 2026-06-01
@@ -270,18 +270,69 @@ responses, the helper should short-circuit counting until a limit is near.
 
 ## Acceptance criteria
 
-- [ ] RFC accepted before broad response-contract changes begin.
-- [ ] `OutputBudget` and `BudgetOptions` are shared by CLI and MCP paths.
-- [ ] MCP and CLI JSON outputs remain parity-equivalent for covered tools.
-- [ ] Covered tools include `budget` metadata with `truncated`,
-      `truncated_fields`, `total_available`, and `limits`.
-- [ ] Structured truncation is used; no final-response string slicing.
-- [ ] `get_all_symbols` keeps existing pagination keys.
-- [ ] Small-project guidance is exposed through instructions/status metadata,
-      not hard `list_tools` hiding in the first implementation.
-- [ ] At least three RED-first tests cover boundary selection, truncation
-      metadata, and CLI/MCP parity.
-- [ ] Quality gate remains green.
+- [x] RFC accepted (core implementation in #395, completed in the RFC-0101
+      budget follow-up).
+- [x] `OutputBudget` **and the per-call override knob** are shared by CLI and
+      MCP paths. `OutputBudget` lives in `mycelium_core::budget`; the per-call
+      override is `BudgetOverride { Auto, Small, Medium, Large, Disabled }`
+      resolved by `OutputBudget::resolve(over, node_count)` — both surfaces
+      parse the same wire token via the shared `FromStr` and call the same
+      `resolve`, so the effective budget is byte-identical by construction.
+      Exposed on the flagship `mycelium_context` tool (MCP `budget` field) and
+      its CLI twin (`mycelium context --budget`); an unknown value fails fast
+      (MCP `application_error` / CLI non-zero exit). Clients can now request
+      `disabled` or pin a tier explicitly. *(Scope: wired on `mycelium_context`
+      first per §"first implementation family"; rolling the same
+      `resolve`-before-`apply_budget` helper across the remaining graph-list
+      tools is a mechanical follow-up.)*
+- [x] MCP and CLI JSON outputs remain parity-equivalent for covered tools
+      (the same `apply_budget` runs on the same payload — proven by the
+      RFC-0101 `mycelium_context` byte-identical contract test).
+- [x] Covered tools include `budget` metadata with `truncated`,
+      `truncated_fields`, `total_available`, and `limits`. The nested
+      `budget {mode, truncated, truncated_fields, total_available{...},
+      limits{max_nodes,max_edges}}` object is emitted by
+      `mycelium_core::budget::apply_budget` on truncation, **additively** —
+      the flat `truncated` + `total_available` fields are retained for
+      backward compatibility (RFC-0102 "add without removing existing keys").
+      Because both surfaces call the same core `apply_budget`, the object is
+      byte-identical across CLI and MCP by construction. *(`limits` carries
+      `max_nodes`/`max_edges`; the originally-sketched `max_total_chars` is
+      omitted because that field was removed from `OutputBudget` — see Status.)*
+      The nested object is currently emitted **only on truncation**, mirroring
+      the flat-field semantics; always-on metadata ships alongside the
+      `BudgetOptions` request knob (next increment).
+- [x] Structured truncation is used; no final-response string slicing
+      (`apply_budget` operates on `serde_json::Value`, not the wire string).
+- [x] `get_all_symbols` keeps existing pagination keys (verified by the
+      MCP contract suite — `crates/mycelium-mcp/tests/contract.rs`).
+- [x] Small-project guidance is exposed through instructions/status metadata
+      (`InitializeResult.instructions` carries the small-project hint when
+      `node_count < 500`).
+- [x] At least three RED-first tests cover boundary selection, truncation
+      metadata, and CLI/MCP parity (`crates/mycelium-core/src/budget/tests.rs`
+      — 5 unit tests; plus the RFC-0101 byte-identical contract test).
+- [x] Quality gate remains green (v0.1.19 release passed all gates).
+
+### What's still pending
+
+The two unchecked items above describe an advertised contract that the
+shipped code does NOT yet honour:
+
+1. **`BudgetOptions` request knob** — neither the MCP tool requests nor the
+   CLI subcommands accept a `budget` / `--budget` argument. Boundary picking
+   is server-derived from store size only.
+2. **Nested `budget` response object** with `truncated_fields` / `limits` /
+   per-field `total_available`. Implementation only writes flat top-level
+   `truncated` (bool) + `total_available` (usize), which is sufficient for
+   v0.1.19's MCP contract but is **not** the shape this RFC's §"Detailed
+   design" mandates.
+
+Either the spec body needs to be downscoped to match what shipped (drop
+`BudgetOptions` and the nested shape from the design), or the
+implementation needs to land before this RFC can move to **Implemented**.
+Tracked for a follow-up; do not advertise as a finished contract to
+external consumers until then.
 
 ## Open questions
 

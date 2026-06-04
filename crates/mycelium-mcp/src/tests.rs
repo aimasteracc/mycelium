@@ -691,6 +691,7 @@ async fn get_callees_returns_functions_called_by_path() {
             path: "src/lib.rs>foo".to_string(),
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -719,6 +720,7 @@ async fn get_callers_returns_functions_that_call_path() {
             edge_kind: None,
             include_virtual: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -746,6 +748,7 @@ async fn get_callees_returns_error_for_unknown_path() {
             path: "no/such/path".to_string(),
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2431,6 +2434,7 @@ async fn get_dead_symbols_returns_unreferenced_symbols() {
             path_prefix: None,
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2457,6 +2461,7 @@ async fn get_dead_symbols_empty_store() {
             path_prefix: None,
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2472,6 +2477,7 @@ async fn get_dead_symbols_prefix_filter() {
             path_prefix: Some("src/lib.rs".to_owned()),
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2503,6 +2509,7 @@ async fn get_isolated_symbols_returns_completely_disconnected() {
         .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
             path_prefix: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2522,6 +2529,7 @@ async fn get_isolated_symbols_empty_store() {
         .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
             path_prefix: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2540,6 +2548,7 @@ async fn get_isolated_symbols_prefix_filter() {
         .mycelium_get_isolated_symbols(Parameters(GetIsolatedSymbolsRequest {
             path_prefix: Some("src/".to_owned()),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4722,6 +4731,7 @@ async fn get_all_symbols_excludes_file_nodes() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4749,6 +4759,7 @@ async fn get_all_symbols_prefix_filter() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4774,6 +4785,7 @@ async fn get_all_symbols_kind_filter() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4792,6 +4804,7 @@ async fn get_all_symbols_unknown_kind_returns_error() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4814,6 +4827,7 @@ async fn get_all_symbols_no_params_returns_all() {
             limit: None,
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4838,6 +4852,7 @@ async fn get_all_symbols_limit_caps_result_count() {
             limit: Some(3),
             offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4864,6 +4879,7 @@ async fn get_all_symbols_offset_skips_results() {
             limit: None,
             offset: Some(2),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4893,6 +4909,7 @@ async fn get_reachable_direct_callees() {
             edge_kind: "calls".to_owned(),
             max_depth: Some(1),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4923,6 +4940,7 @@ async fn get_reachable_cycle_safe() {
             edge_kind: "calls".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4939,6 +4957,7 @@ async fn get_reachable_unknown_path_returns_error() {
             edge_kind: "calls".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4958,6 +4977,7 @@ async fn get_reachable_unknown_edge_kind_returns_error() {
             edge_kind: "bogus".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -4979,6 +4999,7 @@ async fn get_reachable_max_depth_zero_empty() {
             edge_kind: "calls".to_owned(),
             max_depth: Some(0),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5004,6 +5025,7 @@ async fn get_reachable_to_direct_callers() {
             edge_kind: "calls".to_owned(),
             max_depth: Some(1),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5034,6 +5056,7 @@ async fn get_reachable_to_cycle_safe() {
             edge_kind: "calls".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5050,6 +5073,7 @@ async fn get_reachable_to_unknown_path_returns_error() {
             edge_kind: "calls".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5069,6 +5093,7 @@ async fn get_reachable_to_unknown_edge_kind_returns_error() {
             edge_kind: "bogus".to_owned(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5090,6 +5115,7 @@ async fn get_reachable_to_max_depth_zero_empty() {
             edge_kind: "calls".to_owned(),
             max_depth: Some(0),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6132,6 +6158,7 @@ async fn get_callers_include_virtual_surfaces_virtual_dispatch_caller() {
             edge_kind: None,
             include_virtual: Some(true),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6153,6 +6180,7 @@ async fn get_callers_default_does_not_include_virtual() {
             edge_kind: None,
             include_virtual: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6176,6 +6204,7 @@ async fn test_get_callees_text_format() {
             path: "src/greet.rs>greet".to_owned(),
             edge_kind: None,
             output_format: Some(OutputFormat::Text),
+            budget: None,
         }))
         .await;
     // Text format must not start with a JSON brace.
@@ -6195,6 +6224,7 @@ async fn test_get_callers_text_format() {
             edge_kind: None,
             include_virtual: None,
             output_format: Some(OutputFormat::Text),
+            budget: None,
         }))
         .await;
     assert!(
@@ -6440,6 +6470,7 @@ async fn get_callees_edge_kind_imports_returns_import_targets() {
             path: "src/a.rs>ModA".to_string(),
             edge_kind: Some("imports".to_string()),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
@@ -6465,6 +6496,7 @@ async fn get_callers_edge_kind_extends_returns_extenders() {
             edge_kind: Some("extends".to_string()),
             include_virtual: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&result)).unwrap();
@@ -6521,6 +6553,7 @@ async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
             path_prefix: None,
             edge_kind: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&result_default)).unwrap();
@@ -6540,6 +6573,7 @@ async fn get_dead_symbols_edge_kind_calls_finds_call_unreferenced() {
             path_prefix: None,
             edge_kind: Some("calls".to_string()),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val2: serde_json::Value = serde_json::from_str(result_str(&result_calls)).unwrap();

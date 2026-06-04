@@ -393,6 +393,11 @@ pub struct GetCalleesRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
+    /// The CLI `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_callers`.
@@ -412,6 +417,11 @@ pub struct GetCallersRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
+    /// The CLI `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_symbol_info`.
@@ -817,6 +827,11 @@ pub struct GetDeadSymbolsRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
+    /// The CLI `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_isolated_symbols`.
@@ -828,6 +843,11 @@ pub struct GetIsolatedSymbolsRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
+    /// The CLI `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_stats`.
@@ -1317,6 +1337,11 @@ pub struct GetAllSymbolsRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Caps the paginated page.
+    /// Unknown values are rejected. The CLI `--budget` flag is the twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_reachable`.
@@ -1332,6 +1357,11 @@ pub struct GetReachableRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
+    /// The CLI `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_reachable_to`.
@@ -1347,6 +1377,11 @@ pub struct GetReachableToRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
+    /// The CLI `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_siblings`.
@@ -1451,6 +1486,12 @@ pub struct GetContextRequest {
     /// `"msgpack"` (hex-encoded binary). Omit for JSON.
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default, follows project
+    /// size), `"small"` / `"medium"` / `"large"` (pin a tier), or `"disabled"`
+    /// (no truncation). Unknown values are rejected. The CLI `--budget` flag is
+    /// the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 // ── server ────────────────────────────────────────────────────────────────────
@@ -1459,7 +1500,7 @@ pub struct GetContextRequest {
 // CLI applies the *same* truncation and CLI↔MCP output stays byte-identical
 // (Three-Surface Rule). The two dead fields (`max_code_lines`/`max_total_chars`)
 // were removed there — they were never enforced.
-use mycelium_core::budget::{OutputBudget, apply_budget};
+use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
 
 #[allow(dead_code)]
 fn is_core_tool(name: &str) -> bool {
@@ -2323,22 +2364,23 @@ impl MyceliumServer {
             Ok(k) => k,
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
         let store_guard = self.store.read().await;
-        let lookup_result = store_guard.lookup(&req.path);
-        let Some(id) = lookup_result else {
+        let Some(id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
             return not_found(&req.path);
         };
-        let mut paths: Vec<String> = store_guard
-            .outgoing(id, kind)
-            .iter()
-            .filter_map(|&dst| store_guard.path_of(dst).map(str::to_owned))
-            .collect();
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::callees_payload(&store_guard, id, kind);
+        let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
         drop(store_guard);
-        paths.sort();
-        paths.dedup();
-        let mut value = serde_json::json!({ "callee_paths": paths });
-        apply_budget(&mut value, &self.current_budget().await);
+        apply_budget(&mut value, &budget);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2361,36 +2403,30 @@ impl MyceliumServer {
             Ok(k) => k,
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
-        let (direct, virtual_opt) = {
-            let store_guard = self.store.read().await;
-            let Some(id) = store_guard.lookup(&req.path) else {
-                return application_error(
-                    &serde_json::json!({ "error": format!("path not found: {}", req.path) }),
-                );
-            };
-            let d: Vec<String> = store_guard
-                .incoming(id, kind)
-                .iter()
-                .filter_map(|&src| store_guard.path_of(src).map(str::to_owned))
-                .collect();
-            // virtual dispatch only makes sense for Calls edges
-            let v = if kind == mycelium_core::types::EdgeKind::Calls
-                && req.include_virtual == Some(true)
-            {
-                store_guard
-                    .virtual_dispatch_callers_of_path(&req.path)
-                    .unwrap_or_default()
-            } else {
-                vec![]
-            };
-            (d, v)
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
         };
-        let mut paths = direct;
-        paths.extend(virtual_opt);
-        paths.sort();
-        paths.dedup();
-        let mut value = serde_json::json!({ "caller_paths": paths });
-        apply_budget(&mut value, &self.current_budget().await);
+        let store_guard = self.store.read().await;
+        let Some(id) = store_guard.lookup(&req.path) else {
+            return application_error(
+                &serde_json::json!({ "error": format!("path not found: {}", req.path) }),
+            );
+        };
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::callers_payload(
+            &store_guard,
+            id,
+            &req.path,
+            kind,
+            req.include_virtual == Some(true),
+        );
+        let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
+        drop(store_guard);
+        apply_budget(&mut value, &budget);
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2817,6 +2853,13 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetDeadSymbolsRequest>,
     ) -> CallToolResult {
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
         let store = self.store.read().await;
         let dead = match req.edge_kind.as_deref() {
             None => store.dead_symbols(req.path_prefix.as_deref()),
@@ -2825,10 +2868,14 @@ impl MyceliumServer {
                 Err(e) => return application_error(&serde_json::json!({ "error": e })),
             },
         };
+        let node_count = store.node_count();
         drop(store);
-        let count = dead.len();
-        let mut value = serde_json::json!({ "dead_symbols": dead, "count": count });
-        apply_budget(&mut value, &self.current_budget().await);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::dead_symbols_payload(&dead);
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2847,14 +2894,23 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetIsolatedSymbolsRequest>,
     ) -> CallToolResult {
-        let isolated = self
-            .store
-            .read()
-            .await
-            .isolated_symbols(req.path_prefix.as_deref());
-        let count = isolated.len();
-        let mut value = serde_json::json!({ "isolated_symbols": isolated, "count": count });
-        apply_budget(&mut value, &self.current_budget().await);
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
+        let store = self.store.read().await;
+        let isolated = store.isolated_symbols(req.path_prefix.as_deref());
+        let node_count = store.node_count();
+        drop(store);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::isolated_symbols_payload(&isolated);
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -2962,15 +3018,21 @@ impl MyceliumServer {
                 );
             }
         }
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
         let kind = req
             .kind
             .as_deref()
             .and_then(mycelium_core::types::NodeKind::try_from_wire);
-        let all_symbols = self
-            .store
-            .read()
-            .await
-            .all_symbols(req.path_prefix.as_deref(), kind);
+        let store = self.store.read().await;
+        let all_symbols = store.all_symbols(req.path_prefix.as_deref(), kind);
+        let node_count = store.node_count();
+        drop(store);
         let total_count = all_symbols.len();
         let offset = req.offset.unwrap_or(0);
         let limit = req.limit.unwrap_or(0);
@@ -2979,13 +3041,13 @@ impl MyceliumServer {
             .skip(offset)
             .take(if limit == 0 { usize::MAX } else { limit })
             .collect();
-        let count = page.len();
-        let mut value = serde_json::json!({
-            "symbols": page,
-            "count": count,
-            "total_count": total_count,
-        });
-        apply_budget(&mut value, &self.current_budget().await);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::all_symbols_payload(&page, total_count);
+        // Budget caps the paginated page (RFC-0109 decision).
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -3007,19 +3069,29 @@ impl MyceliumServer {
             Ok(k) => k,
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
-        let max_depth = req.max_depth.unwrap_or(10);
-        let reachable_opt: Option<Vec<String>> = {
-            let store = self.store.read().await;
-            store
-                .lookup(&req.path)
-                .map(|id| store.reachable_from(id, kind, max_depth))
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
         };
+        let max_depth = req.max_depth.unwrap_or(10);
+        let store = self.store.read().await;
+        let node_count = store.node_count();
+        let reachable_opt = store
+            .lookup(&req.path)
+            .map(|id| store.reachable_from(id, kind, max_depth));
+        drop(store);
         let Some(reachable) = reachable_opt else {
             return not_found(&req.path);
         };
-        let count = reachable.len();
-        let mut value = serde_json::json!({ "reachable": reachable, "count": count });
-        apply_budget(&mut value, &self.current_budget().await);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::reachable_payload(&reachable);
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -3041,19 +3113,29 @@ impl MyceliumServer {
             Ok(k) => k,
             Err(e) => return application_error(&serde_json::json!({ "error": e })),
         };
-        let max_depth = req.max_depth.unwrap_or(10);
-        let reachable_opt: Option<Vec<String>> = {
-            let store = self.store.read().await;
-            store
-                .lookup(&req.path)
-                .map(|id| store.reachable_to(id, kind, max_depth))
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
         };
+        let max_depth = req.max_depth.unwrap_or(10);
+        let store = self.store.read().await;
+        let node_count = store.node_count();
+        let reachable_opt = store
+            .lookup(&req.path)
+            .map(|id| store.reachable_to(id, kind, max_depth));
+        drop(store);
         let Some(reachable) = reachable_opt else {
             return not_found(&req.path);
         };
-        let count = reachable.len();
-        let mut value = serde_json::json!({ "reachable": reachable, "count": count });
-        apply_budget(&mut value, &self.current_budget().await);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::reachable_payload(&reachable);
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(req.output_format.map_or_else(
             || value.to_string(),
             |fmt| formatter_for(fmt).format(&value),
@@ -5228,6 +5310,20 @@ impl MyceliumServer {
             let eps = context::seed_entry_points(&store, &cands, max_nodes);
             (Routing::Natural, cands, eps)
         };
+        // Per-call budget override (RFC-0102 §"Request knobs"). Parsed here so
+        // an invalid value fails fast with an application error before any
+        // formatting. The CLI twin parses the identical string via the same
+        // core `FromStr`, so both surfaces resolve the same budget.
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => {
+                    return application_error(&serde_json::json!({ "error": e }));
+                }
+            },
+        };
+
         let mut value = context::build_payload(
             &store,
             &req.task,
@@ -5236,10 +5332,13 @@ impl MyceliumServer {
             routing,
             &opts,
         );
-        // Apply the adaptive budget from the live node count — the CLI twin runs
-        // the identical `for_project(node_count)` over the same payload, so the
-        // truncated JSON stays byte-identical (RFC-0102 / Three-Surface Rule).
-        apply_budget(&mut value, &OutputBudget::for_project(store.node_count()));
+        // Apply the resolved budget over the same payload — the CLI twin runs
+        // the identical `resolve(override, node_count)`, so the truncated JSON
+        // stays byte-identical (RFC-0102 / Three-Surface Rule).
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
         drop(store);
 
         success_str(req.output_format.map_or_else(
@@ -5298,7 +5397,7 @@ impl MyceliumServer {
 }
 
 const MCP_INSTRUCTIONS_BASE: &str = "\
-## Mycelium — AI-native symbol graph (90 tools)
+## Mycelium — AI-native symbol graph (93 tools)
 
 **Setup (always first):**
 - Index a workspace → `mycelium_index_workspace`
