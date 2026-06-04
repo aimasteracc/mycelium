@@ -239,8 +239,13 @@ jobs:
           # --no-merges so historical PR merge commits (which never carried
           # sign-off and predate DCO enforcement) don't fail back-merge PRs
           # like release/* → develop. Authored commits must still sign off.
+          #
+          # Use full body grep instead of %(trailers:key=...) because GitHub
+          # squash-merge embeds Signed-off-by lines in the middle of the body
+          # (between individual commit entries) rather than as trailing lines,
+          # so the trailer parser misses them and false-fails those commits.
           for sha in $(git rev-list --no-merges ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
-            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' $sha | grep -q .; then
+            if ! git log -1 --format='%B' "$sha" | grep -qiE '^Signed-off-by:'; then
               echo "::error::Commit $sha lacks Signed-off-by trailer (DCO)."
               MISSING=$((MISSING+1))
             fi
