@@ -51,7 +51,9 @@ function resolveBinary(platform, arch, resolver) {
 }
 
 const SIGNAL_NUMS = Object.freeze({
-  SIGHUP: 1, SIGINT: 2, SIGQUIT: 3, SIGKILL: 9, SIGPIPE: 13, SIGTERM: 15,
+  SIGHUP:  1, SIGINT:  2, SIGQUIT: 3, SIGILL:  4, SIGTRAP: 5,
+  SIGABRT: 6, SIGBUS:  7, SIGFPE:  8, SIGKILL: 9, SIGSEGV: 11,
+  SIGPIPE: 13, SIGTERM: 15,
 });
 
 /** Returns the conventional 128+N exit code for a POSIX signal name. */

@@ -73,3 +73,12 @@ test("signalToExitCode maps POSIX signals to 128+signal_number", () => {
   assert.equal(signalToExitCode("SIGPIPE"),  141); // 128+13
   assert.equal(signalToExitCode("UNKNOWN_SIGNAL"), 128); // unknown → 128
 });
+
+test("signalToExitCode maps crash signals to conventional codes", () => {
+  const { signalToExitCode } = require("../bin/mycelium.cjs");
+  assert.equal(signalToExitCode("SIGILL"),   132); // 128+4  — illegal instruction
+  assert.equal(signalToExitCode("SIGABRT"),  134); // 128+6  — abort (assert failure)
+  assert.equal(signalToExitCode("SIGBUS"),   135); // 128+7  — bus error
+  assert.equal(signalToExitCode("SIGFPE"),   136); // 128+8  — floating-point exception
+  assert.equal(signalToExitCode("SIGSEGV"),  139); // 128+11 — segmentation fault
+});
