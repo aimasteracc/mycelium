@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v51 — PR #546 MERGED ✅ squash `0fe4f99c` (v50 wrap-up); 2 stale P2 items cleared; post-v0.2.0 queue tightened; 0 open PRs; v0.2.0 tag still pending founder) |
-| Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) **founder-gated**. Once tag pushed → v0.2.1 sprint begins. |
+| Last updated | 2026-06-04 (PM dispatch v52 — PR #547 merged; Codex P2 finding on #428 resolved (MCP split residual added to P2); MCP god-file split task opened) |
+| Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) **founder-gated**. MCP god-file split (P2) begun on develop for v0.2.1. |
 | Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) founder-gated |
 | Next release target | **v0.2.1** — npm scope + dogfood validation + RFC-0104 cold SLA numbers |
 | Final release target | v0.3.0 ETA TBD |
@@ -192,25 +192,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 8. Issue #534 — npm scope E404 tightening once @aimasteracc scope registered.
 9. ~~`release.yml` systemic auto-close fix~~ — ✅ **RESOLVED** — `finalize` job already uses direct `git push origin main` (RFC-0110 redesign), not GitHub PR API. Auto-close bug is gone.
 10. ~~**Systemic DCO fix**~~ — ✅ **DEPLOYED** PR #544 MERGED squash `0554ee7`. `grep -qiE '^Signed-off-by: .+ <.+>'` on `%B` active on develop.
-11. ~~Issue #428 god-file-split~~ — ✅ **CLOSED** (completed 2026-06-02; slices 1+2 shipped in v0.1.17).
-12. Skill marketplace submission to Claude Code marketplace (founder sign-off on metadata required).
-13. "First 5 minutes" walkthrough validation (requires v0.2.0 binary — post tag-push).
+11. ~~Issue #428 god-file-split~~ — ✅ **CLOSED** (ADR renumber + store split complete 2026-06-02; slices 1+2 shipped in v0.1.17). ⚠️ *Partial: `crates/mycelium-mcp/src/lib.rs` still 6,048 lines — tool-impl split NOT done.*
+12. **MCP god-file split residual** — `crates/mycelium-mcp/src/lib.rs` 6,048 lines; split into `tools/context.rs`, `tools/graph.rs` + tests submodule (Issue #428 acceptance criterion 2). Tracked as new sprint item for v0.2.1.
+13. Skill marketplace submission to Claude Code marketplace (founder sign-off on metadata required).
+14. "First 5 minutes" walkthrough validation (requires v0.2.0 binary — post tag-push).
 
 ---
 
-## Dispatch state (2026-06-04 v51 — PR #546 MERGED squash `0fe4f99c`; 2 stale P2 items closed; 0 open PRs; all queues idle pending founder tag push)
+## Dispatch state (2026-06-04 v52 — PR #547 merged; Codex P2 #428-MCP-split residual added; MCP god-file split begun)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate). **(P0)** Register `@aimasteracc` npm scope (Issue #534) + add NPM_TOKEN to `npm` environment secret. |
-| PM | **DONE ✅** | v51: merged #546 (v50 chore, squash `0fe4f99c`); cleared stale P2 items (#9 release.yml auto-close RESOLVED, #11 Issue #428 CLOSED); post-v0.2.0 queue tightened. |
+| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2). **(P0)** Register `@aimasteracc` npm scope (Issue #534) + add NPM_TOKEN to `npm` environment secret. |
+| PM | **DONE ✅** | v52: PR #547 merged; Codex P2 resolved (MCP split residual added as P2 #12); MCP god-file split sprint-tasked. |
 | release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push + GH Release) founder-gated. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
 | architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
 | e2e-runner | **BLOCKED** | Dogfood re-run: blocked on v0.2.0 binary (tag push first). |
 | bench | **BLOCKED** | RFC-0104 cold SLA numbers: blocked on v0.2.0 binary + nightly run. |
 | tech-writer | **BLOCKED** | Marketplace submission: blocked on founder sign-off for metadata. |
-| rust-implementer | **idle** | No unblocked P1/P2 backlog items until after tag push. |
+| rust-implementer | **P2 active** | MCP god-file split: `crates/mycelium-mcp/src/lib.rs` 6,048→target split into `tools/` modules. Slice 1: context + graph tools (charter target: ≤ 800 lines/file). |
 
 ---
 
@@ -242,6 +243,32 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-04 PM dispatch v52 (PR #547 merged; Codex P2 resolved; MCP god-file split tasked)
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (merge-discipline/release-governance/ci hits), PM state v51 (branch `chore/pm-dispatch-v51`), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #547 (chore/pm-dispatch-v51, CI 22/22 ✅, **1 Codex P2 finding** — line 195 MCP split incorrectly fully cleared).
+- 0 open P0/P1 issues.
+- Develop CI: GREEN.
+- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag push) founder-gated.
+- `crates/mycelium-mcp/src/lib.rs` confirmed 6,048 lines — Issue #428 acceptance criterion 2 (tool-impl split) was never completed.
+- Codex P2 finding is valid: PM v51 erroneously struck through #428 as fully done.
+
+**Actions taken:**
+1. **Fixed PM state line 195**: restored MCP god-file split residual as explicit P2 item #12. Added inline warning to #11 strikethrough. ✅
+2. **Updated dispatch state to v52**: rust-implementer set to P2 active (MCP split). ✅
+3. **Replied to Codex P2 finding** on PR #547 with justification: Issue #428 founder-closed (partial); MCP split added as new P2 item. ✅
+4. **Merged PR #547** (squash). ✅
+5. **Appended decisions.jsonl v52 entry**. ✅
+6. **Started MCP god-file split** — new branch `refactor/mcp-god-file-split-slice1`. ✅
+
+**Escalations to founder:**
+- **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2).
+- **(P0)** Register `@aimasteracc` npm scope + add `NPM_TOKEN` to `npm` environment secret (Issue #534).
+
+---
 
 ### 2026-06-04 PM dispatch v51 (PR #546 MERGED; 2 stale P2 items cleared; post-v0.2.0 queue tightened)
 
