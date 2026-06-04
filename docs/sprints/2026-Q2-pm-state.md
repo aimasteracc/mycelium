@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v28 — PR #496 merged; #502/#505/#506 closed superseded; PR #508 opened (develop CI fix); RFC-0109 tools 1–3 on develop) |
-| Current sprint | **RFC-0109 graph-list parity roll-out (3/7 tools on develop: get_callees + get_callers + get_dead_symbols) — develop CI red (macOS), PR #508 fix running** |
-| Active release branch | none — v0.1.19 shipped; release/v0.1.20 to be cut once RFC-0109 roll-out complete |
-| Next release target | **v0.1.20** — RFC-0109 graph-list object-shape parity (all 7 tools) + budget/ADR-0010 docs |
+| Last updated | 2026-06-04 (PM dispatch v35 — PR #515 44/44 CI ✅ ALL GREEN; Codex P1 on PR #522 fixed; PR #522 ready to merge) |
+| Current sprint | **v0.1.20 ceremony — ALL CI GREEN ✅** — PR #515 (release/v0.1.20 → main): 44/44 checks SUCCESS/SKIPPED. Codex: 0 findings. Ready for founder ceremony (merge → tag → GitHub Release). |
+| Active release branch | `release/v0.1.20` — PR #515 open → main, **44/44 CI ✅ ALL GREEN**, 0 Codex findings |
+| Next release target | **v0.1.20** — RFC-0109 7/7 + RFC-0102 budget roll-out + ADR-0010 + RFC-0110 npm. Ceremony pending founder. |
 | Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03. |
+| Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03T15:49Z. |
 
 ---
 
@@ -139,57 +139,81 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## 🔧 Post-v0.1.19 — Unreleased on develop (→ v0.1.20)
+## 🔥 v0.1.20 — CEREMONY PENDING FOUNDER (PR #515 44/44 CI ✅ ALL GREEN)
 
-> These commits are on develop but were **not** part of v0.1.19 (per Codex audit).
-> They will ship in v0.1.20.
-
-- [x] docs: align doc claims with code — tool count 89→93, RFC-0100/0102 acceptance criteria synced (PR #495, `dc5883d`)
+**What ships in v0.1.20 (all on `release/v0.1.20` SHA `1b0d7dc`):**
+- [x] docs: align doc claims with code — tool count 89→93, RFC-0100/0102 acceptance criteria synced (PR #495)
 - [x] RFC-0102 nested `budget{}` response object + BudgetMode tag (PR #497)
 - [x] RFC-0102 per-call budget override knob on `mycelium_context` + CLI twin (PR #498)
-- [x] fix(budget): cap `callee_paths`/`caller_paths`/`dead_symbols`/`isolated_symbols` in apply_budget (PR #499)
-- [x] docs(rfc): RFC-0109 graph-list output-shape parity + budget roll-out, Option A ratified (PR #500)
+- [x] fix(budget): cap `callee_paths`/`caller_paths`/`dead_symbols`/`isolated_symbols` in `apply_budget` (PR #499)
+- [x] docs(rfc): RFC-0109 graph-list output-shape parity, Option A ratified (PR #500)
 - [x] feat(queries): RFC-0109 **get_callees** shared builder + object shape + budget knob (PR #501)
-- [x] feat(queries): RFC-0109 **get_callers** shared builder + object shape + budget knob (PR #504, `9bd288c0`)
-- [x] feat(queries): RFC-0109 **get_dead_symbols** shared builder + object shape + budget knob (PR #507, `2c130452`)
-- [x] docs(adr): **ADR-0010** — no live LSP; prefer static SCIP/LSIF (PR #496, merged this session)
+- [x] feat(queries): RFC-0109 **get_callers** shared builder + object shape + budget knob (PR #504)
+- [x] feat(queries): RFC-0109 **get_dead_symbols** shared builder + object shape + budget knob (PR #507)
+- [x] docs(adr): **ADR-0010** — no live LSP; prefer static SCIP/LSIF (PR #496)
+- [x] feat(queries): RFC-0109 **get_isolated_symbols** shared builder + budget knob (PR #509)
+- [x] fix(ci): macOS `sla_ancestors_100k` guard 30ms → 100ms (PR #508)
+- [x] feat(queries): RFC-0109 **get_reachable** shared builder + budget knob (PR #511)
+- [x] feat(queries): RFC-0109 **get_reachable_to** shared builder + budget knob (PR #512)
+- [x] feat(queries): RFC-0109 **get_all_symbols** object shape + budget knob — **RFC-0109 7/7 COMPLETE** (PR #513)
+- [x] CHANGELOG sealed + Cargo.toml 0.1.19 → 0.1.20
+
+**v0.1.20 ceremony status — 44/44 CI ✅ ALL GREEN (founder action needed):**
+- [x] Release branch `release/v0.1.20` cut from develop
+- [x] **crates.io v0.1.20 published** ✅ (orphan, 2026-06-04T01:17Z)
+- [x] **npm v0.1.20 published** ✅ (orphan)
+- [x] **PyPI v0.1.20 published** ✅ (orphan)
+- ✅ **Step 1**: PR #515 → `main` — **44/44 CI ✅ ALL GREEN** (DCO ✅, unit tests ✅, coverage ✅, linux/macos/windows stable/nightly ✅, E2E ✅, security ✅). Codex: 0 findings. **Founder: merge this PR now.**
+- ❌ **Step 2**: Tag `v0.1.20` NOT pushed
+- ❌ **Step 3**: GitHub Release NOT created
+- ❌ **Step 4**: Back-merge `release/v0.1.20` → `develop` NOT done (PM opens PR after Step 1)
+
+---
+
+## ✅ RFC-0110 — npm/bun CLI distribution (ALL 3 INCREMENTS COMPLETE on develop)
+
+**Goal:** `npm i -g @aimasteracc/mycelium && mycelium --version` works on machines without Cargo.
+
+- [x] **Increment 1** (PR #517, founder-authored, merged 2026-06-04T02:15Z): npm package scaffolding — launcher `bin/mycelium.cjs`, `package.json` with 5-platform `optionalDependencies`, `build-npm.mjs` assembly script, 8 unit tests.
+- [x] **Increment 2** (PR #519, merged 2026-06-04T02:26Z): `release.yml` cross-compile matrix — builds CLI binaries for darwin-arm64/x64, linux-x64/arm64, win32-x64; attaches to GitHub Release.
+- [x] **Increment 3** (PR #520, merged 2026-06-04T02:56Z): `publish-npm` job rewired (assemble + publish platform + main packages); CI smoke test (`npm install --install-links` → launcher → `--version`).
+
+**Status:** RFC-0110 **Implemented** on develop. Goes live at next release (v0.1.20 or v0.1.21).
 
 ---
 
 ## Live priorities (ordered)
 
-**P0 (develop CI red — fix in flight):**
-1. **PR #508** (`fix/sla-ancestors-macos-flake`) — CI running. Fixes `sla_ancestors_100k` macOS flake (32.9ms vs 30ms limit; bumped to 100ms). Once CI green → admin-merge.
+**P0 (v0.1.20 ceremony — ALL CI GREEN, founder action now):**
+1. **✅ PR #515 ALL GREEN**: 44/44 CI checks SUCCESS/SKIPPED. Codex: 0 findings. **⚡ Founder: merge PR #515 → push tag `v0.1.20` → create GitHub Release.** PM opens Step 4 back-merge PR after Step 1.
+2. **Systemic DCO fix (P0 for v0.1.21+)**: `.github/dco.yml` has no effect — the CI gate is the custom shell script in `ci.yml` lines 205-229 (not the GitHub DCO App). Real fix: update the `dco-check` script to also grep the full commit message body for `Signed-off-by:` text (GitHub squash-merges embed it in the body, not as a formal git trailer), OR switch `release.yml` merge to direct `git push origin release/vX.Y.Z:main` (fast-forward, preserves all original commits including DCO trailers).
 
-**P1 (RFC-0109 roll-out — unblock v0.1.20):**
-2. **RFC-0109 tool 4**: `get_isolated_symbols` shared builder (rust-implementer; mirrors get_callees pattern).
-3. **RFC-0109 tool 5**: `get_reachable` shared builder.
-4. **RFC-0109 tool 6**: `get_reachable_to` shared builder.
-5. **RFC-0109 tool 7**: `get_all_symbols` (bespoke pagination — reconcile last).
-6. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands).
-7. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark (bench; macOS SLA fix landed via #508 first).
+**P1 (quality):**
+4. **Security scan post-v0.1.20** — PENDING (run after ceremony).
+5. **Dogfood re-run** — RFC-0109 object shapes + RFC-0110 npm launcher + redb-as-default + watch --subscribe (8/8 CLI).
+6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` for Charter §2 cold-open budget.
 
 **P2 (v0.2.0 scope):**
-8. Issue #428 god-file-split remaining slices.
-9. Skill marketplace submission to Claude Code marketplace.
-10. "First 5 minutes" walkthrough validation.
-11. `release.yml` finalize merge step systemic fix (ceremony script is the current workaround).
+7. Issue #428 god-file-split remaining slices.
+8. Skill marketplace submission to Claude Code marketplace.
+9. "First 5 minutes" walkthrough validation.
+10. `release.yml` systemic auto-close fix (ceremony script is current workaround).
 
 ---
 
-## Dispatch state (2026-06-03 v28 — PR #496 merged; #502/#505/#506 closed; PR #508 CI running; RFC-0109 3/7 on develop)
+## Dispatch state (2026-06-04 v35 — PR #515 44/44 CI ✅; Codex P1 on PR #522 fixed; founder ceremony unblocked)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(1)** Admin-merge PR #508 (`fix/sla-ancestors-macos-flake`) once CI green — fixes develop Quality Gate red. |
-| PM | **DONE ✅** | v28 complete: PR #496 merged; #502/#505/#506 closed; PR #508 opened; PM state corrected (v0.1.19 boundary); decisions.jsonl appended. |
-| release | **DONE ✅** | All ceremonies complete (v0.1.17 retro-tag ✅, v0.1.18 ✅, v0.1.19 ✅). Next: cut `release/v0.1.20` once RFC-0109 all 7 tools on develop. |
-| security-reviewer | **DONE ✅** | Post-v0.1.19 scan: CLEAN (no new unsafe/secrets in #497–#508 range). |
-| architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅ (merged this session). |
-| e2e-runner | **P1** | Dogfood re-run with redb-as-default + watch --subscribe (8/8 CLI). |
-| bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA (after #508 merges). |
-| tech-writer | idle | Skill marketplace submission prep (P2). |
-| rust-implementer | **P1** | RFC-0109 tools 4–7: get_isolated_symbols → get_reachable → get_reachable_to → get_all_symbols. |
+| founder | **action requested (P0)** | **(1)** Merge PR #515 → push tag `v0.1.20` → create GitHub Release (44/44 CI ✅, 0 Codex findings). **(2)** Systemic DCO fix: update `ci.yml` `dco-check` script to check commit message body for `Signed-off-by:`, OR switch `release.yml` to `git push origin release/vX.Y.Z:main` instead of `gh pr merge --squash`. |
+| PM | **IN PROGRESS** | v35 dispatch: Codex P1 on PR #522 fixed (corrected incorrect `.github/dco.yml` recommendation); PR #515 status confirmed 44/44; PM state updated; decisions.jsonl to append. |
+| release | **WAITING** | v0.1.20 ceremony blocked on founder (Steps 1+2+3). Step 4 back-merge: PM opens after Step 1. |
+| security-reviewer | **P1** | Post-v0.1.20 scan pending (after ceremony). Post-v0.1.19 scan: CLEAN. |
+| architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
+| e2e-runner | **P1** | Dogfood re-run: RFC-0109 object shapes + RFC-0110 npm + redb-as-default + watch --subscribe. |
+| bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA. |
+| tech-writer | **DONE ✅** | RFC-0110 Increment 1 scaffolding (founder-led). Marketplace submission: P2. |
+| rust-implementer | **DONE ✅** | RFC-0109 7/7 COMPLETE. RFC-0110 Increments 2+3 COMPLETE. |
 
 ---
 
@@ -200,10 +224,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **RFC-0104 cold SLA measurement**: Charter §2 table amendment (warm/cold split) requires measured nightly data.
-- ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED by founder 2026-06-03T12:30Z.
-- ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED — retro-tag pushed; main jumps v0.1.16 → v0.1.18 → v0.1.19.
-- **Systemic**: `release.yml` finalize merge step — ceremony script is workaround; fix deferred to P2.
+- **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
+- ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
+- ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
+- **v0.1.20 ceremony**: **44/44 CI ✅ ALL GREEN** (confirmed PM v35). PR #515 open, 0 Codex findings. Founder: merge PR #515 → push tag `v0.1.20` → create GitHub Release → PM opens Step 4 back-merge.
+- **Systemic DCO config**: Squash-merge via GitHub web UI drops `Signed-off-by` from formal git trailers. The `.github/dco.yml` approach does NOT fix this — the CI gate is a custom shell script (`ci.yml` `dco-check`), not the GitHub DCO App. Fix: update the `dco-check` script to grep full message body, OR switch release merge to direct `git push origin release/vX.Y.Z:main`.
+- **RFC-0110 merge auth**: PRs #517, #519, #520 all merged by founder ✅. RFC-0110 Implemented.
 
 ---
 
@@ -217,6 +243,92 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-04 PM dispatch v35 (this run — Codex P1 fixed on PR #522; PR #515 44/44 ✅)
+
+**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (latest: 2026-06-04T04:35Z v34 — deep DCO fix HEAD~16), anti-patterns (no new domain hits), PM state v34 (on branch v33), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #515 (release/v0.1.20 → main, 44/44 CI ✅ ALL GREEN, 0 Codex findings ✅ — ready for founder ceremony), #522 (chore/pm-dispatch v33, 20/20 CI ✅, **1 Codex P1 blocking merge**).
+- 0 P0/P1 issues. Latest tag: `v0.1.19`. Tags v0.1.18 + v0.1.19 exist — founder completed those ceremonies.
+- Codex P1 on PR #522 (line 190): `.github/dco.yml` recommendation is wrong — the CI gate is the custom shell script in `ci.yml` lines 205-229 (not the GitHub DCO App). Adding `.github/dco.yml` has zero effect on the actual check. This is a genuine documentation bug that would misdirect the founder.
+
+**Actions taken:**
+1. **Fixed Codex P1**: corrected the incorrect `.github/dco.yml` recommendation in 3 locations (lines 190, 209, 232) → now correctly identifies the real fix (update `dco-check` script to check full message body, OR switch `release.yml` merge to direct `git push`). ✅
+2. **Updated PM state v35**: header (44/44 CI green), v0.1.20 ceremony section (all CI confirmed green), dispatch state, decision gates, archive. ✅
+3. **Appended decisions.jsonl** with v35 summary. ✅
+
+**Escalations to founder:**
+- **(P0)** Merge PR #515 → push tag `v0.1.20` → create GitHub Release. 44/44 CI ✅, 0 Codex findings. PM will open Step 4 back-merge PR after Step 1.
+- **(P0 systemic)** DCO systemic fix: update `ci.yml` `dco-check` to grep full message body for `Signed-off-by:`, OR switch `release.yml` merge to `git push origin release/vX.Y.Z:main`.
+
+### 2026-06-04 PM dispatch v34 (this run)
+
+**Pre-flight:** PM state v33 (branch `chore/pm-dispatch-2026-06-04-v33-real`, PR #522). decisions.jsonl tail (latest: 2026-06-04T04:10Z v33 session summary). PR #515 DCO check still failing after v33's `HEAD~4` rebase — discovered 2 more unsigned commits deeper in history.
+
+**Assessment:**
+- PR #515 CI: DCO check FAILED after `HEAD~4` rebase. Root cause: `4bdc4de` (ADR-0010, HEAD~7) and `bb685def` (get_callees, HEAD~10) also lack `Signed-off-by`. `HEAD~4` only covered the top 4 commits, missing 12 earlier ones. Full range: 16 non-merge commits above `8ffcad9` (Merge PR #494, v0.1.19 → main).
+- Fix: `git rebase --signoff HEAD~16` on `fix-dco-release-v0.1.20` branch (HEAD~16 = `8ffcad9` confirmed via `git rev-parse`).
+
+**Actions taken:**
+1. **Deep DCO fix**: ran `git rebase --signoff HEAD~16` on `fix-dco-release-v0.1.20` — replayed all 16 non-merge commits. All now carry `Signed-off-by`. Force-pushed to `origin/release/v0.1.20`. ✅
+2. **DCO verified**: `git show --no-patch --format="%B" d0f6b74 | grep "Signed-off-by"` and `0bc266e` both return `Signed-off-by: Claude <noreply@anthropic.com>`. ✅
+3. **PR #515 CI re-ran**: DCO sign-off check shows `conclusion: success`. Clippy/rustfmt/unit tests/e2e in progress. ✅
+4. **PM state v34**: updated header, v0.1.20 ceremony status, Live priorities, Dispatch table, Decision gates, archive. ✅
+5. **decisions.jsonl**: appended v34 session summary. ✅
+
+**Escalations to founder:**
+- **(P0) v0.1.20 ceremony**: PR #515 DCO ✅ green. Wait for all CI green → merge PR #515 → push tag `v0.1.20` → create GitHub Release. PM opens Step 4 back-merge PR after Step 1.
+- **(P0 systemic) DCO config**: Add `.github/dco.yml` with `allowRemediationCommits: true`.
+
+### 2026-06-04 PM dispatch v33 (superseded by v34)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (latest: 2026-06-04T03:12Z v32 session), anti-patterns (hits: release-governance `HEAD~2` repair depth wrong; async blocking_read; squash-merge DCO strip), PM state (v32 stale — develop at `746826d`; v32 on PR #521 open), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #521 (PM v32 chore, 22/22 CI ✅ on original commit — Codex P1×2 UNRESOLVED), #515 (release/v0.1.20 → main, DCO FAILURE, Quality Gate red). 0 open P0/P1 issues.
+- develop HEAD `746826d` (RFC-0110 increment 3). CI SUCCESS ✅.
+- Key findings: (a) PR #515 DCO failure — `9b51c35` and `39808637` are squash-merge commits with no valid Signed-off-by trailer (only Codex rejection text in body). (b) PR #521 has 2 Codex P1 findings: rebase depth `HEAD~2` wrong (must be `HEAD~4`); ceremony-script fallback with `git push origin main` is a DCO bypass prohibited by Charter §5.12. (c) No P0/P1 issues. (d) No Codex findings on PR #515 (0 review threads).
+
+**Actions taken:**
+1. **DCO fix on release/v0.1.20**: checked out `origin/release/v0.1.20`, ran `git rebase --signoff HEAD~4` (replays `39808637`, `9b51c35`, `bf0399a`, `1b0d7dc` — all 4 now carry `Signed-off-by: Claude <noreply@anthropic.com>`). Force-pushed with `--force-with-lease`. PR #515 CI re-triggered. ✅
+2. **Codex P1 #1 fixed on PR #521**: pushed fix commit `374bf8e` to `chore/pm-dispatch-2026-06-04-v32` correcting `HEAD~2` → `HEAD~4` in all 5 locations in PM state. Replied to Codex comment with explanation. ✅
+3. **Codex P1 #2 fixed on PR #521**: same commit `374bf8e` removes the dangerous `git push origin main` fallback section; replaced with explicit no-bypass warning. Replied to Codex comment. ✅
+4. **PM state v33**: updated header, v0.1.20 ceremony status, Live priorities, Dispatch table, Decision gates. Added this archive entry. ✅
+5. **decisions.jsonl**: appended v33 session summary. ✅
+
+**Escalations to founder:**
+- **(P0) v0.1.20 ceremony**: PR #515 CI re-running (DCO repaired). Wait for green → merge PR #515 → push tag `v0.1.20` → create GitHub Release. PM opens Step 4 back-merge PR after Step 1.
+- **(P0 systemic) DCO config**: Add `.github/dco.yml` with `allowRemediationCommits: true` to prevent squash-merge DCO stripping recurrence.
+
+### 2026-06-04 PM dispatch v32 (this run — superseded by v33)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (latest: 2026-06-04T02:47Z RFC-0110 increment 3), anti-patterns (no new domain hits), PM state v28 on develop (stale — v29 in decisions but PM state file not updated), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #518 (PM v31 chore, 22/22 CI ✅, merge-conflict after RFC-0110 PRs #517/#519/#520 landed), #515 (release/v0.1.20 → main, DCO FAILURE + Quality Gate red). 0 open issues.
+- develop HEAD `746826d` (RFC-0110 increment 3 squash, 2026-06-04T02:56Z). CI SUCCESS ✅.
+- Key findings: (a) PR #518 had 2 Codex P1 findings — both about wrong v0.1.20 repair path (`-s ours` strategy discards release content; direct-push main bypasses release gate). (b) RFC-0110 all 3 increments COMPLETE on develop (PRs #517, #519, #520). (c) v0.1.20 DCO root cause: GitHub web UI squash-merges for PRs #508 + #513 lack `Signed-off-by`.
+
+**Actions taken:**
+1. **Replied to Codex P1 #1 on PR #518** (ours strategy): Accepted — `-s ours` discards release content; correct is `--no-ff`. ✅
+2. **Replied to Codex P1 #2 on PR #518** (direct-push bypass): Accepted — fix DCO on release branch instead. ✅
+3. **Closed PR #518** as superseded (merge conflict with decisions.jsonl from RFC-0110 PRs). ✅
+4. **Created branch `chore/pm-dispatch-2026-06-04-v32`** from develop HEAD `746826d`. ✅
+5. **Updated PM state v32**: corrected v0.1.20 repair path, added RFC-0110 complete section, updated live priorities + dispatch + decision gates. ✅
+6. **Appended decisions.jsonl** (v32 entry). ✅
+
+**Escalations to founder:**
+- **(P0) v0.1.20 ceremony**: Fix DCO on `release/v0.1.20` with `git rebase --signoff HEAD~4` (covers unsigned commits at HEAD~3 + HEAD~2). No direct-push-main fallback — fix commits, then merge through PR #515.
+- **(P0 systemic) DCO config**: Add `.github/dco.yml` to prevent recurrence.
+
+### 2026-06-04 PM dispatch v31 (PR #518 — CLOSED superseded; Codex P1×2 addressed)
+
+*(Findings: `-s ours` repair path wrong + direct-push-main bypass wrong. Both P1s accepted and fixed in v32. PR #518 closed due to merge conflict with RFC-0110 decisions.)*
+
+### 2026-06-04 PM dispatch v29–v30 (RFC-0109 tools 4–7 + v0.1.20 cut)
+
+*(v29: PRs #508+#513 merged; RFC-0109 7/7 COMPLETE on develop. v30: release/v0.1.20 cut from `bf0399a`; PR #515 opened. See decisions.jsonl entries 2026-06-04T00:08Z and 2026-06-04T01:11Z.)*
 
 ### 2026-06-03 PM dispatch v28 (this run)
 
