@@ -63,3 +63,13 @@ test("every PLATFORMS entry has a non-empty suffix", () => {
     assert.ok(suffix && suffix.startsWith("mycelium-"), `bad suffix for ${key}: ${suffix}`);
   }
 });
+
+test("signalToExitCode maps POSIX signals to 128+signal_number", () => {
+  const { signalToExitCode } = require("../bin/mycelium.cjs");
+  assert.equal(signalToExitCode("SIGTERM"),  143); // 128+15
+  assert.equal(signalToExitCode("SIGINT"),   130); // 128+2
+  assert.equal(signalToExitCode("SIGHUP"),   129); // 128+1
+  assert.equal(signalToExitCode("SIGKILL"),  137); // 128+9
+  assert.equal(signalToExitCode("SIGPIPE"),  141); // 128+13
+  assert.equal(signalToExitCode("UNKNOWN_SIGNAL"), 128); // unknown → 128
+});

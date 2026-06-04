@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **npm launcher signal exit codes (Issue #525)**: `mycelium.cjs` now exits with
+  `128 + signal_number` (e.g. SIGTERM → 143, SIGINT → 130) instead of always `1`
+  when the child binary is killed by a signal, following POSIX/shell convention.
+
 - **Mutation testing kill-rate (Issue #526)**: Added exact-count `assert_eq!` assertions to 6
   previously mutation-weak MCP tests (`get_callees`, `get_callers`, `get_dead_symbols` ×2,
   `get_all_symbols_excludes_file_nodes`, error `is_error` flag). Mutants that silently add/remove
