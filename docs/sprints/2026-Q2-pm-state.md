@@ -10,7 +10,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Active release branch | `release/v0.2.0` — MERGED to main ✅ at 2026-06-04T10:41:45Z |
 | Next release target | **v0.2.1** (post-v0.2.0 fixes: signal exit code, npm scope) — ETA after v0.2.0 ceremony COMPLETE |
 | Final release target | **v0.2.0 — CEREMONY IN PROGRESS** (Steps 2+3 founder; Step 4 PR #537) |
-| Last shipped | **v0.2.0 (Step 1 ✅)** — PR #523 merged main 2026-06-04T10:41:45Z. Tag + GitHub Release pending founder. |
+| Last shipped | **v0.1.19** — ceremony COMPLETE (2026-06-03T15:49Z). v0.2.0 ceremony IN PROGRESS: Step 1 ✅ (PR #523 merged main), Steps 2+3 pending founder (tag + GH Release), Step 4 PR #537 CI-green. |
 
 ---
 
