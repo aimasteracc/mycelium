@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Mutation testing kill-rate (Issue #526)**: Added exact-count `assert_eq!` assertions to 6
+  previously mutation-weak MCP tests (`get_callees`, `get_callers`, `get_dead_symbols` ×2,
+  `get_all_symbols_excludes_file_nodes`, error `is_error` flag). Mutants that silently add/remove
+  results or drop the `is_error: true` flag will now fail CI rather than survive.
+
 ### Added
 
 - **npm / bun install for the CLI — no Rust toolchain required (RFC-0110).**
