@@ -218,6 +218,20 @@ jobs:
               if (!/^mycelium /.test(v)) process.exit(1);
             }).catch((e) => { console.error(e); process.exit(1); });
           '
+      # RFC-0111 Phase 2: Python SDK (mycelium-rcig). Unit tests are hermetic
+      # (injected spawn, stdlib unittest — no pip install); the integration run
+      # round-trips real JSON through the SDK using the release binary above.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Python SDK unit tests
+        run: python -m unittest discover -s tests
+        working-directory: bindings/python
+      - name: Python SDK integration test (against built binary)
+        run: python -m unittest discover -s tests
+        working-directory: bindings/python
+        env:
+          MYCELIUM_BIN: ${{ github.workspace }}/target/release/mycelium
 
   doc-build:
     name: docs (rustdoc + mdbook)

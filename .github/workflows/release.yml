@@ -249,19 +249,37 @@ jobs:
     environment: pypi
     permissions:
       id-token: write  # for Trusted Publishers
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: |
-          if [ -d "bindings/python" ]; then
-            pip install maturin
-            cd bindings/python
-            maturin publish
-          else
+      # RFC-0111 Phase 2: the Python SDK (mycelium-rcig) is a pure-Python thin
+      # CLI wrapper — built with the standard `build` backend, not maturin
+      # (there is no Rust extension). The version is pinned to the release
+      # version; publishing is idempotent via skip-existing.
+      - name: Build the pure-Python SDK wheel
+        id: build
+        run: |
+          set -euo pipefail
+          if [ ! -d "bindings/python" ]; then
             echo "no bindings/python yet — skipping"
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          cd bindings/python
+          sed -i -E "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          sed -i -E "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" mycelium_rcig/__init__.py
+          python -m pip install --upgrade build
+          python -m build
+      - name: Publish to PyPI (Trusted Publishers, idempotent)
+        if: steps.build.outputs.built != 'false'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: bindings/python/dist
+          skip-existing: true
 
   build-cli-binaries:
     # RFC-0110: cross-compile the `mycelium` CLI for each distributed platform,

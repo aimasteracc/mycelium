@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Python SDK — `mycelium-rcig` (RFC-0111, Phase 2).** A thin, typed Python
+  client that embeds Mycelium in any Python app **without a Rust toolchain** —
+  the same thin-CLI-wrapper contract as the Node SDK (locate binary → spawn with
+  an argv list, no shell → parse JSON). Pythonic surface
+  (`from mycelium_rcig import Mycelium`; `version`/`index`/`query`/
+  `search_symbol`/`get_symbol_info`/`get_callers`/`get_callees`/`context`/
+  `server_status` + raw `run(args)`); typed (`py.typed` + inline hints);
+  `MyceliumError` on failure. 32 stdlib-`unittest` tests (30 hermetic + 2
+  integration) wired into CI against the release binary. Distributed as a
+  pure-Python wheel via `release.yml` (`python -m build` + Trusted Publishers,
+  idempotent). The PyPI distribution is **`mycelium-rcig`** (the short
+  `mycelium` is taken; import package `mycelium_rcig`), mirroring the crates
+  prefix; Charter §3 updated accordingly. Binary bundling via platform wheels is
+  a deferred follow-up.
 - **Node/TypeScript SDK — `@aimasteracc/mycelium-sdk` (RFC-0111, Phase 1).** A
   thin, typed client that embeds Mycelium in any Node/TS app **without a Rust
   toolchain**. It wraps the prebuilt CLI ([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)):
