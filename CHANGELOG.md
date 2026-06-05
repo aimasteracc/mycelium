@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **refactor(mcp): Issue #428 god-file split slice 3** — extracted all 93 MCP
+  request schema types from `lib.rs` into `crates/mycelium-mcp/src/requests.rs`
+  (public module, re-exported via `pub use requests::*`). Moved two inline test
+  modules (`server_info_tests`, `output_budget_tests`) from `lib.rs` into the
+  existing `tests.rs`. `lib.rs` reduced from 6,048 → 4,694 lines (−22.4%);
+  no public API change.
+
 ### Fixed
 
 - **ci(dco-check): use full body grep instead of trailer parser** — GitHub

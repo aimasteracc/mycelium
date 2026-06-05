@@ -6721,3 +6721,192 @@ fn existing_index_path_finds_legacy_snapshot() {
     let result = existing_index_path(dir.path()).expect("found");
     assert_eq!(result, snap, "found legacy index.rmp");
 }
+
+#[cfg(test)]
+mod server_info_tests {
+    use super::*;
+    use mycelium_core::trunk::TrunkPath;
+
+    #[test]
+    fn get_info_includes_routing_instructions() {
+        let server = MyceliumServer::default();
+        let info = server.get_info();
+        let instructions = info
+            .instructions
+            .expect("get_info() must expose MCP server instructions for agent routing");
+        assert!(!instructions.is_empty(), "instructions must be non-empty");
+        assert!(
+            instructions.contains("mycelium_search_symbol"),
+            "routing table must mention mycelium_search_symbol; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("mycelium_get_callers"),
+            "routing table must mention mycelium_get_callers; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("mycelium_index_workspace"),
+            "routing table must mention mycelium_index_workspace as setup step; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_includes_primary_tool_selection_rules() {
+        let server = MyceliumServer::default();
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            instructions.contains("Primary Tool Selection"),
+            "instructions must include an explicit decision tree; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("\"How does X work?\""),
+            "decision tree must name architecture-understanding prompts; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("mycelium_query"),
+            "decision tree must route complex multi-hop prompts to Hyphae; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_includes_agent_anti_patterns() {
+        let server = MyceliumServer::default();
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            instructions.contains("Anti-patterns"),
+            "instructions must include an anti-pattern section; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("Do NOT chain"),
+            "instructions must discourage broad multi-tool chains; got: {instructions}"
+        );
+        assert!(
+            instructions.contains("Do NOT re-verify"),
+            "instructions must discourage routine grep/file re-verification; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_includes_small_project_mode_for_empty_server() {
+        let server = MyceliumServer::default();
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            instructions.contains("Small Project Mode"),
+            "empty or tiny indexes must get small-project guidance; got: {instructions}"
+        );
+    }
+
+    #[test]
+    fn get_info_omits_small_project_mode_for_large_index() {
+        let server = MyceliumServer::default();
+        {
+            let mut store = server.store.try_write().expect("store lock must be free");
+            for i in 0..500 {
+                let path = TrunkPath::parse(&format!("src/file_{i}.rs")).unwrap();
+                store.upsert_node(path);
+            }
+        }
+
+        let instructions = server
+            .get_info()
+            .instructions
+            .expect("instructions must be present");
+
+        assert!(
+            !instructions.contains("Small Project Mode"),
+            "large indexes must not receive small-project guidance; got: {instructions}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod output_budget_tests {
+    use super::*;
+
+    #[test]
+    fn output_budget_small_project() {
+        let budget = OutputBudget::for_project(100);
+        assert_eq!(budget.max_nodes, 15);
+        assert_eq!(budget.max_edges, 30);
+    }
+
+    #[test]
+    fn output_budget_medium_project() {
+        let budget = OutputBudget::for_project(1000);
+        assert_eq!(budget.max_nodes, 30);
+        assert_eq!(budget.max_edges, 60);
+    }
+
+    #[test]
+    fn output_budget_large_project() {
+        let budget = OutputBudget::for_project(10_000);
+        assert_eq!(budget.max_nodes, 50);
+        assert_eq!(budget.max_edges, 100);
+    }
+
+    #[test]
+    fn apply_budget_truncates_node_array() {
+        let budget = OutputBudget::for_project(100);
+        let mut value = serde_json::json!({
+            "nodes": (0..30).map(|i| format!("node_{i}")).collect::<Vec<_>>(),
+            "count": 30
+        });
+        apply_budget(&mut value, &budget);
+        let nodes = value["nodes"].as_array().expect("nodes must be array");
+        assert_eq!(nodes.len(), 15);
+        assert_eq!(value["truncated"], true);
+        assert_eq!(value["total_available"], 30);
+    }
+
+    #[test]
+    fn apply_budget_no_truncation_when_under_limit() {
+        let budget = OutputBudget::for_project(100);
+        let mut value = serde_json::json!({
+            "nodes": vec!["a", "b", "c"],
+            "count": 3
+        });
+        apply_budget(&mut value, &budget);
+        let nodes = value["nodes"].as_array().expect("nodes must be array");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            value.get("truncated").is_none(),
+            "should not have truncated flag"
+        );
+    }
+
+    #[test]
+    fn apply_budget_truncates_edges_array() {
+        let budget = OutputBudget::for_project(100);
+        let mut value = serde_json::json!({
+            "edges": (0..50).map(|i| format!("edge_{i}")).collect::<Vec<_>>(),
+            "count": 50
+        });
+        apply_budget(&mut value, &budget);
+        let edges = value["edges"].as_array().expect("edges must be array");
+        assert_eq!(edges.len(), 30);
+        assert_eq!(value["truncated"], true);
+        assert_eq!(value["total_available"], 50);
+    }
+
+    #[test]
+    fn is_core_tool_identifies_core_tools() {
+        assert!(is_core_tool("mycelium_context"));
+        assert!(is_core_tool("mycelium_search_symbol"));
+        assert!(is_core_tool("mycelium_get_symbol_info"));
+        assert!(is_core_tool("mycelium_query"));
+        assert!(is_core_tool("mycelium_server_status"));
+        assert!(!is_core_tool("mycelium_get_all_symbols"));
+        assert!(!is_core_tool("mycelium_get_callees"));
+    }
+}
