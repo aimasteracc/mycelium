@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v56 — PR #552 merged (RFC-0094 Phase 4 ✅); PR #551 merged; god-file-split slice 4 scoped) |
-| Current sprint | **Post-v0.2.0 stabilization — v0.2.1 queue: RFC-0094 follow-ups + god-file-split slice 4 (lib.rs 4,485 lines) + formalize crates** |
+| Last updated | 2026-06-05 (PM dispatch v58 — PR #556 merged (v57 chore + Codex P2 fix: #554 already-merged stale ref corrected); god-file-split slice 4 investigation) |
+| Current sprint | **Post-v0.2.0 stabilization — v0.2.1 queue: RFC-0103 Extends resolution merge (#554) + god-file-split slice 4 + formalize crates** |
 | Active release branch | none — `release/v0.2.0` merged and deleted |
 | Next release target | **v0.2.1** — MCP god-file split (Issue #428) + formalize signal-exit fix (#535) + mutation tests (#531) into crates |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
@@ -64,7 +64,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] test(mcp): mutation kill-rate exact-count assertions (PR #531, `b696953`) — not in v0.2.0 tag (test-only)
 - [x] refactor(mcp): Issue #428 god-file-split slice 3 — requests.rs extract; lib.rs 6,048→4,694 (PR #550, `4818da09`) ✅ merged 2026-06-05
 - [x] feat(mcp): RFC-0094 Phase 4 — flip stdio MCP default output to text (~72% fewer tokens); `render()` helper centralises 89 format sites; `with_default_format()` builder; `serve_stdio` defaults to `Text`; Codex P2 (6 path-finder tools) fixed before merge; lib.rs 4,694→4,485 (−209 lines via consolidation) (PR #552, `1a6e3e7`) ✅ merged 2026-06-05
-- [x] chore(pm): dispatch v29–v55 (PM state + decisions.jsonl maintenance)
+- [x] chore(pm): dispatch v29–v56 (PM state + decisions.jsonl maintenance)
+- [x] **fix(core): RFC-0103 per-edge Extends resolution** (PR #554, squash `9e1bd4b`) — MERGED ✅ 2026-06-05
 
 > Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
 
@@ -74,26 +75,24 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P0 — none.** v0.2.0 is fully shipped (crates + npm + tag + GitHub Release + back-merge). No founder ceremony action outstanding.
 
-**P1 — hygiene (optional, founder):** the `NPM_TOKEN` value was pasted into a chat transcript during the manual publish; founder may rotate it (revoke → new granular token: RW all-packages + bypass 2FA → `gh secret set NPM_TOKEN --env npm`). The token works; this is defense-in-depth only.
+**P1 — founder action requested:**
+1. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth only; token works).
 
 **P2 — Autonomous (v0.2.1 queue):**
 1. **MCP god-file split slice 4** — lib.rs at 4,485 lines after RFC-0094 Phase 4 (render() consolidation saved ~209 lines). The `#[tool_router]` proc-macro requires all tool methods in one impl block; clean extraction requires either Rust `include!()` shims or a delegation approach — scope carefully before executing. ⚠️ **Issue #428 is closed** (completed through slice 3); slice 4 needs a new tracking issue if pursued.
-2. ~~**Issue #534**~~: ✅ DONE (PR #549 merged by founder 2026-06-05).
-3. ~~**PR #550**~~: ✅ DONE (god-file-split slice 3 merged 2026-06-05, `4818da09`).
-4. ~~**RFC-0094 Phase 4**~~: ✅ DONE (PR #552 merged 2026-06-05; RFC status → Implemented).
-5. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop.
-6. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
-7. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
+2. **Formalize #535/#531 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop.
+3. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
+4. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
 
 ---
 
-## Dispatch state (2026-06-05 v56)
+## Dispatch state (2026-06-05 v58)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **no ceremony action** | v0.2.0 fully shipped. Optional: rotate NPM_TOKEN (pasted in transcript). |
-| PM | **DONE ✅** | v56: PR #551 admin-merged (`3791214`); PR #552 (RFC-0094 Phase 4) verified complete; PM state updated; decisions.jsonl appended. |
-| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once god-file-split slice 4 + crates formalized (PRs #535/#531). |
+| founder | **P1 (optional)** | Rotate NPM_TOKEN (defense-in-depth; token works). |
+| PM | **DONE ✅** | v58: Codex P2 on #556 fixed (PR #554 stale ref corrected → `[x]` merged); PM state v58 written; decisions.jsonl appended. |
+| release | **idle** | v0.2.0 ceremony 4/4 ✅. Next: cut `release/v0.2.1` once PR #554 + crates formalized (PRs #535/#531). |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
 | rust-implementer | **P2** | God-file-split slice 4 (new issue required; `#[tool_router]` proc-macro scoping needed before implementation). |
@@ -127,6 +126,41 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v58 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hits: ci/testing, release-governance), PM state (v57 on chore/pm-dispatch-v57 branch), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #556 (chore/pm-dispatch-v57, 3/3 CI ✅, 1 Codex P2 finding — stale PR #554 reference).
+- 0 open P0/P1 issues. develop HEAD `7d9e8c0` (PM v56); `9e1bd4b` (RFC-0103 Extends fix, PR #554) is in develop ancestry → Codex is correct.
+- No P0/P1 items. Top autonomous task: god-file-split slice 4 (P2).
+
+**Actions taken:**
+1. **Fixed Codex P2 on PR #556**: line 68 `[ ] PR #554 awaiting merge` → `[x] PR #554 MERGED ✅ 2026-06-05`. Removed stale founder P1 action for #554. Dispatch state table updated from v57 to v58. ✅
+2. **Replied to Codex P2 thread** on PR #556 with fix commit reference. ✅
+3. **Admin-merged PR #556** (squash, CI 3/3 ✅, Codex P2 fixed). ✅
+4. **PM state v58** updated; decisions.jsonl appended. ✅
+
+**Escalations to founder:** none.
+
+### 2026-06-05 PM dispatch v57 (PR #556 — RFC-0103 per-edge Extends merged; PM state corrected)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hit: tdd/impl-before-test, async/blocking-read), memory INDEX.md, PM state (v56 on develop post-#553-merge), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #553 (chore/pm-dispatch-v56, CI ✅, 0 Codex findings — ready to merge), #554 (feat/rfc-0103-extends-import-resolution, CI ✅ on original commit, 1 Codex P1 NOT resolved — must fix before merge).
+- 0 open P0/P1 issues. v0.2.0 ceremony 4/4 COMPLETE. Develop CI fully green.
+- Codex P1 on #554: global `redirect_node(stub_id, def_id)` rewires ALL subclasses' Extends edges to one def — wrong when different subclasses import different definitions.
+
+**Actions taken:**
+1. **Admin-merged PR #553** (squash `7d9e8c0`) — PM dispatch v56 chore on develop; no Codex findings. ✅
+2. **Fixed Codex P1 on PR #554** (commit `99a38e1`): rewrote `resolve_import_aware_extends_stubs` from global to per-edge resolution. Added `AdjacencyList::remove_edge` + `Synapse::remove_edge`. TDD: new test `store_resolve_extends_stub_per_edge_mixed_imports` confirmed RED before fix, GREEN after. 643 core tests + full suite pass; clippy clean. Codex reply posted explaining fix. Push sent to origin. ✅
+3. **Pending**: CI on fix commit `99a38e1` not yet visible (push at ~06:18Z; checks still from original 06:07-06:13Z). Escalated to founder for CI verification + admin-merge of #554.
+4. **PM state v57** updated; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P1)** Check CI on PR #554 commit `99a38e1` (all tests pass locally — 643 core, clippy, fmt all green); admin-merge once CI confirms green.
 
 ### 2026-06-05 PM dispatch v56 (this run)
 
