@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v64 — PR #567 merged (PM v63 ✅); PR #568 (release/v0.3.0) in ceremony — PyPI ❌ pending Trusted Publisher config; PR #569 (RFC-0112 IDE design) triaged; PR #557 CLOSED superseded by v0.3.0) |
+| Last updated | 2026-06-05 (PM dispatch v65 — PR #570 Codex P1+P2 fixed (ceremony runbook + stale Issue #560 task); PR #570 CI running → pending merge; Issue #560 commented ✅ fixed by PR #563) |
 | Current sprint | **release/v0.3.0 ceremony in flight** — crates.io ✅ + npm ✅ + PyPI ❌ (needs pypi.org Trusted Publisher). Charter §5.12: Step 1 (merge to main) blocked until PyPI green. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); quality gate ✅ 29/29; PyPI ❌ (see escalation) |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -115,12 +115,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-05 v64)
+## Dispatch state (2026-06-05 v65)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → admin-merge → tag `v0.3.0` → GitHub Release → back-merge. **(2)** PR #569: Review RFC-0112 IDE plugin design (open questions in PM triage comment). |
-| PM | **DONE ✅** | v64: PR #567 merged (`0ff3a0cb`); PR #568 ceremony comment posted; PR #569 triaged; PM state v64 written; decisions.jsonl appended. |
+| founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → admin-merge PR #568 → tag `v0.3.0` → GitHub Release → back-merge. **(2)** PR #569: Review RFC-0112 IDE plugin design (open questions in PM triage comment). **(3)** PR #570: admin-merge once CI green (CI running; all fast checks ✅; matrix completing). |
+| PM | **DONE ✅** | v65: PR #570 Codex P1+P2 fixed (ceremony runbook + stale Issue #560 task removed); PR #570 CI running → pending merge; Issue #560 commented ✅ (fixed by PR #563, safe to close); decisions.jsonl appended. |
 | release | **P0 — blocked on PyPI** | PR #568: quality gate ✅, crates.io ✅, npm ✅. Blocked: PyPI Trusted Publisher not configured. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
 | architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). RFC-0112 implementation design (after founder approves PR #569). |
