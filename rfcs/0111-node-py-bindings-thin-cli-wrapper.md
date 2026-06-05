@@ -1,8 +1,8 @@
 # RFC-0111: Node & Python bindings via thin CLI wrapper
 
-- **Status**: **Draft** — Phase 1 (Node SDK) implemented in the opening PR;
-  the Charter §3 amendment it carries is a *locked-section* change and needs
-  **founder ratification** before merge. Phase 2 (Python SDK) is a follow-up PR.
+- **Status**: **Implemented** — Phase 1 (Node SDK) merged (PR #559, Charter §3
+  amendment founder-ratified). Phase 2 (Python SDK, `mycelium-rcig`) implemented
+  in the follow-up PR.
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-05 (UTC)
 - **Depends on**: [RFC-0110](0110-npm-bun-cli-distribution.md) (prebuilt CLI
@@ -129,14 +129,18 @@ npm/sdk/
     via `run()` until promoted to typed methods (purely additive, never
     breaking).
 
-### Python SDK (`mycelium` on PyPI) — Phase 2
+### Python SDK (`mycelium-rcig` on PyPI) — Phase 2
 
-Same architecture, Pythonic surface: `from mycelium import Mycelium`,
-`m.query("#login")`, `MyceliumError`. Distributed as a pure-Python wheel that
-either depends on the npm-less binary download or locates a system `mycelium`;
-binary-bundling strategy (download-on-install vs. `maturin` sdist that vendors
-the prebuilt binary) is settled in the Phase 2 implementation PR. **No core or
-Rust changes** — same thin-wrapper contract as Node.
+Same architecture, Pythonic surface: `from mycelium_rcig import Mycelium`,
+`m.query("#login")`, `MyceliumError`. Distributed as a **pure-Python wheel**
+(hatchling, no `maturin` — there is no Rust extension); binary resolution is
+`MYCELIUM_BIN` → `PATH` (Python has no npm-style per-platform optional package;
+binary **bundling** via platform wheels is a deferred follow-up — for now the
+user installs the CLI via npm/cargo or points `MYCELIUM_BIN` at a binary). The
+PyPI **distribution** name is `mycelium-rcig` (the short `mycelium` is taken by
+an unrelated package, mirroring the crates.io `mycelium-rcig-*` prefix); the
+**import** package is `mycelium_rcig` to avoid shadowing it. **No core or Rust
+changes** — same thin-wrapper contract as Node.
 
 ## Three-Surface Rule compliance (Charter §5.13)
 
@@ -175,10 +179,18 @@ new capability, that capability MUST first exist as a CLI+MCP pair (an
 
 **Phase 2 — Python SDK (follow-up PR, same RFC):**
 
-- [ ] `bindings/python/` thin wrapper with the same resolution + run + client
-      shape; `pytest` green; binary-location strategy documented.
-- [ ] PyPI packaging (`mycelium`) wired into release automation.
-- [ ] README + CHANGELOG updated for the Python channel.
+- [x] `bindings/python/` thin wrapper with the same resolution + run + client
+      shape (`mycelium_rcig` package: `_resolve` + `_run` + `_client`); 32
+      stdlib-`unittest` tests (30 hermetic + 2 guarded integration) green; typed
+      (`py.typed` + inline hints); binary-location strategy documented
+      (`MYCELIUM_BIN` → `PATH`; bundling deferred).
+- [x] PyPI packaging (`mycelium-rcig` — the short `mycelium` is taken, mirroring
+      the crates prefix; import `mycelium_rcig`) wired into release automation
+      (`release.yml` `publish-pypi`: version-pinned `python -m build` + Trusted
+      Publishers, idempotent via `skip-existing`). CI runs the unit + integration
+      tests against the release binary.
+- [x] README + CHANGELOG updated for the Python channel; Charter §3 PyPI name
+      corrected to `mycelium-rcig`.
 
 ## Rollout
 

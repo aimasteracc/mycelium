@@ -138,26 +138,31 @@ mycelium serve --mcp --root ./my-project
 { "query": "*:callers(#login)" }
 ```
 
-### Use as a library — Node / TypeScript SDK
+### Use as a library — Node / TS & Python SDKs
 
-Embed Mycelium in any Node/TS app with **no Rust toolchain**
-([RFC-0111](rfcs/0111-node-py-bindings-thin-cli-wrapper.md)). The
-[`@aimasteracc/mycelium-sdk`](npm/sdk/README.md) package is a thin, typed
-wrapper over the prebuilt CLI — it inherits the CLI↔MCP parity for free:
+Embed Mycelium in any Node/TS or Python app with **no Rust toolchain**
+([RFC-0111](rfcs/0111-node-py-bindings-thin-cli-wrapper.md)). Both SDKs are thin,
+typed wrappers over the prebuilt CLI — they inherit the CLI↔MCP parity for free.
 
-```bash
-npm install @aimasteracc/mycelium-sdk
-```
+**Node / TypeScript** — [`@aimasteracc/mycelium-sdk`](npm/sdk/README.md):
 
 ```js
-const { Mycelium } = require("@aimasteracc/mycelium-sdk");
+const { Mycelium } = require("@aimasteracc/mycelium-sdk"); // npm i @aimasteracc/mycelium-sdk
 const m = new Mycelium({ root: "." });
 await m.index();
 const fns = await m.query("function:calls(#AuthService)"); // parsed JSON
 const ctx = await m.context("trace ServeHTTP to HandlerFunc", { maxNodes: 30 });
 ```
 
-A Python SDK is Phase 2 of the same RFC.
+**Python** — [`mycelium-rcig`](bindings/python/README.md) (import `mycelium_rcig`):
+
+```python
+from mycelium_rcig import Mycelium  # pip install mycelium-rcig
+m = Mycelium(root=".")
+m.index()
+fns = m.query("function:calls(#AuthService)")  # parsed JSON
+ctx = m.context("trace ServeHTTP to HandlerFunc", max_nodes=30)
+```
 
 ## Performance SLA (the bar we ship against)
 
