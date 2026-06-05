@@ -32,13 +32,21 @@ for.
 
 Tree-sitter is syntactic: it cannot type-resolve a method on a receiver
 (`obj.method()`), a stdlib call routed through an import, or a third-party
-library call. Today those land as **`unknown`**, which:
+library call. Today those land as **`unknown` bare-stub callee nodes**
+(`getcwd`, `dumps`, `print`), which:
 
-- inflates **dead-code** false positives (a function that only "calls" unknowns
-  looks like a leaf / dead),
-- leaves **call graphs incomplete** (the `get-callees` edge set is missing the
-  stdlib/external fan-out), and
-- weakens every downstream consumer (context bundles, impact/blast-radius).
+- **pollute the graph with spurious nodes** — a stdlib call materializes a
+  meaningless stub symbol that then shows up in `get-isolated-symbols` /
+  leaf analysis and inflates node counts,
+- make **`get-callees` ambiguous** — a caller's callee set mixes real
+  project callees with anonymous stubs, with no way to tell "this is a stdlib
+  call" from "this is a genuinely-unresolved *project* call", and
+- weaken every downstream consumer (context bundles, impact/blast-radius).
+
+*(Note: this does **not** touch `get-dead-symbols`, which keys on a symbol's
+**incoming** edges — whether a function itself calls stdlib is irrelevant to
+whether anything calls *it*. This RFC is about classifying **outgoing** callee
+edges, not liveness.)*
 
 TSA hit the same wall and solved it without LSP: a final tier that says "this
 bare name is a Python stdlib/builtin/known-external call" using frozen
@@ -101,8 +109,10 @@ existing pack files (the core resolver loads it the way it loads `queries.scm`).
       `from os import getcwd; getcwd()` → stdlib; `import json; json.dumps()` →
       stdlib; bare `helper()` defined in-project → project (shadow wins); bare
       `frobnicate()` with no import → unknown (table must NOT fire).
-- [ ] Additive `class` field on callee JSON; `get-dead-symbols` no longer flags a
-      function whose only calls are now-classified stdlib calls. Snapshot tests.
+- [ ] Additive `class` field on callee JSON, so `get-callees` distinguishes
+      stdlib/builtin/external from genuinely-unresolved project callees; spurious
+      stdlib bare-stub nodes drop out of `get-isolated-symbols` / leaf analysis.
+      (No change to `get-dead-symbols` — it keys on incoming edges.) Snapshot tests.
 - [ ] Measure the `unknown`-tail reduction on the dogfood corpus (target: a
       material drop, reported in the PR — TSA's reference is 83.9%→95.9%).
 - [ ] CLI ↔ MCP parity preserved (additive field identical on both).
