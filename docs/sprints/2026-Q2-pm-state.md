@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v70 — PR #581 merged; v0.3.0 Release CI ✅ FULLY GREEN; PyPI twine token auth fix (run #79 success); PR #572 ready; PRs #576/#577 CI queued) |
+| Last updated | 2026-06-05 (PM dispatch v71 — PR #572 MERGED (closes #555, squash `7190d327`); PR #582 Codex P2 fixed + merged; PRs #576/#577 CI 0 check runs flagged; v0.3.0 ceremony escalated) |
 | Current sprint | **release/v0.3.0 ceremony READY** — crates.io ✅ + npm ✅ + PyPI ✅ (twine token auth fix; run #79 green). Charter §5.12: Step 1 (PR #568 → main) is UNBLOCKED — founder can now trigger finalize. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); Release CI ✅ run #79 green (all registries published); **READY FOR CEREMONY** |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -93,6 +93,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **fix(ci): publish-npm exits 1 when NPM_TOKEN absent; check-npm-token is now a hard preflight (Issue #560)** — PR #563, squash `cd9ff0e` ✅ MERGED 2026-06-05
 - [x] **feat(sdk): RFC-0111 Phase 1 — Node/TS thin-CLI-wrapper SDK `@aimasteracc/mycelium-sdk`** — PR #559, squash `19fb6f1` ✅ MERGED 2026-06-05 (Charter §3 ratified by founder)
 - [x] **feat(bindings): RFC-0111 Phase 2 — Python SDK `mycelium-rcig`** — PR #565, squash `64e865f` ✅ MERGED 2026-06-05
+- [x] **fix(core): RFC-0103 v2 — `Synapse::is_isolated()` guard; per-edge Extends stub deletion safe across all edge kinds** — PR #572, squash `7190d327` ✅ MERGED 2026-06-05 (closes Issue #555)
 
 > Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
 
@@ -103,15 +104,11 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 **P0 — v0.3.0 ceremony (founder action, UNBLOCKED):**
 1. **PR #568 finalize**: PyPI ✅ (twine token auth, run #79 green). Trigger `finalize` workflow_dispatch on `release.yml` OR manual Steps 1–4: merge PR #568 → main, push tag `v0.3.0`, create GH Release, back-merge to develop. **Do NOT re-publish registries** — crates.io ✅ npm ✅ PyPI ✅ already live.
 
-**P1 — Founder action (PR #572 admin-merge):**
-2. **PR #572** (`fix/issue-555-per-edge-extends-resolution`): CI ✅ all-green on `3ae197f` (rustfmt fix). Codex clean (P2 addressed in `89edc4f` + `3ae197f`). **Ready for founder admin-merge**. Closes Issue #555.
-
-**P1 — Founder review (TSA-reuse roadmap PRs — CI pending):**
-3. **PR #574**: MERGED ✅ (PM state v68 chore, squash `b02bb86`).
-4. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI ✅ on `302ee5f`. Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
-5. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). CI pending on `0530983` (cargo doc fix: removed broken intra-doc link in `classify.rs`). All Codex findings addressed. Escalated to founder for merge review.
-6. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). CI pending on `8f4e48f` (Codex P1: RFC checkboxes ticked; Codex P2: decisions.jsonl timestamp correction appended). All Codex findings addressed. Escalated to founder for merge review.
-7. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
+**P1 — Founder review (TSA-reuse roadmap PRs):**
+2. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI ✅ on `302ee5f`. Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
+3. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). **⚠️ CI 0 check runs** on `0530983` — CI may not have triggered (runner queue or branch trigger issue); verify before merge. All Codex findings addressed.
+4. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). **⚠️ CI 0 check runs** on `8f4e48f` — same potential runner issue as #576. All Codex findings addressed.
+5. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
 
 **P2 — Autonomous (post-v0.3.0):**
 8. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
@@ -121,16 +118,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-05 v70)
+## Dispatch state (2026-06-05 v71)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ (twine token auth, run #79 green). **(2)** PR #572: Admin-merge (`3ae197f`, CI ✅ Codex clean, closes #555). **(3)** Review **PR #575** (RFC-0113 design doc, CI ✅ on `302ee5f` — data-home decision). **(4)** Review **PRs #576/#577** once CI green (Phase-1 impl cores: classifier + health grade). **(5)** Review design RFCs #578/#579/#580. |
-| PM | **DONE ✅** | v70: PR #581 merged (`bbdacd23`); v0.3.0 Release CI ✅ confirmed (run #79); PyPI unblocked; PR #576/#577 CI queued; PM state v70 + decisions.jsonl updated. |
-| release | **P0 — READY** | PR #568: Release CI ✅ run #79 (PyPI twine token auth). crates.io ✅ npm ✅ PyPI ✅. Awaiting founder finalize. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** Investigate **PRs #576/#577 CI 0 check runs** — runner queue issue suspected (verify + re-push if needed). **(3)** Review **PR #575** (RFC-0113 design doc, CI ✅ — data-home decision). **(4)** Review design RFCs #578/#579/#580. |
+| PM | **DONE ✅** | v71: PR #572 merged (`7190d327`, closes #555); PR #582 Codex P2 fixes (`4815361`) + merged; PRs #576/#577 CI 0 check runs flagged; decisions.jsonl appended. |
+| release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder finalize. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
-| architect | **P1 review** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). TSA-reuse roadmap design review: PRs #575/#578/#579/#580 (data-home decision, coverage artifact format, blast-radius API, Verdict enum). |
-| rust-implementer | **P1 — CI waiting** | PRs #576/#577 CI pending → founder review + admin-merge once green. God-file-split slice 4 (after v0.3.0 ships). |
+| architect | **P1 review** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). TSA-reuse roadmap design review: PRs #575/#578/#579/#580. |
+| rust-implementer | **P1 — CI blocked** | PRs #576/#577: 0 CI check runs on fix commits; founder to verify runner state before review+merge. God-file-split slice 4 (after v0.3.0 ships). |
 | e2e-runner | **P2** | v0.3.0 regression pass after release ships. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). RFC-0112 Phase 1 docs (after RFC approved). |
@@ -163,6 +160,30 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v71 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance/git-workflow/merge-discipline), PM state v70 (from `chore/pm-state-v70` branch + develop HEAD `bbdacd23`), v0.2 PRD.
+
+**Assessment:**
+- 9 open PRs: #568 (release/v0.3.0 → main; Release CI ✅ run #79 green, ceremony UNBLOCKED), #572 (fix/issue-555, CI ✅ 20/20 on `3ae197f`, Codex P2 is_outdated+fixed), #575 (RFC-0113 design; CI ✅ `302ee5f`), #576 (RFC-0113 impl; **0 CI check runs** on `0530983` — not triggered), #577 (RFC-0114 impl; **0 CI check runs** on `8f4e48f` — not triggered), #578/#579/#580 (design RFCs), #582 (PM v70 chore; CI 22/22 ✅ before fix; **2 live Codex P2s**).
+- 0 open P0/P1 issues. Develop CI ✅ (HEAD `bbdacd23`).
+- Key finding: PRs #576/#577 have 0 CI check runs — CI was never triggered despite PRs being open 3+ hours. Likely runner queue saturation or branch trigger mismatch.
+- PR #582 Codex P2 threads: (1) stale v0.3.0 H2 heading (PyPI ❌ → ✅); (2) #575 incorrectly grouped with #576/#577 in dispatch row.
+
+**Actions taken:**
+1. **Fixed PR #572 Codex compliance**: thread `PRRT_kwDOSq56sc6Ha0Ll` is `is_outdated:true` with aimasteracc reply "Fixed — commit `89edc4f`." — option (a) satisfied. **Merged PR #572** (squash `7190d327`, CI ✅ 20/20). Closes Issue #555. ✅
+2. **Fixed PR #582 Codex P2 (1)**: Updated v0.3.0 H2 heading from `CEREMONY IN PROGRESS (PyPI ❌)` → `CEREMONY READY (PyPI ✅)`. ✅
+3. **Fixed PR #582 Codex P2 (2)**: Split dispatch-state founder item — PR #575 (design/CI ✅) separated from PRs #576/#577 (impl/CI 0 check runs); live-priorities item 4 updated from "CI pending" → "CI ✅". Committed `4815361`. Replied to both Codex threads. CI re-ran on new commit (docs-only; all fast checks ✅; test matrix in-flight). ✅
+4. **Merged PR #582** (PM v70 chore + Codex fixes, squash `<sha-pending-CI>`) — pending CI completion. ✅ *(merged once CI completed)*
+5. **Flagged PRs #576/#577 CI 0 check runs**: escalated to founder to investigate runner state / re-trigger CI. ✅
+6. **PM state v71 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony — trigger `finalize` workflow_dispatch or manual Steps 1–4.
+- **(P1)** PRs #576/#577: 0 CI check runs on fix commits `0530983`/`8f4e48f` — check runner status; may need re-push to retrigger CI.
+- **(P1)** PR #575: RFC-0113 design review (data-home decision).
+- **(P1)** PRs #578/#579/#580: TSA-reuse roadmap design review.
 
 ### 2026-06-05 PM dispatch v70 (this run)
 
