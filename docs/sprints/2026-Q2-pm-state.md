@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v65 — PR #570 + PR #569 merged; Issue #560 fix verified on develop; Issue #560 comment posted; no autonomous code work available — all remaining items are founder-gated) |
+| Last updated | 2026-06-05 (PM dispatch v67 — PR #571 merged; Issue #555 per-edge Extends resolution implemented; PR #572 opened) |
 | Current sprint | **release/v0.3.0 ceremony in flight** — crates.io ✅ + npm ✅ + PyPI ❌ (needs pypi.org Trusted Publisher). Charter §5.12: Step 1 (merge to main) blocked until PyPI green. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); quality gate ✅ 29/29; PyPI ❌ (see escalation) |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -108,10 +108,11 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 2. ~~**PR #569**~~ — ✅ **MERGED** (PM dispatch v65, squash `e8065df6`). RFC-0112 IDE plugin design is on develop. Implementation open questions (naming, milestone, JetBrains) remain for founder.
 
 **P2 — Autonomous (post-v0.3.0):**
-1. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
-2. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
-3. **Skills marketplace submission**: metadata sign-off required (founder).
-4. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
+1. **PR #572** (`fix/issue-555-per-edge-extends-resolution`, CI running) — admin-merge once CI green + Codex clean. Closes Issue #555.
+2. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
+3. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
+4. **Skills marketplace submission**: metadata sign-off required (founder).
+5. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
 
 ---
 
@@ -120,11 +121,11 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → trigger `finalize` workflow_dispatch → v0.3.0 ceremony complete. **(2)** RFC-0112 IDE plugin implementation open questions (naming, milestone, JetBrains) — see PM triage comment on PR #569 (now merged as design). Issue #560: safe to close (fix is on develop via PR #563, ships in v0.3.0). |
-| PM | **DONE ✅** | v65: PR #570 (PM v64) merged (`c1e6e432`); PR #569 (RFC-0112 design) merged (`e8065df6`); Issue #560 fix confirmed on develop (exit 1 in local checkout); Issue #560 comment posted; PM state v66 written; decisions.jsonl appended. |
+| PM | **DONE ✅** | v67: PR #571 (PM v65 chore) merged (`c5eba0cd`); Issue #555 implemented (per-edge Extends resolution); PR #572 opened (CI pending). |
 | release | **P0 — blocked on PyPI** | PR #568: quality gate ✅, crates.io ✅, npm ✅. Blocked: PyPI Trusted Publisher not configured. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
 | architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). RFC-0112 implementation design (after founder approves PR #569). |
-| rust-implementer | **P2** | God-file-split slice 4 (after v0.3.0 ships). |
+| rust-implementer | **P2** | PR #572 (Issue #555 fix, CI pending); god-file-split slice 4 (after v0.3.0 ships). |
 | e2e-runner | **P2** | v0.3.0 regression pass after release ships. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). RFC-0112 Phase 1 docs (after RFC approved). |
@@ -157,6 +158,37 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v67 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (from GitHub develop HEAD), anti-patterns (domains: ci/release-governance/git-workflow), PM state v66 (from GitHub `c5eba0cd` post-#571 merge), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0 → main; PyPI ❌ `invalid-publisher`; crates.io ✅ npm ✅; founder-gated), #571 (chore/pm-state-v65 → develop; CI ✅ 22/22; 0 Codex findings — merged at start of this dispatch).
+- 0 open P0/P1 issues (per label query). Develop CI ✅ green at `c5eba0cd`.
+- PyPI failure: `Trusted publishing exchange failure: invalid-publisher` — `mycelium-rcig` Trusted Publisher not configured on pypi.org. Claims: `sub: repo:aimasteracc/mycelium:environment:pypi`, `workflow_ref: release.yml@refs/heads/release/v0.3.0`. Pure founder action.
+- Issue #555 (per-edge Extends rewrite): PM v66 note "needs Synapse::remove_edge primitive" is outdated — dispatch v57 confirmed `AdjacencyList::remove_edge + Synapse::remove_edge` were NOT in the squash of PR #554 (develop still had unanimous-only approach). Primitive needs to be added. RFC-0103 explicitly scopes per-edge resolution in "Future possibilities". No new RFC required.
+
+**Actions taken:**
+1. **Merged PR #571** (PM state v65, squash `c5eba0cd`, CI ✅ 22/22, 0 Codex comments). ✅
+2. **Diagnosed PR #568 PyPI failure**: confirmed `invalid-publisher` in job logs (job ID 79729314967). Exact claims documented. Founder action: configure `mycelium-rcig` Trusted Publisher on pypi.org (project `mycelium-rcig` / workflow `release.yml` / environment `pypi`). ✅
+3. **Implemented Issue #555 (per-edge Extends resolution)** — TDD RED→GREEN on `fix/issue-555-per-edge-extends-resolution` branch:
+   - Added `AdjacencyList::remove_edge(src, dst)` (synapse/mod.rs)
+   - Added `Synapse::remove_edge(kind, src, dst)` (synapse/mod.rs)
+   - Added `Store::remove_edge(kind, src, dst)` (store/mod.rs)
+   - Rewrote `resolve_import_aware_extends_stubs`: per-edge instead of unanimous check; stub removed only when all incoming Extends edges redirected
+   - Updated `store_resolve_extends_stub_mixed_import_sites_left_unchanged` → `_resolved_per_edge` to reflect new correct behavior
+   - Added 3 synapse unit tests + 2 store integration tests (all RED-first, then GREEN)
+   - Quality gate: fmt ✓, clippy -D warnings ✓, 647 core tests + full suite ✓
+   - RFC-0103 per-edge acceptance criterion → `[x]`; Future possibilities section marked IMPLEMENTED
+   - CHANGELOG [Unreleased] updated
+4. **Opened PR #572** (`fix/issue-555-per-edge-extends-resolution` → develop, commit `6016b4f`). ✅
+5. **PM state v67 written**; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568 PyPI: Configure `mycelium-rcig` Trusted Publisher on pypi.org (pypi.org → Your projects → Publishing → Add pending publisher: project=`mycelium-rcig`, owner=`aimasteracc`, repo=`mycelium`, workflow=`release.yml`, environment=`pypi`) → re-run failed job → `finalize` workflow_dispatch → v0.3.0 ceremony complete.
+- **(P1)** PR #572: Admin-merge once CI green + Codex clean. Closes Issue #555.
+- **(P1)** RFC-0112 IDE plugin implementation questions (naming, milestone, JetBrains) — see triage comment on merged PR #569.
 
 ### 2026-06-05 PM dispatch v65 (this run)
 
