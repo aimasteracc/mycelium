@@ -1,6 +1,6 @@
 # RFC-0094: Token-Efficient Text Output Format for LLM Callers
 
-- **Status**: Partially Implemented (Phases 1–3 done; Phase 4 stdio-default flip + bindings deferred to v0.2.0)
+- **Status**: Implemented (Phases 1–4 — the stdio-default→`text` flip landed via the `render()` helper + `MyceliumServer::with_default_format`; `serve_stdio` now defaults to Text. Two follow-ups remain: the text→JSON round-trip test needs a reference *parser* that is not yet built, and the node/python `bindings/` directory does not yet exist — both tracked separately.)
 - **Author(s)**: @aimasteracc (orchestrator dispatch)
 - **Created**: 2026-05-30
 - **Last updated**: 2026-05-30
@@ -202,8 +202,11 @@ specific consumer.
 - [ ] `bindings/node/format` + `bindings/python/format` ship the
   reference parser (deferred — Charter §5.14 doesn't require bindings
   for v0.2.0)
-- [ ] CHANGELOG `[Unreleased]` BREAKING note: stdio MCP default
-  output format changes from `json` to `text` (deferred — flip happens at v0.2.0)
+- [x] **stdio MCP default output format flipped `json` → `text`** — via the
+  `render()` helper + `MyceliumServer::with_default_format`; `serve_stdio`
+  defaults to Text, `new()`/CLI stay JSON. Unit test `rfc0094_phase4_default_format_flip`.
+- [x] CHANGELOG `[Unreleased]` BREAKING note: stdio MCP default
+  output format changes from `json` to `text`
 
 ## Rollout plan
 

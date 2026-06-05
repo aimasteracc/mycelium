@@ -367,6 +367,12 @@ pub struct MyceliumServer {
     /// When `true`, symbol-search results are returned as `MessagePack` hex
     /// instead of JSON, achieving the Charter §2 AI token-efficiency SLA.
     compact_mode: Arc<AtomicBool>,
+    /// Default output format applied when a tool call omits `output_format`
+    /// (RFC-0094 Phase 4). `new()` / `new_with_allowed_roots()` keep `Json`
+    /// for byte-stable programmatic and test output; `serve_stdio` (real LLM
+    /// callers) flips this to `Text` via [`Self::with_default_format`] to cut
+    /// ~72% of output tokens for tree-shaped responses.
+    default_format: OutputFormat,
     /// Salsa reactive database for incremental file indexing (Cortex / RFC-0003).
     ///
     /// Wraps file content as [`Cortex`] inputs; the watch loop updates these
@@ -412,12 +418,43 @@ impl MyceliumServer {
             watch_state: Arc::new(WatchState::default()),
             watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
             compact_mode: Arc::new(AtomicBool::new(false)),
+            default_format: OutputFormat::Json,
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(vec![]),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
             notifier: Arc::new(tokio::sync::Mutex::new(None)),
             subscriptions: subscription::new_store(),
             eviction_abort: Arc::new(tokio::sync::Mutex::new(None)),
+        }
+    }
+
+    /// Set the default output format used when a tool call omits `output_format`
+    /// (RFC-0094 Phase 4). Consuming builder. `serve_stdio` flips the default to
+    /// [`OutputFormat::Text`] for LLM callers; `new()` keeps `Json` so existing
+    /// programmatic/test callers get byte-stable JSON.
+    #[must_use]
+    pub const fn with_default_format(mut self, fmt: OutputFormat) -> Self {
+        self.default_format = fmt;
+        self
+    }
+
+    /// Render a tool result `value`, honoring the per-call `output_format` and
+    /// otherwise falling back to the server default (RFC-0094 Phase 4).
+    ///
+    /// - `Some(fmt)` → that explicit format.
+    /// - `None` + compact mode → `MessagePack` hex (legacy RFC-0090 behaviour).
+    /// - `None` + default `Json` → compact `value.to_string()` (byte-identical
+    ///   to the pre-Phase-4 default, so existing callers/tests are unaffected).
+    /// - `None` + default `Text` → the token-efficient TOON text format (the
+    ///   stdio LLM-caller default).
+    fn render(&self, fmt: Option<OutputFormat>, value: &serde_json::Value) -> String {
+        match fmt {
+            Some(f) => formatter_for(f).format(value),
+            None if self.compact_mode.load(Ordering::Relaxed) => encode_msgpack_hex(value),
+            None => match self.default_format {
+                OutputFormat::Json => value.to_string(),
+                other => formatter_for(other).format(value),
+            },
         }
     }
 
@@ -438,6 +475,7 @@ impl MyceliumServer {
             watch_state: Arc::new(WatchState::default()),
             watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
             compact_mode: Arc::new(AtomicBool::new(false)),
+            default_format: OutputFormat::Json,
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(canonical_roots),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
@@ -948,13 +986,7 @@ impl MyceliumServer {
         let matches = self.store.read().await.search_symbol(&req.query, limit);
         let mut value = serde_json::json!({ "matches": matches });
         apply_budget(&mut value, &self.current_budget().await);
-        match req.output_format {
-            Some(fmt) => success_str(formatter_for(fmt).format(&value)),
-            None if self.compact_mode.load(Ordering::Relaxed) => {
-                success_str(encode_msgpack_hex(&value))
-            }
-            None => success_str(value.to_string()),
-        }
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -972,10 +1004,7 @@ impl MyceliumServer {
             .ancestors_of_path(&req.path)
             .unwrap_or_default();
         let value = serde_json::json!({ "ancestors": ancestors });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1006,10 +1035,7 @@ impl MyceliumServer {
                 .collect::<Vec<_>>();
             value["inherited_descendants"] = serde_json::Value::Array(inherited);
         }
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1212,10 +1238,7 @@ impl MyceliumServer {
         let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
         drop(store_guard);
         apply_budget(&mut value, &budget);
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1258,10 +1281,7 @@ impl MyceliumServer {
         let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
         drop(store_guard);
         apply_budget(&mut value, &budget);
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1316,10 +1336,7 @@ impl MyceliumServer {
             "callers": callers,
             "callees": callees,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1381,10 +1398,7 @@ impl MyceliumServer {
             .collect();
         drop(store_guard);
         let value = serde_json::json!({ "symbols": symbols });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1406,10 +1420,7 @@ impl MyceliumServer {
         let json_tree = callee_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1432,10 +1443,7 @@ impl MyceliumServer {
         let json_tree = caller_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(description = "Return the direct import neighbors for a trunk path: \
@@ -1455,10 +1463,7 @@ impl MyceliumServer {
         let imported_by = store_guard.imported_by(id);
         drop(store_guard);
         let value = serde_json::json!({ "imports": imports, "imported_by": imported_by });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1481,10 +1486,7 @@ impl MyceliumServer {
         let json_tree = import_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1509,10 +1511,7 @@ impl MyceliumServer {
             });
         drop(store_guard);
         let value = serde_json::json!({ "path": req.path, "kind": kind_str });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1537,10 +1536,7 @@ impl MyceliumServer {
             .await
             .symbols_of_kind(kind, req.path_prefix.as_deref());
         let value = serde_json::json!({ "symbols": symbols });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1609,10 +1605,7 @@ impl MyceliumServer {
         extended_by.sort_unstable();
         drop(store_guard);
         let value = serde_json::json!({ "extends": extends, "extended_by": extended_by });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1646,10 +1639,7 @@ impl MyceliumServer {
         drop(store_guard);
         let value =
             serde_json::json!({ "implements": implements, "implemented_by": implemented_by });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1668,10 +1658,7 @@ impl MyceliumServer {
             .await
             .entry_points(req.path_prefix.as_deref());
         let value = serde_json::json!({ "entry_points": eps });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1707,10 +1694,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1742,10 +1726,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1766,10 +1747,7 @@ impl MyceliumServer {
             "nodes_by_kind": stats.nodes_by_kind,
             "edges_by_kind": stats.edges_by_kind,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1796,10 +1774,7 @@ impl MyceliumServer {
             "extended_by": refs.extended_by,
             "implemented_by": refs.implemented_by,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1826,10 +1801,7 @@ impl MyceliumServer {
             "extends": refs.extends,
             "implements": refs.implements,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1879,10 +1851,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1923,10 +1892,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1967,10 +1933,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -1992,10 +1955,7 @@ impl MyceliumServer {
         };
         let count = siblings.len();
         let value = serde_json::json!({ "siblings": siblings, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2021,10 +1981,7 @@ impl MyceliumServer {
         drop(store);
         let count = matches.len();
         let value = serde_json::json!({ "matches": matches, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2055,10 +2012,7 @@ impl MyceliumServer {
             "in_implements": deg.in_implements,
             "out_implements": deg.out_implements,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2082,10 +2036,7 @@ impl MyceliumServer {
             .nodes_in_cycles(kind, req.path_prefix.as_deref());
         let count = nodes.len();
         let value = serde_json::json!({ "cycle_nodes": nodes, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2113,10 +2064,7 @@ impl MyceliumServer {
             "group_count": group_count,
             "total_symbols": total_symbols,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2152,10 +2100,7 @@ impl MyceliumServer {
             "total_symbols": total_symbols,
             "cycle_excluded_count": cycle_excluded_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2184,10 +2129,7 @@ impl MyceliumServer {
         drop(store);
         let count = neighbors.len();
         let value = serde_json::json!({ "neighbors": neighbors, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2225,10 +2167,7 @@ impl MyceliumServer {
             "incoming_count": incoming_count,
             "outgoing_count": outgoing_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2265,10 +2204,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "hubs": hubs_json, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2302,10 +2238,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2338,10 +2271,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2376,10 +2306,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2422,10 +2349,7 @@ impl MyceliumServer {
         let count = degrees.len();
         drop(store);
         let value = serde_json::json!({ "degrees": degrees, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2461,10 +2385,7 @@ impl MyceliumServer {
             "ordered_count": ordered_count,
             "cycle_count": cycle_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2491,10 +2412,7 @@ impl MyceliumServer {
         };
         let count = points.len();
         let value = serde_json::json!({ "points": points, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2525,10 +2443,7 @@ impl MyceliumServer {
             .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
             .collect();
         let value = serde_json::json!({ "bridges": bridge_list, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2561,10 +2476,7 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2604,10 +2516,7 @@ impl MyceliumServer {
             "out_degrees": out_list,
             "total_symbols": total_symbols
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2639,10 +2548,7 @@ impl MyceliumServer {
             "max_in_degree": m.max_in_degree,
             "max_out_degree": m.max_out_degree,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2679,10 +2585,7 @@ impl MyceliumServer {
             "shared": shared,
             "total": total,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2716,10 +2619,7 @@ impl MyceliumServer {
             "neighbor_count": neighbor_count,
             "neighbor_edge_count": neighbor_edge_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2749,10 +2649,7 @@ impl MyceliumServer {
             "eccentricity": eccentricity,
             "reachable_count": reachable_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2785,10 +2682,7 @@ impl MyceliumServer {
             "reachable_count": reachable_count,
             "symbol_count": symbol_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2827,10 +2721,7 @@ impl MyceliumServer {
             "forward_distance": result.forward_distance,
             "backward_distance": result.backward_distance,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2861,10 +2752,7 @@ impl MyceliumServer {
             "reachable": reachable,
             "count": count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2895,10 +2783,7 @@ impl MyceliumServer {
             "callers": callers,
             "count": count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2935,10 +2820,7 @@ impl MyceliumServer {
             "common": common,
             "count": count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2970,10 +2852,7 @@ impl MyceliumServer {
             "count": count,
             "k": req.k,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3007,10 +2886,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3046,10 +2922,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3079,10 +2952,7 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3108,10 +2978,7 @@ impl MyceliumServer {
         };
         let count = members.len();
         let value = serde_json::json!({ "members": members, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3138,10 +3005,7 @@ impl MyceliumServer {
         };
         let count = core.len();
         let value = serde_json::json!({ "core": core, "count": count, "k": k });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3171,10 +3035,7 @@ impl MyceliumServer {
             .map(|(path, count)| serde_json::json!({ "path": path, "caller_count": count }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3196,10 +3057,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "files": files, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3225,10 +3083,7 @@ impl MyceliumServer {
             .map(|(path, degree)| serde_json::json!({ "path": path, "degree": degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3251,10 +3106,7 @@ impl MyceliumServer {
         let symbols = self.store.read().await.leaf_symbols(kind, limit);
         let count = symbols.len();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3321,10 +3173,7 @@ impl MyceliumServer {
             .map(|(kind, count)| serde_json::json!({ "kind": kind, "count": count }))
             .collect();
         let value = serde_json::json!({ "kinds": kinds, "total": total });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3362,10 +3211,7 @@ impl MyceliumServer {
         let callers = callers_opt.unwrap();
         let count = callers.len();
         let value = serde_json::json!({ "callers": callers, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3403,10 +3249,7 @@ impl MyceliumServer {
         let callees = callees_opt.unwrap();
         let count = callees.len();
         let value = serde_json::json!({ "callees": callees, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3433,10 +3276,7 @@ impl MyceliumServer {
             .map(|(path, out_degree)| serde_json::json!({ "path": path, "out_degree": out_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3463,10 +3303,7 @@ impl MyceliumServer {
             .map(|(path, in_degree)| serde_json::json!({ "path": path, "in_degree": in_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3487,10 +3324,7 @@ impl MyceliumServer {
                 .collect(),
         };
         let value = serde_json::json!({ "files": files });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3674,10 +3508,7 @@ impl MyceliumServer {
         let json = extends_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3700,10 +3531,7 @@ impl MyceliumServer {
         let json = subclass_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3772,10 +3600,7 @@ impl MyceliumServer {
         let json = implements_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3799,10 +3624,7 @@ impl MyceliumServer {
         let json = implementor_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3826,10 +3648,7 @@ impl MyceliumServer {
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3862,10 +3681,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3894,10 +3710,7 @@ impl MyceliumServer {
             "depth": depth,
             "edge_kind": req.edge_kind,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3959,10 +3772,7 @@ impl MyceliumServer {
             "top_n": top_n,
             "sort_by": sort_by,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3997,10 +3807,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "min_size": min_size,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4172,10 +3979,7 @@ impl MyceliumServer {
         );
         drop(store);
 
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4667,7 +4471,14 @@ pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> 
                 MyceliumServer::new_with_allowed_roots(allowed_roots)
             }
         }
-    };
+    }
+    // RFC-0094 Phase 4: stdio is the LLM-caller transport, so when a tool call
+    // omits `output_format` we default to the token-efficient Text (TOON)
+    // format instead of JSON — ~72% fewer output tokens for tree-shaped
+    // responses. Per-call `output_format` overrides still apply. This is a
+    // BREAKING change for stdio callers that previously relied on the JSON
+    // default; programmatic consumers should pass `output_format: "json"`.
+    .with_default_format(OutputFormat::Text);
     let transport = rmcp::transport::stdio();
     let running = server.serve(transport).await?;
     // PUSH (RFC-0106): capture the client peer now that the rmcp service is

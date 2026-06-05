@@ -23,8 +23,10 @@ pub struct SearchSymbolRequest {
     /// Maximum number of results to return (default: 20).
     #[serde(default)]
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -34,8 +36,10 @@ pub struct SearchSymbolRequest {
 pub struct GetAncestorsRequest {
     /// Trunk path to look up, e.g. `"src/main.rs>greet"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -52,8 +56,10 @@ pub struct GetDescendantsRequest {
     /// Defaults to `false` for backward compatibility.
     #[serde(default)]
     pub include_inherited: Option<bool>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -73,8 +79,10 @@ pub struct GetCalleesRequest {
     /// Edge kind to traverse: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
     #[serde(default)]
     pub edge_kind: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
@@ -97,8 +105,10 @@ pub struct GetCallersRequest {
     /// Only applies when `edge_kind` is `"calls"` (the default). Default: false.
     #[serde(default)]
     pub include_virtual: Option<bool>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
@@ -113,8 +123,10 @@ pub struct GetCallersRequest {
 pub struct GetSymbolInfoRequest {
     /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -126,8 +138,10 @@ pub struct GetCalleeTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -139,8 +153,10 @@ pub struct GetCallerTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -150,8 +166,10 @@ pub struct GetCallerTreeRequest {
 pub struct GetImportsRequest {
     /// Trunk path to query, e.g. `"src/auth.rs"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -163,8 +181,10 @@ pub struct GetImportTreeRequest {
     pub path: String,
     /// Maximum traversal depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -174,8 +194,10 @@ pub struct GetImportTreeRequest {
 pub struct BatchSymbolInfoRequest {
     /// List of trunk paths to query (maximum 50).
     pub paths: Vec<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -189,8 +211,10 @@ pub struct FindImportPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -202,8 +226,10 @@ pub struct GetExtendsTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -215,8 +241,10 @@ pub struct GetSubclassesTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -230,8 +258,10 @@ pub struct FindExtendsPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -243,8 +273,10 @@ pub struct GetImplementsTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -256,8 +288,10 @@ pub struct GetImplementorsTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -269,8 +303,10 @@ pub struct GetImportersTreeRequest {
     pub path: String,
     /// Maximum DFS depth. Defaults to 4, capped at 10.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -284,8 +320,10 @@ pub struct FindImplementsPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -295,8 +333,10 @@ pub struct FindImplementsPathRequest {
 pub struct GetNodeKindRequest {
     /// Trunk path to query, e.g. `"src/auth.rs>login"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -308,8 +348,10 @@ pub struct GetSymbolsByKindRequest {
     pub kind: String,
     /// Optional path prefix to restrict results, e.g. `"src/"`.
     pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -319,8 +361,10 @@ pub struct GetSymbolsByKindRequest {
 pub struct GetSourceSpanRequest {
     /// Trunk path to query, e.g. `"src/auth.rs>login"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -330,8 +374,10 @@ pub struct GetSourceSpanRequest {
 pub struct GetExtendsRequest {
     /// Trunk path to query, e.g. `"src/shapes.py>Rectangle"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -341,8 +387,10 @@ pub struct GetExtendsRequest {
 pub struct GetImplementsRequest {
     /// Trunk path to query, e.g. `"src/io.ts>FileReader"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -352,8 +400,10 @@ pub struct GetImplementsRequest {
 pub struct GetEntryPointsRequest {
     /// Optional path prefix to restrict results (e.g. `"src/handlers/"`).
     pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -366,8 +416,10 @@ pub struct RankSymbolsRequest {
     /// Edge kind to rank by incoming-edge count: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
     #[serde(default)]
     pub edge_kind: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -377,8 +429,10 @@ pub struct RankSymbolsRequest {
 pub struct GetTopFilesRequest {
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -390,8 +444,10 @@ pub struct GetMostConnectedRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -403,8 +459,10 @@ pub struct GetLeafSymbolsRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -418,8 +476,10 @@ pub struct GetShortestPathRequest {
     pub to: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -427,8 +487,10 @@ pub struct GetShortestPathRequest {
 /// Input parameters for `mycelium_get_symbol_count_by_kind` (no parameters).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetSymbolCountByKindRequest {
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -440,8 +502,10 @@ pub struct GetCommonCallersRequest {
     pub paths: Vec<String>,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -453,8 +517,10 @@ pub struct GetCommonCalleesRequest {
     pub paths: Vec<String>,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -466,8 +532,10 @@ pub struct GetFanOutRankRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -479,8 +547,10 @@ pub struct GetFanInRankRequest {
     pub edge_kind: String,
     /// Maximum results to return (default 10, capped at 100).
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -490,8 +560,10 @@ pub struct GetFanInRankRequest {
 pub struct GetFilesRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -507,8 +579,10 @@ pub struct GetDeadSymbolsRequest {
     /// — the classic "unreachable" definition.
     #[serde(default)]
     pub edge_kind: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
@@ -523,8 +597,10 @@ pub struct GetDeadSymbolsRequest {
 pub struct GetIsolatedSymbolsRequest {
     /// Optional path prefix to filter results (e.g. `"src/"`).
     pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
@@ -537,8 +613,10 @@ pub struct GetIsolatedSymbolsRequest {
 /// Input parameters for `mycelium_get_stats`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetStatsRequest {
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -548,8 +626,10 @@ pub struct GetStatsRequest {
 pub struct GetCrossRefsRequest {
     /// Symbol path to look up, e.g. `"src/lib.rs>MyClass"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -559,8 +639,10 @@ pub struct GetCrossRefsRequest {
 pub struct GetOutgoingRefsRequest {
     /// Symbol path to look up, e.g. `"src/app.rs>App"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -570,8 +652,10 @@ pub struct GetOutgoingRefsRequest {
 pub struct GetSccGroupsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -581,8 +665,10 @@ pub struct GetSccGroupsRequest {
 pub struct GetDependencyLayersRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -594,8 +680,10 @@ pub struct GetTwoHopNeighborsRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -607,8 +695,10 @@ pub struct GetSymbolNeighborhoodRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -624,8 +714,10 @@ pub struct GetHubSymbolsRequest {
     pub min_out: Option<usize>,
     /// Maximum results returned. Defaults to 10, capped at 100.
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -637,8 +729,10 @@ pub struct GetSinglyReferencedRequest {
     pub edge_kind: String,
     /// Maximum results returned. Defaults to 10, capped at 100.
     pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -652,8 +746,10 @@ pub struct BatchReachableToRequest {
     pub edge_kind: String,
     /// Maximum BFS depth per source. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -667,8 +763,10 @@ pub struct BatchReachableFromRequest {
     pub edge_kind: String,
     /// Maximum BFS depth per source. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -678,8 +776,10 @@ pub struct BatchReachableFromRequest {
 pub struct BatchNodeDegreeRequest {
     /// Symbol paths to query (up to 50 entries).
     pub paths: Vec<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -691,8 +791,10 @@ pub struct GetWccRequest {
     pub edge_kind: String,
     /// Only return components with at least this many symbols. Defaults to 1.
     pub min_size: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -702,8 +804,10 @@ pub struct GetWccRequest {
 pub struct FindArticulationPointsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -713,8 +817,10 @@ pub struct FindArticulationPointsRequest {
 pub struct FindBridgeEdgesRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -724,8 +830,10 @@ pub struct FindBridgeEdgesRequest {
 pub struct BiconnectedComponentsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -735,8 +843,10 @@ pub struct BiconnectedComponentsRequest {
 pub struct DegreeHistogramRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -746,8 +856,10 @@ pub struct DegreeHistogramRequest {
 pub struct GraphMetricsRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -761,8 +873,10 @@ pub struct NeighborSimilarityRequest {
     pub path2: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -774,8 +888,10 @@ pub struct ClusteringCoefficientRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -787,8 +903,10 @@ pub struct EccentricityRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -800,8 +918,10 @@ pub struct HarmonicCentralityRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -815,8 +935,10 @@ pub struct MutualReachabilityRequest {
     pub path2: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -828,8 +950,10 @@ pub struct BetweennessCentralityRequest {
     pub edge_kind: String,
     /// How many top entries to return; defaults to 10 if absent.
     pub top_n: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -848,8 +972,10 @@ pub struct DependencyDepthRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -861,8 +987,10 @@ pub struct ClosenessCentralityRequest {
     pub edge_kind: String,
     /// How many top entries to return; defaults to 10 if absent.
     pub top_n: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -876,8 +1004,10 @@ pub struct DegreeCentralityRequest {
     pub top_n: Option<usize>,
     /// Sort order: `"in"` (default, by in-degree centrality) or `"out"` (by out-degree centrality).
     pub sort_by: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -890,8 +1020,10 @@ pub struct StronglyConnectedComponentsRequest {
     /// Minimum component size to include; defaults to 1 (all components).
     /// Use `2` to return only non-trivial SCCs (circular dependencies).
     pub min_size: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -905,8 +1037,10 @@ pub struct KHopNeighborsRequest {
     pub edge_kind: String,
     /// Number of hops (k ≥ 1; k = 0 returns empty).
     pub k: usize,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -920,8 +1054,10 @@ pub struct CommonReachableRequest {
     pub path2: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -937,8 +1073,10 @@ pub struct PageRankRequest {
     pub iterations: Option<usize>,
     /// How many top entries to return; defaults to 10 if absent.
     pub top_n: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -950,8 +1088,10 @@ pub struct ReachesIntoRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -963,8 +1103,10 @@ pub struct ReachableSetRequest {
     pub path: String,
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -974,8 +1116,10 @@ pub struct ReachableSetRequest {
 pub struct TopologicalSortRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -985,8 +1129,10 @@ pub struct TopologicalSortRequest {
 pub struct FindCycleMembersRequest {
     /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
     pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -998,8 +1144,10 @@ pub struct GetKCoreRequest {
     pub edge_kind: String,
     /// Minimum total degree (in + out) within the induced subgraph. Defaults to 2.
     pub k: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -1017,8 +1165,10 @@ pub struct GetAllSymbolsRequest {
     /// Number of symbols to skip before returning results. Defaults to 0.
     #[serde(default)]
     pub offset: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
@@ -1037,8 +1187,10 @@ pub struct GetReachableRequest {
     pub edge_kind: String,
     /// Maximum BFS depth. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
@@ -1057,8 +1209,10 @@ pub struct GetReachableToRequest {
     pub edge_kind: String,
     /// Maximum BFS depth. Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
@@ -1073,8 +1227,10 @@ pub struct GetReachableToRequest {
 pub struct GetSiblingsRequest {
     /// Symbol path whose siblings to look up, e.g. `"src/app.rs>App>render"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -1089,8 +1245,10 @@ pub struct QueryRequest {
     /// `.class>.method` (direct-child combinator),
     /// `.function:calls(.function)` (pseudo-class — when executor supports it).
     pub expr: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -1100,8 +1258,10 @@ pub struct QueryRequest {
 pub struct GetNodeDegreeRequest {
     /// Symbol or file path to analyse, e.g. `"src/app.rs>App"`.
     pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -1113,8 +1273,10 @@ pub struct DetectCyclesRequest {
     pub edge_kind: String,
     /// Optional path prefix to filter returned cycle nodes (e.g. `"src/"`).
     pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -1128,8 +1290,10 @@ pub struct FindCallPathRequest {
     pub to_path: String,
     /// Maximum traversal depth (hops). Defaults to 10, capped at 20.
     pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
@@ -1166,8 +1330,10 @@ pub struct GetContextRequest {
     /// (RFC-0101 `edge_kinds`). Unknown names are ignored.
     #[serde(default)]
     pub edge_kinds: Option<Vec<String>>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
     /// Per-call output budget (RFC-0102): `"auto"` (default, follows project
