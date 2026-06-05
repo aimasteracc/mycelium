@@ -208,8 +208,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::warning::NPM_TOKEN is not set — skipping npm publish. Configure it in repo Settings → Environments → npm."
-            exit 0
+            echo "::error::NPM_TOKEN is not set — cannot publish npm packages. Configure it in repo Settings → Environments → npm."
+            exit 1
           fi
           publish_one() {
             dir="$1"
