@@ -83,13 +83,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-04 v53)
+## Dispatch state (2026-06-05 v54)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **no ceremony action** | v0.2.0 fully shipped. Optional: rotate NPM_TOKEN (pasted in transcript); review/merge PM PRs. |
-| PM | **DONE ✅** | v53: v0.2.0 ceremony 4/4 COMPLETE (tag + GH Release + npm published & install-verified); PR #547 merged; v0.2.1 queue corrected (#535/#531 → v0.2.1, #544/#533 confirmed in v0.2.0). |
-| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once MCP god-file split + Issue #534 ready. |
+| PM | **DONE ✅** | v54: Issue #534 merged by founder (PR #549); god-file split slice 3 executed (PR #550 opened; lib.rs 6048→4694). |
+| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once MCP god-file split (Issue #428) complete. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan (release.yml + npm/): CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
 | rust-implementer | **P2 — PR #550 CI** | MCP god-file split slice 3 PR #550 (requests.rs extract; lib.rs 6048→4694). Slice 4: tools/ handler extraction. |
