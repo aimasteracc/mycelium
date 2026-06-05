@@ -108,6 +108,94 @@ fn synapse_remove_node_drops_across_all_kinds() {
     assert!(syn.outgoing(n(4), EdgeKind::Implements).is_empty());
 }
 
+// ── Issue #555: AdjacencyList::remove_edge + Synapse::remove_edge ────
+
+#[test]
+fn adjacency_list_remove_edge_removes_single_edge() {
+    let mut adj = AdjacencyList::new();
+    adj.add(n(1), n(2));
+    adj.add(n(1), n(3));
+    adj.remove_edge(n(1), n(2));
+    assert!(
+        !adj.outgoing(n(1)).contains(&n(2)),
+        "n(2) removed from forward"
+    );
+    assert!(
+        !adj.incoming(n(2)).contains(&n(1)),
+        "n(1) removed from reverse"
+    );
+    assert!(adj.outgoing(n(1)).contains(&n(3)), "n(3) edge survives");
+}
+
+#[test]
+fn adjacency_list_remove_edge_nonexistent_is_noop() {
+    let mut adj = AdjacencyList::new();
+    adj.add(n(1), n(2));
+    adj.remove_edge(n(1), n(99)); // does not exist
+    assert_eq!(adj.edge_count(), 1, "existing edge unaffected");
+}
+
+#[test]
+fn synapse_remove_edge_removes_only_specified_kind() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Extends, n(1), n(2));
+    syn.add(EdgeKind::Calls, n(1), n(2));
+    syn.remove_edge(EdgeKind::Extends, n(1), n(2));
+    assert!(
+        syn.outgoing(n(1), EdgeKind::Extends).is_empty(),
+        "Extends edge removed"
+    );
+    assert!(
+        syn.outgoing(n(1), EdgeKind::Calls).contains(&n(2)),
+        "Calls edge unaffected"
+    );
+}
+
+// ── Synapse::is_isolated (Codex P2, PR #572) ─────────────────────────
+
+#[test]
+fn synapse_is_isolated_true_for_fresh_node() {
+    let syn = Synapse::new();
+    assert!(syn.is_isolated(n(1)), "fresh node has no edges");
+}
+
+#[test]
+fn synapse_is_isolated_false_when_outgoing_edge_exists() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Calls, n(1), n(2));
+    assert!(!syn.is_isolated(n(1)), "n(1) has outgoing Calls edge");
+}
+
+#[test]
+fn synapse_is_isolated_false_when_incoming_edge_exists() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Calls, n(1), n(2));
+    assert!(!syn.is_isolated(n(2)), "n(2) has incoming Calls edge");
+}
+
+#[test]
+fn synapse_is_isolated_false_when_other_kind_edge_survives() {
+    // Extends edge removed, but Calls edge still references the same node.
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Extends, n(10), n(99));
+    syn.add(EdgeKind::Calls, n(20), n(99));
+    syn.remove_edge(EdgeKind::Extends, n(10), n(99));
+    assert!(
+        !syn.is_isolated(n(99)),
+        "n(99) still has incoming Calls edge — must not be isolated"
+    );
+}
+
+#[test]
+fn synapse_is_isolated_true_after_all_edges_removed() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Extends, n(10), n(99));
+    syn.add(EdgeKind::Calls, n(20), n(99));
+    syn.remove_edge(EdgeKind::Extends, n(10), n(99));
+    syn.remove_edge(EdgeKind::Calls, n(20), n(99));
+    assert!(syn.is_isolated(n(99)), "all edges removed → isolated");
+}
+
 // ── RFC-0010: Synapse::edge_count ─────────────────────────────────────
 
 #[test]

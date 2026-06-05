@@ -679,6 +679,11 @@ impl Store {
         self.synapse.add(kind, src, dst);
     }
 
+    /// Remove the single directed edge `kind: src → dst`. No-op if absent.
+    pub fn remove_edge(&mut self, kind: EdgeKind, src: NodeId, dst: NodeId) {
+        self.synapse.remove_edge(kind, src, dst);
+    }
+
     /// Union `other` into `self` (Issue #342 / R1 — parallel indexing).
     ///
     /// Every node, kind, span, and edge in `other` is added to `self`.
@@ -1292,13 +1297,17 @@ impl Store {
     /// candidate definition whose file is imported by the subclass's file.
     ///
     /// Conservative by RFC-0103 mandate, and safe for the whole-node redirect:
-    /// the stub is redirected **only** when a single candidate is imported by
-    /// **every** subclass (unanimous). That guarantees redirecting all of the
-    /// stub's `Extends` edges to that one definition is correct for each source.
-    /// Zero candidates, ties, and **mixed-import sites** (subclasses importing
-    /// different definitions) stay unresolved rather than being guessed or
-    /// wrongly collapsed — per-edge resolution of mixed sites is a tracked
-    /// RFC-0103 follow-up (needs an edge-level rewrite primitive).
+    /// Per-edge import-aware Extends stub resolution (RFC-0103 follow-up, Issue #555).
+    ///
+    /// For each `(subclass → stub)` Extends edge, independently find which
+    /// candidate definition the subclass's file imports. If exactly one
+    /// candidate matches, rewire that single edge: add `(subclass → def)` and
+    /// remove `(subclass → stub)`. After all subclasses are processed, if the
+    /// stub's incoming Extends degree reaches zero it is removed from trunk.
+    ///
+    /// Mixed-import sites (different subclasses importing different defs) are
+    /// now handled correctly — each edge is resolved to its own target. Ties
+    /// (subclass imports ≥2 candidates) and no-match edges are left unchanged.
     fn resolve_import_aware_extends_stubs(&mut self) -> usize {
         let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
 
@@ -1337,62 +1346,60 @@ impl Store {
                 continue;
             }
 
-            // A candidate qualifies only if EVERY subclass of this stub imports
-            // it (unanimous). `redirect_node` rewrites *all* of the stub's edges
-            // to one target, so collapsing is correct only when every incoming
-            // `Extends` source agrees on the same definition. Mixed-import sites
-            // — different subclasses importing different definitions — are left
-            // unresolved here rather than wrongly collapsed to one def; resolving
-            // each edge independently needs an edge-level rewrite primitive and
-            // is tracked as the RFC-0103 per-edge follow-up.
-            let n_subclasses = subclasses.len();
-            let mut winner: Option<NodeId> = None;
-            let mut unanimous_candidates = 0usize;
+            // Build (file_id → def_id) lookup once per stub to avoid
+            // re-deriving def file paths for every subclass.
+            let def_by_file: Vec<(NodeId, NodeId)> = defs
+                .iter()
+                .filter_map(|&def_id| {
+                    let def_path = self.trunk.path_of(def_id)?.to_owned();
+                    let file_path = def_path.split('>').next()?.to_owned();
+                    let file_id = self.trunk.lookup_path(&file_path)?;
+                    Some((file_id, def_id))
+                })
+                .collect();
 
-            for &def_id in defs {
-                let Some(def_path) = self.trunk.path_of(def_id).map(str::to_owned) else {
+            // Per-edge: for each subclass independently find which def it imports.
+            for &sub_id in &subclasses {
+                let Some(sub_path) = self.trunk.path_of(sub_id).map(str::to_owned) else {
                     continue;
                 };
-                let Some(file_path) = def_path.split('>').next() else {
+                let Some(sub_file) = sub_path.split('>').next() else {
                     continue;
                 };
-                let Some(file_id) = self.trunk.lookup_path(file_path) else {
+                let Some(sub_file_id) = self.trunk.lookup_path(sub_file) else {
                     continue;
                 };
 
+                // Clone to avoid holding a borrow on self.synapse during mutation.
+                let imports: Vec<NodeId> = self
+                    .synapse
+                    .outgoing(sub_file_id, EdgeKind::Imports)
+                    .to_vec();
+
+                let mut matched_def: Option<NodeId> = None;
                 let mut match_count = 0usize;
-                for &sub_id in &subclasses {
-                    let Some(sub_path) = self.trunk.path_of(sub_id).map(str::to_owned) else {
-                        continue;
-                    };
-                    let Some(sub_file) = sub_path.split('>').next() else {
-                        continue;
-                    };
-                    let Some(sub_file_id) = self.trunk.lookup_path(sub_file) else {
-                        continue;
-                    };
-
-                    let imports = self.synapse.outgoing(sub_file_id, EdgeKind::Imports);
+                for &(file_id, def_id) in &def_by_file {
                     if imports.contains(&file_id) || imports.contains(&def_id) {
                         match_count += 1;
+                        matched_def = Some(def_id);
                     }
                 }
 
-                if match_count == n_subclasses {
-                    unanimous_candidates += 1;
-                    winner = Some(def_id);
+                // Resolve only when exactly one candidate matches (no ties).
+                if match_count == 1 {
+                    if let Some(def_id) = matched_def {
+                        self.synapse.add(EdgeKind::Extends, sub_id, def_id);
+                        self.synapse.remove_edge(EdgeKind::Extends, sub_id, stub_id);
+                    }
                 }
             }
 
-            // Resolve only on a single unanimous candidate (every subclass
-            // imports exactly this one definition). Zero, or ties (≥2 defs all
-            // imported by every subclass), stay unresolved — conservative.
-            if unanimous_candidates == 1 {
-                if let Some(def_id) = winner {
-                    self.synapse.redirect_node(stub_id, def_id);
-                    self.trunk.remove(stub_id);
-                    resolved += 1;
-                }
+            // Remove stub only when it has no remaining edges of ANY kind.
+            // Checking only Extends-incoming would corrupt the graph when the
+            // same bare name also has Calls/References edges (Codex P2, PR #572).
+            if self.synapse.is_isolated(stub_id) {
+                self.trunk.remove(stub_id);
+                resolved += 1;
             }
         }
         resolved
