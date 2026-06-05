@@ -1394,8 +1394,10 @@ impl Store {
                 }
             }
 
-            // Remove stub when every incoming Extends edge has been redirected.
-            if self.synapse.incoming(stub_id, EdgeKind::Extends).is_empty() {
+            // Remove stub only when it has no remaining edges of ANY kind.
+            // Checking only Extends-incoming would corrupt the graph when the
+            // same bare name also has Calls/References edges (Codex P2, PR #572).
+            if self.synapse.is_isolated(stub_id) {
                 self.trunk.remove(stub_id);
                 resolved += 1;
             }

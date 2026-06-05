@@ -213,6 +213,18 @@ impl Synapse {
             .filter(|&(_, count)| count > 0)
     }
 
+    /// Returns `true` if `id` has no incoming or outgoing edges across **all**
+    /// edge kinds — i.e. the node is a graph isolate.
+    ///
+    /// Used by stub-removal guards to ensure a trunk node is only deleted when
+    /// every edge kind (Extends, Calls, References, …) has been fully resolved.
+    #[must_use]
+    pub fn is_isolated(&self, id: NodeId) -> bool {
+        self.by_kind
+            .values()
+            .all(|adj| adj.outgoing(id).is_empty() && adj.incoming(id).is_empty())
+    }
+
     /// Rewire all edges touching `from` to touch `to` instead, across all
     /// edge kinds. Delegates to [`AdjacencyList::redirect_node`].
     pub fn redirect_node(&mut self, from: NodeId, to: NodeId) {
