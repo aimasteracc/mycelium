@@ -1568,11 +1568,11 @@ impl MyceliumServer {
                 "start_byte": span.start_byte,
                 "end_byte": span.end_byte,
             });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         } else {
             drop(store_guard);
             let value = serde_json::json!({ "path": req.path, "span": serde_json::Value::Null });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         }
     }
 
@@ -3143,16 +3143,12 @@ impl MyceliumServer {
         path_opt.unwrap().map_or_else(
             || {
                 let value = serde_json::json!({ "path": null, "length": null });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |p| {
                 let length = p.len() - 1;
                 let value = serde_json::json!({ "path": p, "length": length });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -3367,16 +3363,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no call path found within depth {max_depth}"),
                 });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -3420,16 +3412,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no import path found within max_depth={max_depth}"),
                 });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -3474,16 +3462,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no extends path found within max_depth={max_depth}"),
                 });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -3567,7 +3551,7 @@ impl MyceliumServer {
             let hops = path.len() - 1;
             drop(store_guard);
             let value = serde_json::json!({ "path": path, "hops": hops });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         } else {
             drop(store_guard);
             let value = serde_json::json!({
@@ -3575,7 +3559,7 @@ impl MyceliumServer {
                 "hops": null,
                 "message": format!("no implements path found within max_depth={max_depth}")
             });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         }
     }
 
