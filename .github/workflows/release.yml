@@ -243,7 +243,9 @@ jobs:
 
   publish-pypi:
     name: publish to PyPI
-    needs: [validate, quality-recheck, publish-crates]
+    # GITFLOW registry order is crates.io → npm → PyPI: depend on publish-npm so
+    # a failed/incomplete npm release blocks PyPI (no partial registry release).
+    needs: [validate, quality-recheck, publish-crates, publish-npm]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: pypi

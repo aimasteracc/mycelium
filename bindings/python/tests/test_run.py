@@ -1,7 +1,8 @@
 # Unit tests for the SDK runner (spawn + parse + error model, RFC-0111 Phase 2).
+import tempfile
 import unittest
 
-from mycelium_rcig._run import run_json, run_text, MyceliumError
+from mycelium_rcig._run import run_json, run_text, default_spawn, MyceliumError
 
 
 def fake_spawn(result, calls):
@@ -56,6 +57,23 @@ class RunTests(unittest.TestCase):
 
     def test_error_is_exception(self):
         self.assertTrue(issubclass(MyceliumError, Exception))
+
+
+class DefaultSpawnOsErrorTests(unittest.TestCase):
+    """default_spawn must normalize *all* spawn-time OS errors to status 127."""
+
+    def test_nonexistent_binary_returns_127(self):
+        result = default_spawn("/no/such/mycelium-binary-xyz", [])
+        self.assertEqual(result["status"], 127)
+        self.assertIsNone(result["signal"])
+
+    def test_non_executable_path_returns_127(self):
+        # A directory is not executable: spawning it raises PermissionError /
+        # IsADirectoryError (OSError subclasses), not FileNotFoundError.
+        with tempfile.TemporaryDirectory() as d:
+            result = default_spawn(d, [])
+            self.assertEqual(result["status"], 127)
+            self.assertIsNone(result["signal"])
 
 
 if __name__ == "__main__":

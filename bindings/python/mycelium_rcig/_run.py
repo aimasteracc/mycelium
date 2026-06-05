@@ -34,7 +34,11 @@ def default_spawn(binary, args):
     """
     try:
         proc = subprocess.run([binary, *args], capture_output=True, text=True)
-    except FileNotFoundError as err:  # binary not found on PATH
+    except OSError as err:
+        # All spawn-time OS failures — not found (FileNotFoundError), not
+        # executable / a directory / wrong format (PermissionError,
+        # IsADirectoryError, OSError) — normalize to a 127 status so the
+        # caller's MyceliumError model stays the single source of truth.
         return {"status": 127, "signal": None, "stdout": "", "stderr": str(err)}
 
     rc = proc.returncode
