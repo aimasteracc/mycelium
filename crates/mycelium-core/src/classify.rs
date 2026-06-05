@@ -75,6 +75,27 @@ pub fn classify_python(name: &str) -> CalleeClass {
     }
 }
 
+/// Classify a module-qualified Python call `receiver.method()`.
+///
+/// If the `receiver` is a known stdlib module (e.g. `json.dumps`, `os.getcwd`,
+/// `re.compile`), the call is **stdlib** regardless of the method name —
+/// `dumps`/`getcwd` are not in the bare-method tables, so the unqualified
+/// [`classify_python`] would miss them. Otherwise fall back to classifying the
+/// `method` name alone (`p.write_text()` → stdlib method; `mock.assert_called()`
+/// → external).
+///
+/// Like [`classify_python`], callers must apply the project-ownership shadow
+/// first (and, for the stdlib-module case, gate on actual import evidence — only
+/// trust `receiver` when the file imported that module).
+#[must_use]
+pub fn classify_python_qualified(receiver: &str, method: &str) -> CalleeClass {
+    if PYTHON_STDLIB_MODULES.contains(receiver) {
+        CalleeClass::Stdlib
+    } else {
+        classify_python(method)
+    }
+}
+
 /// Curated top-level Python stdlib module names. Ported from
 /// `tree-sitter-analyzer` `_FALLBACK_STDLIB` (the portable subset of
 /// `sys.stdlib_module_names`).
@@ -538,5 +559,39 @@ mod tests {
     fn builtin_takes_precedence_over_method_tables() {
         // `format` is both a builtin and a str method; builtin wins (checked first).
         assert_eq!(classify_python("format"), CalleeClass::Builtin);
+    }
+
+    #[test]
+    fn qualified_stdlib_module_call_is_stdlib() {
+        // `dumps`/`getcwd` are not in the bare-method tables, but the receiver is.
+        assert_eq!(
+            classify_python_qualified("json", "dumps"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_python_qualified("os", "getcwd"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_python_qualified("re", "compile"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn qualified_falls_back_to_method_name() {
+        // Unknown receiver → classify the method alone.
+        assert_eq!(
+            classify_python_qualified("p", "write_text"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_python_qualified("mock", "assert_called_once"),
+            CalleeClass::External
+        );
+        assert_eq!(
+            classify_python_qualified("obj", "frobnicate"),
+            CalleeClass::Unknown
+        );
     }
 }
