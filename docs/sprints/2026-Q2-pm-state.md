@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v65 — PR #570 Codex P1+P2 fixed (ceremony runbook + stale Issue #560 task); PR #570 CI running → pending merge; Issue #560 commented ✅ fixed by PR #563) |
+| Last updated | 2026-06-05 (PM dispatch v65 — PR #570 + PR #569 merged; Issue #560 fix verified on develop; Issue #560 comment posted; no autonomous code work available — all remaining items are founder-gated) |
 | Current sprint | **release/v0.3.0 ceremony in flight** — crates.io ✅ + npm ✅ + PyPI ❌ (needs pypi.org Trusted Publisher). Charter §5.12: Step 1 (merge to main) blocked until PyPI green. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); quality gate ✅ 29/29; PyPI ❌ (see escalation) |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -104,8 +104,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 **P0 — PyPI ceremony block (founder action):**
 1. **PR #568 PyPI unblock**: Configure `mycelium-rcig` Trusted Publisher on pypi.org (see PR #568 comment for exact steps) → re-run failed `publish to PyPI` job → confirm ✅ → admin-merge PR #568 → ceremony Steps 2–4.
 
-**P1 — Design RFC awaiting founder review:**
-2. **PR #569** (RFC-0112 IDE plugin design, VS Code thin client): CI ✅ 22/22; no Codex findings yet; PM triage posted. **Awaits founder review** of open questions (naming, milestone, JetBrains approach). Design-only, no code.
+**P1 — Design RFC:**
+2. ~~**PR #569**~~ — ✅ **MERGED** (PM dispatch v65, squash `e8065df6`). RFC-0112 IDE plugin design is on develop. Implementation open questions (naming, milestone, JetBrains) remain for founder.
 
 **P2 — Autonomous (post-v0.3.0):**
 1. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
@@ -115,12 +115,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-05 v65)
+## Dispatch state (2026-06-05 v66)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → admin-merge PR #568 → tag `v0.3.0` → GitHub Release → back-merge. **(2)** PR #569: Review RFC-0112 IDE plugin design (open questions in PM triage comment). **(3)** PR #570: admin-merge once CI green (CI running; all fast checks ✅; matrix completing). |
-| PM | **DONE ✅** | v65: PR #570 Codex P1+P2 fixed (ceremony runbook + stale Issue #560 task removed); PR #570 CI running → pending merge; Issue #560 commented ✅ (fixed by PR #563, safe to close); decisions.jsonl appended. |
+| founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → trigger `finalize` workflow_dispatch → v0.3.0 ceremony complete. **(2)** RFC-0112 IDE plugin implementation open questions (naming, milestone, JetBrains) — see PM triage comment on PR #569 (now merged as design). Issue #560: safe to close (fix is on develop via PR #563, ships in v0.3.0). |
+| PM | **DONE ✅** | v65: PR #570 (PM v64) merged (`c1e6e432`); PR #569 (RFC-0112 design) merged (`e8065df6`); Issue #560 fix confirmed on develop (exit 1 in local checkout); Issue #560 comment posted; PM state v66 written; decisions.jsonl appended. |
 | release | **P0 — blocked on PyPI** | PR #568: quality gate ✅, crates.io ✅, npm ✅. Blocked: PyPI Trusted Publisher not configured. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
 | architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). RFC-0112 implementation design (after founder approves PR #569). |
@@ -157,6 +157,28 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v65 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance), PM state v65 (develop HEAD post-#570 merge: `c1e6e432`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (release/v0.3.0 → main; crates.io ✅ npm ✅ PyPI ❌ invalid-publisher; finalize SKIPPED), #569 (RFC-0112 IDE plugin design → develop; CI ✅ 22/22; 0 Codex findings), #570 (chore/pm-state-v64 → develop; CI ✅ 20/20; 2 Codex threads both outdated + addressed in commit `8e3efe3`).
+- 2 open issues: #560 (CI P2: publish-npm exit 0 on absent NPM_TOKEN), #555 (RFC-0103 per-edge rewrite, P2 backlog).
+- Develop CI ✅ green.
+- **Key verification**: `mcp__github__get_file_contents` with `branch: develop` returned main's HEAD SHA (`54687972`) — same anti-pattern documented in v63 dispatch. Local `git checkout -b ... origin/develop` confirmed Issue #560 fix IS on develop (`exit 1` in publish-npm, not `exit 0`). PM v64's "PR #563 merged" claim was correct; v63 archive confirms it.
+
+**Actions taken:**
+1. **Merged PR #570** (PM state v64, squash `c1e6e432`, CI ✅ 20/20; Codex P1 fixed in `8e3efe3` + P2 fixed same commit, both threads outdated). ✅
+2. **Merged PR #569** (RFC-0112 IDE plugin design, squash `e8065df6`, CI ✅ 22/22; 0 Codex findings). ✅
+3. **Verified Issue #560 fix**: local develop checkout shows `exit 1` in `publish-npm` — confirmed NOT a regression. Posted comment on Issue #560 (fix ships in v0.3.0). ✅
+4. **No code work taken**: #568 PyPI is founder-gated; #555 needs `Synapse::remove_edge` primitive (non-trivial, requires RFC pre-check). Queue is empty of autonomous items.
+5. **PM state v66 written**; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568 PyPI: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run → trigger `finalize` → v0.3.0 ceremony complete.
+- **(P1)** RFC-0112 implementation open questions: naming convention, milestone target (v0.4.0?), JetBrains scope — see PM triage comment on merged PR #569.
+- **Close Issue #560** — fix is on develop (PR #563), confirmed by local checkout.
 
 ### 2026-06-05 PM dispatch v64 (this run)
 
