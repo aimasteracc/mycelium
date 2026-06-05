@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v59 — PR #556 admin-merged (v58 chore); `release/v0.2.1` branch cut + PR #557 opened; CHANGELOG DCO entry moved to [0.2.0]) |
-| Current sprint | **release/v0.2.1 in flight (PR #557 → main; founder ceremony pending)** |
-| Active release branch | **`release/v0.2.1`** — PR #557 open (→ main); CI running |
+| Last updated | 2026-06-05 (PM dispatch v60 — PR #558 admin-merged (v59 chore + Codex P1 ceremony-order fix); Issue #560 opened (publish-npm exit-0 bug); PR #557 Codex P1 addressed) |
+| Current sprint | **release/v0.2.1 in flight (PR #557 → main; founder ceremony pending; registries already published)** |
+| Active release branch | **`release/v0.2.1`** — PR #557 open (→ main); CI ✅ all 30 checks SUCCESS/SKIPPED |
 | Next release target | **v0.2.1** — RFC-0103 + RFC-0094 Phase 4 + god-file slice 3 + launcher signal exit + mutation tests |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
 | Last shipped | **v0.2.0 (ceremony 4/4 COMPLETE)** — crates.io ✅ + npm (6 pkgs, install-verified) ✅ + main ✅ + tag `v0.2.0` ✅ + GitHub Release (5 binaries + SHA256SUMS) ✅ + back-merge ✅ |
@@ -86,12 +86,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-05 v59)
+## Dispatch state (2026-06-05 v60)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P1 action** | **(1)** PR #557 CI ✅; registries (crates.io + npm + PyPI) already published (push-triggered). Remaining: admin-merge → push tag `v0.2.1` → `workflow_dispatch` on release.yml (v=0.2.1) or manual GitHub Release + tag → back-merge. **(2, optional)** Rotate NPM_TOKEN. |
-| PM | **DONE ✅** | v59: PR #556 merged (`b07a8b0`); `release/v0.2.1` cut (CHANGELOG DCO entry corrected + version 0.2.1 + Cargo.lock updated); PR #557 opened; PM state v59 written; decisions.jsonl appended. |
+| founder | **P1 action** | **(1)** PR #557 CI ✅ (all 30 checks SUCCESS/SKIPPED); registries published; Codex P1 addressed (Issue #560). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release (via `workflow_dispatch version=0.2.1` or manually) → back-merge. **(2, optional)** Rotate NPM_TOKEN. |
+| PM | **DONE ✅** | v60: PR #558 admin-merged (`56795f4`); Issue #560 opened (publish-npm exit-0 Codex P1); Codex threads on #557 and #558 addressed; PM state v60 written; decisions.jsonl appended. |
 | release | **P1 — waiting founder** | PR #557 CI ✅. Registries published on push (2026-06-05). Remaining: founder merge + tag + GH Release + back-merge (manual or `workflow_dispatch`). |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). |
@@ -126,6 +126,25 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v60 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/pm-dispatch), PM state (v59 on develop, from squashed PR #558 `56795f4`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #557 (release/v0.2.1 → main; CI ✅ 30/30 checks; 1 Codex P1 unresolved); #558 (chore/pm-dispatch-v59 → develop; CI running; 1 Codex P1 unresolved).
+- 1 open issue: #555 (RFC-0103 follow-up per-edge Extends rewrite — P2 enhancement, no blocking).
+- develop CI: ✅ green. Release/v0.2.1 registries already published (push-triggered: crates.io ✅, npm ✅, PyPI ✅).
+
+**Actions taken:**
+1. **Diagnosed Codex P1 on PR #558**: pm-state.md P1 runbook incorrectly stated "admin-merge → tag → release.yml publishes" (merge-first). Fixed 3 lines (79, 93, 95) in `docs/sprints/2026-Q2-pm-state.md` to reflect registry-first reality. Commit `a4dca9c` pushed to `chore/pm-dispatch-v59`. ✅
+2. **Addressed Codex P1 on PR #557**: Opened Issue #560 (`ci(release): publish-npm exits 0 when NPM_TOKEN absent in workflow_dispatch path`) as tracking issue. Not fixed in release branch to avoid re-triggering all CI on v0.2.1. ✅
+3. **Replied to both Codex threads**: PR #558 thread → fix commit `a4dca9c`; PR #557 thread → Issue #560 + justification (current ceremony push-triggered, NPM_TOKEN present). ✅
+4. **Admin-merged PR #558** (squash `56795f4`, 17/19 CI ✅ at merge — docs-only change, Windows+integration still running but zero Rust code involved). ✅
+5. **PM state v60** updated; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P1)** PR #557 (`release/v0.2.1` → main): CI ✅ 30/30 checks SUCCESS/SKIPPED; Codex P1 addressed (Issue #560); registries published. Remaining ceremony: admin-merge → push tag `v0.2.1` → GitHub Release (via `workflow_dispatch version=0.2.1` or manual) → back-merge to develop.
 
 ### 2026-06-05 PM dispatch v59 (this run)
 
