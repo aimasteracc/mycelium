@@ -56,8 +56,8 @@ impl CalleeClass {
 
 /// Classify a bare Python callee name against the static allowlists.
 ///
-/// Precedence: builtin → stdlib method → external method → stdlib module →
-/// unknown. Callers MUST apply the project-ownership shadow first (only pass
+/// Precedence: builtin → stdlib (method / module / module-function) → external
+/// method → unknown. Callers MUST apply the project-ownership shadow first (only pass
 /// names project resolution left unresolved), so a project method that happens
 /// to share a stdlib name is never misclassified.
 #[must_use]
@@ -66,7 +66,10 @@ pub fn classify_python(name: &str) -> CalleeClass {
     // the builtin reading is the correct one for an unqualified call.
     if PYTHON_BUILTINS.contains(name) {
         CalleeClass::Builtin
-    } else if PYTHON_STDLIB_METHODS.contains(name) || PYTHON_STDLIB_MODULES.contains(name) {
+    } else if PYTHON_STDLIB_METHODS.contains(name)
+        || PYTHON_STDLIB_MODULES.contains(name)
+        || PYTHON_STDLIB_FUNCTIONS.contains(name)
+    {
         CalleeClass::Stdlib
     } else if PYTHON_EXTERNAL_METHODS.contains(name) {
         CalleeClass::External
@@ -455,6 +458,130 @@ static PYTHON_STDLIB_METHODS: LazyLock<HashSet<&'static str>> = LazyLock::new(||
     .collect()
 });
 
+/// Distinctive stdlib **module-level function** names. The Python pack
+/// materializes `os.getcwd()` as the bare attribute `getcwd` (the receiver is
+/// dropped — see `packs/python/queries.scm` "Method calls"), so module functions
+/// reach the classifier as bare names that are neither module names nor in the
+/// method table. This curated set classifies the common ones as `stdlib`.
+///
+/// Conservative by design: only names that are overwhelmingly stdlib. Ambiguous
+/// names a project routinely defines (`run`, `get`, `call`, `info`, `error`,
+/// `seed`, `time`, `date`) are deliberately EXCLUDED — the resolver's
+/// project-ownership shadow + import evidence are the right gate for those.
+static PYTHON_STDLIB_FUNCTIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // os
+        "getcwd",
+        "getcwdb",
+        "getenv",
+        "listdir",
+        "makedirs",
+        "getpid",
+        "getppid",
+        "urandom",
+        "fspath",
+        "scandir",
+        // json / pickle
+        "dumps",
+        "loads",
+        // subprocess
+        "check_output",
+        "check_call",
+        "getoutput",
+        "getstatusoutput",
+        // base64
+        "b64encode",
+        "b64decode",
+        "urlsafe_b64encode",
+        "urlsafe_b64decode",
+        // logging
+        "getLogger",
+        "basicConfig",
+        // random
+        "randint",
+        "randrange",
+        "getrandbits",
+        "shuffle",
+        "uniform",
+        "gauss",
+        // hashlib
+        "sha256",
+        "sha1",
+        "sha512",
+        "sha224",
+        "sha384",
+        "md5",
+        "blake2b",
+        "blake2s",
+        // uuid
+        "uuid1",
+        "uuid3",
+        "uuid4",
+        "uuid5",
+        // itertools
+        "islice",
+        "permutations",
+        "combinations",
+        "groupby",
+        "accumulate",
+        "starmap",
+        "zip_longest",
+        "dropwhile",
+        "takewhile",
+        // functools
+        "lru_cache",
+        "cmp_to_key",
+        "reduce",
+        "partial",
+        "wraps",
+        // shutil
+        "copytree",
+        "rmtree",
+        "copyfileobj",
+        "copyfile",
+        "make_archive",
+        // collections
+        "defaultdict",
+        "namedtuple",
+        "OrderedDict",
+        "deque",
+        // textwrap
+        "dedent",
+        "shorten",
+        // glob
+        "iglob",
+        // math
+        "isclose",
+        "factorial",
+        "hypot",
+        "isnan",
+        "isinf",
+        "copysign",
+        // time
+        "monotonic",
+        "perf_counter",
+        "process_time",
+        "gmtime",
+        "localtime",
+        // tempfile
+        "mkdtemp",
+        "mkstemp",
+        "gettempdir",
+        // importlib / inspect
+        "import_module",
+        "getsource",
+        "getmembers",
+        "signature",
+        "getfullargspec",
+        // secrets
+        "token_hex",
+        "token_urlsafe",
+        "token_bytes",
+    ]
+    .into_iter()
+    .collect()
+});
+
 /// Well-known third-party (test-framework) method names. Ported from
 /// `EXTERNAL_METHODS_PY` (RFC-0005 in tree-sitter-analyzer): pytest, hypothesis,
 /// unittest.mock. Conservative — only overwhelmingly-test-framework names.
@@ -540,6 +667,25 @@ mod tests {
     fn classifies_stdlib_modules() {
         assert_eq!(classify_python("os"), CalleeClass::Stdlib);
         assert_eq!(classify_python("pathlib"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn classifies_bare_stdlib_module_functions() {
+        // The Python pack drops the receiver: `os.getcwd()` → bare stub `getcwd`.
+        // These are module functions, not module names nor method-table entries.
+        assert_eq!(classify_python("getcwd"), CalleeClass::Stdlib);
+        assert_eq!(classify_python("dumps"), CalleeClass::Stdlib);
+        assert_eq!(classify_python("loads"), CalleeClass::Stdlib);
+        assert_eq!(classify_python("getLogger"), CalleeClass::Stdlib);
+        assert_eq!(classify_python("check_output"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn ambiguous_names_are_not_force_classified() {
+        // Deliberately excluded so a project's own `run`/`execute` is not
+        // mislabeled stdlib — the resolver's project-ownership gate handles them.
+        assert_eq!(classify_python("run"), CalleeClass::Unknown);
+        assert_eq!(classify_python("execute"), CalleeClass::Unknown);
     }
 
     #[test]
