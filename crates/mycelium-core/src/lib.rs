@@ -44,6 +44,7 @@ pub mod extractor;
 pub mod queries;
 pub mod store;
 pub mod synapse;
+pub mod test_gap;
 pub mod trunk;
 pub mod types;
 pub mod watch;
