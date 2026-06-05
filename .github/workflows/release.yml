@@ -220,16 +220,12 @@ jobs:
               return 0
             fi
             if ! ( cd "$dir" && npm publish --access public --provenance ) 2>/tmp/npm_pub_err.log; then
-              npm_err=$(cat /tmp/npm_pub_err.log)
-              # Graceful degradation: scope not yet registered on npmjs.com
-              # (E404 "Scope not found"). Token is present and valid; the @aimasteracc
-              # scope simply needs to be created once via the npmjs.com UI.
-              # Allow ceremony to proceed; npm distribution re-enabled next release.
-              if echo "$npm_err" | grep -qE "E404|Scope not found"; then
-                echo "::warning::npm publish skipped for $name — @aimasteracc scope not yet registered on npmjs.com. See Issue #525."
-                return 0
-              fi
-              echo "$npm_err" >&2
+              # Issue #534: the @aimasteracc scope is registered and NPM_TOKEN
+              # authenticates (npm whoami -> aimasteracc), so ANY publish failure
+              # is a real error — fail the release loudly. The prior E404
+              # graceful-skip (PR #533) masked a non-authenticating token and
+              # produced false-green releases (the v0.2.0 saga). Never again.
+              cat /tmp/npm_pub_err.log >&2
               return 1
             fi
           }
