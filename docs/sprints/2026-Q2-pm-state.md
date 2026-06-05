@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v68 — PR #573 merged; Codex P2 on #572 fixed (`Synapse::is_isolated`); Issue #560 closed; PR #572 CI pending) |
+| Last updated | 2026-06-05 (PM dispatch v69 — PR #574 merged; PR #572 CI ✅ green; PRs #575/#576/#577 CI pending; Codex replied on #578/#579/#580; audit trail created) |
 | Current sprint | **release/v0.3.0 ceremony in flight** — crates.io ✅ + npm ✅ + PyPI ❌ (needs pypi.org Trusted Publisher). Charter §5.12: Step 1 (merge to main) blocked until PyPI green. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); quality gate ✅ 29/29; PyPI ❌ (see escalation) |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -104,27 +104,34 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 **P0 — PyPI ceremony block (founder action):**
 1. **PR #568 PyPI unblock**: Configure `mycelium-rcig` Trusted Publisher on pypi.org (see PR #568 comment for exact steps) → re-run failed `publish to PyPI` job → confirm ✅ → trigger `finalize` workflow_dispatch → v0.3.0 ceremony complete.
 
-**P1 — Autonomous (PR #572 fix-up):**
-2. **PR #572** (`fix/issue-555-per-edge-extends-resolution`): Codex P2 addressed in commit `89edc4f` (`Synapse::is_isolated()` guard + 6 new tests). CI running on `89edc4f`. Admin-merge once CI ✅ + Codex clean. Closes Issue #555.
+**P1 — Founder action (PR #572 admin-merge):**
+2. **PR #572** (`fix/issue-555-per-edge-extends-resolution`): CI ✅ all-green on `3ae197f` (rustfmt fix). Codex clean (P2 addressed in `89edc4f` + `3ae197f`). **Ready for founder admin-merge**. Closes Issue #555.
+
+**P1 — Founder review (TSA-reuse roadmap PRs — CI pending):**
+3. **PR #574**: MERGED ✅ (PM state v68 chore, squash `b02bb86`).
+4. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI pending on `302ee5f` (rebased onto develop). Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
+5. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). CI pending on `0530983` (cargo doc fix: removed broken intra-doc link in `classify.rs`). All Codex findings addressed. Escalated to founder for merge review.
+6. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). CI pending on `8f4e48f` (Codex P1: RFC checkboxes ticked; Codex P2: decisions.jsonl timestamp correction appended). All Codex findings addressed. Escalated to founder for merge review.
+7. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
 
 **P2 — Autonomous (post-v0.3.0):**
-3. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
-4. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
-5. **Skills marketplace submission**: metadata sign-off required (founder).
-6. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
+8. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
+9. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
+10. **Skills marketplace submission**: metadata sign-off required (founder).
+11. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
 
 ---
 
-## Dispatch state (2026-06-05 v68)
+## Dispatch state (2026-06-05 v69)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → trigger `finalize` workflow_dispatch → v0.3.0 ceremony complete. **(2)** RFC-0112 IDE plugin implementation open questions (naming, milestone, JetBrains) — see triage comment on merged PR #569. |
-| PM | **DONE ✅** | v68: PR #573 merged (`7f82b40a`); Codex P2 on #572 fixed + 6 tests added (`89edc4f`); Issue #560 closed; PM state v68 written. |
+| founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → trigger `finalize` workflow_dispatch → v0.3.0 ceremony complete. **(2)** PR #572: Admin-merge (`3ae197f`, CI ✅ Codex clean, closes #555). **(3)** Review PRs #575/#576/#577 (TSA-reuse impl; CI pending). **(4)** Review design RFCs #578/#579/#580 (TSA-reuse roadmap #2–#5). |
+| PM | **DONE ✅** | v69: PR #574 merged (`b02bb86`); PR #572 rustfmt fix (`3ae197f`), CI ✅; PR #575 rebased (`302ee5f`); PR #576 cargo-doc fix (`0530983`); PR #577 Codex P1+P2 fix (`8f4e48f`); PRs #578/#579/#580 Codex replied; PM state v69 + audit written. |
 | release | **P0 — blocked on PyPI** | PR #568: quality gate ✅, crates.io ✅, npm ✅. Blocked: PyPI Trusted Publisher not configured. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
-| architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). RFC-0112 implementation design (after founder approves RFC). |
-| rust-implementer | **P1** | PR #572 (Codex P2 fixed `89edc4f`, CI running) — admin-merge once CI ✅ + Codex clean; god-file-split slice 4 (after v0.3.0 ships). |
+| architect | **P1 review** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). TSA-reuse roadmap design review: PRs #575/#578/#579/#580 (data-home decision, coverage artifact format, blast-radius API, Verdict enum). |
+| rust-implementer | **P1 — CI waiting** | PRs #576/#577 CI pending → founder review + admin-merge once green. God-file-split slice 4 (after v0.3.0 ships). |
 | e2e-runner | **P2** | v0.3.0 regression pass after release ships. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). RFC-0112 Phase 1 docs (after RFC approved). |
@@ -158,7 +165,37 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ## Archive
 
-### 2026-06-05 PM dispatch v68 (this run)
+### 2026-06-05 PM dispatch v69 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance/git-workflow), PM state v68 (develop HEAD `b02bb86` post-#574 merge), v0.2 PRD.
+
+**Assessment:**
+- 8 open PRs: #568 (release/v0.3.0 → main; PyPI ❌ founder-gated), #572 (Issue #555 fix; CI ✅ on `3ae197f` = rustfmt fix; Codex clean), #575 (RFC-0113 design; CI pending `302ee5f`), #576 (RFC-0113 classifier impl; CI pending `0530983`), #577 (RFC-0114 health grade; CI pending `8f4e48f`), #578 (RFC-0117 constraint DSL design), #579 (RFC-0115 test-gap design), #580 (RFC-0116 safe-to-edit design).
+- PRs #575–#580 were opened overnight by specialist agents. v69 dispatch is first PM triage pass on them.
+- Develop CI ✅ green (HEAD `b02bb86`).
+
+**Actions taken:**
+1. **Merged PR #574** (PM state v68 chore, squash `b02bb86`, CI ✅, 0 Codex findings). ✅
+2. **Fixed rustfmt failure on PR #572**: `cargo fmt --check` flagged `store/tests.rs:909` assertion chain; ran `cargo fmt --all`; committed `3ae197f` (`style(core): apply cargo fmt to store/tests.rs assertion chain`). CI re-ran → ✅ all 20 jobs green. ✅
+3. **Rebased PR #575** (`feature/RFC-0113-stdlib-callee-classification`) onto develop after decisions.jsonl conflict (PR #574 and branch both touched it). Resolved by keeping both chronological entries; force-pushed `302ee5f`. CI pending. ✅
+4. **Fixed cargo-doc failure on PR #576** (`feature/RFC-0113-classifier-impl`): rustdoc cannot resolve relative filesystem paths in reference-style intra-doc links. Removed `[ADR-0010]: ../../../docs/adr/0010-...md` definition from `classify.rs` module doc; changed `[ADR-0010]` to plain text `ADR-0010`. Committed `0530983` (`docs(core): fix broken intra-doc link in classify.rs`). CI re-ran → pending. ✅
+5. **Addressed Codex findings on PR #577** (`feature/RFC-0114-graph-health-grade`):
+   - Codex P1: RFC-0114 Phase-1 acceptance criteria checkboxes were unticked. Ticked all three `[ ]` → `[x]` in `rfcs/0114-graph-native-health-grade.md:95-99`.
+   - Codex P2: decisions.jsonl entries had future timestamps (`2026-06-06T01:30:00Z`); actual work was `2026-06-05T18:30–18:55Z`. Appended correction record (append-only discipline) per 2026-06-03 precedent.
+   - Committed `8f4e48f` (`fix(meta): tick RFC-0114 Phase-1 criteria + decisions.jsonl timestamp correction`). Replied to both Codex threads explaining fixes. CI re-ran → pending. ✅
+6. **Replied to Codex findings on PRs #578/#579/#580**:
+   - #578 (RFC-0117): Codex P1 — glob matcher dependency path (use `glob` crate in Phase 2, not Phase 1 pure core). Replied with technical analysis.
+   - #579 (RFC-0115): Codex P1 — `SourceSpan` missing `body_start`; Codex P2 — `mycelium_impact` doesn't exist yet (correct, Phase 2 wires real MCP tools). Replied with analysis.
+   - #580 (RFC-0116): Codex P1 — `Verdict` enum incomplete (missing `WARN`/`ERROR`); `blast_radius` API name not yet in codebase. Replied explaining Phase-1 vs Phase-2 separation. ✅
+7. **Created `.hive/audit/2026-06-05.jsonl`** (gitignored, local) with v68 and v69 action records. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run `publish to PyPI` → trigger `finalize` → v0.3.0 ceremony (Steps 1–4).
+- **(P1)** PR #572: Admin-merge once developer verifies CI ✅ on `3ae197f` + Codex clean. Closes Issue #555.
+- **(P1)** PRs #575/#576/#577: Review TSA-reuse roadmap implementation — design sign-off + merge approval once CI green.
+- **(P1)** PRs #578/#579/#580: Design review of TSA-reuse roadmap RFCs #117/#115/#116.
+
+### 2026-06-05 PM dispatch v68 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance), PM state v67 (develop HEAD `c5eba0cd` post-#571 merge), v0.2 PRD.
 
