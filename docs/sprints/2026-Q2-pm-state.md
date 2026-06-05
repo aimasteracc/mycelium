@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v71 — PR #572 MERGED (closes #555, squash `7190d327`); PR #582 Codex P2 fixed + merged; PRs #576/#577 CI 0 check runs flagged; v0.3.0 ceremony escalated) |
+| Last updated | 2026-06-05 (PM dispatch v72 — PR #583 merged (squash `c62b4c2`); PRs #576/#577 merge-conflict-diagnosed (JSONL + lib.rs) + branch-update failed; v0.3.0 ceremony still READY) |
 | Current sprint | **release/v0.3.0 ceremony READY** — crates.io ✅ + npm ✅ + PyPI ✅ (twine token auth fix; run #79 green). Charter §5.12: Step 1 (PR #568 → main) is UNBLOCKED — founder can now trigger finalize. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); Release CI ✅ run #79 green (all registries published); **READY FOR CEREMONY** |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -106,8 +106,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 **P1 — Founder review (TSA-reuse roadmap PRs):**
 2. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI ✅ on `302ee5f`. Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
-3. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). **⚠️ CI 0 check runs** on `0530983` — CI may not have triggered (runner queue or branch trigger issue); verify before merge. All Codex findings addressed.
-4. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). **⚠️ CI 0 check runs** on `8f4e48f` — same potential runner issue as #576. All Codex findings addressed.
+3. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). **⚠️ Merge conflict with develop** — `.hive/memory/decisions.jsonl` + `lessons.jsonl` (append-only: branch has overnight entries v0.3.0-published/RFC-0113-impl/SDK-validated; develop has v65–v71 entries) + `lib.rs` (trivially additive). Resolution: `git merge origin/develop`, keep all JSONL entries (chronological). CI cannot trigger until conflict resolved.
+4. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). **⚠️ Merge conflict with develop** — same JSONL append conflict as #576 + `lib.rs` (adds `pub mod health;`). Resolution: `git merge origin/develop`, keep all JSONL entries. CI cannot trigger until conflict resolved.
 5. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
 
 **P2 — Autonomous (post-v0.3.0):**
@@ -118,16 +118,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-05 v71)
+## Dispatch state (2026-06-05 v72)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** Investigate **PRs #576/#577 CI 0 check runs** — runner queue issue suspected (verify + re-push if needed). **(3)** Review **PR #575** (RFC-0113 design doc, CI ✅ — data-home decision). **(4)** Review design RFCs #578/#579/#580. |
-| PM | **DONE ✅** | v71: PR #572 merged (`7190d327`, closes #555); PR #582 Codex P2 fixes (`4815361`) + merged; PRs #576/#577 CI 0 check runs flagged; decisions.jsonl appended. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** **PRs #576/#577 merge conflict** — run `git checkout feature/RFC-0113-classifier-impl && git merge origin/develop` (resolve decisions.jsonl+lessons.jsonl by keeping all entries chronologically; lib.rs: keep branch version with `pub mod classify;`); repeat for `feature/RFC-0114-graph-health-grade` (keep `pub mod health;`). Then push to re-trigger CI. **(3)** Review **PR #575** (RFC-0113 design doc, CI ✅ — data-home decision). **(4)** Review design RFCs #578/#579/#580. |
+| PM | **DONE ✅** | v72: PR #583 merged (`c62b4c2`, PM v71 chore); PRs #576/#577 merge-conflict-diagnosed (JSONL+lib.rs); branch-update attempted — merge conflict blocks auto-update; escalated with resolution instructions. decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder finalize. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
 | architect | **P1 review** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). TSA-reuse roadmap design review: PRs #575/#578/#579/#580. |
-| rust-implementer | **P1 — CI blocked** | PRs #576/#577: 0 CI check runs on fix commits; founder to verify runner state before review+merge. God-file-split slice 4 (after v0.3.0 ships). |
+| rust-implementer | **P1 — merge-conflict blocked** | PRs #576/#577: merge conflicts with develop (decisions.jsonl + lib.rs); founder to resolve + push before CI runs. God-file-split slice 4 (after v0.3.0 ships). |
 | e2e-runner | **P2** | v0.3.0 regression pass after release ships. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). RFC-0112 Phase 1 docs (after RFC approved). |
@@ -160,6 +160,28 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v72 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v71, develop HEAD c62b4c2), anti-patterns, PM state v71 (develop HEAD), v0.2 PRD.
+
+**Assessment:**
+- 8 open PRs: #568 (v0.3.0 ceremony READY), #575 (RFC-0113 design, CI ✅), #576 (RFC-0113 impl, 0 CI), #577 (RFC-0114 impl, 0 CI), #578 (RFC-0117 DSL design, CI ✅), #579 (RFC-0115 test-gap, CI ✅), #580 (RFC-0116 safe-to-edit, CI ✅), #583 (PM v71 chore, CI ✅).
+- 0 open P0/P1 issues.
+- PR #583 (PM v71): CI ✅, 0 Codex review threads → safe to merge.
+- PRs #576/#577: 0 CI check runs confirmed via `get_check_runs` API.
+
+**Actions taken:**
+1. **Merged PR #583** (PM v71 chore, Codex clean 0 review threads, CI ✅) → squash `c62b4c2`. ✅
+2. **Attempted branch update** on PRs #576/#577 to trigger CI → both failed with "merge conflict between base and head". ✅ (diagnosed)
+3. **Diagnosed conflict root cause**: `decisions.jsonl` + `lessons.jsonl` append conflict (develop added v65–v71 entries after the branch base SHA; branches added overnight entries `2026-06-06T01:30-02:30`). `lib.rs` conflict (both sides modified `pub mod` list). Resolution is trivially additive (keep all JSONL entries chronologically). ✅
+4. **Verified CI on RFC design PRs**: #578 CI ✅ (E2E + CI + Triage). #575 CI ✅ (confirmed by v71 state). ✅
+5. **Updated PM state v72** with conflict diagnosis + founder resolution instructions. ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: v0.3.0 ceremony READY — finalize workflow_dispatch OR manual merge.
+- **(2) PRs #576/#577 conflict resolution**: `git merge origin/develop` on each feature branch (keep all JSONL entries + branch lib.rs version). Push to re-trigger CI. Then review + merge.
+- **(3) Design RFCs #575/#578/#579/#580**: Founder design review required.
 
 ### 2026-06-05 PM dispatch v71 (this run)
 
