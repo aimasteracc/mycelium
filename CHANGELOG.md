@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-05
+
 ### Added
 
 - **Import-aware `Extends` stub resolution (RFC-0103, initial target).** When a
@@ -38,12 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no public API change.
 
 ### Fixed
-
-- **ci(dco-check): use full body grep instead of trailer parser** — GitHub
-  squash-merge embeds `Signed-off-by` lines in the middle of the commit body
-  rather than as terminal trailers, so `%(trailers:key=Signed-off-by,valueonly)`
-  would false-fail those commits. Switched to `grep -qiE '^Signed-off-by:'` on
-  `%B` which correctly detects the sign-off regardless of position.
 
 - **npm launcher signal exit codes (Issue #525)**: `mycelium.cjs` now exits with
   `128 + signal_number` (e.g. SIGTERM → 143, SIGINT → 130) instead of always `1`
@@ -109,6 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sla_ancestors_100k` macOS CI flake: bumped the macOS-specific SLA limit from
   30 ms → 100 ms (observed 32 ms on loaded runner; Linux contract unchanged at
   5 ms).
+- **ci(dco-check): use full body grep instead of trailer parser** — GitHub
+  squash-merge embeds `Signed-off-by` lines in the middle of the commit body
+  rather than as terminal trailers, so `%(trailers:key=Signed-off-by,valueonly)`
+  would false-fail those commits. Switched to `grep -qiE '^Signed-off-by:'` on
+  `%B` which correctly detects the sign-off regardless of position. (PR #544)
 
 ## [0.1.19] - 2026-06-04
 
