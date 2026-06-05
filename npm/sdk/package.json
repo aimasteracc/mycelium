@@ -1,0 +1,42 @@
+{
+  "name": "@aimasteracc/mycelium-sdk",
+  "version": "0.0.0-dev",
+  "description": "Thin, typed Node/TypeScript SDK for the Mycelium code-intelligence engine. Wraps the prebuilt mycelium CLI — no Rust/Cargo toolchain required.",
+  "keywords": [
+    "code-intelligence",
+    "code-graph",
+    "mcp",
+    "ai",
+    "sdk",
+    "static-analysis",
+    "tree-sitter",
+    "mycelium"
+  ],
+  "homepage": "https://github.com/aimasteracc/mycelium",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aimasteracc/mycelium.git",
+    "directory": "npm/sdk"
+  },
+  "license": "MIT",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "src/"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "optionalDependencies": {
+    "@aimasteracc/mycelium-darwin-arm64": "0.0.0-dev",
+    "@aimasteracc/mycelium-darwin-x64": "0.0.0-dev",
+    "@aimasteracc/mycelium-linux-x64-gnu": "0.0.0-dev",
+    "@aimasteracc/mycelium-linux-arm64-gnu": "0.0.0-dev",
+    "@aimasteracc/mycelium-win32-x64": "0.0.0-dev"
+  }
+}

@@ -229,12 +229,17 @@ jobs:
               return 1
             fi
           }
-          # Platform packages must exist before the main package (whose
-          # optionalDependencies reference them).
+          # Platform packages must exist before the main package and the SDK
+          # (whose optionalDependencies reference them). The SDK is published
+          # explicitly after the main package, so skip it in the platform glob.
           for dir in dist-npm/mycelium-*; do
-            [ -d "$dir" ] && publish_one "$dir"
+            [ -d "$dir" ] || continue
+            [ "$dir" = "dist-npm/mycelium-sdk" ] && continue
+            publish_one "$dir"
           done
           publish_one "dist-npm/mycelium"
+          # RFC-0111: thin-CLI-wrapper SDK, published from the same release.
+          publish_one "dist-npm/mycelium-sdk"
 
   publish-pypi:
     name: publish to PyPI
