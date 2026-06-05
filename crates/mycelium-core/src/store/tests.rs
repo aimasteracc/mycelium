@@ -886,35 +886,35 @@ fn store_resolve_extends_stub_preserved_when_calls_edge_exists() {
     // PR #572). `is_isolated()` keeps the stub alive.
     let mut store = Store::new();
     let a_file = store.upsert_node(path("a.py"));
-    let sub = store.upsert_node(path("a.py>Sub"));
-    let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
+    let subclass = store.upsert_node(path("a.py>Sub"));
+    let bare_stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
     let _c_file = store.upsert_node(path("c.py")); // no imports → caller unresolved
     let caller = store.upsert_node(path("c.py>caller"));
     let b_file = store.upsert_node(path("b.py"));
     let b_base = store.upsert_node(path("b.py>Base"));
     let _d_file = store.upsert_node(path("d.py"));
     let _d_base = store.upsert_node(path("d.py>Base")); // second def — blocks simple pass
-    // Sub extends the bare stub; a.py imports b.py → Extends resolves to b.py>Base.
-    store.upsert_edge(EdgeKind::Extends, sub, stub);
+    // Subclass extends the bare stub; a.py imports b.py → Extends resolves to b.py>Base.
+    store.upsert_edge(EdgeKind::Extends, subclass, bare_stub);
     store.upsert_edge(EdgeKind::Imports, a_file, b_file);
     // caller calls the bare stub (c.py imports nothing → Calls stays unresolved).
-    store.upsert_edge(EdgeKind::Calls, caller, stub);
+    store.upsert_edge(EdgeKind::Calls, caller, bare_stub);
 
     let resolved = store.resolve_bare_call_stubs();
 
-    // Extends edge resolved; stub must NOT be removed because the Calls edge remains.
-    assert_eq!(resolved, 0, "stub not removed while Calls edge exists");
+    // Extends edge resolved; bare_stub must NOT be removed because the Calls edge remains.
+    assert_eq!(resolved, 0, "bare_stub not removed while Calls edge exists");
     assert!(
         store.lookup("Base").is_some(),
-        "stub preserved — Calls edge still references it"
+        "bare_stub preserved — Calls edge still references it"
     );
     assert!(
-        store.outgoing(sub, EdgeKind::Extends).contains(&b_base),
-        "sub's Extends edge redirected to b.py>Base"
+        store.outgoing(subclass, EdgeKind::Extends).contains(&b_base),
+        "subclass Extends edge redirected to b.py>Base"
     );
     assert!(
-        store.outgoing(caller, EdgeKind::Calls).contains(&stub),
-        "caller's Calls edge still points to stub"
+        store.outgoing(caller, EdgeKind::Calls).contains(&bare_stub),
+        "caller's Calls edge still points to bare_stub"
     );
 }
 
