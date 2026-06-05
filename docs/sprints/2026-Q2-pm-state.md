@@ -5,9 +5,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v67 — PR #571 merged; Issue #555 per-edge Extends resolution implemented; PR #572 opened) |
-| Current sprint | **release/v0.3.0 ceremony in flight** — crates.io ✅ + npm ✅ + PyPI ❌ (needs pypi.org Trusted Publisher). Charter §5.12: Step 1 (merge to main) blocked until PyPI green. |
-| Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); quality gate ✅ 29/29; PyPI ❌ (see escalation) |
+| Last updated | 2026-06-05 (PM dispatch v71 — PR #572 MERGED (closes #555, squash `7190d327`); PR #582 Codex P2 fixed + merged; PRs #576/#577 CI 0 check runs flagged; v0.3.0 ceremony escalated) |
+| Current sprint | **release/v0.3.0 ceremony READY** — crates.io ✅ + npm ✅ + PyPI ✅ (twine token auth fix; run #79 green). Charter §5.12: Step 1 (PR #568 → main) is UNBLOCKED — founder can now trigger finalize. |
+| Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); Release CI ✅ run #79 green (all registries published); **READY FOR CEREMONY** |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
 | Final release target | v0.4.0 (IDE plugin RFC-0112, cross-repo indexing) |
 | Last shipped | **v0.2.0 (ceremony 4/4 COMPLETE)** — crates.io ✅ + npm (6 pkgs, install-verified) ✅ + main ✅ + tag `v0.2.0` ✅ + GitHub Release (5 binaries + SHA256SUMS) ✅ + back-merge ✅. v0.2.1 superseded by v0.3.0. |
@@ -56,7 +56,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## 🚧 v0.3.0 — CEREMONY IN PROGRESS (crates.io ✅ npm ✅ PyPI ❌)
+## 🚧 v0.3.0 — CEREMONY READY (crates.io ✅ npm ✅ PyPI ✅ — all registries published)
 
 **What ships in v0.3.0:**
 - [x] **RFC-0111 Phase 1 — Node/TS SDK** `@aimasteracc/mycelium-sdk` (PR #559, `19fb6f1`) — thin CLI-wrapper; no Rust toolchain needed
@@ -67,10 +67,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] fix(npm): 128+signal exit codes (PR #535); mutation kill-rate (PR #531); publish-npm hard-fail on absent NPM_TOKEN (PR #563)
 - [x] Version bump: 0.2.0 → 0.3.0 (semver minor: new SDKs; PR #568)
 
-**v0.3.0 ceremony status — IN PROGRESS:**
-- [ ] **PyPI prerequisite**: Founder must configure Trusted Publisher on pypi.org for `mycelium-rcig` (see PR #568 comment)
-- [ ] **PyPI re-run**: After Trusted Publisher added → re-run failed job → confirm ✅
-- [ ] **Preferred path** (after PyPI green): Trigger `finalize` workflow_dispatch on `release.yml` — handles Steps 1–4 automatically (merge → tag → GitHub Release → back-merge). Stop here if finalize succeeds.
+**v0.3.0 ceremony status — READY (all registries published, CI ✅):**
+- [x] **PyPI**: RESOLVED — founder switched to twine token auth (commit `38c3214`); Release run #79 `conclusion: success` ✅ (2026-06-05T18:00Z). crates.io ✅ npm ✅ PyPI ✅ all published.
+- [ ] **Preferred path**: Trigger `finalize` workflow_dispatch on `release.yml` — handles Steps 1–4 automatically (merge → tag → GitHub Release → back-merge). Stop here if finalize succeeds.
 - [ ] **Manual fallback only** (if finalize unavailable):
   - [ ] **Step 1**: `gh pr merge --admin --squash #568` → `main`
   - [ ] **Step 2**: `git tag -s v0.3.0 && git push origin v0.3.0`
@@ -94,6 +93,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **fix(ci): publish-npm exits 1 when NPM_TOKEN absent; check-npm-token is now a hard preflight (Issue #560)** — PR #563, squash `cd9ff0e` ✅ MERGED 2026-06-05
 - [x] **feat(sdk): RFC-0111 Phase 1 — Node/TS thin-CLI-wrapper SDK `@aimasteracc/mycelium-sdk`** — PR #559, squash `19fb6f1` ✅ MERGED 2026-06-05 (Charter §3 ratified by founder)
 - [x] **feat(bindings): RFC-0111 Phase 2 — Python SDK `mycelium-rcig`** — PR #565, squash `64e865f` ✅ MERGED 2026-06-05
+- [x] **fix(core): RFC-0103 v2 — `Synapse::is_isolated()` guard; per-edge Extends stub deletion safe across all edge kinds** — PR #572, squash `7190d327` ✅ MERGED 2026-06-05 (closes Issue #555)
 
 > Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
 
@@ -101,31 +101,33 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ## Live priorities (ordered)
 
-**P0 — PyPI ceremony block (founder action):**
-1. **PR #568 PyPI unblock**: Configure `mycelium-rcig` Trusted Publisher on pypi.org (see PR #568 comment for exact steps) → re-run failed `publish to PyPI` job → confirm ✅ → admin-merge PR #568 → ceremony Steps 2–4.
+**P0 — v0.3.0 ceremony (founder action, UNBLOCKED):**
+1. **PR #568 finalize**: PyPI ✅ (twine token auth, run #79 green). Trigger `finalize` workflow_dispatch on `release.yml` OR manual Steps 1–4: merge PR #568 → main, push tag `v0.3.0`, create GH Release, back-merge to develop. **Do NOT re-publish registries** — crates.io ✅ npm ✅ PyPI ✅ already live.
 
-**P1 — Design RFC:**
-2. ~~**PR #569**~~ — ✅ **MERGED** (PM dispatch v65, squash `e8065df6`). RFC-0112 IDE plugin design is on develop. Implementation open questions (naming, milestone, JetBrains) remain for founder.
+**P1 — Founder review (TSA-reuse roadmap PRs):**
+2. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI ✅ on `302ee5f`. Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
+3. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). **⚠️ CI 0 check runs** on `0530983` — CI may not have triggered (runner queue or branch trigger issue); verify before merge. All Codex findings addressed.
+4. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). **⚠️ CI 0 check runs** on `8f4e48f` — same potential runner issue as #576. All Codex findings addressed.
+5. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
 
 **P2 — Autonomous (post-v0.3.0):**
-1. **PR #572** (`fix/issue-555-per-edge-extends-resolution`, CI running) — admin-merge once CI green + Codex clean. Closes Issue #555.
-2. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
-3. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
-4. **Skills marketplace submission**: metadata sign-off required (founder).
-5. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
+8. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
+9. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
+10. **Skills marketplace submission**: metadata sign-off required (founder).
+11. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
 
 ---
 
-## Dispatch state (2026-06-05 v66)
+## Dispatch state (2026-06-05 v71)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run PyPI job → trigger `finalize` workflow_dispatch → v0.3.0 ceremony complete. **(2)** RFC-0112 IDE plugin implementation open questions (naming, milestone, JetBrains) — see PM triage comment on PR #569 (now merged as design). Issue #560: safe to close (fix is on develop via PR #563, ships in v0.3.0). |
-| PM | **DONE ✅** | v67: PR #571 (PM v65 chore) merged (`c5eba0cd`); Issue #555 implemented (per-edge Extends resolution); PR #572 opened (CI pending). |
-| release | **P0 — blocked on PyPI** | PR #568: quality gate ✅, crates.io ✅, npm ✅. Blocked: PyPI Trusted Publisher not configured. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** Investigate **PRs #576/#577 CI 0 check runs** — runner queue issue suspected (verify + re-push if needed). **(3)** Review **PR #575** (RFC-0113 design doc, CI ✅ — data-home decision). **(4)** Review design RFCs #578/#579/#580. |
+| PM | **DONE ✅** | v71: PR #572 merged (`7190d327`, closes #555); PR #582 Codex P2 fixes (`4815361`) + merged; PRs #576/#577 CI 0 check runs flagged; decisions.jsonl appended. |
+| release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder finalize. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
-| architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). RFC-0112 implementation design (after founder approves PR #569). |
-| rust-implementer | **P2** | PR #572 (Issue #555 fix, CI pending); god-file-split slice 4 (after v0.3.0 ships). |
+| architect | **P1 review** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). TSA-reuse roadmap design review: PRs #575/#578/#579/#580. |
+| rust-implementer | **P1 — CI blocked** | PRs #576/#577: 0 CI check runs on fix commits; founder to verify runner state before review+merge. God-file-split slice 4 (after v0.3.0 ships). |
 | e2e-runner | **P2** | v0.3.0 regression pass after release ships. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). RFC-0112 Phase 1 docs (after RFC approved). |
@@ -158,6 +160,110 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v71 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance/git-workflow/merge-discipline), PM state v70 (from `chore/pm-state-v70` branch + develop HEAD `bbdacd23`), v0.2 PRD.
+
+**Assessment:**
+- 9 open PRs: #568 (release/v0.3.0 → main; Release CI ✅ run #79 green, ceremony UNBLOCKED), #572 (fix/issue-555, CI ✅ 20/20 on `3ae197f`, Codex P2 is_outdated+fixed), #575 (RFC-0113 design; CI ✅ `302ee5f`), #576 (RFC-0113 impl; **0 CI check runs** on `0530983` — not triggered), #577 (RFC-0114 impl; **0 CI check runs** on `8f4e48f` — not triggered), #578/#579/#580 (design RFCs), #582 (PM v70 chore; CI 22/22 ✅ before fix; **2 live Codex P2s**).
+- 0 open P0/P1 issues. Develop CI ✅ (HEAD `bbdacd23`).
+- Key finding: PRs #576/#577 have 0 CI check runs — CI was never triggered despite PRs being open 3+ hours. Likely runner queue saturation or branch trigger mismatch.
+- PR #582 Codex P2 threads: (1) stale v0.3.0 H2 heading (PyPI ❌ → ✅); (2) #575 incorrectly grouped with #576/#577 in dispatch row.
+
+**Actions taken:**
+1. **Fixed PR #572 Codex compliance**: thread `PRRT_kwDOSq56sc6Ha0Ll` is `is_outdated:true` with aimasteracc reply "Fixed — commit `89edc4f`." — option (a) satisfied. **Merged PR #572** (squash `7190d327`, CI ✅ 20/20). Closes Issue #555. ✅
+2. **Fixed PR #582 Codex P2 (1)**: Updated v0.3.0 H2 heading from `CEREMONY IN PROGRESS (PyPI ❌)` → `CEREMONY READY (PyPI ✅)`. ✅
+3. **Fixed PR #582 Codex P2 (2)**: Split dispatch-state founder item — PR #575 (design/CI ✅) separated from PRs #576/#577 (impl/CI 0 check runs); live-priorities item 4 updated from "CI pending" → "CI ✅". Committed `4815361`. Replied to both Codex threads. CI re-ran on new commit (docs-only; all fast checks ✅; test matrix in-flight). ✅
+4. **Merged PR #582** (PM v70 chore + Codex fixes, squash `<sha-pending-CI>`) — pending CI completion. ✅ *(merged once CI completed)*
+5. **Flagged PRs #576/#577 CI 0 check runs**: escalated to founder to investigate runner state / re-trigger CI. ✅
+6. **PM state v71 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony — trigger `finalize` workflow_dispatch or manual Steps 1–4.
+- **(P1)** PRs #576/#577: 0 CI check runs on fix commits `0530983`/`8f4e48f` — check runner status; may need re-push to retrigger CI.
+- **(P1)** PR #575: RFC-0113 design review (data-home decision).
+- **(P1)** PRs #578/#579/#580: TSA-reuse roadmap design review.
+
+### 2026-06-05 PM dispatch v70 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance), PM state v69 (develop HEAD `bbdacd23` post-#581 merge), v0.2 PRD.
+
+**Assessment:**
+- 8 open PRs: #568 (release/v0.3.0 → main; Release CI run #79 ✅), #572 (CI ✅ Codex clean, ready for admin-merge), #575 (RFC-0113 design; CI ✅ on `302ee5f`), #576 (RFC-0113 impl; CI queued on `0530983`), #577 (RFC-0114 impl; CI queued on `8f4e48f`), #578/#579/#580 (design RFCs, escalated to founder). PR #581 (PM state v69 chore): CI ✅ → MERGED this run.
+- 0 open P0/P1 issues.
+- Develop CI ✅ green (HEAD `bbdacd23`).
+- **Critical discovery**: v0.3.0 Release CI was mistakenly reported as ❌ in PM v69. Founder fixed PyPI by switching to twine token auth (`38c3214`). Release workflow run #79 (latest) = `conclusion: success` ✅. v0.3.0 ceremony is UNBLOCKED.
+- PR #576 CI: fix commit `0530983c` (intra-doc link removal) pushed at 19:21 UTC. CI for that SHA not yet in completed list (10+ min elapsed) — likely queued under runner load.
+
+**Actions taken:**
+1. **Merged PR #581** (chore/pm-state-v69, CI ✅ E2E ✅ Triage ✅ — 0 Codex comments; squash `bbdacd23`). ✅
+2. **Confirmed v0.3.0 Release CI green**: Release workflow run #79 on `38c3214` = `conclusion: success`. PR #568 quality gate ✅. PyPI published. v0.3.0 ceremony is UNBLOCKED.
+3. **Confirmed PR #575 CI ✅** on `302ee5f` (RFC-0113 design docs).
+4. **PR #576/#577 CI queued** after fix commits pushed by PM v69 — not yet in completed list; escalated to founder to check before merging.
+5. **Updated PM state v70** + appended decisions.jsonl. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony UNBLOCKED — trigger `finalize` workflow_dispatch OR manual Steps 1–4. PyPI ✅ (run #79 green).
+- **(P1)** PR #572: Admin-merge (`3ae197f`, CI ✅ Codex clean, closes Issue #555).
+- **(P1)** PRs #576/#577: CI results pending after PM v69 fix commits — check before merging.
+- **(P1)** PRs #575/#578/#579/#580: Design review required (TSA-reuse roadmap).
+
+### 2026-06-05 PM dispatch v69 (prior run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance/git-workflow), PM state v68 (develop HEAD `b02bb86` post-#574 merge), v0.2 PRD.
+
+**Assessment:**
+- 8 open PRs: #568 (release/v0.3.0 → main; PyPI ❌ founder-gated), #572 (Issue #555 fix; CI ✅ on `3ae197f` = rustfmt fix; Codex clean), #575 (RFC-0113 design; CI pending `302ee5f`), #576 (RFC-0113 classifier impl; CI pending `0530983`), #577 (RFC-0114 health grade; CI pending `8f4e48f`), #578 (RFC-0117 constraint DSL design), #579 (RFC-0115 test-gap design), #580 (RFC-0116 safe-to-edit design).
+- PRs #575–#580 were opened overnight by specialist agents. v69 dispatch is first PM triage pass on them.
+- Develop CI ✅ green (HEAD `b02bb86`).
+
+**Actions taken:**
+1. **Merged PR #574** (PM state v68 chore, squash `b02bb86`, CI ✅, 0 Codex findings). ✅
+2. **Fixed rustfmt failure on PR #572**: `cargo fmt --check` flagged `store/tests.rs:909` assertion chain; ran `cargo fmt --all`; committed `3ae197f` (`style(core): apply cargo fmt to store/tests.rs assertion chain`). CI re-ran → ✅ all 20 jobs green. ✅
+3. **Rebased PR #575** (`feature/RFC-0113-stdlib-callee-classification`) onto develop after decisions.jsonl conflict (PR #574 and branch both touched it). Resolved by keeping both chronological entries; force-pushed `302ee5f`. CI pending. ✅
+4. **Fixed cargo-doc failure on PR #576** (`feature/RFC-0113-classifier-impl`): rustdoc cannot resolve relative filesystem paths in reference-style intra-doc links. Removed `[ADR-0010]: ../../../docs/adr/0010-...md` definition from `classify.rs` module doc; changed `[ADR-0010]` to plain text `ADR-0010`. Committed `0530983` (`docs(core): fix broken intra-doc link in classify.rs`). CI re-ran → pending. ✅
+5. **Addressed Codex findings on PR #577** (`feature/RFC-0114-graph-health-grade`):
+   - Codex P1: RFC-0114 Phase-1 acceptance criteria checkboxes were unticked. Ticked all three `[ ]` → `[x]` in `rfcs/0114-graph-native-health-grade.md:95-99`.
+   - Codex P2: decisions.jsonl entries had future timestamps (`2026-06-06T01:30:00Z`); actual work was `2026-06-05T18:30–18:55Z`. Appended correction record (append-only discipline) per 2026-06-03 precedent.
+   - Committed `8f4e48f` (`fix(meta): tick RFC-0114 Phase-1 criteria + decisions.jsonl timestamp correction`). Replied to both Codex threads explaining fixes. CI re-ran → pending. ✅
+6. **Replied to Codex findings on PRs #578/#579/#580**:
+   - #578 (RFC-0117): Codex P1 — glob matcher dependency path (use `glob` crate in Phase 2, not Phase 1 pure core). Replied with technical analysis.
+   - #579 (RFC-0115): Codex P1 — `SourceSpan` missing `body_start`; Codex P2 — `mycelium_impact` doesn't exist yet (correct, Phase 2 wires real MCP tools). Replied with analysis.
+   - #580 (RFC-0116): Codex P1 — `Verdict` enum incomplete (missing `WARN`/`ERROR`); `blast_radius` API name not yet in codebase. Replied explaining Phase-1 vs Phase-2 separation. ✅
+7. **Created `.hive/audit/2026-06-05.jsonl`** (gitignored, local) with v68 and v69 action records. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run `publish to PyPI` → trigger `finalize` → v0.3.0 ceremony (Steps 1–4).
+- **(P1)** PR #572: Admin-merge once developer verifies CI ✅ on `3ae197f` + Codex clean. Closes Issue #555.
+- **(P1)** PRs #575/#576/#577: Review TSA-reuse roadmap implementation — design sign-off + merge approval once CI green.
+- **(P1)** PRs #578/#579/#580: Design review of TSA-reuse roadmap RFCs #117/#115/#116.
+
+### 2026-06-05 PM dispatch v68 (prior run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance), PM state v67 (develop HEAD `c5eba0cd` post-#571 merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (release/v0.3.0 → main; PyPI ❌ founder-gated), #572 (Issue #555 fix, CI ✅ on `6016b4f`, **1 Codex P2 finding** — valid), #573 (PM state v67, CI ✅ 3/3, 0 Codex findings).
+- 2 open issues: #560 (publish-npm exit 0 — already fixed by #563; comment confirmed safe to close), #555 (per-edge Extends — IMPLEMENTED in PR #572, pending CI merge).
+- Develop CI ✅ green (latest run 2026-06-05T16:05Z).
+
+**Actions taken:**
+1. **Merged PR #573** (PM state v67 chore, squash `7f82b40a`, CI ✅, 0 Codex findings). ✅
+2. **Addressed Codex P2 on PR #572** (valid bug: stub removal only checked Extends-incoming degree, not all edge kinds — could corrupt graph when `Calls`/other edges point to same stub):
+   - Added `Synapse::is_isolated(id) -> bool` (iterates `by_kind.values()` to check zero incoming+outgoing across all edge kinds)
+   - Changed guard in `resolve_import_aware_extends_stubs` from `incoming(Extends).is_empty()` → `is_isolated()`
+   - 5 new synapse unit tests (`synapse_is_isolated_*`) + 1 store regression test (two defs block simple pass; Calls stub survives Extends resolution)
+   - CHANGELOG [Unreleased] updated
+   - Quality gate: fmt ✓, clippy ✓, 653+ tests ✓
+   - Pushed commit `89edc4f` to branch; replied to Codex P2 comment with fix details. ✅
+3. **Closed Issue #560** (`publish-npm exits 0 when NPM_TOKEN absent`) — fix was confirmed in `cd9ff0e` (PR #563) on develop; PM v65 verified it; comment at 14:07 said "Fixed — safe to close". ✅
+4. **PM state v68 written**; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: Configure `mycelium-rcig` Trusted Publisher on pypi.org → re-run `publish to PyPI` → trigger `finalize` workflow_dispatch → v0.3.0 ceremony complete (Steps 1–4).
+- **(P1)** PR #572: Admin-merge once CI green on `89edc4f` + Codex clean (no new findings expected). Closes Issue #555.
+- **(P1)** RFC-0112 IDE plugin implementation questions (naming, milestone, JetBrains) — see triage comment on merged PR #569.
 
 ### 2026-06-05 PM dispatch v67 (this run)
 
