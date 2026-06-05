@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Node/TypeScript SDK — `@aimasteracc/mycelium-sdk` (RFC-0111, Phase 1).** A
+  thin, typed client that embeds Mycelium in any Node/TS app **without a Rust
+  toolchain**. It wraps the prebuilt CLI ([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)):
+  locates the binary (`MYCELIUM_BIN` → platform package → `PATH`), spawns it
+  with an argv array (no shell — no injection surface) and `--format json`, and
+  returns parsed objects. Typed methods (`version`, `index`, `query`,
+  `searchSymbol`, `getSymbolInfo`, `getCallers`, `getCallees`, `context`,
+  `serverStatus`) plus a raw `run(args)` escape hatch covering every subcommand.
+  Ships TS types (`index.d.ts`) with no build step. Because it wraps the CLI it
+  **inherits CLI↔MCP parity for free** (Charter §5.13). Errors surface as
+  `MyceliumError`. Hermetic unit tests (injected spawn) + a live integration
+  test wired into CI against the release binary. Python SDK is Phase 2 of the
+  same RFC. **Charter §3 bindings row amended** from native FFI (napi-rs/pyo3)
+  to thin CLI-wrapper SDKs; native FFI reserved for a future performance RFC.
 - **Import-aware `Extends` stub resolution (RFC-0103, initial target).** When a
   class inherits from a base whose simple name is defined in *several* files
   (ambiguous for the existing unique-match resolver), the post-index pass now

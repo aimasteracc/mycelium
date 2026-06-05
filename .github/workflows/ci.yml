@@ -179,6 +179,17 @@ jobs:
       - name: npm launcher unit tests
         run: node --test
         working-directory: npm/mycelium
+      # RFC-0111: SDK thin-wrapper. Unit tests are hermetic (injected spawn);
+      # the integration test then round-trips real JSON through the SDK using
+      # the release binary just built above, proving the --format json contract.
+      - name: SDK unit tests
+        run: node --test
+        working-directory: npm/sdk
+      - name: SDK integration test (against built binary)
+        run: node --test
+        working-directory: npm/sdk
+        env:
+          MYCELIUM_BIN: ${{ github.workspace }}/target/release/mycelium
       - name: npm packaging smoke test (assemble → install → run)
         run: |
           set -euo pipefail
