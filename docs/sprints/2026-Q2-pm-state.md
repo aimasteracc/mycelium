@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v53 — v0.2.0 ceremony 4/4 COMPLETE: tag + GitHub Release + npm all shipped this session; PR #547 merged; v0.2.1 queue open) |
-| Current sprint | **Post-v0.2.0 stabilization — ceremony 4/4 COMPLETE (crates + npm + tag + GitHub Release all live); v0.2.1 queue open** |
+| Last updated | 2026-06-05 (PM dispatch v54 — PR #549 merged (Issue #534 ✅); PR #550 opened (Issue #428 slice 3: requests.rs extract, lib.rs −22%)) |
+| Current sprint | **Post-v0.2.0 stabilization — v0.2.1 queue: PR #550 CI running (god-file-split slice 3)** |
 | Active release branch | none — `release/v0.2.0` merged and deleted |
 | Next release target | **v0.2.1** — MCP god-file split (lib.rs 6,048 lines) + Issue #534 npm E404 grace removal + formalize #525/#526 into crates |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
@@ -75,9 +75,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 — hygiene (optional, founder):** the `NPM_TOKEN` value was pasted into a chat transcript during the manual publish; founder may rotate it (revoke → new granular token: RW all-packages + bypass 2FA → `gh secret set NPM_TOKEN --env npm`). The token works; this is defense-in-depth only.
 
 **P2 — Autonomous (v0.2.1 queue):**
-1. **MCP god-file split residual** (⚠️ Issue #428 partial): `crates/mycelium-mcp/src/lib.rs` at 6,048 lines. Target: extract `tools/context.rs`, `tools/graph.rs`, move `mod tests` → `tests/` submodule.
-2. **Issue #534**: Remove E404 graceful degradation from `publish_one()` in `release.yml` — **now unblocked** (npm scope live + token authenticates). 3-line removal.
-3. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop (npm surface already has #525).
+1. **MCP god-file split — PR #550 CI running** (Issue #428 slice 3): `requests.rs` extracted; lib.rs 6,048→4,694 (−22%). Next slice: extract handler `call_tool` arms to `tools/` subdirectory.
+2. ~~**Issue #534**~~: ✅ DONE — PR #549 merged 2026-06-05 by founder.
+3. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop.
 4. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
 5. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
 
@@ -92,7 +92,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once MCP god-file split + Issue #534 ready. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan (release.yml + npm/): CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
-| rust-implementer | **P2** | MCP god-file split: `crates/mycelium-mcp/src/lib.rs` 6,048→tools/ modules (Charter §5.4 quality). |
+| rust-implementer | **P2 — PR #550 CI** | MCP god-file split slice 3 PR #550 (requests.rs extract; lib.rs 6048→4694). Slice 4: tools/ handler extraction. |
 | e2e-runner | **idle** | Dogfood 8/8 verified by CI dogfood job ✅. Next: v0.2.1 regression pass after god-file split. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data collection). |
 | tech-writer | **P2** | Skills marketplace submission prep (sign-off from founder needed). |
@@ -173,6 +173,23 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ### 2026-06-03 PM dispatch v28 (develop CI fix PR #508; ADR-0010 merged; v0.1.19 boundary corrected)
 
 *(see commit `bf0399a2` for full archive)*
+
+### 2026-06-05 PM dispatch v54 (PR #549 merged; PR #550 opened — god-file-split slice 3)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hits: git-workflow, ci/testing), PM state (v53 on develop), v0.2 PRD. Memory NOTE: local clone is on `main` — stale; fetched origin/develop.
+
+**Assessment:**
+- 0 open PRs (PR #549 `fix/issue-534-npm-publish-hard-fail` merged 2026-06-05T02:23Z by founder — Issue #534 resolved ✅).
+- 0 open issues. Develop CI: ✅ green (main + develop both SUCCESS 2026-06-05T02:23).
+- v0.2.0: 4/4 ceremony complete. No P0/P1 items. Top autonomous task: MCP god-file split.
+
+**Actions taken:**
+1. **Verified PR #549**: merged, 0 Codex review threads — Clean. Issue #534 ✅.
+2. **Executed MCP god-file split slice 3** (Issue #428): extracted 93 request schema types (lines 325–1495) → `requests.rs` (1,179 lines); moved `server_info_tests` + `output_budget_tests` inline mods → `tests.rs`; lib.rs 6,048→4,694 (−22.4%). `pub use requests::*;` re-exports all types; `OutputFormat` re-exported via `pub use crate::formatter::OutputFormat;` in requests.rs. TDD baseline: 444 tests GREEN → refactor → 444 tests GREEN. Clippy -D warnings clean. fmt clean.
+3. **Opened PR #550** targeting develop.
+4. **Updated PM state v54** + dispatch.
+
+**Escalations to founder:** none.
 
 ### Earlier dispatches (v1–v27)
 
