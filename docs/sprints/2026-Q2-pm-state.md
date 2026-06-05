@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v62 — PR #562 merged (PM v61); Issue #560 fixed → PR #563 opened (CI running); v0.2.1 ceremony still pending founder) |
-| Current sprint | **release/v0.2.1 in flight (PR #557 → main; founder ceremony pending; registries already published) + RFC-0111 Node SDK awaiting founder Charter §3 ratification** |
+| Last updated | 2026-06-05 (PM dispatch v63 — PR #563 merged (Issue #560 ✅); PR #559 merged (RFC-0111 Node SDK ✅); PR #565 merged (RFC-0111 Python SDK ✅); PR #566 CLOSED stale; v0.2.1 ceremony still pending founder) |
+| Current sprint | **release/v0.2.1 in flight (PR #557 → main; founder ceremony pending; registries already published) + RFC-0111 Phase 1+2 on develop (Node + Python SDKs)** |
 | Active release branch | **`release/v0.2.1`** — PR #557 open (→ main); CI ✅ all 30 checks SUCCESS/SKIPPED |
 | Next release target | **v0.2.1** — RFC-0103 + RFC-0094 Phase 4 + god-file slice 3 + launcher signal exit + mutation tests |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
@@ -66,7 +66,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] feat(mcp): RFC-0094 Phase 4 — flip stdio MCP default output to text (~72% fewer tokens); `render()` helper centralises 89 format sites; `with_default_format()` builder; `serve_stdio` defaults to `Text`; Codex P2 (6 path-finder tools) fixed before merge; lib.rs 4,694→4,485 (−209 lines via consolidation) (PR #552, `1a6e3e7`) ✅ merged 2026-06-05
 - [x] chore(pm): dispatch v29–v56 (PM state + decisions.jsonl maintenance)
 - [x] **fix(core): RFC-0103 per-edge Extends resolution** (PR #554, squash `9e1bd4b`) — MERGED ✅ 2026-06-05
-- [ ] **fix(ci): publish-npm exits 1 when NPM_TOKEN absent (Issue #560)** — PR #563 opened 2026-06-05, CI running → admin-merge when green + Codex clean
+- [x] **fix(ci): publish-npm exits 1 when NPM_TOKEN absent; check-npm-token is now a hard preflight (Issue #560)** — PR #563, squash `cd9ff0e` ✅ MERGED 2026-06-05
+- [x] **feat(sdk): RFC-0111 Phase 1 — Node/TS thin-CLI-wrapper SDK `@aimasteracc/mycelium-sdk`** — PR #559, squash `19fb6f1` ✅ MERGED 2026-06-05 (Charter §3 ratified by founder)
+- [x] **feat(bindings): RFC-0111 Phase 2 — Python SDK `mycelium-rcig`** — PR #565, squash `64e865f` ✅ MERGED 2026-06-05
 
 > Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
 
@@ -77,31 +79,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0 — none.** v0.2.0 fully shipped. `release/v0.2.1` branch cut, **PR #557 open → main** (founder ceremony pending).
 
 **P1 — founder action requested:**
-1. **PR #557** (`release/v0.2.1` → `main`): CI ✅ all 30 checks SUCCESS/SKIPPED; registries published; Codex P1 addressed (Issue #560). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release → back-merge to develop.
-2. **PR #559** (`feature/RFC-0111-node-py-bindings` → `develop`): CI ✅ (3/3), both Codex findings fixed in `39df23c` and replied to. **Charter §3 amendment (locked section) — requires founder ratification before merge.**
-3. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth; token works).
-
-**P2 (autonomous — next dispatch):**
-4. **PR #563** (`fix/issue-560-publish-npm-token-exit-code` → `develop`): CI running. Admin-merge when green + Codex clean. Fixes publish-npm silent `exit 0` when NPM_TOKEN absent.
+1. **PR #557** (`release/v0.2.1` → `main`): CI ✅ all 30 checks SUCCESS/SKIPPED; registries published; Codex P1 addressed (Issue #560 ✅ merged `cd9ff0e`). **Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release → back-merge to develop.**
+2. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth; token works).
 
 **P2 — Autonomous (post-v0.2.1):**
-1. **MCP god-file split slice 4** — lib.rs 4,485 lines; `#[tool_router]` proc-macro constraint; `include!()` approach is viable (expands before the attribute proc macro). New tracking issue required (Issue #428 closed at slice 3). Safe to schedule for next dispatch after v0.2.1 ships.
+1. **MCP god-file split slice 4** — lib.rs currently ~4,485 lines; `#[tool_router]` proc-macro constraint; `include!()` approach is viable. Open new tracking issue and implement **after v0.2.1 ships**.
 2. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
 3. **Skills marketplace submission**: metadata sign-off required (founder).
 
 ---
 
-## Dispatch state (2026-06-05 v62)
+## Dispatch state (2026-06-05 v63)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P1 action** | **(1)** PR #557: CI ✅ 30/30; Codex P1 addressed (Issue #560). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release → back-merge. **(2)** PR #559: CI ✅, both Codex findings fixed in `39df23c` and replied. Charter §3 locked-section amendment — needs ratification before merge. **(3, optional)** Rotate NPM_TOKEN. |
-| PM | **DONE ✅** | v62: PR #562 merged (`4b7bcc5`); Issue #560 fixed → PR #563 opened (CI running); PM state v62 written; decisions.jsonl appended. |
-| release | **P1 — waiting founder** | PR #557 CI ✅. Registries published. Remaining: founder merge + tag + GH Release + back-merge. |
-| security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
+| founder | **P1 action** | **(1)** PR #557: CI ✅ 30/30; registries published; Issue #560 ✅ merged. **Admin-merge → push tag `v0.2.1` → GitHub Release → back-merge to develop.** **(2, optional)** Rotate NPM_TOKEN. |
+| PM | **DONE ✅** | v63: PR #566 CLOSED (stale v30 regression risk); #563 / #559 / #565 noted as merged; PM state v63 written; decisions.jsonl appended. |
+| release | **P1 — waiting founder** | PR #557 CI ✅ 30/30. Registries published. Remaining: founder ceremony (merge + tag + GH Release + back-merge). |
+| security-reviewer | **P2** | Post-v0.2.1 scan (after release ships). |
 | architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). |
-| rust-implementer | **P2** | God-file-split slice 4: `include!()` approach viable; new issue needed. Schedule after v0.2.1 ships. |
-| e2e-runner | **idle** | v0.2.1 regression pass after release ships. |
+| rust-implementer | **P2** | God-file-split slice 4: open tracking issue + implement after v0.2.1 ships. |
+| e2e-runner | **P2** | v0.2.1 regression pass after release ships. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). |
 
@@ -115,7 +113,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Storage-format break.
 - **Skill marketplace listing metadata sign-off** (P2, pending).
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
-- **RFC-0111 Charter §3 amendment**: PR #559 ready (CI ✅, Codex P1+P2 fixed `39df23c`). Bindings row change from native FFI to thin CLI-wrapper SDK. Needs founder ratification before merge.
+- ~~**RFC-0111 Charter §3 amendment**~~: ✅ RATIFIED — PR #559 MERGED (`19fb6f1`) + PR #565 MERGED (`64e865f`). Charter §3 bindings row updated to thin CLI-wrapper SDK; native FFI reserved for future perf RFC.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
 - **Systemic**: `release.yml` finalize merge — ceremony script is workaround; RFC-0110 `finalize` job uses `git push origin main` (not GitHub PR API), so the old v0.1.6–v0.1.18 auto-close bug is RESOLVED for v0.2.0+.
@@ -132,6 +130,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v63 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance/pm-dispatch), PM state (v62 on develop `cd9ff0e`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #557 (release/v0.2.1 → main; CI ✅ 30/30; registries published; founder ceremony pending), #566 (chore/pm-state-v30 — **STALE**: would regress develop pm-state from v62 to v30).
+- 0 open P0/P1 issues.
+- Develop CI ✅ green (HEAD `cd9ff0e`). Develop has RFC-0111 Phase 1 (`19fb6f1`) + Phase 2 (`64e865f`) + Issue #560 fix (`cd9ff0e`) all merged since v62 was written.
+- PR #563 Codex P1: "Fail before publishing crates when npm absent" — Fixed in `c5690b9` (reply posted before merge ✅).
+- PR #565 Codex P1: "Gate PyPI on npm success" — Fixed in `af9a575` (reply posted before merge ✅). Codex P2 outdated (reply posted ✅).
+- Anti-pattern check: mcp__github__get_file_contents-resolves-to-main → AVOIDED by reading local checkout after `git checkout -b ... origin/develop`.
+
+**Actions taken:**
+1. **Closed PR #566** (stale: created by a session that read `main`'s pm-state v28 instead of develop's v62; merging would have regressed pm-state from v62 → v30). Posted explanation comment. ✅
+2. **Verified Codex hygiene** on recently merged PRs: #563 P1 fixed+replied (`c5690b9`) ✅; #565 P1+P2 fixed+replied (`af9a575`) ✅; #559 P1+P2 fixed+replied (`39df23c`) ✅.
+3. **PM state v63** written: marked #563/#559/#565 as MERGED; removed #559/#563 from live priorities (now on develop); RFC-0111 Charter §3 gate marked RATIFIED; dispatch state v63. ✅
+4. **Appended decisions.jsonl** (this entry). ✅
+
+**Escalations to founder:**
+- **(P1)** PR #557 (`release/v0.2.1` → main): CI ✅ 30/30 SUCCESS/SKIPPED; registries published (crates.io + npm + PyPI); Issue #560 fixed (`cd9ff0e`). Remaining ceremony: **(1)** admin-merge PR #557 → main **(2)** push tag `v0.2.1` **(3)** GitHub Release (release.yml `workflow_dispatch version=0.2.1` or manual) **(4)** back-merge to develop.
 
 ### 2026-06-05 PM dispatch v62 (this run)
 
