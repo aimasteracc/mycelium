@@ -989,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -1053,7 +1053,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-hyphae"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "insta",
  "logos",
@@ -1066,7 +1066,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-mcp"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1104,7 +1104,7 @@ dependencies = [
 
 [[package]]
 name = "mycelium-rcig-pack"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "thiserror",
