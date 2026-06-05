@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v60 — PR #558 admin-merged (v59 chore + Codex P1 ceremony-order fix); Issue #560 opened (publish-npm exit-0 bug); PR #557 Codex P1 addressed) |
-| Current sprint | **release/v0.2.1 in flight (PR #557 → main; founder ceremony pending; registries already published)** |
+| Last updated | 2026-06-05 (PM dispatch v61 — PR #561 merged (PM v60); PR #559 Codex P1+P2 both replied (fixed in `39df23c`); release/v0.2.1 ceremony still pending founder) |
+| Current sprint | **release/v0.2.1 in flight (PR #557 → main; founder ceremony pending; registries already published) + RFC-0111 Node SDK awaiting founder Charter §3 ratification** |
 | Active release branch | **`release/v0.2.1`** — PR #557 open (→ main); CI ✅ all 30 checks SUCCESS/SKIPPED |
 | Next release target | **v0.2.1** — RFC-0103 + RFC-0094 Phase 4 + god-file slice 3 + launcher signal exit + mutation tests |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
@@ -76,8 +76,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0 — none.** v0.2.0 fully shipped. `release/v0.2.1` branch cut, **PR #557 open → main** (founder ceremony pending).
 
 **P1 — founder action requested:**
-1. **PR #557** (`release/v0.2.1` → `main`): **registries already published ✅** (crates.io + npm + PyPI ran on `release/v0.2.1` push, 2026-06-05; all 30 CI checks SUCCESS/SKIPPED). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release (run `workflow_dispatch` on release.yml with `version=0.2.1` to build binaries + GH Release + back-merge, OR do steps manually) → back-merge to develop.
-2. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth; token works).
+1. **PR #557** (`release/v0.2.1` → `main`): CI ✅ all 30 checks SUCCESS/SKIPPED; registries published; Codex P1 addressed (Issue #560). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release → back-merge to develop.
+2. **PR #559** (`feature/RFC-0111-node-py-bindings` → `develop`): CI ✅ (3/3), both Codex findings fixed in `39df23c` and replied to. **Charter §3 amendment (locked section) — requires founder ratification before merge.**
+3. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth; token works).
 
 **P2 — Autonomous (post-v0.2.1):**
 1. **MCP god-file split slice 4** — lib.rs 4,485 lines; `#[tool_router]` proc-macro constraint; `include!()` approach is viable (expands before the attribute proc macro). New tracking issue required (Issue #428 closed at slice 3). Safe to schedule for next dispatch after v0.2.1 ships.
@@ -86,13 +87,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-05 v60)
+## Dispatch state (2026-06-05 v61)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P1 action** | **(1)** PR #557 CI ✅ (all 30 checks SUCCESS/SKIPPED); registries published; Codex P1 addressed (Issue #560). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release (via `workflow_dispatch version=0.2.1` or manually) → back-merge. **(2, optional)** Rotate NPM_TOKEN. |
-| PM | **DONE ✅** | v60: PR #558 admin-merged (`56795f4`); Issue #560 opened (publish-npm exit-0 Codex P1); Codex threads on #557 and #558 addressed; PM state v60 written; decisions.jsonl appended. |
-| release | **P1 — waiting founder** | PR #557 CI ✅. Registries published on push (2026-06-05). Remaining: founder merge + tag + GH Release + back-merge (manual or `workflow_dispatch`). |
+| founder | **P1 action** | **(1)** PR #557: CI ✅ 30/30; Codex P1 addressed (Issue #560). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release → back-merge. **(2)** PR #559: CI ✅, both Codex findings fixed in `39df23c` and replied. Charter §3 locked-section amendment — needs ratification before merge. **(3, optional)** Rotate NPM_TOKEN. |
+| PM | **DONE ✅** | v61: PR #561 merged (`dad6981`); PR #559 Codex P1+P2 both replied (fixed in `39df23c`); Decision gates table updated; PM state v61 written; decisions.jsonl appended. |
+| release | **P1 — waiting founder** | PR #557 CI ✅. Registries published. Remaining: founder merge + tag + GH Release + back-merge. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). |
 | rust-implementer | **P2** | God-file-split slice 4: `include!()` approach viable; new issue needed. Schedule after v0.2.1 ships. |
@@ -110,6 +111,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Storage-format break.
 - **Skill marketplace listing metadata sign-off** (P2, pending).
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
+- **RFC-0111 Charter §3 amendment**: PR #559 ready (CI ✅, Codex P1+P2 fixed `39df23c`). Bindings row change from native FFI to thin CLI-wrapper SDK. Needs founder ratification before merge.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
 - **Systemic**: `release.yml` finalize merge — ceremony script is workaround; RFC-0110 `finalize` job uses `git push origin main` (not GitHub PR API), so the old v0.1.6–v0.1.18 auto-close bug is RESOLVED for v0.2.0+.
@@ -126,6 +128,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v61 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain: sdk/npm/release-governance), PM state (v60 on develop `dad6981`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #557 (release/v0.2.1 → main, CI ✅ 30/30, Codex addressed — waiting founder ceremony), #559 (RFC-0111 Node SDK, CI ✅ 3/3, 2 open Codex findings P1+P2), #561 (PM v60 chore, CI ✅, 0 Codex findings).
+- 0 open P0/P1 issues. Develop CI ✅. No autonomous P0 work to do.
+- Codex P1 on #559 (`sdk/package.json:40`): SDK never published in release pipeline; `0.0.0-dev` pins unresolved.
+- Codex P2 on #559 (`client.js:90`): `context()` drops constructor/call budget option.
+
+**Actions taken:**
+1. **Investigated PR #559 Codex findings** — both real bugs. Verified fix was already in `39df23c` (prior session pushed it before this dispatch). ✅
+2. **Replied to Codex P1 thread** on PR #559 citing `39df23c` + CI smoke test guard. ✅
+3. **Replied to Codex P2 thread** on PR #559 citing `39df23c` + 2 TDD tests. ✅
+4. **Merged PR #561** (PM v60 chore, CI ✅, 0 Codex findings, squash `dad6981`). ✅
+5. **Updated PM state v61**: Live priorities, dispatch state, decision gates updated. ✅
+6. **Appended decisions.jsonl** (this entry). ✅
+
+**Escalations to founder:**
+- **(1)** PR #557: admin-merge + v0.2.1 ceremony (unchanged from v60).
+- **(2)** PR #559: Charter §3 amendment ratification needed before merge to develop.
 
 ### 2026-06-05 PM dispatch v60 (this run)
 
