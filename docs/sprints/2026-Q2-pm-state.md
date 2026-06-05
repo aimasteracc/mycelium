@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v53 — v0.2.0 ceremony 4/4 COMPLETE: tag + GitHub Release + npm all shipped this session; PR #547 merged; v0.2.1 queue open) |
-| Current sprint | **Post-v0.2.0 stabilization — ceremony 4/4 COMPLETE (crates + npm + tag + GitHub Release all live); v0.2.1 queue open** |
+| Last updated | 2026-06-05 (PM dispatch v55 — PR #550 merged (Issue #428 slice 3 ✅); PR #551 Codex fix + merged) |
+| Current sprint | **Post-v0.2.0 stabilization — v0.2.1 queue: Issue #428 slice 4 (tools/ handler extraction, lib.rs 4,694 lines) next** |
 | Active release branch | none — `release/v0.2.0` merged and deleted |
-| Next release target | **v0.2.1** — MCP god-file split (lib.rs 6,048 lines) + Issue #534 npm E404 grace removal + formalize #525/#526 into crates |
+| Next release target | **v0.2.1** — MCP god-file split (Issue #428) + formalize signal-exit fix (#535) + mutation tests (#531) into crates |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
 | Last shipped | **v0.2.0 (ceremony 4/4 COMPLETE)** — crates.io ✅ + npm (6 pkgs, install-verified) ✅ + main ✅ + tag `v0.2.0` ✅ + GitHub Release (5 binaries + SHA256SUMS) ✅ + back-merge ✅ |
 
@@ -62,7 +62,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 - [x] fix(npm): 128+signal exit codes in launcher (PR #535, `3f81241`) — **not in v0.2.0 crates/tag**. Note: the published npm@0.2.0 *launcher* already includes this fix (assembled from develop during the manual publish), so it is live on the npm surface; v0.2.1 formalizes it into the crates/tag.
 - [x] test(mcp): mutation kill-rate exact-count assertions (PR #531, `b696953`) — not in v0.2.0 tag (test-only)
-- [x] chore(pm): dispatch v29–v53 (PM state + decisions.jsonl maintenance)
+- [x] refactor(mcp): Issue #428 god-file-split slice 3 — requests.rs extract; lib.rs 6,048→4,694 (PR #550, `4818da09`) ✅ merged 2026-06-05
+- [x] chore(pm): dispatch v29–v55 (PM state + decisions.jsonl maintenance)
 
 > Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
 
@@ -75,27 +76,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 — hygiene (optional, founder):** the `NPM_TOKEN` value was pasted into a chat transcript during the manual publish; founder may rotate it (revoke → new granular token: RW all-packages + bypass 2FA → `gh secret set NPM_TOKEN --env npm`). The token works; this is defense-in-depth only.
 
 **P2 — Autonomous (v0.2.1 queue):**
-1. **MCP god-file split residual** (⚠️ Issue #428 partial): `crates/mycelium-mcp/src/lib.rs` at 6,048 lines. Target: extract `tools/context.rs`, `tools/graph.rs`, move `mod tests` → `tests/` submodule.
-2. **Issue #534**: Remove E404 graceful degradation from `publish_one()` in `release.yml` — **now unblocked** (npm scope live + token authenticates). 3-line removal.
-3. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop (npm surface already has #525).
-4. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
-5. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
+1. **MCP god-file split slice 4** — Extract `call_tool` handler arms → `tools/` subdirectory (Issue #428 slice 4). lib.rs now at 4,694 lines after slice 3; slice 4 removes the largest remaining block (~2 K handler arms). **Next autonomous task.**
+2. ~~**Issue #534**~~: ✅ DONE (PR #549 merged by founder 2026-06-05).
+3. ~~**PR #550**~~: ✅ DONE (god-file-split slice 3 merged 2026-06-05, `4818da09`).
+4. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop.
+5. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
+6. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
 
 ---
 
-## Dispatch state (2026-06-04 v53)
+## Dispatch state (2026-06-05 v55)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **no ceremony action** | v0.2.0 fully shipped. Optional: rotate NPM_TOKEN (pasted in transcript); review/merge PM PRs. |
-| PM | **DONE ✅** | v53: v0.2.0 ceremony 4/4 COMPLETE (tag + GH Release + npm published & install-verified); PR #547 merged; v0.2.1 queue corrected (#535/#531 → v0.2.1, #544/#533 confirmed in v0.2.0). |
-| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once MCP god-file split + Issue #534 ready. |
-| security-reviewer | **DONE ✅** | Post-v0.2.0 scan (release.yml + npm/): CLEAN. |
+| founder | **no ceremony action** | v0.2.0 fully shipped. Optional: rotate NPM_TOKEN (pasted in transcript). |
+| PM | **DONE ✅** | v55: PR #550 merged (Issue #428 slice 3); PR #551 Codex P2 fixed + merged. |
+| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once Issue #428 god-file split complete. |
+| security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
-| rust-implementer | **P2** | MCP god-file split: `crates/mycelium-mcp/src/lib.rs` 6,048→tools/ modules (Charter §5.4 quality). |
-| e2e-runner | **idle** | Dogfood 8/8 verified by CI dogfood job ✅. Next: v0.2.1 regression pass after god-file split. |
+| rust-implementer | **P2** | Issue #428 slice 4: extract `call_tool` handler arms → `tools/` subdirectory (lib.rs 4,694 lines → further reduction). |
+| e2e-runner | **idle** | Dogfood 8/8 verified ✅. Next: v0.2.1 regression pass after god-file split completes. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data collection). |
-| tech-writer | **P2** | Skills marketplace submission prep (sign-off from founder needed). |
+| tech-writer | **P2** | Skills marketplace submission prep (founder sign-off needed). |
 
 ---
 
@@ -123,6 +125,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v55 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hits: git-workflow, ci/testing), PM state (v54 from chore/pm-dispatch-v54 branch), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #550 (Issue #428 slice 3: requests.rs, 24/24 CI ✅, 0 Codex findings), #551 (PM v54 chore, CI running, 1 Codex P2 — dispatch table header "(2026-06-04 v53)" stale).
+- 0 open issues. v0.2.0 ceremony 4/4 COMPLETE. No P0/P1 items.
+
+**Actions taken:**
+1. **Fixed PR #551 Codex P2** (commit `36e3e71`): dispatch table header advanced from "(2026-06-04 v53)" to "(2026-06-05 v54)"; release row stale Issue #534 prerequisite removed. Codex thread reply posted. ✅
+2. **Merged PR #550** (squash `4818da09`) — Issue #428 god-file-split slice 3 landed on develop; lib.rs 6,048→4,694 (−22%). ✅
+3. **Merged PR #551** (squash — CI went green) — PM v54 + Codex fix on develop. ✅
+4. **PM state v55** updated + decisions.jsonl appended. ✅
+
+**Escalations to founder:** none.
+
+### 2026-06-05 PM dispatch v54 (PR #549 merged by founder; PR #550 opened — god-file-split slice 3)
+
+*(see merged commit on develop for full archive; dispatch table Codex fix in PR #551)*
 
 ### 2026-06-04 PM dispatch v53 (this run)
 
@@ -173,6 +195,23 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ### 2026-06-03 PM dispatch v28 (develop CI fix PR #508; ADR-0010 merged; v0.1.19 boundary corrected)
 
 *(see commit `bf0399a2` for full archive)*
+
+### 2026-06-05 PM dispatch v54 (PR #549 merged; PR #550 opened — god-file-split slice 3)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hits: git-workflow, ci/testing), PM state (v53 on develop), v0.2 PRD. Memory NOTE: local clone is on `main` — stale; fetched origin/develop.
+
+**Assessment:**
+- 0 open PRs (PR #549 `fix/issue-534-npm-publish-hard-fail` merged 2026-06-05T02:23Z by founder — Issue #534 resolved ✅).
+- 0 open issues. Develop CI: ✅ green (main + develop both SUCCESS 2026-06-05T02:23).
+- v0.2.0: 4/4 ceremony complete. No P0/P1 items. Top autonomous task: MCP god-file split.
+
+**Actions taken:**
+1. **Verified PR #549**: merged, 0 Codex review threads — Clean. Issue #534 ✅.
+2. **Executed MCP god-file split slice 3** (Issue #428): extracted 93 request schema types (lines 325–1495) → `requests.rs` (1,179 lines); moved `server_info_tests` + `output_budget_tests` inline mods → `tests.rs`; lib.rs 6,048→4,694 (−22.4%). `pub use requests::*;` re-exports all types; `OutputFormat` re-exported via `pub use crate::formatter::OutputFormat;` in requests.rs. TDD baseline: 444 tests GREEN → refactor → 444 tests GREEN. Clippy -D warnings clean. fmt clean.
+3. **Opened PR #550** targeting develop.
+4. **Updated PM state v54** + dispatch.
+
+**Escalations to founder:** none.
 
 ### Earlier dispatches (v1–v27)
 
