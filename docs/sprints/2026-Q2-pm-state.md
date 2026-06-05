@@ -76,7 +76,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P0 — none.** v0.2.0 fully shipped. `release/v0.2.1` branch cut, **PR #557 open → main** (founder ceremony pending).
 
 **P1 — founder action requested:**
-1. **PR #557** (`release/v0.2.1` → `main`): once CI green → admin-merge → tag `v0.2.1` → release.yml publishes crates.io + npm → back-merge PR to develop.
+1. **PR #557** (`release/v0.2.1` → `main`): **registries already published ✅** (crates.io + npm + PyPI ran on `release/v0.2.1` push, 2026-06-05; all 30 CI checks SUCCESS/SKIPPED). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release (run `workflow_dispatch` on release.yml with `version=0.2.1` to build binaries + GH Release + back-merge, OR do steps manually) → back-merge to develop.
 2. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth; token works).
 
 **P2 — Autonomous (post-v0.2.1):**
@@ -90,9 +90,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P1 action** | **(1)** Admin-merge PR #557 once CI green. Tag `v0.2.1`. Release ceremony. Back-merge to develop. **(2, optional)** Rotate NPM_TOKEN. |
+| founder | **P1 action** | **(1)** PR #557 CI ✅; registries (crates.io + npm + PyPI) already published (push-triggered). Remaining: admin-merge → push tag `v0.2.1` → `workflow_dispatch` on release.yml (v=0.2.1) or manual GitHub Release + tag → back-merge. **(2, optional)** Rotate NPM_TOKEN. |
 | PM | **DONE ✅** | v59: PR #556 merged (`b07a8b0`); `release/v0.2.1` cut (CHANGELOG DCO entry corrected + version 0.2.1 + Cargo.lock updated); PR #557 opened; PM state v59 written; decisions.jsonl appended. |
-| release | **P1 — waiting founder** | PR #557 open. Once founder admin-merges + tags, release.yml handles crates.io + npm + back-merge. |
+| release | **P1 — waiting founder** | PR #557 CI ✅. Registries published on push (2026-06-05). Remaining: founder merge + tag + GH Release + back-merge (manual or `workflow_dispatch`). |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). |
 | rust-implementer | **P2** | God-file-split slice 4: `include!()` approach viable; new issue needed. Schedule after v0.2.1 ships. |
