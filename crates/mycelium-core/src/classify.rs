@@ -2,7 +2,7 @@
 //!
 //! Tree-sitter is syntactic: it cannot type-resolve a method call like
 //! `p.write_text()` or a stdlib call like `os.getcwd()`, so after the
-//! project-binding resolver passes ([`Store::resolve_bare_call_stubs`]) those
+//! project-binding resolver passes (`Store::resolve_bare_call_stubs`) those
 //! callees remain as unresolved **bare stubs** — the `unknown` tail that
 //! inflates dead-code false positives and truncates call graphs.
 //!
