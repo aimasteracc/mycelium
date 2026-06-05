@@ -56,7 +56,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## 🚧 v0.3.0 — CEREMONY IN PROGRESS (crates.io ✅ npm ✅ PyPI ❌)
+## 🚧 v0.3.0 — CEREMONY READY (crates.io ✅ npm ✅ PyPI ✅ — all registries published)
 
 **What ships in v0.3.0:**
 - [x] **RFC-0111 Phase 1 — Node/TS SDK** `@aimasteracc/mycelium-sdk` (PR #559, `19fb6f1`) — thin CLI-wrapper; no Rust toolchain needed
@@ -108,7 +108,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 **P1 — Founder review (TSA-reuse roadmap PRs — CI pending):**
 3. **PR #574**: MERGED ✅ (PM state v68 chore, squash `b02bb86`).
-4. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI pending on `302ee5f` (rebased onto develop). Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
+4. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI ✅ on `302ee5f`. Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
 5. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). CI pending on `0530983` (cargo doc fix: removed broken intra-doc link in `classify.rs`). All Codex findings addressed. Escalated to founder for merge review.
 6. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). CI pending on `8f4e48f` (Codex P1: RFC checkboxes ticked; Codex P2: decisions.jsonl timestamp correction appended). All Codex findings addressed. Escalated to founder for merge review.
 7. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
@@ -125,7 +125,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ (twine token auth, run #79 green). **(2)** PR #572: Admin-merge (`3ae197f`, CI ✅ Codex clean, closes #555). **(3)** Review PRs #575/#576/#577 (TSA-reuse impl; CI results pending after fix commits). **(4)** Review design RFCs #578/#579/#580. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ (twine token auth, run #79 green). **(2)** PR #572: Admin-merge (`3ae197f`, CI ✅ Codex clean, closes #555). **(3)** Review **PR #575** (RFC-0113 design doc, CI ✅ on `302ee5f` — data-home decision). **(4)** Review **PRs #576/#577** once CI green (Phase-1 impl cores: classifier + health grade). **(5)** Review design RFCs #578/#579/#580. |
 | PM | **DONE ✅** | v70: PR #581 merged (`bbdacd23`); v0.3.0 Release CI ✅ confirmed (run #79); PyPI unblocked; PR #576/#577 CI queued; PM state v70 + decisions.jsonl updated. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79 (PyPI twine token auth). crates.io ✅ npm ✅ PyPI ✅. Awaiting founder finalize. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
