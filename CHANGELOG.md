@@ -54,10 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_all_symbols_excludes_file_nodes`, error `is_error` flag). Mutants that silently add/remove
   results or drop the `is_error: true` flag will now fail CI rather than survive.
 
-- **ci(release): publish-npm now fails loudly when NPM_TOKEN is absent (Issue #560)** — changed
-  `exit 0` (silent success) to `exit 1` + `::error::` annotation when `NODE_AUTH_TOKEN` is unset
-  in the publish step, matching the `CRATES_IO_TOKEN` guard. Prevents `workflow_dispatch` releases
-  from completing the git ceremony (main merge + tag) without any npm packages published.
+- **ci(release): NPM_TOKEN absence now blocks ALL registry publishes (Issue #560)** — converted
+  `check-npm-token` from a graceful-warn job to a hard preflight (`exit 1` + `::error::`); added it
+  to `publish-crates.needs` so a missing token blocks crates.io publish (and all downstream jobs)
+  before any irreversible action. Prevents partial releases where crates.io publishes but npm + git
+  ceremony are skipped. The `publish-npm` step retains a defense-in-depth token check.
 
 ## [0.2.0] - 2026-06-04
 

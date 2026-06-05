@@ -62,12 +62,12 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   check-npm-token:
-    # Preflight (RFC-0110): warn when NPM_TOKEN is absent so the operator sees
-    # a clear diagnostic before the publish jobs run.  Graceful exit (no hard
-    # failure) so a missing token produces a SKIPPED npm publish rather than a
-    # failing release — crates.io and PyPI can still complete independently.
-    # Charter §5.12: every check must be SUCCESS or SKIPPED before merging
-    # release/* to main, so this job must never exit non-zero.
+    # Hard preflight (Issue #560 / Codex P1): NPM_TOKEN must be present before
+    # ANY registry publish runs.  Exits non-zero when absent so that
+    # publish-crates (which has this job in its `needs`) is blocked — preventing
+    # a partial release (crates published, npm + git ceremony skipped).
+    # Charter §5.12: a FAILURE here makes the release PR's Quality Gate red,
+    # which is the correct outcome — configure NPM_TOKEN, then re-push.
     name: preflight (npm token present)
     needs: validate
     runs-on: ubuntu-latest
@@ -78,10 +78,10 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "${NPM_TOKEN:-}" ]; then
-            echo "::warning::NPM_TOKEN is not set in the 'npm' environment — npm publish will be skipped. Configure it in repo Settings → Environments → npm."
-          else
-            echo "NPM_TOKEN present."
+            echo "::error::NPM_TOKEN is not set in the 'npm' environment — cannot publish npm packages. Configure it in repo Settings → Environments → npm."
+            exit 1
           fi
+          echo "NPM_TOKEN present."
 
   publish-crates:
     name: publish to crates.io
@@ -89,7 +89,7 @@ jobs:
     # successfully (RFC-0110 / Codex #519 P1): if any platform build fails we
     # must NOT publish to a registry, or the release is partial (crates live but
     # binaries missing). npm/pypi need publish-crates, so they are gated too.
-    needs: [validate, quality-recheck, build-cli-binaries]
+    needs: [validate, quality-recheck, build-cli-binaries, check-npm-token]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: crates-io
