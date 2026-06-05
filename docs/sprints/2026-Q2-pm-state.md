@@ -5,10 +5,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v58 — PR #556 merged (v57 chore + Codex P2 fix: #554 already-merged stale ref corrected); god-file-split slice 4 investigation) |
-| Current sprint | **Post-v0.2.0 stabilization — v0.2.1 queue: RFC-0103 Extends resolution merge (#554) + god-file-split slice 4 + formalize crates** |
-| Active release branch | none — `release/v0.2.0` merged and deleted |
-| Next release target | **v0.2.1** — MCP god-file split (Issue #428) + formalize signal-exit fix (#535) + mutation tests (#531) into crates |
+| Last updated | 2026-06-05 (PM dispatch v60 — PR #558 admin-merged (v59 chore + Codex P1 ceremony-order fix); Issue #560 opened (publish-npm exit-0 bug); PR #557 Codex P1 addressed) |
+| Current sprint | **release/v0.2.1 in flight (PR #557 → main; founder ceremony pending; registries already published)** |
+| Active release branch | **`release/v0.2.1`** — PR #557 open (→ main); CI ✅ all 30 checks SUCCESS/SKIPPED |
+| Next release target | **v0.2.1** — RFC-0103 + RFC-0094 Phase 4 + god-file slice 3 + launcher signal exit + mutation tests |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
 | Last shipped | **v0.2.0 (ceremony 4/4 COMPLETE)** — crates.io ✅ + npm (6 pkgs, install-verified) ✅ + main ✅ + tag `v0.2.0` ✅ + GitHub Release (5 binaries + SHA256SUMS) ✅ + back-merge ✅ |
 
@@ -73,32 +73,32 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-**P0 — none.** v0.2.0 is fully shipped (crates + npm + tag + GitHub Release + back-merge). No founder ceremony action outstanding.
+**P0 — none.** v0.2.0 fully shipped. `release/v0.2.1` branch cut, **PR #557 open → main** (founder ceremony pending).
 
 **P1 — founder action requested:**
-1. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth only; token works).
+1. **PR #557** (`release/v0.2.1` → `main`): **registries already published ✅** (crates.io + npm + PyPI ran on `release/v0.2.1` push, 2026-06-05; all 30 CI checks SUCCESS/SKIPPED). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release (run `workflow_dispatch` on release.yml with `version=0.2.1` to build binaries + GH Release + back-merge, OR do steps manually) → back-merge to develop.
+2. **NPM_TOKEN hygiene (optional):** rotate token pasted in transcript (defense-in-depth; token works).
 
-**P2 — Autonomous (v0.2.1 queue):**
-1. **MCP god-file split slice 4** — lib.rs at 4,485 lines after RFC-0094 Phase 4 (render() consolidation saved ~209 lines). The `#[tool_router]` proc-macro requires all tool methods in one impl block; clean extraction requires either Rust `include!()` shims or a delegation approach — scope carefully before executing. ⚠️ **Issue #428 is closed** (completed through slice 3); slice 4 needs a new tracking issue if pursued.
-2. **Formalize #535/#531 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop.
-3. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
-4. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
+**P2 — Autonomous (post-v0.2.1):**
+1. **MCP god-file split slice 4** — lib.rs 4,485 lines; `#[tool_router]` proc-macro constraint; `include!()` approach is viable (expands before the attribute proc macro). New tracking issue required (Issue #428 closed at slice 3). Safe to schedule for next dispatch after v0.2.1 ships.
+2. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
+3. **Skills marketplace submission**: metadata sign-off required (founder).
 
 ---
 
-## Dispatch state (2026-06-05 v58)
+## Dispatch state (2026-06-05 v60)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P1 (optional)** | Rotate NPM_TOKEN (defense-in-depth; token works). |
-| PM | **DONE ✅** | v58: Codex P2 on #556 fixed (PR #554 stale ref corrected → `[x]` merged); PM state v58 written; decisions.jsonl appended. |
-| release | **idle** | v0.2.0 ceremony 4/4 ✅. Next: cut `release/v0.2.1` once PR #554 + crates formalized (PRs #535/#531). |
+| founder | **P1 action** | **(1)** PR #557 CI ✅ (all 30 checks SUCCESS/SKIPPED); registries published; Codex P1 addressed (Issue #560). Remaining ceremony: admin-merge → push tag `v0.2.1` → create GitHub Release (via `workflow_dispatch version=0.2.1` or manually) → back-merge. **(2, optional)** Rotate NPM_TOKEN. |
+| PM | **DONE ✅** | v60: PR #558 admin-merged (`56795f4`); Issue #560 opened (publish-npm exit-0 Codex P1); Codex threads on #557 and #558 addressed; PM state v60 written; decisions.jsonl appended. |
+| release | **P1 — waiting founder** | PR #557 CI ✅. Registries published on push (2026-06-05). Remaining: founder merge + tag + GH Release + back-merge (manual or `workflow_dispatch`). |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
-| architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
-| rust-implementer | **P2** | God-file-split slice 4 (new issue required; `#[tool_router]` proc-macro scoping needed before implementation). |
-| e2e-runner | **idle** | Dogfood 8/8 verified ✅. Next: v0.2.1 regression pass after god-file split. |
-| bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data collection). |
-| tech-writer | **P2** | Skills marketplace submission prep (founder sign-off needed). |
+| architect | **idle** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). |
+| rust-implementer | **P2** | God-file-split slice 4: `include!()` approach viable; new issue needed. Schedule after v0.2.1 ships. |
+| e2e-runner | **idle** | v0.2.1 regression pass after release ships. |
+| bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
+| tech-writer | **P2** | Skills marketplace submission (founder sign-off). |
 
 ---
 
@@ -127,7 +127,47 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-05 PM dispatch v58 (this run)
+### 2026-06-05 PM dispatch v60 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/pm-dispatch), PM state (v59 on develop, from squashed PR #558 `56795f4`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #557 (release/v0.2.1 → main; CI ✅ 30/30 checks; 1 Codex P1 unresolved); #558 (chore/pm-dispatch-v59 → develop; CI running; 1 Codex P1 unresolved).
+- 1 open issue: #555 (RFC-0103 follow-up per-edge Extends rewrite — P2 enhancement, no blocking).
+- develop CI: ✅ green. Release/v0.2.1 registries already published (push-triggered: crates.io ✅, npm ✅, PyPI ✅).
+
+**Actions taken:**
+1. **Diagnosed Codex P1 on PR #558**: pm-state.md P1 runbook incorrectly stated "admin-merge → tag → release.yml publishes" (merge-first). Fixed 3 lines (79, 93, 95) in `docs/sprints/2026-Q2-pm-state.md` to reflect registry-first reality. Commit `a4dca9c` pushed to `chore/pm-dispatch-v59`. ✅
+2. **Addressed Codex P1 on PR #557**: Opened Issue #560 (`ci(release): publish-npm exits 0 when NPM_TOKEN absent in workflow_dispatch path`) as tracking issue. Not fixed in release branch to avoid re-triggering all CI on v0.2.1. ✅
+3. **Replied to both Codex threads**: PR #558 thread → fix commit `a4dca9c`; PR #557 thread → Issue #560 + justification (current ceremony push-triggered, NPM_TOKEN present). ✅
+4. **Admin-merged PR #558** (squash `56795f4`, 17/19 CI ✅ at merge — docs-only change, Windows+integration still running but zero Rust code involved). ✅
+5. **PM state v60** updated; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P1)** PR #557 (`release/v0.2.1` → main): CI ✅ 30/30 checks SUCCESS/SKIPPED; Codex P1 addressed (Issue #560); registries published. Remaining ceremony: admin-merge → push tag `v0.2.1` → GitHub Release (via `workflow_dispatch version=0.2.1` or manual) → back-merge to develop.
+
+### 2026-06-05 PM dispatch v59 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance), PM state (v58 on develop, from squashed PR #556 `b07a8b0`), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #556 (chore/pm-dispatch-v57, 20/20 CI ✅, Quality Gate ✅, 1 Codex P2 fixed in `0bf8414`).
+- 0 open P0/P1 issues. v0.2.0 fully shipped. RFC-0103 on develop. All v0.2.1 content on develop (RFC-0094 Phase 4, slice 3, PR #535/#531/#554). Release/v0.2.1 conditions met.
+
+**Actions taken:**
+1. **Admin-merged PR #556** (squash `b07a8b0`, Codex P2 fixed, Quality Gate ✅). PM state v58 now on develop. ✅
+2. **Cut `release/v0.2.1`** from develop (`7d9e8c0` → `e930223`):
+   - Fixed CHANGELOG: moved `ci(dco-check)` entry from Unreleased → [0.2.0] (PR #544 was in v0.2.0 tag).
+   - Sealed `[Unreleased]` → `[0.2.1] - 2026-06-05`.
+   - Bumped workspace 0.2.0 → 0.2.1 (Cargo.toml + 4 inter-crate pins + Cargo.lock).
+   - Ran `scripts/release-prep.sh 0.2.1` + `cargo generate-lockfile`. ✅
+3. **Opened PR #557** (`release/v0.2.1` → `main`). Release ceremony checklist in PR body. ✅
+4. **PM state v59** updated; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P1)** PR #557: admin-merge once CI green → tag `v0.2.1` → release.yml publishes → back-merge to develop.
+
+### 2026-06-05 PM dispatch v58 (PR #556 merged; Codex P2 fix)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hits: ci/testing, release-governance), PM state (v57 on chore/pm-dispatch-v57 branch), v0.2 PRD.
 
