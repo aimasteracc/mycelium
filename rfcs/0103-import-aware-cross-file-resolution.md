@@ -1,9 +1,9 @@
 # RFC-0103: Import-aware cross-file reference resolution
 
-- **Status**: Draft
+- **Status**: Implemented (initial target — `Extends` inheritance stubs)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-01
-- **Last updated**: 2026-06-01
+- **Last updated**: 2026-06-05
 - **Tracking issue**: [#381](https://github.com/aimasteracc/mycelium/issues/381)
 - **Extends**: [RFC-0014](0014-cross-file-call-resolution.md),
   [RFC-0015](0015-watch-stub-resolution.md),
