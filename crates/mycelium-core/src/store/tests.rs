@@ -909,7 +909,9 @@ fn store_resolve_extends_stub_preserved_when_calls_edge_exists() {
         "bare_stub preserved — Calls edge still references it"
     );
     assert!(
-        store.outgoing(subclass, EdgeKind::Extends).contains(&b_base),
+        store
+            .outgoing(subclass, EdgeKind::Extends)
+            .contains(&b_base),
         "subclass Extends edge redirected to b.py>Base"
     );
     assert!(
