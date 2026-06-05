@@ -5,12 +5,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v53 — PR #547 merged; post-v0.2.0 security scan CLEAN; v0.2.1 queue defined) |
-| Current sprint | **Post-v0.2.0 stabilization — ceremony 3/4 complete (tag v0.2.0 pending founder); v0.2.1 queue open** |
-| Active release branch | none — `release/v0.2.0` branch merged and deleted |
-| Next release target | **v0.2.1** — MCP god-file split (lib.rs 6,048 lines) + npm E404 tightening (post-scope-registration) |
+| Last updated | 2026-06-04 (PM dispatch v53 — v0.2.0 ceremony 4/4 COMPLETE: tag + GitHub Release + npm all shipped this session; PR #547 merged; v0.2.1 queue open) |
+| Current sprint | **Post-v0.2.0 stabilization — ceremony 4/4 COMPLETE (crates + npm + tag + GitHub Release all live); v0.2.1 queue open** |
+| Active release branch | none — `release/v0.2.0` merged and deleted |
+| Next release target | **v0.2.1** — MCP god-file split (lib.rs 6,048 lines) + Issue #534 npm E404 grace removal + formalize #525/#526 into crates |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
-| Last shipped | **v0.2.0 (ceremony 3/4)** — crates.io ✅ + main merge ✅ + back-merge ✅; tag v0.2.0 ⏳ founder action pending. |
+| Last shipped | **v0.2.0 (ceremony 4/4 COMPLETE)** — crates.io ✅ + npm (6 pkgs, install-verified) ✅ + main ✅ + tag `v0.2.0` ✅ + GitHub Release (5 binaries + SHA256SUMS) ✅ + back-merge ✅ |
 
 ---
 
@@ -28,23 +28,23 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## ⚠️ v0.2.0 — CEREMONY 3/4 COMPLETE (tag pending founder)
+## ✅ v0.2.0 — CEREMONY 4/4 COMPLETE (fully shipped 2026-06-04)
 
 **What shipped in v0.2.0:**
 - [x] RFC-0109 all 7 graph-list tools → shared core builders + object shape + budget knob (PRs #501–#513)
 - [x] RFC-0102 nested `budget{}` response object + BudgetMode tag + per-call override + cap fixes (PRs #497–#499)
 - [x] RFC-0110 npm/bun CLI distribution: prebuilt-binary optionalDependencies model; 5-platform build matrix; release.yml publish-npm job (PRs #517–#520)
-- [x] fix(npm): 128+signal exit codes in launcher (PR #535)
-- [x] test(mcp): exact-count assertions — mutation kill-rate ≥70% SLA fix (PR #531)
 - [x] ci(dco-check): grep full body for `Signed-off-by` — systemic DCO false-fail fix (PR #544)
 - [x] ci(release): graceful npm publish for E404 scope-not-found + absent NPM_TOKEN (PR #533)
 - [x] All v0.1.19→v0.2.0 content on develop (RFC-0109/102/110 roll-out)
 
-**v0.2.0 ceremony status:**
+**v0.2.0 ceremony status — 4/4 COMPLETE ✅:**
 - [x] **Step 1**: `release/v0.2.0` → `main` — PR #523 MERGED ✅ (2026-06-04)
-- [ ] **Step 2**: Tag `v0.2.0` pushed → ⏳ **FOUNDER ACTION REQUIRED**
+- [x] **Step 2**: Tag `v0.2.0` pushed ✅ + **GitHub Release** published (5 platform binaries + `SHA256SUMS`) ✅ (2026-06-04)
 - [x] **Step 3**: All 5 crates to crates.io ✅ (release.yml, 2026-06-04)
 - [x] **Step 4**: Back-merge `release/v0.2.0` → `develop` — PR #537 MERGED ✅ (`4e60400f`)
+
+**npm distribution (RFC-0110) — LIVE ✅:** all 6 `@aimasteracc/*` packages published at `0.2.0` (launcher + 5 platform pkgs); `npm i -g @aimasteracc/mycelium` install-verified (`mycelium 0.2.0`). NPM_TOKEN configured in the `npm` GitHub environment (granular: RW all-packages + bypass 2FA; `npm whoami` → `aimasteracc`). The prior E404 saga's root cause was a **non-authenticating token value in the secret** — NOT a missing scope: `@aimasteracc` is the founder's personal user scope (username = `aimasteracc`), so no org was ever needed.
 
 **v0.2 PRD success metrics status:**
 - [x] Capabilities reachable from all 3 surfaces: 93/93 MCP tools + CLI + Skills ✅ (Charter §5.13 enforced)
@@ -58,27 +58,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## 🔧 Post-v0.2.0 — Unreleased on develop (→ v0.2.1)
 
-> Commits on develop HEAD (`640a8dcf`) that will ship in v0.2.1:
+> Commits on develop NOT in the `v0.2.0` tag — verified against `git show v0.2.0:` — that will ship in v0.2.1:
 
+- [x] fix(npm): 128+signal exit codes in launcher (PR #535, `3f81241`) — **not in v0.2.0 crates/tag**. Note: the published npm@0.2.0 *launcher* already includes this fix (assembled from develop during the manual publish), so it is live on the npm surface; v0.2.1 formalizes it into the crates/tag.
+- [x] test(mcp): mutation kill-rate exact-count assertions (PR #531, `b696953`) — not in v0.2.0 tag (test-only)
 - [x] chore(pm): dispatch v29–v53 (PM state + decisions.jsonl maintenance)
-- [x] ci(dco-check): systemic DCO false-fail fix (PR #544, `0554ee7`)
-- [x] fix(npm): 128+signal exit codes (PR #535, `3f81241`)
-- [x] test(mcp): mutation kill-rate exact-count assertions (PR #531, `b696953`)
-- [x] ci(release): graceful npm E404 + absent-token handling (PR #533, `fdd3525`)
+
+> Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
 
 ---
 
 ## Live priorities (ordered)
 
-**P0 — Founder actions required (ceremony gate):**
-1. **Push tag `v0.2.0`** + create GitHub Release — Charter §5.12 Step 2. Crates.io ✅, main merge ✅, back-merge ✅. Only tag missing.
-2. **Register `@aimasteracc` npm scope** on npmjs.com + add `NPM_TOKEN` to repo Settings → Environments → `npm`. Required for v0.2.1 npm publish to succeed (Issue #534 tracks the E404 tightening step).
+**P0 — none.** v0.2.0 is fully shipped (crates + npm + tag + GitHub Release + back-merge). No founder ceremony action outstanding.
 
-**P2 — Autonomous (unblock after founder P0s land):**
-3. **MCP god-file split residual** (⚠️ Issue #428 partial): `crates/mycelium-mcp/src/lib.rs` at 6,048 lines. Target: extract `tools/context.rs`, `tools/graph.rs`, move `mod tests` → `tests/` submodule. v0.2.1 sprint item.
-4. **Issue #534**: Remove E404 graceful degradation from `publish_one()` in `release.yml` — pending founder npm scope registration. Code change is 3-line removal.
-5. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
-6. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
+**P1 — hygiene (optional, founder):** the `NPM_TOKEN` value was pasted into a chat transcript during the manual publish; founder may rotate it (revoke → new granular token: RW all-packages + bypass 2FA → `gh secret set NPM_TOKEN --env npm`). The token works; this is defense-in-depth only.
+
+**P2 — Autonomous (v0.2.1 queue):**
+1. **MCP god-file split residual** (⚠️ Issue #428 partial): `crates/mycelium-mcp/src/lib.rs` at 6,048 lines. Target: extract `tools/context.rs`, `tools/graph.rs`, move `mod tests` → `tests/` submodule.
+2. **Issue #534**: Remove E404 graceful degradation from `publish_one()` in `release.yml` — **now unblocked** (npm scope live + token authenticates). 3-line removal.
+3. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop (npm surface already has #525).
+4. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
+5. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
 
 ---
 
@@ -86,9 +87,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action required** | **(1)** Push tag `v0.2.0` + GitHub Release (Charter §5.12 Step 2). **(2)** Register `@aimasteracc` npm scope + add `NPM_TOKEN` secret. |
-| PM | **DONE ✅** | v53 complete: PR #547 merged (640a8dcf); post-v0.2.0 security scan CLEAN; v0.2.1 queue defined. |
-| release | **idle** | v0.2.0 ceremony 3/4 ✅. Next: cut `release/v0.2.1` once MCP god-file split + Issue #534 ready. |
+| founder | **no ceremony action** | v0.2.0 fully shipped. Optional: rotate NPM_TOKEN (pasted in transcript); review/merge PM PRs. |
+| PM | **DONE ✅** | v53: v0.2.0 ceremony 4/4 COMPLETE (tag + GH Release + npm published & install-verified); PR #547 merged; v0.2.1 queue corrected (#535/#531 → v0.2.1, #544/#533 confirmed in v0.2.0). |
+| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once MCP god-file split + Issue #534 ready. |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan (release.yml + npm/): CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
 | rust-implementer | **P2** | MCP god-file split: `crates/mycelium-mcp/src/lib.rs` 6,048→tools/ modules (Charter §5.4 quality). |
@@ -131,18 +132,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - 1 open PR: #547 (PM v51 chore, 20/20 CI ✅, 1 Codex finding with `aimasteracc` reply = Hard Rule satisfied).
 - 1 open issue: #534 (P2, npm E404 tightening — founder-gated).
 - develop HEAD: `0fe4f99c` (PM v50 squash, from PR #546). CI green.
-- v0.2.0 ceremony: Steps 1/3/4 ✅; Step 2 (tag) ⏳ founder pending.
-- Queue: entirely founder-gated P0s + P2 autonomous items.
+- v0.2.0 ceremony: 4/4 COMPLETE ✅ (Step 2 tag + GitHub Release + npm all shipped 2026-06-04).
+- Queue: no founder P0s remaining; P2 autonomous v0.2.1 items + optional NPM_TOKEN rotation.
 
 **Actions taken:**
 1. **Merged PR #547** (squash `640a8dcf`) — PM v51/v52 wrap-up; Codex P2 replied/fixed by prior session. ✅
 2. **Post-v0.2.0 security scan** (release.yml + npm/ code reviewed): CLEAN — no hardcoded secrets; E404 grace is by design (Issue #534); id-token:write is legitimate npm provenance requirement; all tokens properly as `secrets.*`. ✅
 3. **Composed PM state v53** — updated header, v0.2.0 ceremony status, v0.2.1 queue, dispatch state. ✅
-4. **NOTE**: decisions.jsonl NOT appended this session. MCP `get_file_contents` returns local-main clone content regardless of branch parameter, which would truncate develop's v29–v52 entries if pushed. Anti-pattern recorded.
+4. **NOTE (resolved)**: the remote session could not append decisions.jsonl (MCP `get_file_contents` branch-resolution bug returned local-main). Appended locally in this corrected v53 with full repo access — develop's v29–v52 entries intact. Anti-pattern recorded.
 
-**Escalations to founder:**
-1. **(P0)** Push tag `v0.2.0` + create GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate).
-2. **(P0)** Register `@aimasteracc` on npmjs.com + add `NPM_TOKEN` to repo Settings → Environments → `npm` (unblocks v0.2.1 npm publish).
+**Escalations to founder — both RESOLVED this session:**
+1. ~~(P0) Push tag `v0.2.0` + create GitHub Release~~ → **DONE ✅** (tag `v0.2.0` pushed + GitHub Release with 5 binaries + SHA256SUMS).
+2. ~~(P0) Register `@aimasteracc` npm scope + add `NPM_TOKEN`~~ → **DONE ✅** — `@aimasteracc` was already the founder's personal user scope (no registration needed); the real blocker was a non-authenticating `NPM_TOKEN` value, now fixed; all 6 packages published & install-verified.
+3. **(P1, optional)** Rotate `NPM_TOKEN` — the value was pasted into a chat transcript during the manual publish. Defense-in-depth only; the token works.
 
 ### 2026-06-04 PM dispatch v52 (PR #547 branch — Codex P2 fix + MCP split P2 item added)
 
