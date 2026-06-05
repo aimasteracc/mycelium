@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Import-aware `Extends` stub resolution (RFC-0103, initial target).** When a
+  class inherits from a base whose simple name is defined in *several* files
+  (ambiguous for the existing unique-match resolver), the post-index pass now
+  redirects the `Extends` edge to the correct definition using import evidence.
+  Conservative by design — the stub is redirected only when a single candidate
+  is imported by **every** subclass (unanimous), so the whole-node redirect is
+  always correct; ties, zero-evidence, and **mixed-import sites** (subclasses
+  importing different definitions) stay unresolved rather than wrongly collapsed.
+  Improves cross-file inheritance accuracy (`mycelium_get_extends` /
+  extends-tree tools). Per-edge resolution of mixed sites is a tracked follow-up.
+
 ### Changed
 
 - **BREAKING (MCP stdio): default output format flipped to `text` (RFC-0094
