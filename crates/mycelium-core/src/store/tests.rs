@@ -776,6 +776,48 @@ fn store_resolve_extends_stub_tie_left_unchanged() {
     assert!(store.lookup("Base").is_some(), "tied stub must remain");
 }
 
+#[test]
+fn store_resolve_extends_stub_per_edge_mixed_imports() {
+    // Two subclasses extend the same bare stub `Base`, but each imports a
+    // *different* definition — a.py imports b.py, c.py imports d.py.
+    // The fix (per-edge resolution) must resolve each edge independently:
+    //   SubA → b.py>Base  (not d.py>Base)
+    //   SubC → d.py>Base  (not b.py>Base)
+    // The global approach aggregates counts across subclasses and sees a tie
+    // (b.py:1, d.py:1), leaving both edges unresolved.  Per-edge resolution
+    // sees a unique winner for each subclass and resolves both.
+    let mut store = Store::new();
+    let a_file = store.upsert_node(path("a.py"));
+    let sub_a = store.upsert_node(path("a.py>SubA"));
+    let c_file = store.upsert_node(path("c.py"));
+    let sub_c = store.upsert_node(path("c.py>SubC"));
+    let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
+    let b_file = store.upsert_node(path("b.py"));
+    let b_base = store.upsert_node(path("b.py>Base"));
+    let d_file = store.upsert_node(path("d.py"));
+    let d_base = store.upsert_node(path("d.py>Base"));
+    store.upsert_edge(EdgeKind::Extends, sub_a, stub);
+    store.upsert_edge(EdgeKind::Extends, sub_c, stub);
+    store.upsert_edge(EdgeKind::Imports, a_file, b_file);
+    store.upsert_edge(EdgeKind::Imports, c_file, d_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 2, "each subclass edge must resolve independently");
+    assert!(
+        store.lookup("Base").is_none(),
+        "stub must be removed when all incoming Extends edges are resolved"
+    );
+    assert!(
+        store.outgoing(sub_a, EdgeKind::Extends).contains(&b_base),
+        "SubA must extend b.py>Base"
+    );
+    assert!(
+        store.outgoing(sub_c, EdgeKind::Extends).contains(&d_base),
+        "SubC must extend d.py>Base"
+    );
+}
+
 // ── RFC-0010: Store::edge_count ───────────────────────────────────────
 
 #[test]

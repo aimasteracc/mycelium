@@ -1333,55 +1333,59 @@ impl Store {
                 continue;
             }
 
-            // Highest import-evidence candidate, tracking whether it is unique.
-            let mut best_def: Option<NodeId> = None;
-            let mut best_count = 0usize;
-            let mut best_is_unique = false;
+            // Pre-compute (def_id, file_id) pairs so path lookups are not
+            // repeated per subclass.
+            let def_infos: Vec<(NodeId, NodeId)> = defs
+                .iter()
+                .filter_map(|&def_id| {
+                    let def_path = self.trunk.path_of(def_id)?.to_owned();
+                    let file_path = def_path.split('>').next()?;
+                    let file_id = self.trunk.lookup_path(file_path)?;
+                    Some((def_id, file_id))
+                })
+                .collect();
 
-            for &def_id in defs {
-                let Some(def_path) = self.trunk.path_of(def_id).map(str::to_owned) else {
+            // Per-edge resolution: evaluate each subclass independently so that
+            // different subclasses can resolve to different definitions.
+            let mut stub_edges_resolved = 0;
+            for sub_id in subclasses {
+                let Some(sub_path) = self.trunk.path_of(sub_id).map(str::to_owned) else {
                     continue;
                 };
-                let Some(file_path) = def_path.split('>').next() else {
+                let Some(sub_file) = sub_path.split('>').next() else {
                     continue;
                 };
-                let Some(file_id) = self.trunk.lookup_path(file_path) else {
+                let Some(sub_file_id) = self.trunk.lookup_path(sub_file) else {
                     continue;
                 };
+                let imports = self.synapse.outgoing(sub_file_id, EdgeKind::Imports);
 
+                // Unique winner for this specific subclass.
+                let mut best_def: Option<NodeId> = None;
                 let mut match_count = 0usize;
-                for &sub_id in &subclasses {
-                    let Some(sub_path) = self.trunk.path_of(sub_id).map(str::to_owned) else {
-                        continue;
-                    };
-                    let Some(sub_file) = sub_path.split('>').next() else {
-                        continue;
-                    };
-                    let Some(sub_file_id) = self.trunk.lookup_path(sub_file) else {
-                        continue;
-                    };
-
-                    let imports = self.synapse.outgoing(sub_file_id, EdgeKind::Imports);
+                for &(def_id, file_id) in &def_infos {
                     if imports.contains(&file_id) || imports.contains(&def_id) {
                         match_count += 1;
+                        best_def = Some(def_id);
                     }
                 }
 
-                if match_count > best_count {
-                    best_count = match_count;
-                    best_def = Some(def_id);
-                    best_is_unique = true;
-                } else if match_count == best_count && match_count > 0 {
-                    best_is_unique = false;
+                // Conservative: redirect only when exactly one candidate matches.
+                if match_count == 1 {
+                    if let Some(def_id) = best_def {
+                        self.synapse.remove_edge(EdgeKind::Extends, sub_id, stub_id);
+                        self.synapse.add(EdgeKind::Extends, sub_id, def_id);
+                        stub_edges_resolved += 1;
+                        resolved += 1;
+                    }
                 }
             }
 
-            if best_count > 0 && best_is_unique {
-                if let Some(def_id) = best_def {
-                    self.synapse.redirect_node(stub_id, def_id);
-                    self.trunk.remove(stub_id);
-                    resolved += 1;
-                }
+            // Remove the stub node only once all incoming Extends edges are gone.
+            if stub_edges_resolved > 0
+                && self.synapse.incoming(stub_id, EdgeKind::Extends).is_empty()
+            {
+                self.trunk.remove(stub_id);
             }
         }
         resolved

@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by design — redirects only on a *unique* strongest candidate; ties and
   zero-evidence stubs stay unresolved rather than guessed. Improves
   cross-file inheritance accuracy (`mycelium_get_extends` / extends-tree tools).
+- **`AdjacencyList::remove_edge` / `Synapse::remove_edge`** — new per-edge
+  removal primitives used by the per-edge `Extends` resolver (RFC-0103).
 
 ### Changed
 

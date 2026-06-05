@@ -103,6 +103,16 @@ impl AdjacencyList {
         }
     }
 
+    /// Remove the single directed edge `src → dst`. No-op if absent.
+    pub fn remove_edge(&mut self, src: NodeId, dst: NodeId) {
+        if let Some(fwd) = self.forward.get_mut(&src) {
+            fwd.retain(|&d| d != dst);
+        }
+        if let Some(rev) = self.reverse.get_mut(&dst) {
+            rev.retain(|&s| s != src);
+        }
+    }
+
     /// Remove all edges involving `id` (both as source and target).
     pub fn remove_node(&mut self, id: NodeId) {
         if let Some(targets) = self.forward.remove(&id) {
@@ -194,6 +204,14 @@ impl Synapse {
             .iter()
             .map(|(&kind, adj)| (kind, adj.edge_count()))
             .filter(|&(_, count)| count > 0)
+    }
+
+    /// Remove the single directed edge of `kind` from `src` to `dst`.
+    /// No-op if the edge does not exist.
+    pub fn remove_edge(&mut self, kind: EdgeKind, src: NodeId, dst: NodeId) {
+        if let Some(adj) = self.by_kind.get_mut(&kind) {
+            adj.remove_edge(src, dst);
+        }
     }
 
     /// Rewire all edges touching `from` to touch `to` instead, across all
