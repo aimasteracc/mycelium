@@ -103,6 +103,16 @@ impl AdjacencyList {
         }
     }
 
+    /// Remove the single directed edge `src → dst`. No-op if absent.
+    pub fn remove_edge(&mut self, src: NodeId, dst: NodeId) {
+        if let Some(fwd) = self.forward.get_mut(&src) {
+            fwd.retain(|&d| d != dst);
+        }
+        if let Some(rev) = self.reverse.get_mut(&dst) {
+            rev.retain(|&s| s != src);
+        }
+    }
+
     /// Remove all edges involving `id` (both as source and target).
     pub fn remove_node(&mut self, id: NodeId) {
         if let Some(targets) = self.forward.remove(&id) {
@@ -158,6 +168,13 @@ impl Synapse {
         self.by_kind.entry(kind).or_default().add(src, dst);
     }
 
+    /// Remove the single directed edge `kind: src → dst`. No-op if absent.
+    pub fn remove_edge(&mut self, kind: EdgeKind, src: NodeId, dst: NodeId) {
+        if let Some(adj) = self.by_kind.get_mut(&kind) {
+            adj.remove_edge(src, dst);
+        }
+    }
+
     /// Outgoing edges of `kind` from `src`.
     #[must_use]
     pub fn outgoing(&self, src: NodeId, kind: EdgeKind) -> &[NodeId] {
@@ -194,6 +211,18 @@ impl Synapse {
             .iter()
             .map(|(&kind, adj)| (kind, adj.edge_count()))
             .filter(|&(_, count)| count > 0)
+    }
+
+    /// Returns `true` if `id` has no incoming or outgoing edges across **all**
+    /// edge kinds — i.e. the node is a graph isolate.
+    ///
+    /// Used by stub-removal guards to ensure a trunk node is only deleted when
+    /// every edge kind (Extends, Calls, References, …) has been fully resolved.
+    #[must_use]
+    pub fn is_isolated(&self, id: NodeId) -> bool {
+        self.by_kind
+            .values()
+            .all(|adj| adj.outgoing(id).is_empty() && adj.incoming(id).is_empty())
     }
 
     /// Rewire all edges touching `from` to touch `to` instead, across all
