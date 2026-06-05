@@ -93,10 +93,10 @@ core) adds no surface — it is internal scaffolding, exactly like RFC-0113's
 ## Acceptance criteria
 
 **Phase 1 — scorer core (this PR):**
-- [ ] `health.rs`: `HealthGrade`, `HealthMetrics`, `HealthReport`, pure `score()`.
-- [ ] TDD: healthy project → A/B; high dead-code → drops a grade; all-isolated →
+- [x] `health.rs`: `HealthGrade`, `HealthMetrics`, `HealthReport`, pure `score()`.
+- [x] TDD: healthy project → A/B; high dead-code → drops a grade; all-isolated →
       low; empty project → F/0; band boundaries (89→B, 90→A). fmt + clippy clean.
-- [ ] No edits to `store/mod.rs` / `synapse/` (zero overlap with PR #572).
+- [x] No edits to `store/mod.rs` / `synapse/` (zero overlap with PR #572).
 
 **Phase 2 — surface (follow-up, after #572 + this design's review):**
 - [ ] `Store::health()` adapter over the public metric API.
