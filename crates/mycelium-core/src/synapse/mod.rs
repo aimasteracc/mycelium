@@ -103,6 +103,16 @@ impl AdjacencyList {
         }
     }
 
+    /// Remove the single directed edge `src → dst`. No-op if absent.
+    pub fn remove_edge(&mut self, src: NodeId, dst: NodeId) {
+        if let Some(fwd) = self.forward.get_mut(&src) {
+            fwd.retain(|&d| d != dst);
+        }
+        if let Some(rev) = self.reverse.get_mut(&dst) {
+            rev.retain(|&s| s != src);
+        }
+    }
+
     /// Remove all edges involving `id` (both as source and target).
     pub fn remove_node(&mut self, id: NodeId) {
         if let Some(targets) = self.forward.remove(&id) {
@@ -156,6 +166,13 @@ impl Synapse {
     /// Insert an edge of `kind` from `src` to `dst`.
     pub fn add(&mut self, kind: EdgeKind, src: NodeId, dst: NodeId) {
         self.by_kind.entry(kind).or_default().add(src, dst);
+    }
+
+    /// Remove the single directed edge `kind: src → dst`. No-op if absent.
+    pub fn remove_edge(&mut self, kind: EdgeKind, src: NodeId, dst: NodeId) {
+        if let Some(adj) = self.by_kind.get_mut(&kind) {
+            adj.remove_edge(src, dst);
+        }
     }
 
     /// Outgoing edges of `kind` from `src`.

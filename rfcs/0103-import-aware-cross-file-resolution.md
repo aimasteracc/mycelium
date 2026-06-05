@@ -248,8 +248,9 @@ path before enabling it in watch mode.
 - [ ] RFC accepted before implementation starts.
 - [ ] `Store::resolve_cross_file_references()` handles `Calls`, `Extends`, and
       `Implements` bare-stub targets conservatively.
-- [ ] Per-edge rewrites allow one bare stub to resolve differently for different
-      source files.
+- [x] Per-edge rewrites allow one bare stub to resolve differently for different
+      source files. *(Issue #555: `Synapse::remove_edge` + per-edge
+      `resolve_import_aware_extends_stubs` implemented)*
 - [ ] `subclasses-tree "LanguagePlugin"` and
       `subclasses-tree "plugins/base.py>LanguagePlugin"` return the same fixture
       result set.
@@ -274,14 +275,12 @@ path before enabling it in watch mode.
 
 ## Future possibilities
 
-- **Per-edge mixed-site resolution (follow-up to the initial Extends target).**
-  The shipped pass collapses a bare stub to one definition only when *every*
-  subclass imports it (unanimous), because `redirect_node` rewrites all of the
-  stub's edges at once. When subclasses import *different* definitions, each
-  incoming `Extends` edge should be rewritten to its own imported definition and
-  the stub removed only after no edges remain. This needs an edge-level rewrite
-  primitive (`Synapse::remove_edge(kind, src, dst)`); until then mixed-import
-  sites stay conservatively unresolved. (Raised by Codex P1 on PR #554.)
+- ~~**Per-edge mixed-site resolution (follow-up to the initial Extends target).**~~
+  **IMPLEMENTED (Issue #555).** `AdjacencyList::remove_edge`, `Synapse::remove_edge`,
+  and `Store::remove_edge` added. `resolve_import_aware_extends_stubs` now resolves
+  each `(subclass → stub)` Extends edge independently; the stub is removed only
+  after all incoming edges are redirected. Mixed-import sites (different subclasses
+  importing different defs) are now fully handled.
 - Persist an `unresolved_refs` diagnostic table for agents to inspect directly.
 - Extend ranking with language-pack-specific import resolvers.
 - Use RFC-0103's improved edges as higher-quality input for RFC-0101

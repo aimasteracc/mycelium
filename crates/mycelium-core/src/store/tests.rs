@@ -777,12 +777,12 @@ fn store_resolve_extends_stub_tie_left_unchanged() {
 }
 
 #[test]
-fn store_resolve_extends_stub_mixed_import_sites_left_unchanged() {
+fn store_resolve_extends_stub_mixed_import_sites_resolved_per_edge() {
     // Two subclasses extend the same bare `Base` but import DIFFERENT defs:
-    // a.py>Sub imports b.py>Base, c.py>Sub2 imports d.py>Base. A whole-node
-    // redirect would wrongly collapse both edges to one def (Codex P1 on #554).
-    // Conservative: no unanimous candidate → stub stays unresolved (per-edge
-    // rewrite is a tracked RFC-0103 follow-up).
+    // a.py>Sub imports b.py → resolves to b.py>Base.
+    // c.py>Sub2 imports d.py → resolves to d.py>Base.
+    // RFC-0103 per-edge follow-up (Issue #555): each edge resolves independently;
+    // stub is removed after all incoming Extends edges are redirected.
     let mut store = Store::new();
     let a_file = store.upsert_node(path("a.py"));
     let sub1 = store.upsert_node(path("a.py>Sub"));
@@ -790,9 +790,9 @@ fn store_resolve_extends_stub_mixed_import_sites_left_unchanged() {
     let sub2 = store.upsert_node(path("c.py>Sub2"));
     let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
     let b_file = store.upsert_node(path("b.py"));
-    store.upsert_node(path("b.py>Base"));
+    let b_base = store.upsert_node(path("b.py>Base"));
     let d_file = store.upsert_node(path("d.py"));
-    store.upsert_node(path("d.py>Base"));
+    let d_base = store.upsert_node(path("d.py>Base"));
     store.upsert_edge(EdgeKind::Extends, sub1, stub);
     store.upsert_edge(EdgeKind::Extends, sub2, stub);
     store.upsert_edge(EdgeKind::Imports, a_file, b_file);
@@ -801,13 +801,75 @@ fn store_resolve_extends_stub_mixed_import_sites_left_unchanged() {
     let resolved = store.resolve_bare_call_stubs();
 
     assert_eq!(
-        resolved, 0,
-        "mixed-import sites must not be collapsed to one def"
+        resolved, 1,
+        "stub resolved once all Extends edges redirected"
     );
     assert!(
-        store.lookup("Base").is_some(),
-        "stub must remain when subclasses disagree on the import target"
+        store.lookup("Base").is_none(),
+        "stub removed after full resolution"
     );
+    assert!(
+        store.outgoing(sub1, EdgeKind::Extends).contains(&b_base),
+        "sub1 resolved to b.py>Base"
+    );
+    assert!(
+        store.outgoing(sub2, EdgeKind::Extends).contains(&d_base),
+        "sub2 resolved to d.py>Base"
+    );
+    let _ = (b_file, d_file);
+}
+
+// ── Issue #555: per-edge Extends resolution for mixed-import sites ────
+
+#[test]
+fn store_resolve_extends_stub_per_edge_mixed_imports() {
+    // a.py>Sub extends `Base` and imports b.py  → should resolve to b.py>Base.
+    // c.py>Sub2 extends `Base` and imports d.py → should resolve to d.py>Base.
+    // Per-edge resolution handles each independently; after both edges are
+    // redirected the stub has no remaining incoming Extends edges and is removed.
+    let mut store = Store::new();
+    let a_file = store.upsert_node(path("a.py"));
+    let sub1 = store.upsert_node(path("a.py>Sub"));
+    let c_file = store.upsert_node(path("c.py"));
+    let sub2 = store.upsert_node(path("c.py>Sub2"));
+    let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
+    let b_file = store.upsert_node(path("b.py"));
+    let b_base = store.upsert_node(path("b.py>Base"));
+    let d_file = store.upsert_node(path("d.py"));
+    let d_base = store.upsert_node(path("d.py>Base"));
+    store.upsert_edge(EdgeKind::Extends, sub1, stub);
+    store.upsert_edge(EdgeKind::Extends, sub2, stub);
+    store.upsert_edge(EdgeKind::Imports, a_file, b_file);
+    store.upsert_edge(EdgeKind::Imports, c_file, d_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 1,
+        "stub resolved after all Extends edges redirected per-edge"
+    );
+    assert!(
+        store.lookup("Base").is_none(),
+        "stub removed once all incoming Extends edges are gone"
+    );
+    assert!(
+        store.outgoing(sub1, EdgeKind::Extends).contains(&b_base),
+        "sub1 Extends now points to b.py>Base"
+    );
+    assert!(
+        store.outgoing(sub2, EdgeKind::Extends).contains(&d_base),
+        "sub2 Extends now points to d.py>Base"
+    );
+    assert!(
+        !store.outgoing(sub1, EdgeKind::Extends).contains(&stub),
+        "sub1 Extends must not still point at bare stub"
+    );
+    assert!(
+        !store.outgoing(sub2, EdgeKind::Extends).contains(&stub),
+        "sub2 Extends must not still point at bare stub"
+    );
+    // Unused variable suppression (b_file, d_file not queried above).
+    let _ = (b_file, d_file);
 }
 
 // ── RFC-0010: Store::edge_count ───────────────────────────────────────

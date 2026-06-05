@@ -108,6 +108,49 @@ fn synapse_remove_node_drops_across_all_kinds() {
     assert!(syn.outgoing(n(4), EdgeKind::Implements).is_empty());
 }
 
+// ── Issue #555: AdjacencyList::remove_edge + Synapse::remove_edge ────
+
+#[test]
+fn adjacency_list_remove_edge_removes_single_edge() {
+    let mut adj = AdjacencyList::new();
+    adj.add(n(1), n(2));
+    adj.add(n(1), n(3));
+    adj.remove_edge(n(1), n(2));
+    assert!(
+        !adj.outgoing(n(1)).contains(&n(2)),
+        "n(2) removed from forward"
+    );
+    assert!(
+        !adj.incoming(n(2)).contains(&n(1)),
+        "n(1) removed from reverse"
+    );
+    assert!(adj.outgoing(n(1)).contains(&n(3)), "n(3) edge survives");
+}
+
+#[test]
+fn adjacency_list_remove_edge_nonexistent_is_noop() {
+    let mut adj = AdjacencyList::new();
+    adj.add(n(1), n(2));
+    adj.remove_edge(n(1), n(99)); // does not exist
+    assert_eq!(adj.edge_count(), 1, "existing edge unaffected");
+}
+
+#[test]
+fn synapse_remove_edge_removes_only_specified_kind() {
+    let mut syn = Synapse::new();
+    syn.add(EdgeKind::Extends, n(1), n(2));
+    syn.add(EdgeKind::Calls, n(1), n(2));
+    syn.remove_edge(EdgeKind::Extends, n(1), n(2));
+    assert!(
+        syn.outgoing(n(1), EdgeKind::Extends).is_empty(),
+        "Extends edge removed"
+    );
+    assert!(
+        syn.outgoing(n(1), EdgeKind::Calls).contains(&n(2)),
+        "Calls edge unaffected"
+    );
+}
+
 // ── RFC-0010: Synapse::edge_count ─────────────────────────────────────
 
 #[test]

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **RFC-0103 per-edge `Extends` resolution for mixed-import sites (Issue #555).**
+  `AdjacencyList::remove_edge` + `Synapse::remove_edge` + `Store::remove_edge`
+  primitives added. `resolve_import_aware_extends_stubs` rewritten from a
+  whole-node unanimity check to per-edge independent resolution: each
+  `(subclass → stub)` Extends edge is now redirected to whichever definition
+  that specific subclass imports, eliminating the wrong-collapse bug that the
+  conservative Codex P1 fix on PR #554 avoided. Stubs are removed only after
+  all incoming Extends edges are accounted for. 5 new tests (3 synapse unit +
+  2 store integration).
+
 ### Added
 
 - **Python SDK — `mycelium-rcig` (RFC-0111, Phase 2).** A thin, typed Python
