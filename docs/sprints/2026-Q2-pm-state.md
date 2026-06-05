@@ -5,213 +5,97 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-04 (PM dispatch v52 — PR #547 merged; Codex P2 finding on #428 resolved (MCP split residual added to P2); MCP god-file split task opened) |
-| Current sprint | **v0.2.0 ceremony STEPS 1+3+4 COMPLETE** — Step 1 ✅ (PR #523→main); Step 3 ✅ (crates.io published); Step 4 ✅ (PR #537 back-merge `4e60400f`); Step 2 (tag push) **founder-gated**. MCP god-file split (P2) begun on develop for v0.2.1. |
-| Active release branch | none — `release/v0.2.0` back-merged to develop ✅; Step 2 (tag) founder-gated |
-| Next release target | **v0.2.1** — npm scope + dogfood validation + RFC-0104 cold SLA numbers |
-| Final release target | v0.3.0 ETA TBD |
-| Last shipped | **v0.2.0 ceremony 3/4** — Steps 1+3+4 done ✅; Step 2 (tag push) pending founder. |
+| Last updated | 2026-06-04 (PM dispatch v53 — v0.2.0 ceremony 4/4 COMPLETE: tag + GitHub Release + npm all shipped this session; PR #547 merged; v0.2.1 queue open) |
+| Current sprint | **Post-v0.2.0 stabilization — ceremony 4/4 COMPLETE (crates + npm + tag + GitHub Release all live); v0.2.1 queue open** |
+| Active release branch | none — `release/v0.2.0` merged and deleted |
+| Next release target | **v0.2.1** — MCP god-file split (lib.rs 6,048 lines) + Issue #534 npm E404 grace removal + formalize #525/#526 into crates |
+| Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
+| Last shipped | **v0.2.0 (ceremony 4/4 COMPLETE)** — crates.io ✅ + npm (6 pkgs, install-verified) ✅ + main ✅ + tag `v0.2.0` ✅ + GitHub Release (5 binaries + SHA256SUMS) ✅ + back-merge ✅ |
 
 ---
 
-## ✅ v0.1.13 — SHIPPED (ceremony COMPLETE)
+## ✅ v0.1.13–v0.1.19 — ALL SHIPPED (ceremonies COMPLETE)
 
-**What shipped:**
-- [x] RFC-0093 Phase 2: `success_str` exported from error module; all 101 MCP success-return sites unified
-- [x] RFC-0096 Phase 1 (Python): `EdgeKind::TypeImports` for `if TYPE_CHECKING:` imports
-- [x] TypeScript relative-import resolver bug fix (`@reference.import` now dispatches to TS resolver for .ts/.js files)
-- [x] ADR-0004: Patricia Trie for Trunk documented
-- [x] ADR-0005: MessagePack wire format documented
-- [x] ADR-0006: Hyphae CSS-selector grammar style documented
-- [x] Post-v0.1.12 security scan: CLEAN
+*(See archive in git history; all four ceremony steps complete for each version.)*
 
-**v0.1.13 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.13` → `main` — PR #332 MERGED ✅ (founder authorized 2026-05-31)
-- [x] **Step 2**: Tag `v0.1.13` pushed ✅
-- [x] **Step 3**: GitHub Release published ✅
-- [x] **Step 4**: Back-merge `release/v0.1.13` → `develop` — PR #333 MERGED ✅
+- v0.1.13: RFC-0093 Phase 2 success_str; RFC-0096 Phase 1 Python TypeImports; ADR-0004/0005/0006.
+- v0.1.14: RFC-0096 Phase 2 TS; RFC-0093 Phase 3 error model; skill-parity CI gate; dogfood 8/8.
+- v0.1.15: content absorbed into v0.1.16 (ceremony broken).
+- v0.1.16: RFC-0100 Phase 1+2 redb StorageBackend; OutputBudget; mycelium_context (90th tool).
+- v0.1.17: redb default (RFC-0100 Phase 3); RFC-0101/0102 Implemented; god-file-split slices 1+2.
+- v0.1.18: RFC-0105 WatchEngine + RFC-0106 PUSH + RFC-0107 SUBSCRIBE + RFC-0108 Salsa Phase 2 (reactive roadmap 4/4 COMPLETE).
+- v0.1.19: packs/rust precision 67%→99.8%; ADR-0008/0009/0010; Codex Hard Rule; RFC-0105 EXCEPTION ratified.
 
 ---
 
-## ✅ v0.1.14 — SHIPPED (ceremony 4/4 COMPLETE)
+## ✅ v0.2.0 — CEREMONY 4/4 COMPLETE (fully shipped 2026-06-04)
 
-**What shipped:**
-- [x] RFC-0096 Phase 2 TypeScript: `import type` → TypeImports edges + TS resolver bug fix
-- [x] RFC-0093 Phase 3 (BREAKING): all 89 MCP tools → `is_error: Some(true)` per MCP spec
-- [x] Skills INDEX.md CI gate: `skill-parity` promoted to required Quality Gate
-- [x] Store::merge R1 parallel-index primitive (step 1/2)
-- [x] Dogfood pass rate 8/8: all 8 core CLI commands green
+**What shipped in v0.2.0:**
+- [x] RFC-0109 all 7 graph-list tools → shared core builders + object shape + budget knob (PRs #501–#513)
+- [x] RFC-0102 nested `budget{}` response object + BudgetMode tag + per-call override + cap fixes (PRs #497–#499)
+- [x] RFC-0110 npm/bun CLI distribution: prebuilt-binary optionalDependencies model; 5-platform build matrix; release.yml publish-npm job (PRs #517–#520)
+- [x] ci(dco-check): grep full body for `Signed-off-by` — systemic DCO false-fail fix (PR #544)
+- [x] ci(release): graceful npm publish for E404 scope-not-found + absent NPM_TOKEN (PR #533)
+- [x] All v0.1.19→v0.2.0 content on develop (RFC-0109/102/110 roll-out)
 
-**v0.1.14 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.14` → `main` — PR #352 MERGED ✅
-- [x] **Step 2**: Tag `v0.1.14` pushed ✅
-- [x] **Step 3**: GitHub Release published ✅
-- [x] **Step 4**: Back-merge `release/v0.1.14` → `develop` — PR #349 MERGED ✅
-
----
-
-## ✅ v0.1.15 — CONTENT DONE; CEREMONY BROKEN (superseded by v0.1.16)
-
-**v0.1.15 ceremony status — BROKEN ⚠️ (orphan tag; content absorbed into v0.1.16):**
-- ❌ Steps 1–4: all failed (release.yml CRATES_IO_TOKEN failure; orphan tag; PRs #361/#362 closed unmerged)
-- **Resolution**: v0.1.15 content absorbed into v0.1.16 release.
-
----
-
-## ✅ v0.1.16 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-02)
-
-**What shipped:**
-- [x] RFC-0100 Phase 1+2: redb `StorageBackend` trait + `InMemoryBackend` + `RedbBackend` (feature-flagged)
-- [x] RFC-0101 draft, RFC-0102 draft, RFC-0103 draft
-- [x] MCP server routing instructions + primary tool-selection decision tree
-- [x] Incremental persistence journal (Issue #343)
-- [x] Memory budget / bounded store (Issue #344)
-- [x] Release ceremony script `scripts/release-ceremony.sh`
-- [x] Dep bumps: redb 2.6.3→4.1, logos 0.14→0.16, salsa 0.18→0.26
-- [x] mycelium_context (90th MCP tool) + OutputBudget + import-aware stub resolution
-
-**v0.1.16 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.16` → `main` — commit `0d27c5a` 2026-06-02T01:27Z ✅
-- [x] **Step 2**: Tag `v0.1.16` pushed ✅
-- [x] **Step 3**: GitHub Release published 2026-06-02T01:27:33Z ✅
-- [x] **Step 4**: Back-merge `release/v0.1.16` → `develop` — commit `cb31814` 2026-06-02T01:28Z ✅
-
----
-
-## ⚠️ v0.1.17 — CRATES PUBLISHED; GIT CEREMONY SUPERSEDED BY v0.1.18
-
-**v0.1.17 ceremony status — PARTIAL (crates only; git superseded by v0.1.18):**
-- [x] **Pre-release**: `publish to crates.io/npm/PyPI` ✅ — all 5 crates at v0.1.17.
-- [x] **Step 4**: Back-merge `release/v0.1.17` → `develop` — **PR #477 MERGED ✅** 2026-06-03T07:54Z
-- [x] **Retro-tag**: `v0.1.17` pushed at `6aa1bed` (2026-06-03T12:30Z) for traceability ✅
-- ✅ Git ceremony superseded: main jumps v0.1.16 → v0.1.18 → v0.1.19. Founder confirmed.
-
----
-
-## ✅ v0.1.18 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-03)
-
-**What shipped in v0.1.18:**
-- [x] **RFC-0107 SUBSCRIBE**: `mycelium_subscribe`, `mycelium_unsubscribe`, `mycelium_subscription_status` (3 new MCP tools = 93 total). `mycelium watch --subscribe` CLI face.
-- [x] **RFC-0108 Salsa Phase 2**: `mycelium/queryResultChanged` reactive query subscriptions. BLAKE3-128 hash. 5 query kinds. 2s quiet-period, 200ms eval-budget.
-- [x] **fix(subscribe)**: Replace `RwLock::blocking_read()` with `try_read()` in async watch paths (PR #479).
-- [x] **fix(packs/rust)**: Capture `Type::method()` and `crate::mod::func()` call sites (PR #474).
-- Reactive-completion roadmap: **4/4 COMPLETE** (watch ✅ push ✅ subscribe ✅ salsa ✅).
-
-**v0.1.18 ceremony status — ALL FOUR STEPS COMPLETE ✅ (2026-06-03):**
-- [x] **Step 1**: PR #490 merged `release/v0.1.18` → main ✅
-- [x] **Step 2**: Tag `v0.1.18` pushed ✅ (SHA e429a224, 2026-06-03T12:30Z)
-- [x] **Step 3**: GitHub Release v0.1.18 created ✅ (2026-06-03T12:30Z)
-- [x] **Step 4**: Back-merge PR #483 MERGED to develop ✅ (2026-06-03T09:10:56Z)
-- [x] RFC-0105 EXCEPTION ratified by founder — PR #491 (2026-06-03)
-
----
-
-## ✅ v0.1.19 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-03T15:49Z)
-
-> **⚠️ Content boundary note (Codex audit 2026-06-03):** PRs #497–#501 were verified
-> via `git log 8ffcad9..bb685def --first-parent` to have landed on develop **after**
-> the v0.1.19 release merge (`8ffcad9 #494`). They are **not** in v0.1.19; they belong
-> in the post-v0.1.19 unreleased section below.
-
-**What shipped in v0.1.19 (release branch content only):**
-- [x] fix(packs/rust): extractor precision 67% → 99.8% recall — 5 additive queries.scm patterns (PR #492)
-- [x] docs(adr): ADR-0008 redb as default backend (PR #485); ADR-0009 numbering fix (PR #486)
-- [x] docs(rules): Codex review Hard Rule added to CLAUDE.md (PR #488); vision scorecard updated (PR #489)
-- [x] RFC-0105 EXCEPTION: WatchEngine Three-Surface exception ratified (PR #491)
-
-**v0.1.19 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.19` → `main` — founder ceremony ✅
-- [x] **Step 2**: Tag `v0.1.19` pushed ✅ (SHA 55761a85, 2026-06-03)
-- [x] **Step 3**: GitHub Release v0.1.19 created ✅ (2026-06-03T15:49Z)
-- [x] **Step 4**: Back-merge PR #493 MERGED ✅ (develop HEAD = `55761a85`)
-
----
-
-## ⚠️ v0.1.20 — CRATES PUBLISHED; GIT CEREMONY SUPERSEDED BY v0.2.0
-
-**v0.1.20 ceremony status — SUPERSEDED BY v0.2.0 ⚠️:**
-- [x] Release branch `release/v0.1.20` cut from develop
-- [x] **crates.io v0.1.20 published** ✅ (orphan, 2026-06-04T01:17Z)
-- [x] **npm v0.1.20 published** ✅ (orphan)
-- [x] **PyPI v0.1.20 published** ✅ (orphan)
-- [x] **PR #515 closed** as superseded (PM dispatch v36)
-- ✅ Git ceremony superseded: main jumps v0.1.19 → v0.2.0. Founder decision.
-- ❌ **Steps 2, 3, 4**: skipped per supersession strategy.
-
-**Resolution**: v0.1.20 content (RFC-0109 7/7, RFC-0102 budget, RFC-0110 npm) absorbed into v0.2.0.
-
----
-
-## ✅ RFC-0110 — npm/bun CLI distribution (ALL 3 INCREMENTS COMPLETE on develop)
-
-**Goal:** `npm i -g @aimasteracc/mycelium && mycelium --version` works on machines without Cargo.
-
-- [x] **Increment 1** (PR #517, merged 2026-06-04T02:15Z): npm package scaffolding
-- [x] **Increment 2** (PR #519, merged 2026-06-04T02:26Z): `release.yml` cross-compile matrix
-- [x] **Increment 3** (PR #520, merged 2026-06-04T02:56Z): `publish-npm` job rewired + CI smoke test
-
-**Status:** RFC-0110 **Implemented** on develop. Goes live at **v0.2.0**.
-
----
-
-## 🔥 v0.2.0 — "The Three-Surface Release" CEREMONY STEPS 1+4 DONE
-
-**Founder-cut 2026-06-04T05:26:18Z** — `release/v0.2.0` branched from develop.
-
-**What ships in v0.2.0:**
-- [x] **RFC-0109** — graph-list CLI↔MCP output parity 7/7 tools COMPLETE
-- [x] **RFC-0102** — adaptive output budget roll-out COMPLETE
-- [x] **RFC-0110** — npm/bun CLI distribution (Increments 1+2+3)
-- [x] CHANGELOG [Unreleased] sealed + consolidated into [0.2.0]; version bump 0.1.19→0.2.0
-- [x] README: npm/bun install documented (coming soon wording; live once Issue #534 resolved)
-- [x] DCO sign-off fixed: all 21 non-merge commits carry `Signed-off-by`
-
-**v0.2.0 ceremony status — STEP 2 PENDING (founder action required):**
-- [x] **Step 1**: PR #523 MERGED → `main` ✅ (2026-06-04T10:41:45Z)
-- [ ] **Step 2**: Tag `v0.2.0` pushed — **founder action required**
+**v0.2.0 ceremony status — 4/4 COMPLETE ✅:**
+- [x] **Step 1**: `release/v0.2.0` → `main` — PR #523 MERGED ✅ (2026-06-04)
+- [x] **Step 2**: Tag `v0.2.0` pushed ✅ + **GitHub Release** published (5 platform binaries + `SHA256SUMS`) ✅ (2026-06-04)
 - [x] **Step 3**: All 5 crates to crates.io ✅ (release.yml, 2026-06-04)
-- [x] **Step 4**: PR #537 MERGED → `develop` ✅ (squash `4e60400f`, 2026-06-04T14:07Z)
+- [x] **Step 4**: Back-merge `release/v0.2.0` → `develop` — PR #537 MERGED ✅ (`4e60400f`)
 
-**Note on npm/PyPI:** PyPI ✅ published. npm `@aimasteracc` scope not yet registered; `publish to npm` exits 0 gracefully (Issue #534). Draft GitHub Release at `untagged-eb9b123` will be published by founder when tag is pushed.
+**npm distribution (RFC-0110) — LIVE ✅:** all 6 `@aimasteracc/*` packages published at `0.2.0` (launcher + 5 platform pkgs); `npm i -g @aimasteracc/mycelium` install-verified (`mycelium 0.2.0`). NPM_TOKEN configured in the `npm` GitHub environment (granular: RW all-packages + bypass 2FA; `npm whoami` → `aimasteracc`). The prior E404 saga's root cause was a **non-authenticating token value in the secret** — NOT a missing scope: `@aimasteracc` is the founder's personal user scope (username = `aimasteracc`), so no org was ever needed.
+
+**v0.2 PRD success metrics status:**
+- [x] Capabilities reachable from all 3 surfaces: 93/93 MCP tools + CLI + Skills ✅ (Charter §5.13 enforced)
+- [x] Category Skills published: 10+ ✅
+- [ ] Skills marketplace presence: ≥1 (Claude Code) — **P2, not yet submitted**
+- [x] Open P0 bugs: 0 ✅
+- [x] Dogfood pass rate: 8/8 (CI dogfood job passing) ✅
+- [x] Charter §2 SLA rows satisfied ✅
+
+---
+
+## 🔧 Post-v0.2.0 — Unreleased on develop (→ v0.2.1)
+
+> Commits on develop NOT in the `v0.2.0` tag — verified against `git show v0.2.0:` — that will ship in v0.2.1:
+
+- [x] fix(npm): 128+signal exit codes in launcher (PR #535, `3f81241`) — **not in v0.2.0 crates/tag**. Note: the published npm@0.2.0 *launcher* already includes this fix (assembled from develop during the manual publish), so it is live on the npm surface; v0.2.1 formalizes it into the crates/tag.
+- [x] test(mcp): mutation kill-rate exact-count assertions (PR #531, `b696953`) — not in v0.2.0 tag (test-only)
+- [x] chore(pm): dispatch v29–v53 (PM state + decisions.jsonl maintenance)
+
+> Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
 
 ---
 
 ## Live priorities (ordered)
 
-**P0 (v0.2.0 ceremony — founder action required):**
-1. **Push tag `v0.2.0`** (Charter §5.12 Step 2 — sole remaining ceremony gate; Steps 1+3+4 done ✅). GitHub Release follows in the same UX action but is not a ceremony gate.
-2. **Register `@aimasteracc` npm scope** on npmjs.com (Issue #534) — enables real npm publish for v0.2.1+.
+**P0 — none.** v0.2.0 is fully shipped (crates + npm + tag + GitHub Release + back-merge). No founder ceremony action outstanding.
 
-**P1 (quality — post v0.2.0 ceremony):**
-4. ~~**Security scan post-v0.2.0**~~ — ✅ DONE (dispatch v46, CLEAN).
-5. **Dogfood re-run** — RFC-0109 object shapes + RFC-0110 npm launcher + redb-as-default + watch --subscribe (8/8 CLI).
-6. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` for Charter §2 cold-open budget.
-7. **Add NPM_TOKEN secret** to `npm` environment — enables npm publish on next release.
+**P1 — hygiene (optional, founder):** the `NPM_TOKEN` value was pasted into a chat transcript during the manual publish; founder may rotate it (revoke → new granular token: RW all-packages + bypass 2FA → `gh secret set NPM_TOKEN --env npm`). The token works; this is defense-in-depth only.
 
-**P2 (post-v0.2.0):**
-8. Issue #534 — npm scope E404 tightening once @aimasteracc scope registered.
-9. ~~`release.yml` systemic auto-close fix~~ — ✅ **RESOLVED** — `finalize` job already uses direct `git push origin main` (RFC-0110 redesign), not GitHub PR API. Auto-close bug is gone.
-10. ~~**Systemic DCO fix**~~ — ✅ **DEPLOYED** PR #544 MERGED squash `0554ee7`. `grep -qiE '^Signed-off-by: .+ <.+>'` on `%B` active on develop.
-11. ~~Issue #428 god-file-split~~ — ✅ **CLOSED** (ADR renumber + store split complete 2026-06-02; slices 1+2 shipped in v0.1.17). ⚠️ *Partial: `crates/mycelium-mcp/src/lib.rs` still 6,048 lines — tool-impl split NOT done.*
-12. **MCP god-file split residual** — `crates/mycelium-mcp/src/lib.rs` 6,048 lines; split into `tools/context.rs`, `tools/graph.rs` + tests submodule (Issue #428 acceptance criterion 2). Tracked as new sprint item for v0.2.1.
-13. Skill marketplace submission to Claude Code marketplace (founder sign-off on metadata required).
-14. "First 5 minutes" walkthrough validation (requires v0.2.0 binary — post tag-push).
+**P2 — Autonomous (v0.2.1 queue):**
+1. **MCP god-file split residual** (⚠️ Issue #428 partial): `crates/mycelium-mcp/src/lib.rs` at 6,048 lines. Target: extract `tools/context.rs`, `tools/graph.rs`, move `mod tests` → `tests/` submodule.
+2. **Issue #534**: Remove E404 graceful degradation from `publish_one()` in `release.yml` — **now unblocked** (npm scope live + token authenticates). 3-line removal.
+3. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop (npm surface already has #525).
+4. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
+5. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
 
 ---
 
-## Dispatch state (2026-06-04 v52 — PR #547 merged; Codex P2 #428-MCP-split residual added; MCP god-file split begun)
+## Dispatch state (2026-06-04 v53)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2). **(P0)** Register `@aimasteracc` npm scope (Issue #534) + add NPM_TOKEN to `npm` environment secret. |
-| PM | **DONE ✅** | v52: PR #547 merged; Codex P2 resolved (MCP split residual added as P2 #12); MCP god-file split sprint-tasked. |
-| release | **WAITING** | v0.2.0 ceremony: Steps 1+3+4 ✅. Step 2 (tag push + GH Release) founder-gated. |
-| security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN (dispatch v46). |
-| architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅. |
-| e2e-runner | **BLOCKED** | Dogfood re-run: blocked on v0.2.0 binary (tag push first). |
-| bench | **BLOCKED** | RFC-0104 cold SLA numbers: blocked on v0.2.0 binary + nightly run. |
-| tech-writer | **BLOCKED** | Marketplace submission: blocked on founder sign-off for metadata. |
-| rust-implementer | **P2 active** | MCP god-file split: `crates/mycelium-mcp/src/lib.rs` 6,048→target split into `tools/` modules. Slice 1: context + graph tools (charter target: ≤ 800 lines/file). |
+| founder | **no ceremony action** | v0.2.0 fully shipped. Optional: rotate NPM_TOKEN (pasted in transcript); review/merge PM PRs. |
+| PM | **DONE ✅** | v53: v0.2.0 ceremony 4/4 COMPLETE (tag + GH Release + npm published & install-verified); PR #547 merged; v0.2.1 queue corrected (#535/#531 → v0.2.1, #544/#533 confirmed in v0.2.0). |
+| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once MCP god-file split + Issue #534 ready. |
+| security-reviewer | **DONE ✅** | Post-v0.2.0 scan (release.yml + npm/): CLEAN. |
+| architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
+| rust-implementer | **P2** | MCP god-file split: `crates/mycelium-mcp/src/lib.rs` 6,048→tools/ modules (Charter §5.4 quality). |
+| e2e-runner | **idle** | Dogfood 8/8 verified by CI dogfood job ✅. Next: v0.2.1 regression pass after god-file split. |
+| bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data collection). |
+| tech-writer | **P2** | Skills marketplace submission prep (sign-off from founder needed). |
 
 ---
 
@@ -221,15 +105,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Charter §5.X amendment or new commitment.
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
-- Skill marketplace listing metadata sign-off.
+- **Skill marketplace listing metadata sign-off** (P2, pending).
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
-- ~~**v0.1.20 ceremony**~~: SUPERSEDED by v0.2.0. Founder confirmed.
-- **v0.2.0 ceremony**: Step 1 ✅ (PR #523). Step 3 ✅ (crates.io). Step 4 ✅ (PR #537 `4e60400f`). **Founder: push tag `v0.2.0` + publish GitHub Release (Step 2).**
-- **Register `@aimasteracc` npm scope**: npmjs.com account creation + org scope registration + add NPM_TOKEN secret. One-time founder action.
-- ~~**Systemic DCO config**~~: ✅ DEPLOYED — PR #544 merged squash `0554ee7` (2026-06-04).
-- ~~**`release.yml` auto-close fix**~~: ✅ RESOLVED — `finalize` job redesigned (RFC-0110) to use `git push origin main` directly; no PR API involved.
+- **Systemic**: `release.yml` finalize merge — ceremony script is workaround; RFC-0110 `finalize` job uses `git push origin main` (not GitHub PR API), so the old v0.1.6–v0.1.18 auto-close bug is RESOLVED for v0.2.0+.
 
 ---
 
@@ -238,186 +118,62 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - **Hourly (autonomous)**: each agent picks the top item from its queue.
 - **Daily PM check** (orchestrator): scan issue queue for new P0/P1; rebalance.
 - **Weekly Sprint review** (orchestrator + founder if available): mark sprint exit criteria; cut next sprint.
-- **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/vX.Y branch, publish.
+- **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/v0.2.x branch, publish.
 
 ---
 
 ## Archive
 
-### 2026-06-04 PM dispatch v52 (PR #547 merged; Codex P2 resolved; MCP god-file split tasked)
+### 2026-06-04 PM dispatch v53 (this run)
 
-**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (merge-discipline/release-governance/ci hits), PM state v51 (branch `chore/pm-dispatch-v51`), v0.2 PRD.
-
-**Assessment:**
-- 1 open PR: #547 (chore/pm-dispatch-v51, CI 22/22 ✅, **1 Codex P2 finding** — line 195 MCP split incorrectly fully cleared).
-- 0 open P0/P1 issues.
-- Develop CI: GREEN.
-- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag push) founder-gated.
-- `crates/mycelium-mcp/src/lib.rs` confirmed 6,048 lines — Issue #428 acceptance criterion 2 (tool-impl split) was never completed.
-- Codex P2 finding is valid: PM v51 erroneously struck through #428 as fully done.
-
-**Actions taken:**
-1. **Fixed PM state line 195**: restored MCP god-file split residual as explicit P2 item #12. Added inline warning to #11 strikethrough. ✅
-2. **Updated dispatch state to v52**: rust-implementer set to P2 active (MCP split). ✅
-3. **Replied to Codex P2 finding** on PR #547 with justification: Issue #428 founder-closed (partial); MCP split added as new P2 item. ✅
-4. **Merged PR #547** (squash). ✅
-5. **Appended decisions.jsonl v52 entry**. ✅
-6. **Started MCP god-file split** — new branch `refactor/mcp-god-file-split-slice1`. ✅
-
-**Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2).
-- **(P0)** Register `@aimasteracc` npm scope + add `NPM_TOKEN` to `npm` environment secret (Issue #534).
-
----
-
-### 2026-06-04 PM dispatch v51 (PR #546 MERGED; 2 stale P2 items cleared; post-v0.2.0 queue tightened)
-
-**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (release-governance/dco/merge-discipline hits), PM state v50 (disk=v28 stale; latest on PR #546 branch = v50), v0.2 PRD.
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (local clone, entries v1–v45), anti-patterns, PM state (v28 on local main — stale; v51/v52 from PR #547 commit history), v0.2 PRD.
 
 **Assessment:**
-- 1 open PR: #546 (chore pm-dispatch-v49 branch, PM v50 wrap-up, CI 22/22 ✅, 0 Codex findings).
-- 1 open issue: #534 (P2 npm scope, founder-gated — not autonomously actionable).
-- Develop CI: GREEN (all jobs success on branch `chore/pm-dispatch-v49` and on `develop`).
-- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag push) founder-gated.
-- P1/P2 review revealed 2 stale items: P2 #9 (release.yml auto-close) already resolved by RFC-0110 finalize redesign; P2 #11 (Issue #428) already closed 2026-06-02. No coding work available that doesn't require a built binary or founder sign-off.
+- 1 open PR: #547 (PM v51 chore, 20/20 CI ✅, 1 Codex finding with `aimasteracc` reply = Hard Rule satisfied).
+- 1 open issue: #534 (P2, npm E404 tightening — founder-gated).
+- develop HEAD: `0fe4f99c` (PM v50 squash, from PR #546). CI green.
+- v0.2.0 ceremony: 4/4 COMPLETE ✅ (Step 2 tag + GitHub Release + npm all shipped 2026-06-04).
+- Queue: no founder P0s remaining; P2 autonomous v0.2.1 items + optional NPM_TOKEN rotation.
 
 **Actions taken:**
-1. **Squash-merged PR #546** (`0fe4f99c`) — PM v50 wrap-up (CI green, 0 Codex findings). ✅
-2. **Cleared stale P2 items**: release.yml auto-close marked RESOLVED (RFC-0110 `git push` design); Issue #428 marked CLOSED (already completed v0.1.17). ✅
-3. **Updated dispatch state**: all agents except founder marked BLOCKED (waiting on v0.2.0 tag). ✅
-4. **Added NPM_TOKEN to founder P0 list** — required for npm publish on v0.2.1. ✅
-5. **Appended decisions.jsonl v51 entry**. ✅
+1. **Merged PR #547** (squash `640a8dcf`) — PM v51/v52 wrap-up; Codex P2 replied/fixed by prior session. ✅
+2. **Post-v0.2.0 security scan** (release.yml + npm/ code reviewed): CLEAN — no hardcoded secrets; E404 grace is by design (Issue #534); id-token:write is legitimate npm provenance requirement; all tokens properly as `secrets.*`. ✅
+3. **Composed PM state v53** — updated header, v0.2.0 ceremony status, v0.2.1 queue, dispatch state. ✅
+4. **NOTE (resolved)**: the remote session could not append decisions.jsonl (MCP `get_file_contents` branch-resolution bug returned local-main). Appended locally in this corrected v53 with full repo access — develop's v29–v52 entries intact. Anti-pattern recorded.
 
-**Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` + publish GitHub Release (Charter §5.12 Step 2).
-- **(P0)** Register `@aimasteracc` npm scope + add `NPM_TOKEN` to `npm` environment secret (required before v0.2.1 npm publish succeeds).
+**Escalations to founder — both RESOLVED this session:**
+1. ~~(P0) Push tag `v0.2.0` + create GitHub Release~~ → **DONE ✅** (tag `v0.2.0` pushed + GitHub Release with 5 binaries + SHA256SUMS).
+2. ~~(P0) Register `@aimasteracc` npm scope + add `NPM_TOKEN`~~ → **DONE ✅** — `@aimasteracc` was already the founder's personal user scope (no registration needed); the real blocker was a non-authenticating `NPM_TOKEN` value, now fixed; all 6 packages published & install-verified.
+3. **(P1, optional)** Rotate `NPM_TOKEN` — the value was pasted into a chat transcript during the manual publish. Defense-in-depth only; the token works.
 
----
+### 2026-06-04 PM dispatch v52 (PR #547 branch — Codex P2 fix + MCP split P2 item added)
 
-### 2026-06-04 PM dispatch v50 (PR #544 MERGED; PR #545 MERGED; DCO fix deployed)
+*(see merged commit `640a8dcf` for full archive)*
 
-**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-25, anti-patterns (ci/dco/merge-discipline hits), PM state v48 (disk=v28, latest on develop=v48 via #545), v0.2 PRD.
+### 2026-06-04 PM dispatch v51 (PR #546 merged; 2 stale P2 items cleared; post-v0.2.0 queue tightened)
 
-**Assessment:**
-- 2 open PRs: #544 (DCO fix, CI 20/20 ✅ Quality Gate success, Codex P2 outdated+replied), #545 (PM v48 chore, CI 20/20 ✅, Codex P2 outdated+replied).
-- 1 open issue: #534 (P2 npm scope, founder-gated — not actionable autonomously).
-- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag) awaits founder.
-- decisions.jsonl had v49 "handoff" entry from previous session (wall-clock expired before merges).
+*(see merged commit `0fe4f99c` for full archive)*
 
-**Actions taken:**
-1. **Squash-merged PR #544** (`0554ee7`) — systemic DCO fix deployed to develop. ✅
-2. **Squash-merged PR #545** (`8418632`) — PM v48 wrap-up on develop. ✅
-3. **Updated PM state v50**: DCO item marked ✅ deployed, dispatch state updated, decision gate closed. ✅
-4. **Appended decisions.jsonl v50 entry**. ✅
+### 2026-06-04 PM dispatch v50 (PRs #544+#545 merged; DCO fix deployed)
 
-**Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` + create GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate).
-- **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
+*(see commit `0fe4f99c` squash message for full archive)*
 
----
+### 2026-06-04 PM dispatch v46 (Codex P1+P2 fixes; v0.2.0 ceremony Steps 1+3+4 ✅; security scan CLEAN)
 
-### 2026-06-04 PM dispatch v49 (Codex fixes on #544+#545; #543 closed; #544 CI pending)
+*(see commit `e089b66a` for full archive)*
 
-**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (ci/dco/merge-discipline domain hits), PM state v48 (3 PRs #543/#544/#545 open), v0.2 PRD.
+### 2026-06-04 PM dispatch v36 (v0.2.0 release in progress; PR #522 merged)
 
-**Assessment:**
-- 3 open PRs: #543 (PM v47, Codex P2 outdated, CI 20/20 ✅), #544 (DCO fix, 22/22 fast-lane ✅ + full-lane running, Codex P2 LIVE), #545 (PM v48 Codex fix, CI 22/22 ✅, Codex P2 LIVE).
-- 0 open P0/P1 issues.
-- v0.2.0 ceremony Steps 1+3+4 done; Step 2 (tag) awaits founder.
-- Local checkout stale at v28; fetched origin/develop.
+*(see commit `b2fe917c` for full archive)*
 
-**Actions taken:**
-1. Fixed Codex P2 on PR #544 (`e0b999e`): grep `'^Signed-off-by:'` → `'^Signed-off-by: .+ <.+>'` — requires real signer+email. Replied to Codex thread. ✅
-2. Closed PR #543 (concurrent-session PM v47, superseded by #545). ✅
-3. Fixed Codex P2 on PR #545 (`582db7f`): removed premature strike-through on DCO item; changed to "pending merge PR #544". Replied to Codex thread. ✅
-4. Appended decisions.jsonl. ✅
+### 2026-06-04 PM dispatch v29 (PRs #508+#513 merged; RFC-0109 7/7 complete)
 
-**Pending (wall-clock limit hit):** #544 full-lane CI still running. Next session: verify Quality Gate green → admin-merge #544 → rebase `chore/pm-dispatch-v48` onto new develop → mark DCO items as ✅ merged → push → merge #545.
+*(see commit `e94acb42` for full archive)*
 
-**Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` + create GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate).
-- **(P0)** Register `@aimasteracc` npm scope (Issue #534).
+### 2026-06-03 PM dispatch v28 (develop CI fix PR #508; ADR-0010 merged; v0.1.19 boundary corrected)
 
----
+*(see commit `bf0399a2` for full archive)*
 
-### 2026-06-04 PM dispatch v48 (PR #542 merged; PR #544 opened (systemic DCO fix))
+### Earlier dispatches (v1–v27)
 
-**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (domain hits: release-ci/dco), PM state v46 (develop HEAD `2a7a11bb`), v0.2 PRD.
-
-**Assessment:**
-- 1 open PR: #542 (dispatch v46 chore, CI 20/20 ✅, both Codex P2 threads fixed in `808f500`).
-- 1 open issue: #534 (P2 npm scope, founder-gated).
-- All P1 items are either founder-gated (P0 tag/npm) or require binary build (dogfood/benchmarks, >25m wall clock).
-- P2 actionable: **Systemic DCO fix** — anti-pattern 2026-05-31: `%(trailers:key=Signed-off-by,valueonly)` only parses trailers at terminal position; GitHub squash embeds `Signed-off-by` mid-body → false-fail on release DCO check.
-
-**Actions taken:**
-1. Resolved both Codex P2 threads on PR #542; squash-merged → develop (`2a7a11bb`). ✅
-2. Implemented systemic DCO fix on `fix/dco-check-squash-body` (1 commit `c62e53b`): `%(trailers:...)` → `grep -qiE '^Signed-off-by:'` on `%B`. CHANGELOG updated. ✅
-3. Opened **PR #544** (CI in_progress; fast-lane all ✅ incl. DCO check — validates the fix). ✅
-4. PM state v48 + decisions.jsonl appended. ✅
-
-**Parallel activity:** Another session opened PR #543 (`chore/pm-dispatch-v47`) for the dispatch v46 close. Both sessions picked the same PR #542 merge; naming conflict resolved by this session using v48. PR #543 will handle its own close; PR #544 is this session's value-add.
-
-**Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` + create GitHub Release (Charter §5.12 Step 2 — sole remaining ceremony gate).
-- **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
-
-### 2026-06-04 PM dispatch v46 (this run — PR #541 merged; Codex P1+P2 fixed; security scan CLEAN)
-
-**Pre-flight:** CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (1 new hit: MCP resource-prefix), PM state v45 (PR #541 open), v0.2 PRD.
-
-**Assessment:**
-- 1 open PR: #541 (chore pm-dispatch-v45, CI 22/22 ✅ on original commit; 2 Codex findings open).
-- 0 open issues.
-- v0.2.0 ceremony: Steps 1+3+4 done; Step 2 (tag) awaits founder.
-
-**Actions taken:**
-1. **Fixed Codex P2** (Hard Rule violation): reverted decisions.jsonl line 1 — MCP GitHub tool prepended resource-reference prefix to `DECISIONS_CONTENT_PLACEHOLDER`, rewriting an append-only line. Reverted. ✅
-2. **Fixed Codex P1** (ceremony tracking): corrected Step 3 label from "GitHub Release" (wrong) to "crates.io publish" (Charter §5.12 correct). Step 3 already done; Step 2 (tag) is sole remaining founder action. ✅
-3. **Replied to both Codex threads** on PR #541 (P1: fixed in `858af01`; P2: fixed in `858af01`). ✅
-4. **Security scan post-v0.2.0**: CLEAN — no secrets, unsafe blocks documented, no shell injection, npm launcher secure. ✅
-5. **Recorded anti-pattern**: MCP GitHub tool read prepends resource-reference prefix; use local Read tool for append-only memory files. ✅
-6. **Squash-merged PR #541** (commit `e089b66a`) — 19/19 CI ✅. ✅
-
-**Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` (Charter §5.12 Step 2; Steps 1+3+4 done ✅). GitHub Release creation follows from the same UX action but is not itself a ceremony gate.
-- **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
-
----
-
-### 2026-06-04 PM dispatch v45 (PR #537 merged (Step 4); #539/#540 closed)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (no new domain hits), PM state v42 (from develop HEAD `4e60400f` post-#537 merge), v0.2 PRD.
-
-**Assessment:**
-- 3 open PRs: #537 (back-merge CI 20/20 ✅, Codex P2 fixed in `7a5987a`), #539 (PM v44, CI 22/22 ✅), #540 (back-merge duplicate, CI 20/20, Codex P2 LIVE — same README npm issue).
-- 1 open issue: #534 (P2 npm scope E404 tightening, not blocking).
-- Key finding: duplicate back-merge PRs (#537 and #540 both target Charter §5.12 Step 4). #537 is clean; #540 has live Codex P2 (same README npm install issue that #537 already fixed in commit `7a5987a`).
-
-**Actions taken:**
-1. **Replied to Codex P2 on PR #540**: finding is valid; closing as superseded by #537 which carries identical fix. ✅
-2. **Closed PR #540** as superseded by #537. ✅
-3. **Squash-merged PR #537** (commit `4e60400f`) — Charter §5.12 Step 4 COMPLETE ✅
-4. **PR #539** (PM v44) conflicted after #537 back-merge advanced develop; closed as superseded by v45. ✅
-5. **PM state v45 written** + decisions.jsonl appended. ✅
-
-**Escalations to founder:**
-- **(P0)** Push tag `v0.2.0` + create GitHub Release (ceremony Steps 2+3).
-- **(P0)** Register `@aimasteracc` npm scope on npmjs.com (Issue #534).
-
-### 2026-06-04 PM dispatch v44 (PR #535 merged; Codex P2 on #537+#538 addressed)
-
-**Summary:** PR #535 MERGED (fix(npm): 128+signal exit code `3f812410`) → Issue #525 CLOSED. Codex P2 on PR #537 (README npm install) fixed in commit `7a5987a` (reverted to "coming soon"). Codex P2 on PR #538 (pm-state "Last shipped") corrected. PR #538 superseded by v45. v0.2.0 Step 1 ✅ confirmed (PR #523 → main 2026-06-04T10:41:45Z).
-
-### 2026-06-04 PM dispatch v43 (PRs #537+#538 opened)
-
-**Summary:** Back-merge PR #537 opened (Charter §5.12 Step 4). PM state correction PR #538 opened (Last shipped: v0.1.19 until Steps 2+3 complete). Ceremony Step 1 confirmed merged.
-
-### 2026-06-04 PM dispatch v42 (PR #533 merged; Issue #526 closed; Issue #534 created; PR #535 opened)
-
-*(See full archive in closed PR #539 and decisions.jsonl entries for v42.)*
-
-### Earlier dispatches (v1–v41)
-
-*(archived in older versions of this file and decisions.jsonl)*
-
+*(archived in git history)*
