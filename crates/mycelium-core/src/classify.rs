@@ -9,7 +9,7 @@
 //! This module is the **final, static classification tier**: given a bare
 //! callee name that project resolution already failed to bind, classify it
 //! against curated stdlib / builtin / well-known-external allowlists. Pure
-//! table lookup, **zero LSP** — exactly the precision lever [ADR-0010] endorses.
+//! table lookup, **zero LSP** — exactly the precision lever ADR-0010 endorses.
 //!
 //! The allowlist data is ported from the founder's `tree-sitter-analyzer`
 //! project (`synapse_resolver/_constants.py`, MIT) which proved this tier lifts
@@ -17,8 +17,6 @@
 //! **language-agnostic cascade + the Python tables**; wiring it into the
 //! resolver (so only *remaining* bare stubs reach it — the project-ownership
 //! shadow gate) is a separate step.
-//!
-//! [ADR-0010]: ../../../docs/adr/0010-no-live-lsp-prefer-scip-ingestion.md
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
