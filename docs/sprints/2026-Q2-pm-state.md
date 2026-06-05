@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v55 — PR #550 merged (Issue #428 slice 3 ✅); PR #551 Codex fix + merged) |
-| Current sprint | **Post-v0.2.0 stabilization — v0.2.1 queue: Issue #428 slice 4 (tools/ handler extraction, lib.rs 4,694 lines) next** |
+| Last updated | 2026-06-05 (PM dispatch v56 — PR #552 merged (RFC-0094 Phase 4 ✅); PR #551 merged; god-file-split slice 4 scoped) |
+| Current sprint | **Post-v0.2.0 stabilization — v0.2.1 queue: RFC-0094 follow-ups + god-file-split slice 4 (lib.rs 4,485 lines) + formalize crates** |
 | Active release branch | none — `release/v0.2.0` merged and deleted |
 | Next release target | **v0.2.1** — MCP god-file split (Issue #428) + formalize signal-exit fix (#535) + mutation tests (#531) into crates |
 | Final release target | v0.3.0 (cross-repo indexing, IDE plugins) |
@@ -63,6 +63,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] fix(npm): 128+signal exit codes in launcher (PR #535, `3f81241`) — **not in v0.2.0 crates/tag**. Note: the published npm@0.2.0 *launcher* already includes this fix (assembled from develop during the manual publish), so it is live on the npm surface; v0.2.1 formalizes it into the crates/tag.
 - [x] test(mcp): mutation kill-rate exact-count assertions (PR #531, `b696953`) — not in v0.2.0 tag (test-only)
 - [x] refactor(mcp): Issue #428 god-file-split slice 3 — requests.rs extract; lib.rs 6,048→4,694 (PR #550, `4818da09`) ✅ merged 2026-06-05
+- [x] feat(mcp): RFC-0094 Phase 4 — flip stdio MCP default output to text (~72% fewer tokens); `render()` helper centralises 89 format sites; `with_default_format()` builder; `serve_stdio` defaults to `Text`; Codex P2 (6 path-finder tools) fixed before merge; lib.rs 4,694→4,485 (−209 lines via consolidation) (PR #552, `1a6e3e7`) ✅ merged 2026-06-05
 - [x] chore(pm): dispatch v29–v55 (PM state + decisions.jsonl maintenance)
 
 > Already shipped in v0.2.0 (do NOT re-queue — verified present in the `v0.2.0` tag): PR #544 (DCO full-body grep fix) and PR #533 (graceful npm E404 + absent-token handling).
@@ -76,26 +77,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 — hygiene (optional, founder):** the `NPM_TOKEN` value was pasted into a chat transcript during the manual publish; founder may rotate it (revoke → new granular token: RW all-packages + bypass 2FA → `gh secret set NPM_TOKEN --env npm`). The token works; this is defense-in-depth only.
 
 **P2 — Autonomous (v0.2.1 queue):**
-1. **MCP god-file split slice 4** — Extract `call_tool` handler arms → `tools/` subdirectory (Issue #428 slice 4). lib.rs now at 4,694 lines after slice 3; slice 4 removes the largest remaining block (~2 K handler arms). **Next autonomous task.**
+1. **MCP god-file split slice 4** — lib.rs at 4,485 lines after RFC-0094 Phase 4 (render() consolidation saved ~209 lines). The `#[tool_router]` proc-macro requires all tool methods in one impl block; clean extraction requires either Rust `include!()` shims or a delegation approach — scope carefully before executing. ⚠️ **Issue #428 is closed** (completed through slice 3); slice 4 needs a new tracking issue if pursued.
 2. ~~**Issue #534**~~: ✅ DONE (PR #549 merged by founder 2026-06-05).
 3. ~~**PR #550**~~: ✅ DONE (god-file-split slice 3 merged 2026-06-05, `4818da09`).
-4. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop.
-5. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
-6. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
+4. ~~**RFC-0094 Phase 4**~~: ✅ DONE (PR #552 merged 2026-06-05; RFC status → Implemented).
+5. **Formalize #525/#526 into crates/tag**: v0.2.1 crates should carry the launcher signal-exit fix (#535) + mutation tests (#531) already on develop.
+6. **RFC-0104 cold SLA numbers**: Measure nightly `sla_ancestors_100k` on redb for Charter §2 cold-open budget. Requires founder Charter §2 amendment once data is collected.
+7. **Skills marketplace submission**: Claude Code marketplace metadata (icon, screenshots, examples). Requires founder sign-off on listing metadata.
 
 ---
 
-## Dispatch state (2026-06-05 v55)
+## Dispatch state (2026-06-05 v56)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **no ceremony action** | v0.2.0 fully shipped. Optional: rotate NPM_TOKEN (pasted in transcript). |
-| PM | **DONE ✅** | v55: PR #550 merged (Issue #428 slice 3); PR #551 Codex P2 fixed + merged. |
-| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once Issue #428 god-file split complete. |
+| PM | **DONE ✅** | v56: PR #551 admin-merged (`3791214`); PR #552 (RFC-0094 Phase 4) verified complete; PM state updated; decisions.jsonl appended. |
+| release | **idle** | v0.2.0 ceremony 4/4 ✅ (shipped). Next: cut `release/v0.2.1` once god-file-split slice 4 + crates formalized (PRs #535/#531). |
 | security-reviewer | **DONE ✅** | Post-v0.2.0 scan: CLEAN. |
 | architect | **idle** | RFC-0104 cold SLA Charter §2 amendment (needs nightly measurement data first). |
-| rust-implementer | **P2** | Issue #428 slice 4: extract `call_tool` handler arms → `tools/` subdirectory (lib.rs 4,694 lines → further reduction). |
-| e2e-runner | **idle** | Dogfood 8/8 verified ✅. Next: v0.2.1 regression pass after god-file split completes. |
+| rust-implementer | **P2** | God-file-split slice 4 (new issue required; `#[tool_router]` proc-macro scoping needed before implementation). |
+| e2e-runner | **idle** | Dogfood 8/8 verified ✅. Next: v0.2.1 regression pass after god-file split. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data collection). |
 | tech-writer | **P2** | Skills marketplace submission prep (founder sign-off needed). |
 
@@ -125,6 +127,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-05 PM dispatch v56 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hit: platform-specific test assertions), memory INDEX.md, PM state (v55 on develop), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #551 (PM v54+v55, 20/20 CI ✅, 1 Codex P2 thread `is_outdated:true` + aimasteracc reply ✅).
+- develop HEAD: `3791214` (PM v55) after merging #551; one commit ahead: `1a6e3e7` (RFC-0094 Phase 4, PR #552, merged ~05:00).
+- 0 open P0/P1 issues. v0.2.0 ceremony 4/4 COMPLETE. CI fully green across linux/macos/windows.
+- RFC-0094 Phase 4: Codex P2 (6 path-finder tools bypassing render()) fixed before merge; RFC status updated to "Implemented"; no outstanding findings.
+- lib.rs: 4,694 (post slice-3) → 4,485 after RFC-0094 Phase 4 consolidation (render() helper replaced ~209 lines of repeated map_or_else blocks).
+- God-file-split slice 4 scoped: `#[tool_router]` proc-macro requires all tool methods in one impl block — clean file extraction needs Rust include!() shims or delegation pattern. Issue #428 closed (completed through slice 3); new issue needed for slice 4.
+
+**Actions taken:**
+1. **Admin-merged PR #551** (squash `3791214`) — PM dispatch v54+v55 on develop; Codex P2 `is_outdated:true` + reply satisfies Hard Rule. ✅
+2. **Verified PR #552** (RFC-0094 Phase 4): Codex P2 fixed in pre-merge commit (`fix(mcp): route the 6 path-finder tools through render()`); RFC-0094 status → Implemented; 442 mcp tests green. No further action required. ✅
+3. **Assessed god-file-split slice 4 feasibility**: `#[tool_router]` constraint makes naive module extraction unsafe within 25-min wall clock. Documented the scoping note and queued as new-issue-required. ✅
+4. **PM state v56** updated; decisions.jsonl appended. ✅
+
+**Escalations to founder:** none.
 
 ### 2026-06-05 PM dispatch v55 (this run)
 
