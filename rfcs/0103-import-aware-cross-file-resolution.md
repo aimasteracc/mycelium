@@ -274,6 +274,14 @@ path before enabling it in watch mode.
 
 ## Future possibilities
 
+- **Per-edge mixed-site resolution (follow-up to the initial Extends target).**
+  The shipped pass collapses a bare stub to one definition only when *every*
+  subclass imports it (unanimous), because `redirect_node` rewrites all of the
+  stub's edges at once. When subclasses import *different* definitions, each
+  incoming `Extends` edge should be rewritten to its own imported definition and
+  the stub removed only after no edges remain. This needs an edge-level rewrite
+  primitive (`Synapse::remove_edge(kind, src, dst)`); until then mixed-import
+  sites stay conservatively unresolved. (Raised by Codex P1 on PR #554.)
 - Persist an `unresolved_refs` diagnostic table for agents to inspect directly.
 - Extend ranking with language-pack-specific import resolvers.
 - Use RFC-0103's improved edges as higher-quality input for RFC-0101

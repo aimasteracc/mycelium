@@ -1291,10 +1291,14 @@ impl Store {
     /// inspects the subclasses (incoming `Extends` edges) and favours the
     /// candidate definition whose file is imported by the subclass's file.
     ///
-    /// Conservative by RFC-0103 mandate: the stub is redirected **only** when
-    /// exactly one candidate has strictly the most import evidence (> 0). Ties
-    /// and zero-evidence stubs stay unresolved and visible for future work
-    /// rather than being guessed.
+    /// Conservative by RFC-0103 mandate, and safe for the whole-node redirect:
+    /// the stub is redirected **only** when a single candidate is imported by
+    /// **every** subclass (unanimous). That guarantees redirecting all of the
+    /// stub's `Extends` edges to that one definition is correct for each source.
+    /// Zero candidates, ties, and **mixed-import sites** (subclasses importing
+    /// different definitions) stay unresolved rather than being guessed or
+    /// wrongly collapsed — per-edge resolution of mixed sites is a tracked
+    /// RFC-0103 follow-up (needs an edge-level rewrite primitive).
     fn resolve_import_aware_extends_stubs(&mut self) -> usize {
         let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
 
@@ -1333,10 +1337,17 @@ impl Store {
                 continue;
             }
 
-            // Highest import-evidence candidate, tracking whether it is unique.
-            let mut best_def: Option<NodeId> = None;
-            let mut best_count = 0usize;
-            let mut best_is_unique = false;
+            // A candidate qualifies only if EVERY subclass of this stub imports
+            // it (unanimous). `redirect_node` rewrites *all* of the stub's edges
+            // to one target, so collapsing is correct only when every incoming
+            // `Extends` source agrees on the same definition. Mixed-import sites
+            // — different subclasses importing different definitions — are left
+            // unresolved here rather than wrongly collapsed to one def; resolving
+            // each edge independently needs an edge-level rewrite primitive and
+            // is tracked as the RFC-0103 per-edge follow-up.
+            let n_subclasses = subclasses.len();
+            let mut winner: Option<NodeId> = None;
+            let mut unanimous_candidates = 0usize;
 
             for &def_id in defs {
                 let Some(def_path) = self.trunk.path_of(def_id).map(str::to_owned) else {
@@ -1367,17 +1378,17 @@ impl Store {
                     }
                 }
 
-                if match_count > best_count {
-                    best_count = match_count;
-                    best_def = Some(def_id);
-                    best_is_unique = true;
-                } else if match_count == best_count && match_count > 0 {
-                    best_is_unique = false;
+                if match_count == n_subclasses {
+                    unanimous_candidates += 1;
+                    winner = Some(def_id);
                 }
             }
 
-            if best_count > 0 && best_is_unique {
-                if let Some(def_id) = best_def {
+            // Resolve only on a single unanimous candidate (every subclass
+            // imports exactly this one definition). Zero, or ties (≥2 defs all
+            // imported by every subclass), stay unresolved — conservative.
+            if unanimous_candidates == 1 {
+                if let Some(def_id) = winner {
                     self.synapse.redirect_node(stub_id, def_id);
                     self.trunk.remove(stub_id);
                     resolved += 1;
