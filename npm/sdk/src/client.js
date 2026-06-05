@@ -87,6 +87,8 @@ class Mycelium {
     const extra = [];
     if (opts.maxNodes != null) extra.push("--max-nodes", String(opts.maxNodes));
     if (opts.maxCodeBlocks != null) extra.push("--max-code-blocks", String(opts.maxCodeBlocks));
+    const budget = opts.budget ?? this.budget;
+    if (budget) extra.push("--budget", budget);
     return this._json(this._bin, this._jsonArgs("context", ["--task", task], extra));
   }
 

@@ -201,6 +201,23 @@ jobs:
           OUT="$(node_modules/.bin/mycelium --version)"
           echo "launcher output: $OUT"
           echo "$OUT" | grep -qi mycelium
+      # RFC-0111: prove the assembled SDK resolves the prebuilt binary from its
+      # pinned optionalDependency (no MYCELIUM_BIN, no PATH) — the exact
+      # no-Cargo install path a fresh `npm i @aimasteracc/mycelium-sdk` takes.
+      - name: SDK packaging smoke test (assemble → install → resolve binary → query)
+        run: |
+          set -euo pipefail
+          mkdir -p sdk-smoke && cd sdk-smoke && npm init -y >/dev/null
+          npm install --install-links \
+            ../dist-npm/mycelium-linux-x64-gnu ../dist-npm/mycelium-sdk >/dev/null
+          node -e '
+            const { Mycelium } = require("@aimasteracc/mycelium-sdk");
+            const m = new Mycelium({ root: "." });
+            m.version().then((v) => {
+              console.log("sdk resolved binary →", v);
+              if (!/^mycelium /.test(v)) process.exit(1);
+            }).catch((e) => { console.error(e); process.exit(1); });
+          '
 
   doc-build:
     name: docs (rustdoc + mdbook)

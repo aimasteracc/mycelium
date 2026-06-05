@@ -20,9 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ships TS types (`index.d.ts`) with no build step. Because it wraps the CLI it
   **inherits CLI↔MCP parity for free** (Charter §5.13). Errors surface as
   `MyceliumError`. Hermetic unit tests (injected spawn) + a live integration
-  test wired into CI against the release binary. Python SDK is Phase 2 of the
-  same RFC. **Charter §3 bindings row amended** from native FFI (napi-rs/pyo3)
-  to thin CLI-wrapper SDKs; native FFI reserved for a future performance RFC.
+  test wired into CI against the release binary, plus an SDK packaging smoke
+  test (assemble → install → resolve binary from its pinned platform
+  optionalDependency → query). Release packaging assembles and publishes
+  `@aimasteracc/mycelium-sdk` alongside the existing npm packages, with its
+  platform-binary `optionalDependencies` pinned to the release version. Python
+  SDK is Phase 2 of the same RFC. **Charter §3 bindings row amended** from
+  native FFI (napi-rs/pyo3) to thin CLI-wrapper SDKs; native FFI reserved for a
+  future performance RFC.
 - **Import-aware `Extends` stub resolution (RFC-0103, initial target).** When a
   class inherits from a base whose simple name is defined in *several* files
   (ambiguous for the existing unique-match resolver), the post-index pass now

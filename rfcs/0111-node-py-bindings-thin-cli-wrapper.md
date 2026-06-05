@@ -185,10 +185,11 @@ new capability, that capability MUST first exist as a CLI+MCP pair (an
 Incremental, each behind green CI:
 
 1. RFC + Node SDK (`resolve-binary` + `run` + `client` + tests + README) +
-   Charter §3 amendment. **← this PR.**
-2. Wire SDK unit tests into CI; publish `@aimasteracc/mycelium-sdk` at the next
-   release (alongside the existing npm packages).
-3. Python SDK (Phase 2) under this same RFC.
+   Charter §3 amendment + CI (unit + integration) + **release packaging**
+   (`build-npm.mjs` assembles `mycelium-sdk` with version-pinned platform
+   optionalDependencies; `release.yml` publishes it after the main package).
+   **← this PR.** The SDK goes live at the next release that runs `release.yml`.
+2. Python SDK (Phase 2) under this same RFC.
 4. (Future, separate RFC) optional native-FFI fast path for hot-loop embedders,
    API-compatible with the wrapper SDK.
 

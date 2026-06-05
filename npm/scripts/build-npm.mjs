@@ -15,7 +15,7 @@
 // each with package.json `version` and optionalDependency pins set to --version.
 "use strict";
 
-import { mkdir, copyFile, writeFile, chmod, readFile, access } from "node:fs/promises";
+import { mkdir, copyFile, writeFile, chmod, readFile, access, cp } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -83,6 +83,25 @@ async function buildMainPackage(out, version, optionalDeps, here) {
   await writeFile(join(dir, "package.json"), JSON.stringify(base, null, 2) + "\n");
 }
 
+// RFC-0111: assemble the thin-CLI-wrapper SDK package. It is published from the
+// same release so it ships alongside the binary; its optionalDependencies on
+// the per-platform binary packages are pinned to the release version (mirroring
+// the launcher) so a fresh `npm install @aimasteracc/mycelium-sdk` pulls the
+// matching prebuilt binary instead of falling back to a PATH lookup.
+async function buildSdkPackage(out, version, optionalDeps, here) {
+  const dir = join(out, "mycelium-sdk");
+  const sdkSrc = join(here, "..", "sdk");
+  await mkdir(dir, { recursive: true });
+  for (const f of ["index.js", "index.d.ts", "README.md"]) {
+    await copyFile(join(sdkSrc, f), join(dir, f));
+  }
+  await cp(join(sdkSrc, "src"), join(dir, "src"), { recursive: true });
+  const base = JSON.parse(await readFile(join(sdkSrc, "package.json"), "utf8"));
+  base.version = version;
+  base.optionalDependencies = Object.fromEntries(optionalDeps.map((n) => [n, version]));
+  await writeFile(join(dir, "package.json"), JSON.stringify(base, null, 2) + "\n");
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const here = dirname(fileURLToPath(import.meta.url));
@@ -101,6 +120,8 @@ async function main() {
   if (optionalDeps.length === 0) throw new Error("no platform binaries found; nothing to build");
   await buildMainPackage(args.out, args.version, optionalDeps, here);
   console.log(`build-npm: assembled ${SCOPE}/mycelium with ${optionalDeps.length} platform deps @ ${args.version}`);
+  await buildSdkPackage(args.out, args.version, optionalDeps, here);
+  console.log(`build-npm: assembled ${SCOPE}/mycelium-sdk with ${optionalDeps.length} platform deps @ ${args.version}`);
 }
 
 main().catch((e) => {

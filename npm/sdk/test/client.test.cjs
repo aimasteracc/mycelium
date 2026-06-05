@@ -113,6 +113,22 @@ test("context() uses --task and optional --max-nodes / --max-code-blocks", async
   ]);
 });
 
+test("context() forwards an explicit --budget", async () => {
+  const { client, calls } = spyClient();
+  await client.context("trace X to Y", { budget: "disabled" });
+  assert.deepEqual(calls[0].args, [
+    "context", "--task", "trace X to Y", "--root", ".", "--format", "json", "--budget", "disabled",
+  ]);
+});
+
+test("context() falls back to the constructor-level budget", async () => {
+  const { client, calls } = spyClient({ budget: "small" });
+  await client.context("trace X to Y");
+  assert.deepEqual(calls[0].args, [
+    "context", "--task", "trace X to Y", "--root", ".", "--format", "json", "--budget", "small",
+  ]);
+});
+
 test("serverStatus() builds the kebab-case subcommand with --format json", async () => {
   const { client, calls } = spyClient();
   await client.serverStatus();

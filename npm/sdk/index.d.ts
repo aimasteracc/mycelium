@@ -56,6 +56,8 @@ export interface ContextOptions {
   maxNodes?: number;
   /** Maximum source snippets to return (default 6, max 25). */
   maxCodeBlocks?: number;
+  /** RFC-0102 output budget; falls back to the constructor-level `budget`. */
+  budget?: Budget;
 }
 
 /**

@@ -50,7 +50,7 @@ import { Mycelium, MyceliumError } from "@aimasteracc/mycelium-sdk";
 | `getSymbolInfo(path)` | `mycelium get-symbol-info --format json` |
 | `getCallers(path, { edgeKind?, includeVirtual?, budget? })` | `mycelium get-callers --format json` |
 | `getCallees(path, { edgeKind?, budget? })` | `mycelium get-callees --format json` |
-| `context(task, { maxNodes?, maxCodeBlocks? })` | `mycelium context --format json` |
+| `context(task, { maxNodes?, maxCodeBlocks?, budget? })` | `mycelium context --format json` |
 | `serverStatus()` | `mycelium server-status --format json` |
 | `run(args)` | any subcommand — raw argv escape hatch |
 
