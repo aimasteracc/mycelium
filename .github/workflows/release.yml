@@ -249,8 +249,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: pypi
-    permissions:
-      id-token: write  # for Trusted Publishers
     env:
       VERSION: ${{ needs.validate.outputs.version }}
     steps:
@@ -261,7 +259,7 @@ jobs:
       # RFC-0111 Phase 2: the Python SDK (mycelium-rcig) is a pure-Python thin
       # CLI wrapper — built with the standard `build` backend, not maturin
       # (there is no Rust extension). The version is pinned to the release
-      # version; publishing is idempotent via skip-existing.
+      # version.
       - name: Build the pure-Python SDK wheel
         id: build
         run: |
@@ -274,14 +272,19 @@ jobs:
           cd bindings/python
           sed -i -E "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
           sed -i -E "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" mycelium_rcig/__init__.py
-          python -m pip install --upgrade build
+          python -m pip install --upgrade build twine
           python -m build
-      - name: Publish to PyPI (Trusted Publishers, idempotent)
+      # Token auth (TSA-style: TWINE_USERNAME=__token__ + PYPI_API_TOKEN), not
+      # Trusted Publishers — an account/project-scoped API token publishes a
+      # brand-new package with no pre-configured "pending publisher". Idempotent
+      # via --skip-existing so re-runs never fail on an already-published version.
+      - name: Publish to PyPI (token auth, idempotent)
         if: steps.build.outputs.built != 'false'
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: bindings/python/dist
-          skip-existing: true
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_NON_INTERACTIVE: "true"
+        run: twine upload --skip-existing bindings/python/dist/*
 
   build-cli-binaries:
     # RFC-0110: cross-compile the `mycelium` CLI for each distributed platform,
