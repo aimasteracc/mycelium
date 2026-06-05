@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING (MCP stdio): default output format flipped to `text` (RFC-0094
+  Phase 4).** When a tool call omits `output_format`, the stdio MCP server (the
+  LLM-caller transport) now returns the token-efficient TOON `text` format
+  instead of JSON — ~72% fewer output tokens for tree-shaped responses. A
+  per-call `output_format: "json"` still overrides it, and the CLI plus
+  `MyceliumServer::new()` keep the JSON default (so programmatic/test callers
+  are unaffected). All 77 tool format sites now route through one `render()`
+  helper that resolves the per-call override against the server default.
 - **refactor(mcp): Issue #428 god-file split slice 3** — extracted all 93 MCP
   request schema types from `lib.rs` into `crates/mycelium-mcp/src/requests.rs`
   (public module, re-exported via `pub use requests::*`). Moved two inline test

@@ -6910,3 +6910,58 @@ mod output_budget_tests {
         assert!(!is_core_tool("mycelium_get_callees"));
     }
 }
+
+// ── RFC-0094 Phase 4: stdio default-format flip ──────────────────────────────
+
+#[tokio::test]
+async fn rfc0094_phase4_default_format_flip() {
+    // new() keeps the JSON default: omitting output_format yields valid JSON,
+    // so the ~768 existing JSON-parsing assertions are unaffected.
+    let json_server = server_with_fixture().await;
+    let json_raw = json_server
+        .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+            query: "greet".to_string(),
+            limit: None,
+            output_format: None,
+        }))
+        .await;
+    assert!(
+        serde_json::from_str::<serde_json::Value>(result_str(&json_raw)).is_ok(),
+        "new() server must keep the JSON default for an omitted output_format"
+    );
+
+    // serve_stdio flips the default to Text (token-efficient TOON) for LLM
+    // callers: omitting output_format must NOT yield JSON.
+    let text_server = server_with_fixture()
+        .await
+        .with_default_format(OutputFormat::Text);
+    let text_out_raw = text_server
+        .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+            query: "greet".to_string(),
+            limit: None,
+            output_format: None,
+        }))
+        .await;
+    let text_out = result_str(&text_out_raw);
+    assert!(
+        serde_json::from_str::<serde_json::Value>(text_out).is_err(),
+        "Text-default server must NOT emit JSON when output_format is omitted; got: {text_out}"
+    );
+    assert!(
+        text_out.contains("greet"),
+        "text output should still contain the matched symbol; got: {text_out}"
+    );
+
+    // A per-call output_format override still wins over the Text default.
+    let json_override = text_server
+        .mycelium_search_symbol(Parameters(SearchSymbolRequest {
+            query: "greet".to_string(),
+            limit: None,
+            output_format: Some(OutputFormat::Json),
+        }))
+        .await;
+    assert!(
+        serde_json::from_str::<serde_json::Value>(result_str(&json_override)).is_ok(),
+        "explicit output_format: json must override the Text default"
+    );
+}
