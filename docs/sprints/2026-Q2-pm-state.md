@@ -70,10 +70,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **v0.3.0 ceremony status — IN PROGRESS:**
 - [ ] **PyPI prerequisite**: Founder must configure Trusted Publisher on pypi.org for `mycelium-rcig` (see PR #568 comment)
 - [ ] **PyPI re-run**: After Trusted Publisher added → re-run failed job → confirm ✅
-- [ ] **Step 1**: `gh pr merge --admin --squash #568` → `main` *(blocked until PyPI green)*
-- [ ] **Step 2**: `git tag -s v0.3.0 && git push origin v0.3.0`
-- [ ] **Step 3**: GitHub Release (release.yml `finalize` workflow_dispatch OR manual)
-- [ ] **Step 4**: Back-merge `release/v0.3.0` → `develop` (PM opens automatically after Step 1)
+- [ ] **Preferred path** (after PyPI green): Trigger `finalize` workflow_dispatch on `release.yml` — handles Steps 1–4 automatically (merge → tag → GitHub Release → back-merge). Stop here if finalize succeeds.
+- [ ] **Manual fallback only** (if finalize unavailable):
+  - [ ] **Step 1**: `gh pr merge --admin --squash #568` → `main`
+  - [ ] **Step 2**: `git tag -s v0.3.0 && git push origin v0.3.0`
+  - [ ] **Step 3**: `gh release create v0.3.0 --title "v0.3.0" --generate-notes` — **do NOT run finalize after manual Steps 1+2**; finalize re-runs merge+tag and will fail or double-apply them
+  - [ ] **Step 4**: Back-merge `release/v0.3.0` → `develop`
 
 Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do not republish.
 
@@ -106,11 +108,10 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 2. **PR #569** (RFC-0112 IDE plugin design, VS Code thin client): CI ✅ 22/22; no Codex findings yet; PM triage posted. **Awaits founder review** of open questions (naming, milestone, JetBrains approach). Design-only, no code.
 
 **P2 — Autonomous (post-v0.3.0):**
-1. **Issue #560 re-open check**: PR #568 Codex P1 tracked in issue #560 — confirm issue is still open; implement `publish-npm` hard-fail-on-absent-token landing on develop (was deferred to not re-trigger mid-flight release.yml).
-2. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
-3. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
-4. **Skills marketplace submission**: metadata sign-off required (founder).
-5. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
+1. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
+2. **RFC-0104 cold SLA numbers**: nightly `sla_ancestors_100k` on redb; Charter §2 amendment after data collected (founder).
+3. **Skills marketplace submission**: metadata sign-off required (founder).
+4. **NPM_TOKEN rotation** (optional/defense-in-depth; current token works).
 
 ---
 
