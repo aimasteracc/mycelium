@@ -168,7 +168,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: release-governance/merge-discipline/ci/append-only), PM state v76 (develop HEAD `59a26bf3` post-#591 squash), v0.2 PRD.
 
 **Assessment (current GitHub state):**
-- 6 open PRs: #568 (v0.3.0 ceremony READY, release CI ✅ run #79), #575/#578/#579/#580 (design RFCs), #576 (RFC-0113 Ph1, CI ✅), #577 (RFC-0114 Ph1, CI ✅), #587 (VS Code MVP, CI ✅ `87821c48`, RFC-0112 gate), #588 (GitHub Action, CI ✅ `6737851f`), #590 (SDK security fix, CI in-progress at assessment time), #591 (PM v76 chore, 22/22 CI ✅).
+- 11 open PRs at assessment time: #568 (v0.3.0 ceremony READY, release CI ✅ run #79), #575/#578/#579/#580 (design RFCs), #576 (RFC-0113 Ph1, CI ✅), #577 (RFC-0114 Ph1, CI ✅), #587 (VS Code MVP, CI ✅ `87821c48`, RFC-0112 gate), #588 (GitHub Action, CI ✅ `6737851f`), #590 (SDK security fix, CI in-progress at assessment time), #591 (PM v76 chore, 22/22 CI ✅). (Note: #576–#580 had been merged by founder shortly before this run; merged #590 and #591 during this run; remaining open after: #568, #575, #587, #588 + PR #592 opened by this run.)
 - 1 open issue: #555 (per-edge Extends — implementation on develop `7190d327`; auto-closes when v0.3.0 ships to main).
 - Develop CI: HEAD `59a26bf3` (post-#591 squash). All checks green.
 
