@@ -164,6 +164,15 @@ fns = m.query("function:calls(#AuthService)")  # parsed JSON
 ctx = m.context("trace ServeHTTP to HandlerFunc", max_nodes=30)
 ```
 
+### Use in your editor — VS Code extension
+
+[`editors/vscode/`](editors/vscode/README.md) brings Mycelium into the editor
+([RFC-0112](rfcs/0112-ide-plugin-vscode-thin-client.md)) — a thin client over the
+SDK, **no Rust toolchain**. The headline command **"Mycelium: Copy context for
+AI"** puts a token-dense context bundle for the symbol under your cursor on the
+clipboard, ready to paste into any AI assistant — plus call-graph navigation and
+a sidebar tree. *Embeddable context, right where you write code.*
+
 ## Performance SLA (the bar we ship against)
 
 | Metric | Target | Compared to |

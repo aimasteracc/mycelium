@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **VS Code extension (RFC-0112, Phase 1).** `editors/vscode/` — a thin-client
+  editor integration over the published `@aimasteracc/mycelium-sdk` (no Rust
+  toolchain). Headline command **"Mycelium: Copy context for AI"** copies a
+  token-dense context bundle for the cursor/selection to the clipboard, ready to
+  paste into any AI assistant; plus find-callers/callees, symbol-info, index,
+  and a call-graph sidebar tree view (click a node to reveal its source). Not a
+  language server (ADR-0010) — surfaces structural graph intelligence. A
+  Three-Surface *consumer* (every command maps onto an existing CLI/MCP
+  capability); adds no engine code.
+
 ### Fixed
 
 - **RFC-0103 per-edge `Extends` resolution for mixed-import sites (Issue #555).**
