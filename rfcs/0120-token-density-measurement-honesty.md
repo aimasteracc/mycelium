@@ -105,7 +105,11 @@ pub fn measure_corpus<C: TokenCounter>(corpus: &[FixtureCase], counter: &C) -> C
 
 `crates/mycelium-mcp/tests/corpus/` holds N (≥8) JSON files, each the captured `success`-payload `serde_json::Value` of a representative real tool, spanning the response shapes agents pay for: `mycelium_context` (composite), `mycelium_get_callee_tree` (deep tree), `mycelium_get_caller_tree`, `mycelium_get_subclasses_tree` (hierarchy), `mycelium_search_symbol` (flat list), `mycelium_get_symbol_info` (record), `mycelium_query` (Hyphae result), `mycelium_get_importers_tree`.
 
-**Capture source — CORRECTED (reviewer-1 blocking, REFUTED draft):** the draft cited "the indexed source tree used by `tests/contract.rs`." That is **wrong** — `crates/mycelium-mcp/tests/contract.rs:9–11` explicitly uses an *empty, unindexed* server with catch-all args and indexes nothing, so it produces no real output to capture. The corpus is instead captured from a **real indexable tree**: `scripts/capture_token_corpus.sh` indexes `tests/e2e/fixtures/ripgrep/` (a real in-repo source tree, confirmed present) into a tempdir via `mycelium index <root>` (the exact pattern `crates/mycelium-cli/tests/cli_call_graph.rs:12–29` already uses), then invokes each tool and writes the `success` payload to `tests/corpus/<tool>.json`. The script documents tool + args + fixture path for every file so the corpus is regenerable, not magic.
+**Capture source — CORRECTED twice.** (reviewer-1 blocking, REFUTED draft): the draft cited "the indexed source tree used by `tests/contract.rs`." That is **wrong** — `crates/mycelium-mcp/tests/contract.rs:9–11` uses an *empty, unindexed* server and produces no real output. **Then Codex P2 (#611) refuted the first correction too:** `tests/e2e/fixtures/ripgrep/` is **not committed** — it is *fetched* in CI by `scripts/fetch-e2e-fixtures.sh` (see `tests/e2e/real_projects.rs:8–34`), so a repo-wide search of the committed tree finds nothing and a naive capture script would fail offline.
+
+Resolution — **committed corpus, decoupled from the fixture at test time:**
+- The captured payloads `crates/mycelium-mcp/tests/corpus/<tool>.json` are **committed to the repo**. CI's measurement test reads these committed JSON files and needs **no** fixture and **no** network — this is what keeps the headline CI-backed.
+- **Regeneration** is a separate, occasional step. `scripts/capture_token_corpus.sh` indexes a real tree and re-captures. To avoid a network dependency, regeneration indexes a **small committed self-fixture** — the simplest indexable tree already in the repo (e.g. `bindings/python/mycelium_rcig/` or the `mycelium-core` crate source) via `mycelium index <root>` (the `crates/mycelium-cli/tests/cli_call_graph.rs:12–29` tempdir pattern). If a larger/real corpus is desired, the script MAY instead point at the fetched `tests/e2e/fixtures/ripgrep/` **guarded by an existence check + a `fetch-e2e-fixtures.sh` hint**, never assuming it is present. The script records tool + args + the exact fixture path/commit for every file so the corpus is reproducible.
 
 ### Tokenizer assumption (stated everywhere)
 
@@ -168,7 +172,7 @@ Either way, Phase 2 **also reconciles the LABEL** (reviewer-3 blocking concern):
 - **NEW** `scripts/capture_token_corpus.sh`
 - **NEW** `crates/mycelium-cli/tests/cli_token_stats.rs` (Phase 3 byte-identity harness)
 - **NEW** `docs/adr/NNNN-tiktoken-tokenizer-dependency.md` (ADR for the external dependency + tokenizer choice; CLAUDE.md requires an ADR for external deps)
-- **EDIT** `crates/mycelium-mcp/src/lib.rs` (`mod token_bench;`; rewrite `mycelium_get_token_stats`)
+- **EDIT** `crates/mycelium-mcp/src/lib.rs` (**`pub mod token_bench;`** — must be `pub` so the integration test `tests/token_corpus.rs` and the `mycelium-cli` crate can import `mycelium_mcp::token_bench::measure_corpus` rather than duplicate it; Codex P2 #611; rewrite `mycelium_get_token_stats`)
 - **EDIT** `crates/mycelium-mcp/Cargo.toml` + workspace `Cargo.toml` (tiktoken-rs under a `tiktoken` feature)
 - **EDIT** `crates/mycelium-cli/src/main.rs` + `queries.rs` (Phase 3 `token-stats` subcommand)
 - **EDIT** `README.md:38` & `:71`
@@ -186,7 +190,7 @@ Either way, Phase 2 **also reconciles the LABEL** (reviewer-3 blocking concern):
 
 **Scope:** Add `crates/mycelium-mcp/src/token_bench.rs` (`TokenCounter` trait, `WhitespaceTokenCounter` hermetic default, `BpeTokenCounter` under `tiktoken` feature, the structs, pure `measure_case`/`measure_corpus` reusing `JsonFormatter`+`TextFormatter`). Capture the committed corpus under `crates/mycelium-mcp/tests/corpus/*.json` from `tests/e2e/fixtures/ripgrep/` via `scripts/capture_token_corpus.sh`. Add `tests/token_corpus.rs` running `measure_corpus` with the real BPE counter, asserting the band and pinning `REPORT.md`. Add tiktoken-rs under a `tiktoken` feature; verify `cargo deny`/`cargo audit` green on the feature-on build; land the dependency ADR. No tool/CLI/Skill wiring.
 
-**Collision note:** `token_bench.rs` is a brand-new file; only an additive `mod token_bench;` line in `lib.rs`. New `tests/corpus/` dir and `tests/token_corpus.rs` are new paths. Cargo edits are additive. Does NOT touch the `mycelium_get_token_stats` body or `formatter.rs` internals (only calls their `format`). Zero new MCP/CLI surface. **Genuinely isolated from PR #606** — proceeds in parallel.
+**Collision note:** `token_bench.rs` is a brand-new file; only an additive `pub mod token_bench;` line in `lib.rs` (`pub` so external test + cli crates reuse `measure_corpus`). New `tests/corpus/` dir and `tests/token_corpus.rs` are new paths. Cargo edits are additive. Does NOT touch the `mycelium_get_token_stats` body or `formatter.rs` internals (only calls their `format`). Zero new MCP/CLI surface. **Genuinely isolated from PR #606** — proceeds in parallel.
 
 ### Phase 2 — Resolve the claim against the measured number; reconcile README + Charter §2 (governance-flagged)
 
