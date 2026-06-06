@@ -42,6 +42,7 @@ pub mod context;
 pub mod cortex;
 pub mod error;
 pub mod extractor;
+pub mod health;
 pub mod queries;
 pub mod store;
 pub mod synapse;
