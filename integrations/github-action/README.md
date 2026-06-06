@@ -24,21 +24,37 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - uses: aimasteracc/mycelium/integrations/github-action@develop
+      - uses: aimasteracc/mycelium/integrations/github-action@v0.3.0  # pin a tag/SHA, not a branch
         with:
           path: "."
           comment-on-pr: "true"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 This writes the summary to the **job summary** every run, and (with
 `comment-on-pr: "true"`) maintains a single sticky **PR comment**.
+
+## Security
+
+- **Use `on: pull_request`, never `pull_request_target`.** This action indexes
+  the checked-out code; on a `pull_request_target` workflow that also checks out
+  the PR head it would run the indexer over attacker-controlled code with a
+  **write-access** token in scope. The default `pull_request` event runs with a
+  read-only token in an isolated context — see the
+  [pwn-request hardening guide](https://securitylab.github.com/research/github-actions-preventing-pwn-requests/).
+- **Pin the action and the CLI version** — a tag/SHA (`@v0.3.0`), not `@develop`,
+  and keep the `version:` input on an exact release.
+- **Pass the token as a secret** (`${{ secrets.GITHUB_TOKEN }}`), never a literal.
+- Every input is referenced through `env:` (never interpolated into a shell
+  script) and the comment is posted from a file, so repo-derived content cannot
+  inject commands.
 
 ## Inputs
 
 | Input | Default | Description |
 |---|---|---|
 | `path` | `.` | Directory to index. |
-| `version` | `latest` | `@aimasteracc/mycelium` version/dist-tag. |
+| `version` | `0.3.0` | `@aimasteracc/mycelium` version (pin exactly). |
 | `comment-on-pr` | `false` | Post a sticky summary comment (needs `pull-requests: write`). |
 | `github-token` | `${{ github.token }}` | Token for the PR comment. |
 

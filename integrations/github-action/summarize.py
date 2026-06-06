@@ -9,17 +9,33 @@ composite action; unit-tested with sample JSON.
 """
 from __future__ import annotations
 
+import html
 import json
+import os
 import sys
 from typing import Any
+
+# Bound the JSON we will parse: a runaway index dump shouldn't OOM the runner.
+_MAX_JSON_BYTES = 16 * 1024 * 1024
 
 
 def _load(path: str) -> Any:
     try:
+        if os.path.getsize(path) > _MAX_JSON_BYTES:
+            print(f"warning: {path} exceeds {_MAX_JSON_BYTES} bytes; skipping", file=sys.stderr)
+            return None
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError):
         return None
+    except Exception as exc:  # noqa: BLE001 — degrade gracefully but leave a trail
+        print(f"warning: unexpected error loading {path}: {exc}", file=sys.stderr)
+        return None
+
+
+def _safe(text: str) -> str:
+    """Sanitize a repo-derived string for embedding in Markdown/HTML output."""
+    return html.escape(text).replace("`", "ʼ")
 
 
 def _count(value: Any, *keys: str) -> int | None:
@@ -61,7 +77,7 @@ def build_summary(
         "<!-- mycelium-code-intel -->",
         "## \U0001f344 Mycelium — code intelligence",
         "",
-        f"Indexed **`{root}`** with the [Mycelium](https://github.com/aimasteracc/mycelium) graph engine.",
+        f"Indexed **`{_safe(root)}`** with the [Mycelium](https://github.com/aimasteracc/mycelium) graph engine.",
         "",
         "| Metric | Value |",
         "|---|---|",

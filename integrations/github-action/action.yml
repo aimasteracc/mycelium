@@ -11,9 +11,9 @@ inputs:
     required: false
     default: "."
   version:
-    description: "Version (npm dist-tag or exact version) of @aimasteracc/mycelium to install."
+    description: "Version (npm dist-tag or exact version) of @aimasteracc/mycelium to install. Pin an exact version for supply-chain safety."
     required: false
-    default: "latest"
+    default: "0.3.0"
   comment-on-pr:
     description: "Post the summary as a sticky PR comment. Requires a pull_request event and `permissions: pull-requests: write`."
     required: false
@@ -31,16 +31,23 @@ outputs:
 runs:
   using: "composite"
   steps:
+    # SECURITY: every `${{ inputs.* }}` / `${{ github.* }}` value is passed via
+    # `env:` and referenced as a shell variable — never interpolated into the
+    # `run:` script text — so a crafted input cannot inject shell commands.
     - name: Install the Mycelium CLI (prebuilt — no Rust toolchain)
       shell: bash
-      run: npm install -g "@aimasteracc/mycelium@${{ inputs.version }}"
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: npm install -g "@aimasteracc/mycelium@${INPUT_VERSION}"
 
     - name: Index and summarize
       id: run
       shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
       run: |
         set -euo pipefail
-        ROOT='${{ inputs.path }}'
+        ROOT="$INPUT_PATH"
         mycelium index "$ROOT"
         # Each query is best-effort — a missing field degrades to "—", never fails the job.
         mycelium server-status        --root "$ROOT" --format json > /tmp/myc-status.json || echo '{}' > /tmp/myc-status.json
@@ -58,9 +65,10 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github-token }}
         MYCELIUM_SUMMARY: ${{ steps.run.outputs.summary }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
       run: |
-        PR='${{ github.event.pull_request.number }}'
-        REPO='${{ github.repository }}'
+        # PR / REPO come from env (not interpolated into this script).
         # Write to file — avoids bash re-evaluating Markdown backticks/specials in $MYCELIUM_SUMMARY.
         printf '%s' "$MYCELIUM_SUMMARY" > /tmp/myc-comment.md
         # Sticky update: find the existing Mycelium comment by its marker, else create a new one.
