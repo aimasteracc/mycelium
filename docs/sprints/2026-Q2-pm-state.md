@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v88 — PR #615 Codex P2 fixed (`68b8243`) + merged; PR #616 (RFC-0118 Part A NodeKind::Unresolved, squash `8b04acb2`) merged; PR #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0118/0119/0120 Phase implementations** (P1 — autonomous). RFC-0113 Ph2 ✅ RFC-0114 Ph2 ✅ RFC-0118 Part A ✅. RFC-0118 Parts B+C (Issue #612) next. |
+| Last updated | 2026-06-06 (PM dispatch v89 — PR #617 (PM state v88) Codex P1 rejected + merged; PR #618 (RFC-0118 Parts B+C) opened; PR #568 v0.3.0 ceremony P0 unchanged) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0118/0119/0120 Phase implementations** (P1 — autonomous). RFC-0113 Ph2 ✅ RFC-0114 Ph2 ✅ RFC-0118 Part A ✅ Part B Phase 1 ✅ Part C ✅ (PR #618 CI running). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -119,6 +119,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 ✅ MERGED (squash `65f03a80`). `project-health` CLI/MCP/Skill done. Codex P2 fixed (`bba7afe`).
 - [x] **chore(pm): PM state v87** — PR #615 ✅ MERGED (Codex P2 fixed `68b8243`: stale PR #606 open→MERGED in Post-v0.3.0 list). PM state v87 on develop.
 - [x] **feat(core): RFC-0118 Part A — `NodeKind::Unresolved` de-noises symbol/rank/pagerank** — PR #616 ✅ MERGED (squash `8b04acb2`). No Codex findings. Part B (method disambiguation) + Part C (kind_map orphan) → Issue #612.
+- [x] **chore(pm): PM state v88** — PR #617 ✅ MERGED (squash `3008338b`). Codex P1 rejected (CI DCO ✅; stale-SHA false positive).
+- [ ] **feat(core): RFC-0118 Parts B+C** — PR #618 (CI running). Pure receiver-inference core (`resolver::receiver`, 14 tests, AC-1 + AC-2) + resolver kind_map hygiene (AC-3, 2 tests). Closes Issue #612.
 
 ---
 
@@ -129,8 +131,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 **P1 — Autonomous (implementations ready to proceed, TDD):**
 2. **RFC-0118 Part A**: ✅ **MERGED** — PR #616 (squash `8b04acb2`). `NodeKind::Unresolved` + `is_real_symbol()` gate on all_symbols/page_rank/rank_symbols.
-3. **RFC-0118 Parts B+C** (Issue #612): method-call disambiguation (`get-callers=0`) + kind_map orphan fix — follow-up to Part A. **← rust-implementer next**
-4. **RFC-0113 Phase 3** (Issue #598): Import-context gating for stdlib/external callee classification — thread caller file's import set into `callees_payload`; gate allowlist tier on presence of relevant import. Phase 2 merged `4adce0c`.
+3. **RFC-0118 Parts B+C** (Issue #612): ✅ **PR #618 opened** (CI running). Pure `resolver::receiver` core (Part B Phase 1, 14 tests) + resolver kind_map hygiene (Part C, 2 regression tests). **← admin-merge once CI green + Codex clean**
+4. **RFC-0113 Phase 3** (Issue #598): Import-context gating for stdlib/external callee classification — thread caller file's import set into `callees_payload`; gate allowlist tier on presence of relevant import. Phase 2 merged `4adce0c`. **← rust-implementer next after #618**
 5. **RFC-0119 Phase 1** (Issue #613): Pure scorer `rank_entry_points` + test classifier `classify_test_path`. Design on develop (`ca45aebf`).
 6. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`).
 7. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs — TDD RED→GREEN.
@@ -138,18 +140,19 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 9. **RFC-0117 Phase 1**: Pure `evaluate(rules, edges) → Vec<Violation>` — immutable frozen types. TDD.
 
 **P1 — Founder review (post-v0.3.0 ship):**
-7. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
-8. **GitHub Action live run**: Test the action on the Mycelium repo itself with a real PR (after v0.3.0 ships).
+10. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
+11. **GitHub Action live run**: Test the action on the Mycelium repo itself with a real PR (after v0.3.0 ships).
 
 **P2 — Deferred:**
-9. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
-10. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
-11. **Skills marketplace submission**: metadata sign-off (founder).
-12. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
+12. **Issue #601** (ci: nightly): Upload `mutants.out/` directory as artifact alongside `mutants.log` (3-line YAML addition, no Rust changes).
+13. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
+14. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
+15. **Skills marketplace submission**: metadata sign-off (founder).
+16. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
 
 ---
 
-## Dispatch state (2026-06-06 v88)
+## Dispatch state (2026-06-06 v89)
 
 | Agent | Status | Current item |
 |---|---|---|
@@ -158,7 +161,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1 — next** | RFC-0118 Parts B+C (Issue #612): method-call disambiguation + kind_map orphan. Then RFC-0113 Phase 3 (Issue #598). Then RFC-0119/0120/0115/0116/0117 Phase 1. |
+| rust-implementer | **P1 — CI running** | PR #618 (RFC-0118 Parts B+C): pure receiver-inference core + kind_map hygiene. Admin-merge once CI green + Codex clean. Next: RFC-0113 Phase 3 (Issue #598). |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -191,6 +194,28 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v89 (this run)
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release/graph), PM state v88 (chore/pm-state-v88 branch, then merged squash `3008338b`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #617 (PM state v88, CI ✅ 20/20 all checks, Codex P1: missing DCO on intermediate SHA — contradicts CI DCO SUCCESS), #568 (release/v0.3.0, awaiting finalize).
+- 6 open issues: #612 (P1, RFC-0118 Parts B+C), #613/#614 (P2), #601 (P2), #598 (P1), #555 (auto-close pending #568).
+- Develop CI: HEAD `3008338b` (PM v88 squash), all GREEN.
+
+**Actions taken:**
+1. **Replied Codex P1 on PR #617** (rejected option b): DCO CI job `79883110278` has `conclusion: success`; Codex references an intermediate SHA not the branch HEAD — CI wins as authoritative gate. ✅
+2. **Merged PR #617** (PM state v88, squash `3008338b`). ✅
+3. **Implemented RFC-0118 Parts B Phase 1 + Part C** (Issue #612):
+   - Part B Phase 1: `crates/mycelium-core/src/resolver/receiver.rs` — pure `infer_receiver_type` + `disambiguate` (5 precedence rules, 14 tests; AC-1 + AC-2). TDD RED (compile error) → GREEN.
+   - Part C: `resolve_bare_call_stubs_simple` / `resolve_import_aware_stubs` / `resolve_import_aware_extends_stubs` — `trunk.remove(stub_id)` → `Store::remove_node(stub_id)`. Fixes stale `kind_map` after stub resolution. TDD RED (assertion fail) → GREEN (2 tests; AC-3).
+   - Quality gate: `cargo fmt ✓` `cargo clippy -D warnings ✓` `cargo test --all ✓` (0 FAILED).
+4. **PR #618 opened** (`feature/RFC-0118-part-b-c` → `develop`, CI running). ✅
+5. **PM state v89 written** (this file); decisions.jsonl v89 entry appended. ✅
+
+**Escalations to founder:**
+- **P0 (unchanged)**: PR #568: v0.3.0 ceremony — trigger `finalize` workflow_dispatch on `release.yml`.
 
 ### 2026-06-06 PM dispatch v88 (this run)
 
