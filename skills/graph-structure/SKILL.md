@@ -16,6 +16,7 @@ allowed-tools:
   - mcp__mycelium__get_wcc
   - mcp__mycelium__get_degree_histogram
   - mcp__mycelium__find_cycle_members
+  - mcp__mycelium__project_health
 category: analysis
 icon: 🕸️
 marketplace_examples:

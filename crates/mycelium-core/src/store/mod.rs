@@ -3304,6 +3304,23 @@ impl Store {
         result
     }
 
+    /// Compute a graph-native A–F health grade for the indexed project (RFC-0114).
+    ///
+    /// Fills [`crate::health::HealthMetrics`] from the in-memory graph (no I/O,
+    /// no subprocess) and delegates to the pure scorer. Empty stores fail closed
+    /// (grade F, score 0). The CLI+MCP surface (`project-health` /
+    /// `mycelium_project_health`) calls this method.
+    #[must_use]
+    pub fn health(&self) -> crate::health::HealthReport {
+        let metrics = crate::health::HealthMetrics {
+            total_symbols: self.node_count(),
+            dead_count: self.dead_symbols(None).len(),
+            isolated_count: self.isolated_symbols(None).len(),
+            edge_count: self.edge_count(),
+        };
+        crate::health::score(&metrics)
+    }
+
     /// Return top-`limit` files (nodes without `>`) ranked by direct child
     /// symbol count, descending.  Ties broken by path ascending.  Files with
     /// zero direct children are excluded.  `limit` is capped at 100.

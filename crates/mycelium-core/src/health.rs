@@ -104,6 +104,24 @@ fn pct(numerator: usize, denominator: usize) -> f64 {
     100.0 * (1.0 - (numerator.min(denominator) as f64 / denominator as f64))
 }
 
+/// Build the JSON response object for the `project-health` CLI+MCP surface.
+///
+/// Shared builder — both surfaces call this function so the JSON shape is
+/// byte-identical by construction (Three-Surface Rule / RFC-0109 pattern).
+#[must_use]
+pub fn project_health_payload(report: &HealthReport) -> serde_json::Value {
+    let dims: Vec<serde_json::Value> = report
+        .dimensions
+        .iter()
+        .map(|(name, s)| serde_json::json!({ "name": name, "score": s }))
+        .collect();
+    serde_json::json!({
+        "grade": report.grade.as_str(),
+        "score": report.score,
+        "dimensions": dims,
+    })
+}
+
 /// Grade a project's structural health from its graph metrics. Pure.
 ///
 /// An empty project (`total_symbols == 0`) fails closed: grade `F`, score `0`.
@@ -226,6 +244,38 @@ mod tests {
         });
         assert_eq!(r.score, 0);
         assert_eq!(r.grade, HealthGrade::F);
+    }
+
+    #[test]
+    fn payload_shape_is_correct() {
+        let r = score(&HealthMetrics {
+            total_symbols: 100,
+            dead_count: 2,
+            isolated_count: 1,
+            edge_count: 200,
+        });
+        let v = project_health_payload(&r);
+        // Grade should be "A" for healthy project.
+        assert_eq!(v["grade"], r.grade.as_str());
+        assert!(v["score"].is_u64());
+        let dims = v["dimensions"].as_array().unwrap();
+        assert_eq!(dims.len(), 3);
+        assert_eq!(dims[0]["name"], "dead_code");
+        assert_eq!(dims[1]["name"], "isolation");
+        assert_eq!(dims[2]["name"], "connectivity");
+    }
+
+    #[test]
+    fn payload_empty_project() {
+        let r = score(&HealthMetrics {
+            total_symbols: 0,
+            dead_count: 0,
+            isolated_count: 0,
+            edge_count: 0,
+        });
+        let v = project_health_payload(&r);
+        assert_eq!(v["grade"], "F");
+        assert_eq!(v["score"], 0);
     }
 
     #[test]

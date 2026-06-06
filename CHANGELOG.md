@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0114 Phase 2: `project-health` CLI + `mycelium_project_health` MCP + Skill coverage.**
+  `mycelium project-health [--root .] [--format text|json]` computes an A–F structural health
+  grade from the indexed RCIG graph (dead-code ratio 45%, isolation 35%, connectivity 20%).
+  Returns `{ grade, score, dimensions }` — byte-identical across CLI and MCP via a shared
+  `project_health_payload()` builder in `mycelium-core`. Phase 1 pure scorer core was already
+  shipped; this phase adds the `Store::health()` adapter and all three surfaces.
+  `mcp__mycelium__project_health` added to the `graph-structure` Skill. (Charter §5.13.)
+
 ### Fixed
 
 - **ci(nightly): upload `mutants.out/` report directory as a separate artifact.** The

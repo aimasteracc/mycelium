@@ -1343,3 +1343,14 @@ pub struct GetContextRequest {
     #[serde(default)]
     pub budget: Option<String>,
 }
+
+/// Input parameters for `mycelium_project_health`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetProjectHealthRequest {
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
+}

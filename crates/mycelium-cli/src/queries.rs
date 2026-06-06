@@ -527,6 +527,29 @@ pub(crate) fn run_get_entry_points(
     print_string_list(&symbols, format)
 }
 
+pub(crate) fn run_project_health(root: &Path, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let report = store.health();
+    // Shared core builder → byte-identical with the MCP tool (RFC-0114 / RFC-0109 pattern).
+    let value = mycelium_core::health::project_health_payload(&report);
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+        Format::Text => {
+            let grade = value["grade"].as_str().unwrap_or("?");
+            let overall = value["score"].as_u64().unwrap_or(0);
+            println!("Grade: {grade} ({overall}/100)");
+            if let Some(dims) = value["dimensions"].as_array() {
+                for dim in dims {
+                    let name = dim["name"].as_str().unwrap_or("?");
+                    let dim_score = dim["score"].as_u64().unwrap_or(0);
+                    println!("  {name:<16} {dim_score}");
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn run_get_dead_symbols(
     root: &Path,
     prefix: Option<&str>,
