@@ -48,17 +48,40 @@ export async function resolveSymbolAtCursor(
     vscode.window.showWarningMessage("Mycelium: place the cursor on a symbol name.");
     return undefined;
   }
-  const hits = (await client.searchSymbol(word, { limit: 50 })) as unknown[];
-  const paths = hits.filter((h): h is string => typeof h === "string");
+  let paths = await search(client, word);
   if (paths.length === 0) {
-    vscode.window.showInformationMessage(`Mycelium: no indexed symbol named "${word}". Run "Mycelium: Index this workspace" first.`);
-    return undefined;
+    // Likely an un-indexed workspace on first run: offer to index, then retry once.
+    const choice = await vscode.window.showInformationMessage(
+      `Mycelium: no indexed symbol named "${word}".`,
+      { modal: true },
+      "Index now",
+    );
+    if (choice !== "Index now") {
+      return undefined;
+    }
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: "Mycelium: indexing workspace…" },
+      () => client.index(),
+    );
+    paths = await search(client, word);
+    if (paths.length === 0) {
+      vscode.window.showInformationMessage(`Mycelium: still no symbol named "${word}" after indexing.`);
+      return undefined;
+    }
   }
   if (paths.length === 1) {
     return paths[0];
   }
+  // Bias toward symbols defined in the active file, so a common name is unambiguous.
+  const here = vscode.workspace.asRelativePath(editor.document.uri);
+  paths.sort((a, b) => Number(b.startsWith(here)) - Number(a.startsWith(here)));
   return vscode.window.showQuickPick(paths, {
-    title: `Mycelium: which "${word}"?`,
+    title: `Mycelium: which "${word}"? (this file first)`,
     placeHolder: "Select the symbol",
   });
+}
+
+async function search(client: Mycelium, word: string): Promise<string[]> {
+  const hits = (await client.searchSymbol(word, { limit: 200 })) as unknown[];
+  return Array.isArray(hits) ? hits.filter((h): h is string => typeof h === "string") : [];
 }

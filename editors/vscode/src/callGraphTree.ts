@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 import { getClient } from "./engine";
 
 type NodeKind = "section" | "symbol" | "info";
+type Section = "callers" | "callees";
 
 class CallNode extends vscode.TreeItem {
   constructor(
@@ -14,6 +15,8 @@ class CallNode extends vscode.TreeItem {
     public readonly kind: NodeKind,
     /** Mycelium symbol path for a `symbol` node, else undefined. */
     public readonly symbolPath: string | undefined,
+    /** For a `section` node: which edge set it lists. */
+    public readonly section: Section | undefined,
     collapsible: vscode.TreeItemCollapsibleState,
   ) {
     super(label, collapsible);
@@ -47,11 +50,12 @@ export class CallGraphTreeProvider implements vscode.TreeDataProvider<CallNode> 
     if (!client) {
       return;
     }
+    // Fetch both first; commit state atomically so a failure can't leave the
+    // tree showing a new label over the previous symbol's edges.
+    const [callersRaw, calleesRaw] = await Promise.all([client.getCallers(path), client.getCallees(path)]);
     this.focus = path;
-    const callers = (await client.getCallers(path)) as Record<string, unknown>;
-    const callees = (await client.getCallees(path)) as Record<string, unknown>;
-    this.callers = asStrings(callers.caller_paths);
-    this.callees = asStrings(callees.callee_paths);
+    this.callers = asStrings((callersRaw as Record<string, unknown>).caller_paths);
+    this.callees = asStrings((calleesRaw as Record<string, unknown>).callee_paths);
     this.emitter.fire(undefined);
   }
 
@@ -60,22 +64,21 @@ export class CallGraphTreeProvider implements vscode.TreeDataProvider<CallNode> 
   }
 
   getChildren(node?: CallNode): CallNode[] {
+    const none = vscode.TreeItemCollapsibleState.None;
     if (!this.focus) {
-      return [new CallNode('Run "Mycelium: Show call graph" on a symbol', "info", undefined, vscode.TreeItemCollapsibleState.None)];
+      return [new CallNode('Run "Mycelium: Show call graph" on a symbol', "info", undefined, undefined, none)];
     }
     if (!node) {
       const expanded = vscode.TreeItemCollapsibleState.Expanded;
       return [
-        new CallNode(`Focus: ${this.focus}`, "info", undefined, vscode.TreeItemCollapsibleState.None),
-        new CallNode(`Callers (${this.callers.length})`, "section", undefined, expanded),
-        new CallNode(`Callees (${this.callees.length})`, "section", undefined, expanded),
+        new CallNode(`Focus: ${this.focus}`, "info", undefined, undefined, none),
+        new CallNode(`Callers (${this.callers.length})`, "section", undefined, "callers", expanded),
+        new CallNode(`Callees (${this.callees.length})`, "section", undefined, "callees", expanded),
       ];
     }
-    if (node.kind === "section") {
-      const edges = node.label.startsWith("Callers") ? this.callers : this.callees;
-      return edges.map(
-        (p) => new CallNode(p, "symbol", p, vscode.TreeItemCollapsibleState.None),
-      );
+    if (node.kind === "section" && node.section) {
+      const edges = node.section === "callers" ? this.callers : this.callees;
+      return edges.map((p) => new CallNode(p, "symbol", p, undefined, none));
     }
     return [];
   }
