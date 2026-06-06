@@ -52,13 +52,17 @@ impl HealthGrade {
 }
 
 /// Raw graph inputs to the health score (filled from `Store`'s public API).
+///
+/// Invariant: `dead_count` and `isolated_count` are each ≤ `total_symbols` (they
+/// are subsets of the symbol set). [`score`] clamps if violated, but a violation
+/// indicates corrupt/partial metrics from the adapter.
 #[derive(Debug, Clone, Copy)]
 pub struct HealthMetrics {
     /// Total indexed symbols (definitions).
     pub total_symbols: usize,
-    /// Symbols with no incoming Calls/Imports (dead).
+    /// Symbols with no incoming Calls/Imports (dead). ≤ `total_symbols`.
     pub dead_count: usize,
-    /// Symbols with no edges of any kind (isolated).
+    /// Symbols with no edges of any kind (isolated). ≤ `total_symbols`.
     pub isolated_count: usize,
     /// Total edges of all kinds.
     pub edge_count: usize,
@@ -89,6 +93,14 @@ const W_CONNECTIVITY: f64 = 0.20;
     reason = "ratios of small counts, clamped to 0..=100 before any cast"
 )]
 fn pct(numerator: usize, denominator: usize) -> f64 {
+    // `numerator` (dead/isolated count) must be ≤ `denominator` (total). If the
+    // Store ever feeds an inconsistent count, `.min` clamps it so the score
+    // stays in range rather than going negative — but the debug-assert flags the
+    // corrupt input in tests/dev instead of silently reporting it as "healthy".
+    debug_assert!(
+        numerator <= denominator,
+        "subset count {numerator} exceeds total {denominator}"
+    );
     100.0 * (1.0 - (numerator.min(denominator) as f64 / denominator as f64))
 }
 
