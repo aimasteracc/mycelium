@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0119 Phase 1: pure entry-point ranking core** (`context/ranking.rs`).
+  New `classify_test_path` classifies trunk paths as `TestFile`, `TestSymbol`, or `None`
+  using cheap static rules (directory segments, filename stems, suffix patterns, symbol
+  leaf names — no regex, no I/O). New `rank_entry_points` orders `ScoredCandidate` slices
+  by `(exact_match desc, non_test desc, importance desc, order asc)`, drops or demotes test
+  candidates, and guarantees non-empty output even for all-test corpora. 14 unit tests;
+  zero `Store` dependency. Phase 2 (thin adapter in `seed_entry_points`) follows.
+
 ### Fixed
 
 - **RFC-0118 Part B Phase 1: pure receiver-inference core (`resolver::receiver`

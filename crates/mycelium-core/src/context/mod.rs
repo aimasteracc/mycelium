@@ -12,6 +12,12 @@
 //! `mycelium-core`, so core cannot depend back on it); each surface seeds
 //! `entry_points` and calls [`build_payload`] with `Routing::Hyphae`.
 
+/// Pure entry-point ranking core — `TestKind`, `ScoredCandidate`, `classify_test_path`,
+/// and `rank_entry_points` (RFC-0119 Phase 1).
+pub mod ranking;
+#[cfg(test)]
+mod ranking_tests;
+
 use serde_json::{Value, json};
 
 use crate::store::Store;
