@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v94 — PR #625 (PM state v93) admin-merged `9db82ba`; PR #626 (RFC-0119 Phase 2) opened CI running; #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0119/0120/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0119 Phase 1 PR#623 ✅ merged (`5c8e9b9`). RFC-0119 Phase 2 PR#626 CI running → merge pending. |
+| Last updated | 2026-06-06 (PM dispatch v95 — PR #626 CI fix pushed (`da552d8`, rustdoc broken intra-doc link); Codex findings on #626+#627 handled; PR #627 admin-merged `2f8857d`; #568 v0.3.0 ceremony P0 unchanged) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0119/0120/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0119 Phase 1 PR#623 ✅ merged. RFC-0119 Phase 2 PR#626 CI fix pushed (`da552d8`) → CI re-running, merge pending. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -124,7 +124,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **chore(pm): PM state v89** — PR #619 ✅ MERGED (squash `63900329`). Codex P1 rejected (stale SHA, DCO CI ✅); Codex P2 fixed (removed Issue #601 from P2 queue, commit `297f687`).
 - [x] **feat(classify): RFC-0113 Phase 3 — import-context gate** — PR #620 ✅ MERGED (squash `12cf4252`). Module-specific gate (STDLIB_FUNCTION_MODULES map). Issue #598 closed.
 - [x] **feat(context): RFC-0119 Phase 1 — pure entry-point ranking core** — PR #623, squash `5c8e9b9` ✅ MERGED. `classify_test_path` + `rank_entry_points`, 15 tests (AC-1–AC-9 + AC-7 first-seen addendum). Codex P2 fixed (`b2a456e`).
-- [ ] **feat(context): RFC-0119 Phase 2 — importance-weighted entry-point adapter** — PR #626. `seed_entry_points` rewritten: BTreeMap dedup + `rank_entry_points`; `real_in_degree` helper (stub-robust); test demotion (AC-10); merge semantics AC-4b; AC-11 stub-caller exclusion. CI running → merge pending.
+- [ ] **feat(context): RFC-0119 Phase 2 — importance-weighted entry-point adapter** — PR #626. `seed_entry_points` rewritten: BTreeMap dedup + `rank_entry_points`; `real_in_degree` helper (stub-robust); test demotion (AC-10); merge semantics AC-4b; AC-11 stub-caller exclusion. CI fix pushed (`da552d8` — fully-qualified `crate::types::NodeKind::Unresolved` intra-doc links); Codex P2 rejected (window-completeness out of Phase 2 scope). → admin-merge once CI green.
 
 ---
 
@@ -156,16 +156,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v94)
+## Dispatch state (2026-06-06 v95)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #626 (RFC-0119 Phase 2) once CI green + Codex clean. |
-| PM | **DONE ✅** | v94: PR #625 admin-merged (`9db82ba`); PR #626 opened (CI running). |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #626 (RFC-0119 Phase 2) once CI green — fix commit `da552d8` addresses rustdoc broken intra-doc link + Codex P2 rejected. |
+| PM | **DONE ✅** | v95: PR #626 CI fix pushed (`da552d8`, rustdoc NodeKind path); Codex P2/#626 rejected; PR #627 Codex P1 rejected + admin-merged (`2f8857d`). |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | PR #626 opened ✅ (RFC-0119 Phase 2, CI running). Next: RFC-0119 Phase 3 or RFC-0120 Phase 1. |
+| rust-implementer | **P1** | PR #626 CI fix pushed ✅ (RFC-0119 Phase 2, CI re-running). Next: RFC-0119 Phase 3 or RFC-0120 Phase 1. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (after #626 merges). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -199,7 +199,26 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ## Archive
 
-### 2026-06-06 PM dispatch v94 (this run)
+### 2026-06-06 PM dispatch v95 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v94 (2f8857d develop HEAD), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #626 (RFC-0119 Phase 2, CI RED — docs job rustdoc failure), #627 (PM state v94 chore, CI ✅ 22/22 all-green, Codex P1 phantom SHA).
+- PR #568 (v0.3.0 release, founder-gated).
+- 5 open issues: #612 (RFC-0118 P2), #613 (RFC-0119 P2), #614 (RFC-0120 P2), #555 (RFC-0103 enhancement), #598 (RFC-0113 Phase 3).
+
+**Actions taken:**
+1. **Diagnosed PR #626 CI failure**: `docs (rustdoc + mdbook)` job fails on `cargo doc` with `RUSTDOCFLAGS=-D rustdoc::broken-intra-doc-links`. Root cause: `[NodeKind::Unresolved]` intra-doc links in `seed_entry_points` and `real_in_degree` docs reference `NodeKind` which is not imported in `context/mod.rs` scope. Fix: replaced with fully-qualified `[crate::types::NodeKind::Unresolved]`. Commit `da552d8` pushed to PR #626 branch. CI re-triggered. ✅
+2. **Handled Codex P2 on PR #626** (window completeness for exact matches beyond per-candidate window): rejected with justification — AC-4b scope is merge semantics (multi-candidate dedup), not window completeness; deferred to RFC-0119 Phase 3. ✅
+3. **Handled Codex P1 on PR #627** (missing DCO sign-off): rejected — phantom SHA (`1327e600`) not in repo; CI `dco-check` (run #27073022012, job #79905488296) passed on actual HEAD `6b47402`. False positive from strict `%(trailers:key=...)` vs body grep. ✅
+4. **Admin-merged PR #627** (PM state v94, CI ✅ 22/22, Codex P1 rejected): squash `2f8857d`. ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch. All registries published.
+- **(2) PR #626**: Admin-merge once CI green (fix `da552d8` is in flight).
+
+### 2026-06-06 PM dispatch v94 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions tail-20 (dispatches v29–v93), anti-patterns (ci/testing/release-governance/git-workflow domains), PM state v93 (`9db82ba`), v0.2 PRD.
 
