@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v79 — PR #592 closed superseded (stale base); PR #593 (PM v78) Codex P2 addressed + merged; v77 decisions.jsonl entry retroactively appended; PR #568 v0.3.0 ceremony P0 escalation; RFC-0113 Phase 2 is next autonomous P1) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase 1 implementations** on deck (P1 — autonomous). All 8 TSA-reuse/editor/integration PRs now on develop. |
+| Last updated | 2026-06-06 (PM dispatch v81 — PR #595 (RFC-0113 Phase 2) merged; PR #596 (PM v80) superseded; PR #597 (nightly mutants CI fix) opened; Issue #598 (Phase 3 import-gate) opened; Codex P2 on #595 rejected+spun-off; PR #568 v0.3.0 ceremony P0 escalation unchanged) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 MERGED (`4adce0c`). RFC-0114 Phase 2 is next P1. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -111,6 +111,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **docs(rfc): RFC-0115 coverage-aware test-gap analysis (TSA reuse #2, design)** — PR #579 ✅ MERGED 2026-06-06 (founder). Coverage-file + graph join; body-line coverage guard; Phase 1 pure core TDD is next.
 - [x] **feat(editors): RFC-0112 Phase 1 — VS Code extension MVP** — PR #587 ✅ MERGED 2026-06-06 (founder). `editors/vscode/` thin client over `@aimasteracc/mycelium-sdk@0.3.0`; `Copy context for AI` + findCallers/findCallees/symbolInfo/index; zero engine code. Phase 1.5: marketplace + `vsce publish`.
 - [x] **feat(integrations): GitHub Action — code-intelligence summary in CI** — PR #588 ✅ MERGED 2026-06-06 (founder). `integrations/github-action/` composite action; installs published CLI; job summary + sticky PR comment; `summarize.py` 4 unit tests; e2e smoke with `mycelium 0.3.0`.
+- [x] **feat(core): RFC-0113 Phase 2 — additive `class` field on `get_callees`** — PR #595 ✅ MERGED 2026-06-06 (squash `4adce0c`). `callees_payload` now returns `callees: [{path, class}]` alongside backward-compat `callee_paths`. Python allowlist classification: project/builtin/stdlib/external/unknown. Codex P2 (import-context gating) rejected → Phase 3 tracked in Issue #598.
+- [ ] **ci(nightly): fix mutants.out file/directory collision** — PR #597 CI running. `tee mutants.out` created a plain file conflicting with cargo-mutants' `mutants.out/` output directory → renamed to `mutants.log`.
 
 ---
 
@@ -120,8 +122,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 1. **PR #568 finalize**: All registries published (crates.io ✅ npm ✅ PyPI ✅). Trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: merge #568 → main, tag `v0.3.0`, GH Release, back-merge. **Do NOT re-publish registries.**
 
 **P1 — Autonomous (implementations ready to proceed, TDD):**
-2. **RFC-0113 Phase 2**: Wire `classify_python()` into `resolve_bare_call_stubs()` (the project-ownership shadow gate: only bare stubs that remain after project resolution reach the tier); surface additive `class` field on `get_callees` / `get_dead_symbols` CLI+MCP (byte-identical); CLI+MCP+Skill = Three-Surface. Dogfood: measure unknown-tail drop on Mycelium's own corpus.
-3. **RFC-0114 Phase 2**: `Store::health()` adapter (calls `dead_symbols`/`isolated_symbols`/degree metrics) + `project-health` CLI + `mycelium_project_health` MCP (byte-identical) + category Skill entry. Phase 1 `health.rs` scorer already on develop (#577).
+2. **RFC-0114 Phase 2**: `Store::health()` adapter (calls `dead_symbols`/`isolated_symbols`/degree metrics) + `project-health` CLI + `mycelium_project_health` MCP (byte-identical) + category Skill entry. Phase 1 `health.rs` scorer already on develop (#577).
+3. **RFC-0113 Phase 3** (Issue #598): Import-context gating for stdlib/external callee classification — thread caller file's import set into `callees_payload`; gate allowlist tier on presence of relevant import. Phase 2 merged `4adce0c`.
 4. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs (no Store/FS/coverage parsing) — TDD RED→GREEN. Body-line coverage guard (Codex-P1 compliance: `def` line = covered on import ≠ body covered). 7+ tests.
 5. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD. Reuse `mycelium_context` verdict vocabulary.
 6. **RFC-0117 Phase 1**: Pure `evaluate(rules, edges) → Vec<Violation>` over plain inputs, immutable frozen types. TDD.
@@ -138,16 +140,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v79)
+## Dispatch state (2026-06-06 v81)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (or manual Steps 1–4). crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** After v0.3.0 ships: VS Code Phase 1.5 (`vsce publish` + marketplace metadata) + GitHub Action live run. |
-| PM | **DONE ✅** | v79: PR #592 closed (superseded, stale base); PR #593 (PM v78) Codex P2 addressed (option b) + merged (`c2b6386`); v77 decisions entry retroactively appended; PM state v79 pushed. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (or manual Steps 1–4 with `--merge`). crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #597 (nightly mutants CI fix) once CI green. **(3)** After v0.3.0 ships: VS Code Phase 1.5 + GitHub Action live run. |
+| PM | **DONE ✅** | v81: PR #595 merged; PR #596 superseded; PR #597 opened (nightly fix); Issue #598 opened (Phase 3); Codex findings all addressed; PM state v81 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1 — ready** | RFC-0113 Phase 2 (resolver wiring + `class` field + Three-Surface). Then RFC-0114 Phase 2. Then RFC-0115/0116/0117 Phase 1. God-file-split slice 4 (P2). |
+| rust-implementer | **P1 — ready** | RFC-0114 Phase 2 (`Store::health()` + `project-health` CLI + MCP + Skill). Then RFC-0113 Phase 3 (import-context gating, Issue #598). Then RFC-0115/0116/0117 Phase 1. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -180,6 +182,33 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v81 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release-governance/merge-discipline), PM state v79 (develop HEAD `cc437d91`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (release/v0.3.0 → main; CI ✅; all registries published; `finalize` awaiting founder), #595 (RFC-0113 Phase 2, CI ✅ all checks, 1 Codex P2), #596 (PM v80 chore, CI ✅, 1 Codex P1 + 1 Codex P2).
+- 1 open issue: #555 (auto-closes when #568 → main).
+- Develop CI: HEAD `cc437d91` (PM v79). All checks green.
+- Nightly: `mutation testing` job failing every run — `cargo-mutants | tee mutants.out` creates a plain file; cargo-mutants then can't create `mutants.out/lock.json` (Not a directory). Fix: rename tee sink to `mutants.log`.
+- PR #596 Codex P1 (line 74 `--squash`): FALSE POSITIVE — develop HEAD already has `--merge` from v79. Archive text in v80 referenced the fix, confusing the reviewer.
+- PR #595 Codex P2 (import-context gating): VALID Phase 3 concern — deferred with justification + spin-off issue.
+
+**Actions taken:**
+1. **Fixed nightly CI**: created `fix/nightly-mutants-lockfile-collision` branch; renamed `mutants.out` → `mutants.log` in nightly.yml (3 sites); updated CHANGELOG; committed+pushed; **opened PR #597**. ✅
+2. **Responded to PR #595 Codex P2**: Rejected with justification (Phase 3 enhancement; project-ownership shadow gate already fires; import-context gating requires threading caller imports through callees_payload). Opened **Issue #598** as Phase 3 tracking issue. ✅
+3. **Responded to PR #596 Codex P1+P2**: Both addressed in comments (P1 = false positive confirmed; P2 = stale dispatch will be fixed in v81). **Closed PR #596** as superseded. ✅
+4. **Merged PR #595** (RFC-0113 Phase 2, squash `4adce0c`, CI ✅, Codex P2 rejected+spun-off). ✅
+5. **PM state v81 written** (this file): Post-v0.3.0 unreleased updated, live priorities reordered (RFC-0114 Phase 2 first; Phase 3 as Issue #598), dispatch state v81. ✅
+6. **Appended decisions.jsonl** (v81 entry). ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (preferred) or manual `gh pr merge --admin --merge #568`. crates.io ✅ npm ✅ PyPI ✅ already published.
+- **(P1)** PR #597 (nightly CI fix): Admin-merge once CI green — 2-file change, restores nightly mutation testing.
+- **(P1, post-v0.3.0)** VS Code Phase 1.5 (`vsce publish` + marketplace) + GitHub Action live run.
+
+---
 
 ### 2026-06-06 PM dispatch v79 (this run)
 
