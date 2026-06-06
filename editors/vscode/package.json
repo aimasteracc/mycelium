@@ -54,8 +54,36 @@
         "command": "mycelium.index",
         "title": "Mycelium: Index this workspace",
         "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.showCallGraph",
+        "title": "Mycelium: Show call graph for symbol at cursor",
+        "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.revealSymbol",
+        "title": "Mycelium: Reveal symbol",
+        "category": "Mycelium"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mycelium",
+          "title": "Mycelium",
+          "icon": "$(type-hierarchy)"
+        }
+      ]
+    },
+    "views": {
+      "mycelium": [
+        {
+          "id": "mycelium.callGraph",
+          "name": "Call graph",
+          "icon": "$(type-hierarchy)"
+        }
+      ]
+    },
     "menus": {
       "editor/context": [
         {

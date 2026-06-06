@@ -4,8 +4,10 @@
 // surfaced through the SDK. The headline is "Copy context for AI" — one-click,
 // token-dense context for the cursor, ready to paste into any AI assistant.
 import * as vscode from "vscode";
+import * as nodePath from "path";
 import { MyceliumError } from "@aimasteracc/mycelium-sdk";
-import { getClient, resolveSymbolAtCursor } from "./engine";
+import { getClient, resolveSymbolAtCursor, workspaceRoot } from "./engine";
+import { CallGraphTreeProvider } from "./callGraphTree";
 
 /** Run an action with a live client + active editor, mapping errors to toasts. */
 async function withClientAndEditor(
@@ -107,15 +109,63 @@ async function indexWorkspace(): Promise<void> {
   });
 }
 
+/** Populate the call-graph sidebar from the symbol at the cursor. */
+async function showCallGraph(tree: CallGraphTreeProvider): Promise<void> {
+  await withClientAndEditor(async (client, editor) => {
+    const path = await resolveSymbolAtCursor(client, editor);
+    if (path) {
+      await tree.focusOn(path);
+      await vscode.commands.executeCommand("mycelium.callGraph.focus");
+    }
+  });
+}
+
+/** Open the file for a Mycelium symbol path and reveal its line (best-effort). */
+async function revealSymbol(symbolPath: string): Promise<void> {
+  const root = workspaceRoot();
+  const client = getClient();
+  if (!root || !client) {
+    return;
+  }
+  const file = symbolPath.split(">")[0];
+  try {
+    const uri = vscode.Uri.file(nodePath.join(root, file));
+    const editor = await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri));
+    // `get-source-span` has no typed SDK method — use the raw escape hatch.
+    const span = (await client.run([
+      "get-source-span",
+      symbolPath,
+      "--root",
+      root,
+      "--format",
+      "json",
+    ])) as Record<string, unknown>;
+    const start = span.start as Record<string, unknown> | undefined;
+    const lineRaw = (start?.line ?? span.start_line ?? span.line) as unknown;
+    if (typeof lineRaw === "number" && lineRaw > 0) {
+      const pos = new vscode.Position(lineRaw - 1, 0);
+      editor.selection = new vscode.Selection(pos, pos);
+      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+    }
+  } catch (err) {
+    const msg = err instanceof MyceliumError ? err.message : String(err);
+    vscode.window.showWarningMessage(`Mycelium: could not reveal ${symbolPath}: ${msg}`);
+  }
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Mycelium");
+  const callGraph = new CallGraphTreeProvider();
   context.subscriptions.push(
     output,
+    vscode.window.registerTreeDataProvider("mycelium.callGraph", callGraph),
     vscode.commands.registerCommand("mycelium.copyContextForAI", copyContextForAI),
     vscode.commands.registerCommand("mycelium.findCallers", () => showEdges("callers")),
     vscode.commands.registerCommand("mycelium.findCallees", () => showEdges("callees")),
     vscode.commands.registerCommand("mycelium.symbolInfo", () => showSymbolInfo(output)),
     vscode.commands.registerCommand("mycelium.index", indexWorkspace),
+    vscode.commands.registerCommand("mycelium.showCallGraph", () => showCallGraph(callGraph)),
+    vscode.commands.registerCommand("mycelium.revealSymbol", (p: string) => revealSymbol(p)),
   );
 
   if (vscode.workspace.getConfiguration("mycelium").get<boolean>("indexOnActivate")) {
