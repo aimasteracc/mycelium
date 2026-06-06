@@ -165,7 +165,8 @@ pub fn looks_like_hyphae(task: &str) -> bool {
 /// [`ranking::rank_entry_points`] scorer.  Key guarantees:
 /// - **Merge semantics**: a path observed first via a fuzzy candidate and later via
 ///   an exact candidate records `exact_match = true` (RFC-0119 AC-4b).
-/// - **Stub exclusion**: paths whose store node is [`NodeKind::Unresolved`] are skipped.
+/// - **Stub exclusion**: paths whose store node is
+///   [`crate::types::NodeKind::Unresolved`] are skipped.
 /// - **Stub-robust in-degree**: only incoming [`EdgeKind::Calls`] edges whose source
 ///   is a real symbol count toward importance (AC-11).
 #[must_use]
@@ -221,8 +222,8 @@ pub fn seed_entry_points(store: &Store, candidates: &[String], max_nodes: usize)
 
 /// Count incoming [`EdgeKind::Calls`] edges whose source is a real symbol.
 ///
-/// Phantom [`NodeKind::Unresolved`] stubs are excluded so they cannot inflate
-/// the importance of nodes they happen to call into (RFC-0119 AC-11).
+/// Phantom [`crate::types::NodeKind::Unresolved`] stubs are excluded so they
+/// cannot inflate the importance of nodes they happen to call into (RFC-0119 AC-11).
 fn real_in_degree(store: &Store, id: NodeId) -> usize {
     store
         .incoming(id, EdgeKind::Calls)
