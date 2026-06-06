@@ -3313,7 +3313,7 @@ impl Store {
     #[must_use]
     pub fn health(&self) -> crate::health::HealthReport {
         let metrics = crate::health::HealthMetrics {
-            total_symbols: self.node_count(),
+            total_symbols: self.symbol_nodes().count(),
             dead_count: self.dead_symbols(None).len(),
             isolated_count: self.isolated_symbols(None).len(),
             edge_count: self.edge_count(),
