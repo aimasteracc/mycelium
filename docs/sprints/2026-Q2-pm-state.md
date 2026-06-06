@@ -116,7 +116,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **ci(nightly): upload mutants.out/ report directory as artifact** — PR #603 MERGED (squash `5303351`). Closes Issue #601.
 - [x] **chore(pm): PM state v84** — PR #604 closed superseded; PR #605 MERGED (squash `b373cb8`).
 - [x] **chore(pm): PM state v85** — PR #607 MERGED (squash `755c2048`). Codex P1 rejected (stale SHA, DCO CI ✅).
-- [ ] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 open; CI re-running (2 fixes: `EXPECTED_TOOL_COUNT` 93→94 + `symbol_nodes().count()` denominator). Codex P2 fixed (`bba7afe`). Merge when CI green + Codex OK.
+- [x] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 ✅ MERGED (squash `65f03a80`). `project-health` CLI/MCP/Skill done. Codex P2 fixed (`bba7afe`).
 
 ---
 
