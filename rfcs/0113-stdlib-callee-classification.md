@@ -1,6 +1,6 @@
 # RFC-0113: stdlib/builtin callee classification — rescue the `unknown` tail (design)
 
-- **Status**: **Draft** (design — no implementation in this PR)
+- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
@@ -102,20 +102,23 @@ existing pack files (the core resolver loads it the way it loads `queries.scm`).
 ## Acceptance criteria (when promoted to implementation)
 
 **Phase 1 — Python:**
-- [ ] Port TSA's Python stdlib/builtin/external allowlists into pack data;
-      confirm MIT provenance noted.
-- [ ] Core resolver: a final `classify_callee` tier after RFC-0092/0103, import-
+- [x] Port TSA's Python stdlib/builtin/external allowlists into pack data;
+      confirm MIT provenance noted. *(Phase 1 `classify.rs`)*
+- [x] Core resolver: a final `classify_callee` tier after RFC-0092/0103, import-
       gated, with the project-ownership shadow guard. TDD with fixtures for:
       `from os import getcwd; getcwd()` → stdlib; `import json; json.dumps()` →
       stdlib; bare `helper()` defined in-project → project (shadow wins); bare
       `frobnicate()` with no import → unknown (table must NOT fire).
-- [ ] Additive `class` field on callee JSON, so `get-callees` distinguishes
+      *(Phase 2 + Phase 3 import gate — `classify_python_import_gated`, 8 unit tests)*
+- [x] Additive `class` field on callee JSON, so `get-callees` distinguishes
       stdlib/builtin/external from genuinely-unresolved project callees; spurious
       stdlib bare-stub nodes drop out of `get-isolated-symbols` / leaf analysis.
       (No change to `get-dead-symbols` — it keys on incoming edges.) Snapshot tests.
+      *(Phase 2 `callees_payload` + Phase 3 import gate, 6+2 TDD tests)*
 - [ ] Measure the `unknown`-tail reduction on the dogfood corpus (target: a
       material drop, reported in the PR — TSA's reference is 83.9%→95.9%).
-- [ ] CLI ↔ MCP parity preserved (additive field identical on both).
+- [x] CLI ↔ MCP parity preserved (additive field identical on both).
+      *(shared `callees_payload` builder — byte-identical across surfaces)*
 
 **Phase 2:** TypeScript/JS, then other Tier-1 packs (same tier, new data tables).
 

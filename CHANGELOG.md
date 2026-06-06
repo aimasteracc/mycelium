@@ -39,6 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0113 Phase 3 — import-context gate for stdlib/external callee classification.**
+  `callees_payload` now gates the `stdlib`/`external` tiers on the calling file's
+  actual import set: a bare stub like `write_text` or `getcwd` only classifies as
+  `"stdlib"` when the caller file has at least one stdlib `Imports` edge; an external
+  method like `raises` only classifies as `"external"` when a known external root
+  (`pytest`, `hypothesis`, `mock`, `unittest`) is imported. Builtins (`len`, `print`,
+  etc.) still fire unconditionally. Bare names with no matching import fall through to
+  `"unknown"`, preventing false-classification of project functions that share a stdlib
+  name. New `classify_python_import_gated` function in `classify.rs` (generic over
+  `BuildHasher`); `callees_payload` extracts the caller file's `Imports` edges to build
+  the gate set. 8 unit tests in `classify.rs` + 2 integration tests in `queries.rs`.
+  (RFC-0113 Phase 3 acceptance criteria.)
+
 - **RFC-0114 Phase 2: `project-health` CLI + `mycelium_project_health` MCP + Skill coverage.**
   `mycelium project-health [--root .] [--format text|json]` computes an A–F structural health
   grade from the indexed RCIG graph (dead-code ratio 45%, isolation 35%, connectivity 20%).

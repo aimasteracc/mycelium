@@ -76,6 +76,63 @@ pub fn classify_python(name: &str) -> CalleeClass {
     }
 }
 
+/// Classify a bare Python callee name with **import-context gating** (RFC-0113 Phase 3).
+///
+/// Unlike [`classify_python`] (name-only), this function requires import evidence
+/// before firing the stdlib/external tiers:
+///
+/// - **Builtins** never need an import — they fire unconditionally.
+/// - **Stdlib** names (methods/functions/modules): fire only when `caller_imports`
+///   contains at least one entry that is itself a known stdlib module. A file that
+///   imports no stdlib at all cannot have stdlib-rooted callees that need
+///   classification (project-owned symbols are already bound by the resolver).
+/// - **External** names (pytest/hypothesis/mock): fire only when `caller_imports`
+///   contains `pytest`, `hypothesis`, `mock`, or `unittest`.
+/// - All other names return `Unknown`.
+///
+/// `caller_imports` is the set of module-name stems from the caller file's
+/// `Imports` + `TypeImports` edges — e.g. `{"pathlib", "json"}` from
+/// `import pathlib; from json import dumps`.
+#[must_use]
+pub fn classify_python_import_gated<S: std::hash::BuildHasher>(
+    name: &str,
+    caller_imports: &std::collections::HashSet<String, S>,
+) -> CalleeClass {
+    // Builtins are always available without an import.
+    if PYTHON_BUILTINS.contains(name) {
+        return CalleeClass::Builtin;
+    }
+
+    let is_stdlib = PYTHON_STDLIB_METHODS.contains(name)
+        || PYTHON_STDLIB_MODULES.contains(name)
+        || PYTHON_STDLIB_FUNCTIONS.contains(name);
+
+    if is_stdlib {
+        let has_stdlib_import = caller_imports
+            .iter()
+            .any(|m| PYTHON_STDLIB_MODULES.contains(m.as_str()));
+        return if has_stdlib_import {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    if PYTHON_EXTERNAL_METHODS.contains(name) {
+        const EXTERNAL_ROOTS: &[&str] = &["pytest", "hypothesis", "mock", "unittest"];
+        let has_external_import = caller_imports
+            .iter()
+            .any(|m| EXTERNAL_ROOTS.contains(&m.as_str()));
+        return if has_external_import {
+            CalleeClass::External
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    CalleeClass::Unknown
+}
+
 /// Classify a module-qualified Python call `receiver.method()`.
 ///
 /// If the `receiver` is a known stdlib module (e.g. `json.dumps`, `os.getcwd`,
@@ -733,6 +790,129 @@ mod tests {
         );
         assert_eq!(
             classify_python_qualified("obj", "frobnicate"),
+            CalleeClass::Unknown
+        );
+    }
+
+    // ── RFC-0113 Phase 3: import-gated classification ─────────────────────────
+
+    fn imports(modules: &[&str]) -> std::collections::HashSet<String> {
+        modules.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    #[test]
+    fn import_gate_builtins_always_fire_without_imports() {
+        // Builtins need no import — unconditional.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("len", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(
+            classify_python_import_gated("print", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(
+            classify_python_import_gated("ValueError", &none),
+            CalleeClass::Builtin
+        );
+    }
+
+    #[test]
+    fn import_gate_stdlib_method_blocked_without_import() {
+        // write_text is a pathlib stdlib method; no import → unknown.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("write_text", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("isoformat", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn import_gate_stdlib_function_blocked_without_import() {
+        // getcwd / dumps need an import (os / json) — no stdlib import → unknown.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("getcwd", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("dumps", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn import_gate_stdlib_allowed_with_any_stdlib_import() {
+        // Any stdlib import enables the stdlib tier (conservative gate).
+        let with_os = imports(&["os"]);
+        assert_eq!(
+            classify_python_import_gated("getcwd", &with_os),
+            CalleeClass::Stdlib
+        );
+
+        let with_json = imports(&["json"]);
+        assert_eq!(
+            classify_python_import_gated("dumps", &with_json),
+            CalleeClass::Stdlib
+        );
+
+        let with_pathlib = imports(&["pathlib"]);
+        assert_eq!(
+            classify_python_import_gated("write_text", &with_pathlib),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn import_gate_external_blocked_without_test_import() {
+        // pytest.raises → external, but no pytest import → unknown.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("raises", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("parametrize", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn import_gate_external_allowed_with_pytest_import() {
+        let with_pytest = imports(&["pytest"]);
+        assert_eq!(
+            classify_python_import_gated("raises", &with_pytest),
+            CalleeClass::External
+        );
+        assert_eq!(
+            classify_python_import_gated("parametrize", &with_pytest),
+            CalleeClass::External
+        );
+    }
+
+    #[test]
+    fn import_gate_external_allowed_with_hypothesis_import() {
+        let with_hypothesis = imports(&["hypothesis"]);
+        assert_eq!(
+            classify_python_import_gated("given", &with_hypothesis),
+            CalleeClass::External
+        );
+    }
+
+    #[test]
+    fn import_gate_unknown_names_stay_unknown_regardless_of_imports() {
+        let lots = imports(&["os", "json", "pathlib", "pytest"]);
+        assert_eq!(
+            classify_python_import_gated("frobnicate", &lots),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("my_project_helper", &lots),
             CalleeClass::Unknown
         );
     }
