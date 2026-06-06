@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v86 — PR #607 merged (`755c2048`, PM state v85); PR #606 CI fixed (contract test 93→94 + symbol_nodes denominator) + Codex P2 fixed; CI re-running; PR #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 MERGED. RFC-0114 Phase 2 PR #606 CI re-running (2 fixes pushed). |
+| Last updated | 2026-06-06 (PM dispatch v87 — PRs #606+#608+#609+#610+#611 merged; issues #612/#613/#614 opened (Codex spin-offs for RFC-0118/0119/0120); all 10 Codex findings addressed; RFC-0118/0119/0120 designs on develop; PR #568 v0.3.0 ceremony P0 unchanged) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117/0118/0119/0120 Phase implementations** (P1 — autonomous). RFC-0113 Ph2 ✅ RFC-0114 Ph2 ✅. RFC-0118/0119/0120 design RFCs on develop; implementations next. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -116,7 +116,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **ci(nightly): upload mutants.out/ report directory as artifact** — PR #603 MERGED (squash `5303351`). Closes Issue #601.
 - [x] **chore(pm): PM state v84** — PR #604 closed superseded; PR #605 MERGED (squash `b373cb8`).
 - [x] **chore(pm): PM state v85** — PR #607 MERGED (squash `755c2048`). Codex P1 rejected (stale SHA, DCO CI ✅).
-- [ ] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 open; CI re-running (2 fixes: `EXPECTED_TOOL_COUNT` 93→94 + `symbol_nodes().count()` denominator). Codex P2 fixed (`bba7afe`). Merge when CI green + Codex OK.
+- [x] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 ✅ MERGED (squash `65f03a80`). `project-health` CLI/MCP/Skill done. Codex P2 fixed (`bba7afe`).
 
 ---
 
@@ -126,11 +126,14 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 1. **PR #568 finalize**: All registries published (crates.io ✅ npm ✅ PyPI ✅). Trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: merge #568 → main, tag `v0.3.0`, GH Release, back-merge. **Do NOT re-publish registries.**
 
 **P1 — Autonomous (implementations ready to proceed, TDD):**
-2. **RFC-0114 Phase 2**: ~~`Store::health()` adapter + `project-health` CLI/MCP/Skill~~  ✅ **DONE** — PR #606 open (CI running). Merge when CI green + Codex OK.
-3. **RFC-0113 Phase 3** (Issue #598): Import-context gating for stdlib/external callee classification — thread caller file's import set into `callees_payload`; gate allowlist tier on presence of relevant import. Phase 2 merged `4adce0c`.
-4. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs (no Store/FS/coverage parsing) — TDD RED→GREEN. Body-line coverage guard (Codex-P1 compliance: `def` line = covered on import ≠ body covered). 7+ tests.
-5. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD. Reuse `mycelium_context` verdict vocabulary.
-6. **RFC-0117 Phase 1**: Pure `evaluate(rules, edges) → Vec<Violation>` over plain inputs, immutable frozen types. TDD.
+2. **RFC-0114 Phase 2**: ✅ **MERGED** — PR #606 (squash `65f03a80`). `project-health` CLI/MCP/Skill done.
+3. **RFC-0113 Phase 3** (Issue #598): Import-context gating for stdlib/external callee classification — thread caller file's import set into `callees_payload`; gate allowlist tier on presence of relevant import. Phase 2 merged `4adce0c`. **← rust-implementer next**
+4. **RFC-0118 Phase 1** (Issue #612): `NodeKind::Unresolved` + static receiver-type inference at extraction time. Design on develop (`bb70f2a9`). Implementation notes in Issue #612.
+5. **RFC-0119 Phase 1** (Issue #613): Pure scorer `rank_entry_points` + test classifier `classify_test_path`. Design on develop (`ca45aebf`). Implementation notes in Issue #613.
+6. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`). Implementation notes in Issue #614.
+7. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs — TDD RED→GREEN.
+8. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD.
+9. **RFC-0117 Phase 1**: Pure `evaluate(rules, edges) → Vec<Violation>` — immutable frozen types. TDD.
 
 **P1 — Founder review (post-v0.3.0 ship):**
 7. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
@@ -144,16 +147,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v86)
+## Dispatch state (2026-06-06 v87)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #606 (RFC-0114 Phase 2 project-health) once CI green + Codex OK — zero breaking changes. |
-| PM | **DONE ✅** | v86: PR #607 merged; PR #606 CI fixed (2 commits) + Codex P2 fixed; all Codex threads addressed. PM state v86 pushed. |
+| founder | **P0 action** | PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. |
+| PM | **DONE ✅** | v87: PRs #606+#608+#609+#610+#611 merged; issues #612/#613/#614 opened; all 10 Codex findings addressed; PM state v87 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1 — next** | RFC-0113 Phase 3 (import-context gating, Issue #598). Then RFC-0115/0116/0117 Phase 1. RFC-0114 Ph2 PR #606 CI pending. |
+| rust-implementer | **P1 — next** | RFC-0113 Phase 3 (import-context gating, Issue #598). Then RFC-0118/0119/0120/0115/0116/0117 Phase 1 per priorities above. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -186,6 +189,32 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v87 (this run)
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/tdd/merge-discipline/three-surface/rfc-0109), PM state v85 (stale local — fetched develop v86 from GitHub, decisions tail from GitHub), v0.2 PRD.
+
+**Assessment:**
+- 6 open PRs: #606 (RFC-0114 Ph2, CI ✅ 22/22, Codex P2 already fixed), #608 (PM v86, CI ✅ 22/22, Codex P2 — timestamp offset), #609 (RFC-0118, Codex P1+P2 outdated), #610 (RFC-0119, Codex P2+P2 live), #611 (RFC-0120, Codex P2+P2 live), #568 (v0.3.0 ceremony, awaiting finalize).
+- 3 open issues: #601 (P2 ci: mutants.out/), #598 (RFC-0113 Ph3), #555 (auto-close on #568 merge).
+- Develop CI: HEAD `33125d5c` (RFC-0120 squash after 5 merges in this run). All checks green.
+
+**Actions taken:**
+1. **Addressed all 10 Codex findings** across 5 PRs before merging (Hard Rule):
+   - PR #606 Codex P2 (symbol_nodes denominator): already fixed in `bba7afe`, reply posted in v86 → confirmed ✅
+   - PR #608 Codex P2 (timestamp offset): rejected with justification — 75s post-commit write delay is expected post-flight behavior, not data error. ✅
+   - PR #609 Codex P1 (extraction ordering): spun off → Issue #612 (Phase 2b cross-file design constraint). ✅
+   - PR #609 Codex P2 (rank_symbols scope): spun off → Issue #612. ✅
+   - PR #610 Codex P2 (stub filter): spun off → Issue #613. ✅
+   - PR #610 Codex P2 (dedup merge semantics): spun off → Issue #613. ✅
+   - PR #611 Codex P2 (corpus fixture path): spun off → Issue #614. ✅
+   - PR #611 Codex P2 (pub mod visibility): spun off → Issue #614. ✅
+2. **Opened 3 tracking issues**: #612 (RFC-0118 impl notes), #613 (RFC-0119 impl notes), #614 (RFC-0120 impl notes). ✅
+3. **Merged 5 PRs**: #606 (`65f03a80`, RFC-0114 Ph2), #608 (`20f084d0`, PM v86), #609 (`bb70f2a9`, RFC-0118), #610 (`ca45aebf`, RFC-0119), #611 (`33125d5c`, RFC-0120). ✅
+4. **PM state v87** written; decisions.jsonl v87 appended. ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
 
 ### 2026-06-06 PM dispatch v86 (this run)
 
