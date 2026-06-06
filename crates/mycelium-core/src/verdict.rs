@@ -75,14 +75,9 @@ const REVIEW_MAX: u32 = 20;
 /// Compute a pre-edit safety verdict from the metrics. Pure.
 #[must_use]
 pub fn edit_verdict(m: &EditMetrics) -> EditVerdict {
-    // Envelope short-circuits first (TSA M3 + NOT_FOUND).
-    if !m.symbol_found {
-        return EditVerdict {
-            verdict: Verdict::NotFound,
-            reasons: vec!["symbol not found in the graph".to_owned()],
-            checklist: Vec::new(),
-        };
-    }
+    // Envelope short-circuits. Check `parse_broken` FIRST: a file that does not
+    // parse is the *root cause* and usually also makes the symbol un-findable, so
+    // reporting NOT_FOUND would hide the real diagnostic. Broken parse wins.
     if m.parse_broken {
         return EditVerdict {
             verdict: Verdict::Error,
@@ -90,6 +85,13 @@ pub fn edit_verdict(m: &EditMetrics) -> EditVerdict {
                 "the symbol's file does not parse — the graph is untrustworthy".to_owned(),
             ],
             checklist: vec!["fix the parse error and re-index before editing".to_owned()],
+        };
+    }
+    if !m.symbol_found {
+        return EditVerdict {
+            verdict: Verdict::NotFound,
+            reasons: vec!["symbol not found in the graph".to_owned()],
+            checklist: Vec::new(),
         };
     }
 
@@ -192,6 +194,26 @@ mod tests {
             blast_radius: 0,
         };
         assert_eq!(edit_verdict(&m).verdict, Verdict::NotFound);
+    }
+
+    #[test]
+    fn broken_parse_wins_over_not_found_and_over_bands() {
+        // Both flags set: a broken parse is the root cause — report ERROR, not NOT_FOUND.
+        let both = EditMetrics {
+            symbol_found: false,
+            parse_broken: true,
+            direct_callers: 0,
+            blast_radius: 0,
+        };
+        assert_eq!(edit_verdict(&both).verdict, Verdict::Error);
+        // And it wins over a non-Safe blast-radius band too.
+        let broken_high = EditMetrics {
+            symbol_found: true,
+            parse_broken: true,
+            direct_callers: 9,
+            blast_radius: 40,
+        };
+        assert_eq!(edit_verdict(&broken_high).verdict, Verdict::Error);
     }
 
     #[test]
