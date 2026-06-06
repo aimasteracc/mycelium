@@ -172,15 +172,15 @@ it is a Phase-2 surfacing obligation, not an additive field:
 ## Acceptance criteria
 
 **Phase 1 — pure verdict core (this RFC's promotable unit):**
-- [ ] `edit_verdict(metrics)` exists in `crates/mycelium-core/src/verdict/`,
+- [x] `edit_verdict(metrics)` exists in `crates/mycelium-core/src/verdict/`,
       pure, no Store/I/O. TDD (RED first) with fixtures: `blast=0` → `SAFE`;
       `blast=3` → `CAUTION`; `blast=12` → `REVIEW`; `blast=40` → `UNSAFE`;
       `parse_broken` → `ERROR` short-circuit; `symbol_found=false` → `NOT_FOUND`.
-- [ ] Health/test-gap escalation is monotonic (never downgrades); fixtures for
+- [x] Health/test-gap escalation is monotonic (never downgrades); fixtures for
       `D`-grade and `uncovered` each boosting one step.
-- [ ] `reasons` + `checklist` are non-empty for every non-`SAFE` verdict and
+- [x] `reasons` + `checklist` are non-empty for every non-`SAFE` verdict and
       name the concrete count (e.g. "40 dependents").
-- [ ] Verdict tokens are a strict subset of the reconciled vocabulary above;
+- [x] Verdict tokens are a strict subset of the reconciled vocabulary above;
       a snapshot test pins them against `context/mod.rs`'s set.
 
 **Phase 2 — adapter + surfaces:**

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0116 Phase 1 AC complete: `EditMetrics` now accepts optional `health` /
+  `test_gap_uncovered` escalation inputs.** `edit_verdict` applies monotonic
+  one-step escalation when `health` is grade `D`/`F` (RFC-0114) or
+  `test_gap_uncovered` is `Some(true)` (RFC-0115). Escalation never downgrades;
+  `Error`/`NotFound` short-circuits are unaffected. 6 new unit tests; `step_up`
+  is `const fn`. RFC-0115, RFC-0116, RFC-0117 Phase 1 acceptance criteria all
+  marked `[x]`.
+
 - **RFC-0119 Phase 1: pure entry-point ranking core** (`context/ranking.rs`).
   New `classify_test_path` classifies trunk paths as `TestFile`, `TestSymbol`, or `None`
   using cheap static rules (directory segments, filename stems, suffix patterns, symbol

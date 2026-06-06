@@ -54,6 +54,13 @@ pub struct EditMetrics {
     pub direct_callers: u32,
     /// Transitive dependents (from `Store::reachable_to` / MCP `mycelium_get_reachable_to`).
     pub blast_radius: u32,
+    /// Project health grade (RFC-0114). `D`/`F` escalates the verdict one step upward.
+    /// `None` when not yet wired (Phase 2 adapter).
+    pub health: Option<crate::health::HealthGrade>,
+    /// Whether the symbol has uncovered body lines (RFC-0115).
+    /// `Some(true)` escalates the verdict one step — editing untested high-fan-in code is riskier.
+    /// `None` when not yet wired (Phase 2 adapter).
+    pub test_gap_uncovered: Option<bool>,
 }
 
 /// The verdict plus the human/agent-facing rationale.
@@ -96,7 +103,7 @@ pub fn edit_verdict(m: &EditMetrics) -> EditVerdict {
     }
 
     // Decision axis: transitive blast radius (TSA `_VERDICT_MAP`, re-keyed).
-    let verdict = if m.blast_radius == 0 {
+    let base = if m.blast_radius == 0 {
         Verdict::Safe
     } else if m.blast_radius <= CAUTION_MAX {
         Verdict::Caution
@@ -106,20 +113,43 @@ pub fn edit_verdict(m: &EditMetrics) -> EditVerdict {
         Verdict::Unsafe
     };
 
+    // Monotonic escalation — never downgrade.
+    // health D/F and test_gap_uncovered each boost one step (RFC-0116 §Design).
+    let mut verdict = base;
     let mut reasons = Vec::new();
     let mut checklist = Vec::new();
-    if verdict != Verdict::Safe {
+
+    if let Some(grade @ (crate::health::HealthGrade::D | crate::health::HealthGrade::F)) =
+        m.health
+    {
+        verdict = step_up(verdict);
         reasons.push(format!(
-            "{} symbol(s) transitively depend on this",
-            m.blast_radius
+            "project health grade {} — structural quality is low",
+            grade.as_str()
         ));
-        if m.direct_callers > 0 {
-            reasons.push(format!("{} direct caller(s)", m.direct_callers));
+        checklist.push("address the health issues before editing this symbol".to_owned());
+    }
+
+    if m.test_gap_uncovered == Some(true) {
+        verdict = step_up(verdict);
+        reasons.push("symbol has uncovered body lines — editing untested code increases risk".to_owned());
+        checklist.push("add tests covering this symbol before editing".to_owned());
+    }
+
+    if verdict != Verdict::Safe {
+        if m.blast_radius > 0 {
+            reasons.push(format!(
+                "{} symbol(s) transitively depend on this",
+                m.blast_radius
+            ));
+            if m.direct_callers > 0 {
+                reasons.push(format!("{} direct caller(s)", m.direct_callers));
+            }
+            checklist.push(format!(
+                "audit the {} dependent(s) before changing the signature or behavior",
+                m.blast_radius
+            ));
         }
-        checklist.push(format!(
-            "audit the {} dependent(s) before changing the signature or behavior",
-            m.blast_radius
-        ));
         if matches!(verdict, Verdict::Review | Verdict::Unsafe) {
             checklist.push("run the full test suite after the change".to_owned());
         }
@@ -135,6 +165,17 @@ pub fn edit_verdict(m: &EditMetrics) -> EditVerdict {
     }
 }
 
+/// Promote one level up the `Safe → Caution → Review → Unsafe` axis.
+/// `Error`/`NotFound` are envelope short-circuits and are never escalated.
+const fn step_up(v: Verdict) -> Verdict {
+    match v {
+        Verdict::Safe => Verdict::Caution,
+        Verdict::Caution => Verdict::Review,
+        Verdict::Review | Verdict::Unsafe => Verdict::Unsafe,
+        other => other,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,6 +186,8 @@ mod tests {
             parse_broken: false,
             direct_callers: callers,
             blast_radius: blast,
+            health: None,
+            test_gap_uncovered: None,
         }
     }
 
@@ -181,6 +224,8 @@ mod tests {
             parse_broken: true,
             direct_callers: 0,
             blast_radius: 0, // would be SAFE, but parse is broken
+            health: None,
+            test_gap_uncovered: None,
         };
         assert_eq!(edit_verdict(&m).verdict, Verdict::Error);
     }
@@ -192,6 +237,8 @@ mod tests {
             parse_broken: false,
             direct_callers: 0,
             blast_radius: 0,
+            health: None,
+            test_gap_uncovered: None,
         };
         assert_eq!(edit_verdict(&m).verdict, Verdict::NotFound);
     }
@@ -204,6 +251,8 @@ mod tests {
             parse_broken: true,
             direct_callers: 0,
             blast_radius: 0,
+            health: None,
+            test_gap_uncovered: None,
         };
         assert_eq!(edit_verdict(&both).verdict, Verdict::Error);
         // And it wins over a non-Safe blast-radius band too.
@@ -212,6 +261,8 @@ mod tests {
             parse_broken: true,
             direct_callers: 9,
             blast_radius: 40,
+            health: None,
+            test_gap_uncovered: None,
         };
         assert_eq!(edit_verdict(&broken_high).verdict, Verdict::Error);
     }
@@ -237,5 +288,110 @@ mod tests {
         let r = edit_verdict(&metrics(0, 0));
         assert_eq!(r.verdict, Verdict::Safe);
         assert!(r.checklist.is_empty());
+    }
+
+    // RFC-0116 Phase 1 AC-2: health/test_gap monotonic escalation.
+
+    #[test]
+    fn health_d_grade_escalates_one_step() {
+        // blast=0 → SAFE; health D → CAUTION (one step up).
+        let m = EditMetrics {
+            symbol_found: true,
+            parse_broken: false,
+            direct_callers: 0,
+            blast_radius: 0,
+            health: Some(crate::health::HealthGrade::D),
+            test_gap_uncovered: None,
+        };
+        assert_eq!(edit_verdict(&m).verdict, Verdict::Caution);
+    }
+
+    #[test]
+    fn health_f_grade_escalates_one_step() {
+        // blast=3 → CAUTION; health F → REVIEW.
+        let m = EditMetrics {
+            symbol_found: true,
+            parse_broken: false,
+            direct_callers: 0,
+            blast_radius: 3,
+            health: Some(crate::health::HealthGrade::F),
+            test_gap_uncovered: None,
+        };
+        assert_eq!(edit_verdict(&m).verdict, Verdict::Review);
+    }
+
+    #[test]
+    fn test_gap_uncovered_escalates_one_step() {
+        // blast=0 → SAFE; uncovered → CAUTION.
+        let m = EditMetrics {
+            symbol_found: true,
+            parse_broken: false,
+            direct_callers: 0,
+            blast_radius: 0,
+            health: None,
+            test_gap_uncovered: Some(true),
+        };
+        assert_eq!(edit_verdict(&m).verdict, Verdict::Caution);
+    }
+
+    #[test]
+    fn escalation_is_monotonic_unsafe_stays_unsafe() {
+        // blast=21 → UNSAFE; any escalation must not downgrade.
+        let m = EditMetrics {
+            symbol_found: true,
+            parse_broken: false,
+            direct_callers: 5,
+            blast_radius: 21,
+            health: Some(crate::health::HealthGrade::F),
+            test_gap_uncovered: Some(true),
+        };
+        assert_eq!(edit_verdict(&m).verdict, Verdict::Unsafe);
+    }
+
+    #[test]
+    fn health_a_b_c_does_not_escalate() {
+        // Only D/F grades trigger escalation; A/B/C do not.
+        for grade in [
+            crate::health::HealthGrade::A,
+            crate::health::HealthGrade::B,
+            crate::health::HealthGrade::C,
+        ] {
+            let m = EditMetrics {
+                symbol_found: true,
+                parse_broken: false,
+                direct_callers: 0,
+                blast_radius: 0,
+                health: Some(grade),
+                test_gap_uncovered: None,
+            };
+            assert_eq!(
+                edit_verdict(&m).verdict,
+                Verdict::Safe,
+                "grade {grade:?} should not escalate SAFE"
+            );
+        }
+    }
+
+    #[test]
+    fn escalation_adds_reason_text() {
+        let m = EditMetrics {
+            symbol_found: true,
+            parse_broken: false,
+            direct_callers: 0,
+            blast_radius: 0,
+            health: Some(crate::health::HealthGrade::D),
+            test_gap_uncovered: Some(true),
+        };
+        let v = edit_verdict(&m);
+        // Both escalation signals must appear in reasons/checklist.
+        let all: Vec<_> = v.reasons.iter().chain(v.checklist.iter()).collect();
+        assert!(
+            all.iter().any(|s| s.contains("health")),
+            "health escalation must name health: {v:?}"
+        );
+        assert!(
+            all.iter().any(|s| s.contains("uncovered") || s.contains("test")),
+            "test_gap escalation must mention test/uncovered: {v:?}"
+        );
     }
 }

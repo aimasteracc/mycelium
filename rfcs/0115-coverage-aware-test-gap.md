@@ -198,16 +198,16 @@ No surface ships in Phase 1 (pure core only), matching RFC-0113/0114's deferral.
 ## Acceptance criteria
 
 **Phase 1 — pure core (TDD, RED first):**
-- [ ] `is_covered`: body line executed ⇒ tested; **only the `def`/decorator line
+- [x] `is_covered`: body line executed ⇒ tested; **only the `def`/decorator line
       executed ⇒ GAP** (Codex-P1 declaration-line immunity); no line executed ⇒
       GAP; multi-line signature + decorators handled via `body_start`.
-- [ ] `is_covered` indirect-dispatch immunity: a symbol with **no** matching
+- [x] `is_covered` indirect-dispatch immunity: a symbol with **no** matching
       test name but a body line executed in the artifact ⇒ tested (proves we
       beat naming heuristics; TSA's fake-test/indirect-dispatch fixtures ported).
-- [ ] `rank`: untested high-blast-radius symbol ranks above untested leaf;
+- [x] `rank`: untested high-blast-radius symbol ranks above untested leaf;
       tested symbols excluded; ordering deterministic and total (centrality
       tiebreak stable).
-- [ ] Pure core has **no** Store/FS/coverage-parse dependency; ≥90% line
+- [x] Pure core has **no** Store/FS/coverage-parse dependency; ≥90% line
       coverage on the module (Charter quality gate).
 
 **Phase 2 — adapter + Three-Surface:**
