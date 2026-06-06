@@ -1,0 +1,83 @@
+name: "Mycelium Code Intelligence"
+description: "Index your repository with Mycelium and post a structural code-intelligence summary (symbols, dead code, entry points). No Rust toolchain."
+author: "aimasteracc"
+branding:
+  icon: "share-2"
+  color: "purple"
+
+inputs:
+  path:
+    description: "Directory to index (default: repository root)."
+    required: false
+    default: "."
+  version:
+    description: "Version (npm dist-tag or exact version) of @aimasteracc/mycelium to install. Pin an exact version for supply-chain safety."
+    required: false
+    default: "0.3.0"
+  comment-on-pr:
+    description: "Post the summary as a sticky PR comment. Requires a pull_request event and `permissions: pull-requests: write`."
+    required: false
+    default: "false"
+  github-token:
+    description: "Token used for the PR comment."
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  summary:
+    description: "The Markdown code-intelligence summary."
+    value: ${{ steps.run.outputs.summary }}
+
+runs:
+  using: "composite"
+  steps:
+    # SECURITY: every `${{ inputs.* }}` / `${{ github.* }}` value is passed via
+    # `env:` and referenced as a shell variable — never interpolated into the
+    # `run:` script text — so a crafted input cannot inject shell commands.
+    - name: Install the Mycelium CLI (prebuilt — no Rust toolchain)
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: npm install -g "@aimasteracc/mycelium@${INPUT_VERSION}"
+
+    - name: Index and summarize
+      id: run
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        ROOT="$INPUT_PATH"
+        mycelium index "$ROOT"
+        # Each query is best-effort — a missing field degrades to "—", never fails the job.
+        mycelium server-status        --root "$ROOT" --format json > /tmp/myc-status.json || echo '{}' > /tmp/myc-status.json
+        mycelium get-dead-symbols     --root "$ROOT" --format json > /tmp/myc-dead.json   || echo '{}' > /tmp/myc-dead.json
+        mycelium get-isolated-symbols --root "$ROOT" --format json > /tmp/myc-iso.json    || echo '{}' > /tmp/myc-iso.json
+        mycelium get-entry-points     --root "$ROOT" --format json > /tmp/myc-entry.json  || echo '{}' > /tmp/myc-entry.json
+        SUMMARY="$(python3 "$GITHUB_ACTION_PATH/summarize.py" \
+          /tmp/myc-status.json /tmp/myc-dead.json /tmp/myc-iso.json /tmp/myc-entry.json "$ROOT")"
+        echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+        { echo "summary<<MYCEOF"; echo "$SUMMARY"; echo "MYCEOF"; } >> "$GITHUB_OUTPUT"
+
+    - name: Comment on the pull request
+      if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        MYCELIUM_SUMMARY: ${{ steps.run.outputs.summary }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        # PR / REPO come from env (not interpolated into this script).
+        # Write to file — avoids bash re-evaluating Markdown backticks/specials in $MYCELIUM_SUMMARY.
+        printf '%s' "$MYCELIUM_SUMMARY" > /tmp/myc-comment.md
+        # Sticky update: find the existing Mycelium comment by its marker, else create a new one.
+        EXISTING_ID="$(gh api "repos/$REPO/issues/$PR/comments" \
+          --jq '[.[] | select(.body | startswith("<!-- mycelium-code-intel -->"))] | last | .id // empty' \
+          2>/dev/null || true)"
+        if [ -n "$EXISTING_ID" ]; then
+          gh api --method PATCH "repos/$REPO/issues/comments/$EXISTING_ID" \
+            --field "body=@/tmp/myc-comment.md"
+        else
+          gh pr comment "$PR" --body-file /tmp/myc-comment.md
+        fi

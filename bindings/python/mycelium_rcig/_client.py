@@ -11,7 +11,28 @@ from __future__ import annotations
 from typing import Any, List, Mapping, Optional, Sequence
 
 from ._resolve import resolve_binary
-from ._run import run_json, run_text
+from ._run import MyceliumError, run_json, run_text
+
+
+def _guard_positional(value: str, label: str) -> str:
+    """Reject an argv-smuggling positional.
+
+    ``subprocess`` already runs the binary with no shell (an argv list, never a
+    shell string), so there is no shell-injection surface. The residual risk is
+    *argv smuggling*: a user-supplied positional that begins with ``-`` (e.g. a
+    query of ``--root``) would be re-parsed by the ``mycelium`` CLI as a *flag*,
+    not a value. A ``--`` end-of-options separator can't help here because our
+    flags (``--root``/``--format``) follow the positionals, so we reject a
+    leading ``-`` outright — a Hyphae selector, symbol path, or project path
+    never legitimately starts with one.
+    """
+    if not isinstance(value, str):
+        raise MyceliumError("{} must be a string".format(label))
+    if value.startswith("-"):
+        raise MyceliumError(
+            '{} must not start with "-" (would be parsed as a CLI flag): {!r}'.format(label, value)
+        )
+    return value
 
 
 class Mycelium:
@@ -56,20 +77,23 @@ class Mycelium:
 
     def index(self, path: Optional[str] = None) -> str:
         """Index a project directory; returns the CLI's plain-text status report."""
-        return self._text(self._bin, ["index", path if path is not None else self.root])
+        target = path if path is not None else self.root
+        return self._text(self._bin, ["index", _guard_positional(target, "path")])
 
     def query(self, expr: str) -> Any:
         """Execute a Hyphae selector; returns the parsed JSON result."""
-        return self._json(self._bin, self._json_args("query", [expr]))
+        return self._json(self._bin, self._json_args("query", [_guard_positional(expr, "query")]))
 
     def search_symbol(self, query: str, limit: Optional[int] = None) -> Any:
         """Case-insensitive substring search over symbol names."""
         extra = [] if limit is None else ["--limit", str(limit)]
-        return self._json(self._bin, self._json_args("search-symbol", [query], extra))
+        return self._json(
+            self._bin, self._json_args("search-symbol", [_guard_positional(query, "query")], extra)
+        )
 
     def get_symbol_info(self, path: str) -> Any:
         """All structural info about a symbol in one call."""
-        return self._json(self._bin, self._json_args("get-symbol-info", [path]))
+        return self._json(self._bin, self._json_args("get-symbol-info", [_guard_positional(path, "path")]))
 
     def get_callers(
         self,
@@ -87,7 +111,7 @@ class Mycelium:
         budget = budget if budget is not None else self.budget
         if budget:
             extra += ["--budget", budget]
-        return self._json(self._bin, self._json_args("get-callers", [path], extra))
+        return self._json(self._bin, self._json_args("get-callers", [_guard_positional(path, "path")], extra))
 
     def get_callees(
         self,
@@ -102,7 +126,7 @@ class Mycelium:
         budget = budget if budget is not None else self.budget
         if budget:
             extra += ["--budget", budget]
-        return self._json(self._bin, self._json_args("get-callees", [path], extra))
+        return self._json(self._bin, self._json_args("get-callees", [_guard_positional(path, "path")], extra))
 
     def context(
         self,
