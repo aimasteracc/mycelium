@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v85 — PR #603 merged (`5303351`); PR #604 closed superseded; PR #605 merged (`b373cb8`, PM state v84); PR #606 opened (RFC-0114 Phase 2 project-health CLI+MCP+Skill, CI running); PR #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 MERGED. RFC-0114 Phase 2 PR #606 open (CI running). |
+| Last updated | 2026-06-06 (PM dispatch v86 — PR #607 merged (`755c2048`, PM state v85); PR #606 CI fixed (contract test 93→94 + symbol_nodes denominator) + Codex P2 fixed; CI re-running; PR #568 v0.3.0 ceremony P0 unchanged) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 MERGED. RFC-0114 Phase 2 PR #606 CI re-running (2 fixes pushed). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -115,7 +115,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **ci(nightly): fix mutants.out file/directory collision** — PR #597 MERGED (`b36d3ff`). `tee mutants.out` created a plain file conflicting with cargo-mutants' `mutants.out/` output directory → renamed to `mutants.log`.
 - [x] **ci(nightly): upload mutants.out/ report directory as artifact** — PR #603 MERGED (squash `5303351`). Closes Issue #601.
 - [x] **chore(pm): PM state v84** — PR #604 closed superseded; PR #605 MERGED (squash `b373cb8`).
-- [ ] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 open; CI running. `Store::health()` adapter + `mycelium project-health` CLI + `mycelium_project_health` MCP + graph-structure Skill entry. RFC-0114 Status → Implemented.
+- [x] **chore(pm): PM state v85** — PR #607 MERGED (squash `755c2048`). Codex P1 rejected (stale SHA, DCO CI ✅).
+- [ ] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 open; CI re-running (2 fixes: `EXPECTED_TOOL_COUNT` 93→94 + `symbol_nodes().count()` denominator). Codex P2 fixed (`bba7afe`). Merge when CI green + Codex OK.
 
 ---
 
@@ -143,12 +144,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v85)
+## Dispatch state (2026-06-06 v86)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #606 (RFC-0114 Phase 2 project-health) once CI green + Codex OK — zero breaking changes. |
-| PM | **DONE ✅** | v85: PRs #603+#605 merged, #604 closed, #606 opened (RFC-0114 Phase 2), PM state v85 pushed. |
+| PM | **DONE ✅** | v86: PR #607 merged; PR #606 CI fixed (2 commits) + Codex P2 fixed; all Codex threads addressed. PM state v86 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -185,6 +186,28 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v86 (this run)
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/tdd/merge-discipline/git-workflow), PM state v85 (HEAD `755c2048` after #607 merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #607 (PM v85, CI ✅ 22/22, Codex P1 — stale SHA), #606 (RFC-0114 Phase 2, CI ❌ 5 failing jobs), #568 (release/v0.3.0, awaiting finalize).
+- 0 open P0/P1 issues.
+- Develop CI: HEAD `755c2048` (PM v85 squash). All checks green.
+- PR #606 CI root cause: `EXPECTED_TOOL_COUNT = 93` but `mycelium_project_health` makes it 94 → `all_tools_return_non_empty_content` + `tool_count_matches_expected` FAILED.
+
+**Actions taken:**
+1. **Replied to PR #607 Codex P1** (DCO missing on `4d3d991`): rejected — DCO CI job ✅ on HEAD `d3ea7f1a`; Codex SHA not in branch. ✅
+2. **Merged PR #607** (PM state v85, squash `755c2048`, CI ✅ 22/22, Codex P1 rejected). ✅
+3. **Fixed PR #606 CI failure**: bumped `EXPECTED_TOOL_COUNT` 93→94 in `crates/mycelium-mcp/tests/contract.rs` (commit `1ec3127`). ✅
+4. **Fixed PR #606 Codex P2**: `Store::health()` `node_count()` → `symbol_nodes().count()` — file nodes excluded from denominator so dead/isolated ratios measure same population (commit `bba7afe`). Replied to Codex thread confirming fix. ✅
+5. **Pushed both fixes** to `feature/RFC-0114-ph2-project-health`; CI re-triggered. ✅
+6. **PM state v86** written; decisions.jsonl v86 entry appended. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch.
+- **(P1)** Admin-merge PR #606 once CI green (re-running now) + Codex OK (P2 fixed, reply posted).
 
 ### 2026-06-06 PM dispatch v85 (this run)
 
