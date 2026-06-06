@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v78 — founder merged PRs #575–#580/#587/#588 (TSA-reuse + VS Code + GH Action); PM v77 PR #592 Codex P2 fixed + CI green → merged; develop HEAD post-#587; v0.3.0 ceremony still READY) |
+| Last updated | 2026-06-06 (PM dispatch v79 — PR #592 closed superseded (stale base); PR #593 (PM v78) Codex P2 addressed + merged; v77 decisions.jsonl entry retroactively appended; PR #568 v0.3.0 ceremony P0 escalation; RFC-0113 Phase 2 is next autonomous P1) |
 | Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase 1 implementations** on deck (P1 — autonomous). All 8 TSA-reuse/editor/integration PRs now on develop. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
@@ -138,12 +138,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v78)
+## Dispatch state (2026-06-06 v79)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (or manual Steps 1–4). crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** After v0.3.0 ships: VS Code Phase 1.5 (`vsce publish` + marketplace metadata) + GitHub Action live run. |
-| PM | **DONE ✅** | v78: PR #592 Codex P2 fixed (`aabc75d`, reply posted) + merged; PM state v78 pushed + merged; decisions.jsonl appended. |
+| PM | **DONE ✅** | v79: PR #592 closed (superseded, stale base); PR #593 (PM v78) Codex P2 addressed (option b) + merged (`c2b6386`); v77 decisions entry retroactively appended; PM state v79 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -181,7 +181,30 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ## Archive
 
-### 2026-06-06 PM dispatch v78 (this run)
+### 2026-06-06 PM dispatch v79 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: release-governance/merge-discipline/ci/append-only/git-workflow), PM state v78 (develop HEAD `c2b6386` post-#593 squash), v0.2 PRD.
+
+**Assessment (current GitHub state):**
+- 3 open PRs: #568 (release/v0.3.0 → main; CI ✅ 28/28; all registries published; `finalize` skipped = founder workflow_dispatch required), #592 (PM v77 chore; stale base `61350b59`; Codex P2 outdated; CI ✅ 20/20), #593 (PM v78 chore; CI ✅ 22/22; 1 live Codex P2 — missing v77 decisions.jsonl entry).
+- 1 open issue: #555 (auto-closes when #568 → main).
+- Key finding: v77 decisions.jsonl entry missing from develop — PR #592 was never merged despite v78 claiming it; stale base (`61350b59` vs develop `8fc2f0a`) blocked clean merge. PR #593's Codex P2 finding correctly identified this gap.
+
+**Actions taken:**
+1. **Closed PR #592** (PM v77 chore; stale base; superseded by v79 chore which appends the v77 entry). Closing comment posted with rationale. ✅
+2. **Addressed Codex P2 on PR #593** (option b — explicit rejection with justification): v77 decisions entry will be appended in v79 chore; v77 content preserved in v78 PM state archive; append-only discipline maintained. Replied to Codex thread `PRRT_kwDOSq56sc6HiCDr`. ✅
+3. **Merged PR #593** (PM v78 state, squash `c2b6386`, CI ✅ 22/22, Codex P2 addressed with option b). ✅
+4. **Appended decisions.jsonl**: v77 entry (retroactive reconstruction from PM state archive, timestamped to run time ~03:10Z) + v79 entry (this run). Append-only discipline preserved; both entries added before v78 and v79 chore push. ✅
+5. **PM state v79 written** (this file): header, dispatch state, archive updated. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: `gh pr merge --admin --squash #568` → main, tag `v0.3.0`, GH Release, back-merge. **crates.io ✅ npm ✅ PyPI ✅ already published — do NOT republish.**
+- **(P1, post-v0.3.0)** VS Code Phase 1.5: `vsce publish` wiring + marketplace metadata sign-off.
+- **(P1, post-v0.3.0)** GitHub Action live run on this repo.
+
+---
+
+### 2026-06-06 PM dispatch v78 (prior run — PR #593)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: release-governance/merge-discipline/ci/append-only), PM state v77 (branch `chore/pm-state-v77`), v0.2 PRD.
 
