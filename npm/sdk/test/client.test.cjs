@@ -152,3 +152,24 @@ test("a constructor-level budget is applied when a method omits its own", async 
     "get-callees", "a>b", "--root", ".", "--format", "json", "--budget", "small",
   ]);
 });
+
+test("argv-smuggling guard: a leading-'-' positional is rejected, never spawned", async () => {
+  const { client, calls } = spyClient();
+  // Each bare positional that flows into argv must reject a leading "-" so it
+  // can't be re-parsed by the CLI as a flag (e.g. a query of "--root").
+  await assert.rejects(async () => client.query("--root"), MyceliumError);
+  await assert.rejects(async () => client.searchSymbol("-x"), MyceliumError);
+  await assert.rejects(async () => client.getSymbolInfo("--format"), MyceliumError);
+  await assert.rejects(async () => client.getCallers("-evil"), MyceliumError);
+  await assert.rejects(async () => client.getCallees("-evil"), MyceliumError);
+  await assert.rejects(async () => client.index("--root=/etc"), MyceliumError);
+  // The guard fires before the binary is ever spawned.
+  assert.equal(calls.length, 0);
+});
+
+test("argv-smuggling guard: ordinary values still pass through", async () => {
+  const { client, calls } = spyClient();
+  await client.query("#login"); // '#', not '-' — fine
+  await client.index("./src");
+  assert.equal(calls.length, 2);
+});

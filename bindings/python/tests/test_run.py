@@ -1,7 +1,10 @@
 # Unit tests for the SDK runner (spawn + parse + error model, RFC-0111 Phase 2).
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
+from mycelium_rcig import _run
 from mycelium_rcig._run import run_json, run_text, default_spawn, MyceliumError
 
 
@@ -74,6 +77,28 @@ class DefaultSpawnOsErrorTests(unittest.TestCase):
             result = default_spawn(d, [])
             self.assertEqual(result["status"], 127)
             self.assertIsNone(result["signal"])
+
+
+class DefaultSpawnOutputCapTests(unittest.TestCase):
+    """default_spawn streams output with a hard cap and kills overflowing children."""
+
+    def test_output_within_cap_passes_through(self):
+        # Emit 100 bytes under a 4 KiB cap — clean status, full payload.
+        prog = "import sys; sys.stdout.write('a' * 100)"
+        with mock.patch.object(_run, "MAX_OUTPUT_BYTES", 4096):
+            result = default_spawn(sys.executable, ["-c", prog])
+        self.assertEqual(result["status"], 0)
+        self.assertEqual(result["stdout"], "a" * 100)
+
+    def test_overflowing_output_is_capped_and_terminated(self):
+        # Emit 50 KiB against a 1 KiB cap — surfaced as status 137, payload
+        # truncated to the cap, stderr explains the termination.
+        prog = "import sys; sys.stdout.write('a' * (50 * 1024))"
+        with mock.patch.object(_run, "MAX_OUTPUT_BYTES", 1024):
+            result = default_spawn(sys.executable, ["-c", prog])
+        self.assertEqual(result["status"], 137)
+        self.assertLessEqual(len(result["stdout"]), 1024)
+        self.assertIn("cap", result["stderr"])
 
 
 if __name__ == "__main__":
