@@ -176,27 +176,45 @@ pub fn rank_entry_points(candidates: &[ScoredCandidate], opts: RankOpts) -> Vec<
 ### Phase 2 — thin Store adapter (signature unchanged)
 
 ```rust
-// context/mod.rs — seed_entry_points rewritten
+// context/mod.rs — seed_entry_points rewritten.
+// Codex P2 (PR #610) drove two corrections vs the original sketch:
+//  (a) DEDUP MUST MERGE, not discard: a path first seen via a fuzzy candidate
+//      and later via an exact one must end up exact_match=true (else the later
+//      exact observation is lost — `seen.insert ... continue` was a real bug).
+//  (b) STUB EXCLUSION must actually happen (the old comment promised it but the
+//      code didn't): drop bare/unresolved stub *candidates*, and count in-degree
+//      over REAL-symbol sources only, so a stub can't out-rank a real subsystem.
 pub fn seed_entry_points(store: &Store, candidates: &[String], max_nodes: usize) -> Vec<String> {
-    let mut scored: Vec<ranking::ScoredCandidate> = Vec::new();
-    let mut seen = std::collections::BTreeSet::new();
+    use std::collections::BTreeMap;
+    let mut by_path: BTreeMap<String, ranking::ScoredCandidate> = BTreeMap::new();
     let mut order = 0usize;
     let per_candidate = std::cmp::max(5, max_nodes / 3);
     for candidate in candidates.iter().take(10) {
         let cand_lc = candidate.to_ascii_lowercase();
         for path in store.search_symbol(candidate, per_candidate) {
-            if !seen.insert(path.clone()) { continue; }
-            // Stub-robust in-degree: exclude unknown/bare-stub callees from the count
-            // so resolver stubs don't inflate importance (in-scope; no RFC-0118 gate).
-            let importance = store.lookup(&path)
-                .map(|id| store.incoming(id, EdgeKind::Calls).len() as f64)
-                .unwrap_or(0.0);
+            // (b) skip unresolved/bare-stub candidates — not real subsystems.
+            // Interim (no RFC-0118): a bare path with no `>`, or a node the
+            // classifier marks Unknown. Post-RFC-0118: `NodeKind::Unresolved`.
+            if is_stub_candidate(store, &path) { continue; }
             let leaf = path.rsplit('>').next().unwrap_or(&path).to_ascii_lowercase();
-            let exact_match = leaf == cand_lc;
-            scored.push(ranking::ScoredCandidate { path, exact_match, importance, order });
-            order += 1;
+            let exact = leaf == cand_lc;
+            match by_path.get_mut(&path) {
+                // (a) merge — never lose a later exact match for an already-seen path.
+                Some(existing) => existing.exact_match |= exact,
+                None => {
+                    // (b) in-degree counts only edges whose SOURCE is a real symbol,
+                    // so resolver stubs don't inflate importance.
+                    let importance = store.lookup(&path)
+                        .map(|id| real_in_degree(store, id) as f64)
+                        .unwrap_or(0.0);
+                    by_path.insert(path.clone(),
+                        ranking::ScoredCandidate { path, exact_match: exact, importance, order });
+                    order += 1;
+                }
+            }
         }
     }
+    let scored: Vec<_> = by_path.into_values().collect();
     ranking::rank_entry_points(
         &scored,
         ranking::RankOpts { max_nodes, exclude_tests: true },
@@ -248,6 +266,7 @@ Per-request added cost is **O(C)**, where C = total candidate seeds collected = 
 - [ ] **AC-3a** `classify_camelcase_boundary` (NEW — Reviewers 1 & 2): `None` for `"src/cfg.rs>testbed"`, `"src/x.rs>testimony"`, `"src/c.ts>testableConfig"` (only `test`+Uppercase is a symbol signal).
 - [ ] **AC-4** `rank_orders_by_importance_desc_then_order`: equal exact/test-status candidates with importances `[3.0 order0, 9.0 order1, 9.0 order2]` rank as `[order1, order2, order0]`.
 - [ ] **AC-4a** `rank_exact_match_beats_fuzzy_high_importance` (NEW — Reviewer 3 blocker, RFC-0101 §3): an exact-name match with `importance:0.0` ranks ABOVE a fuzzy match with `importance:12.0` (same test-status).
+- [ ] **AC-4b** `dedup_merges_later_exact_match` (NEW — Codex P2 #610): with candidates `["build", "build_index"]` and a single path whose leaf is `build_index`, the path is observed first via the fuzzy candidate `build` then via the exact candidate `build_index`; the adapter must record `exact_match:true` (merge `|=`), not drop the later exact observation. RED against a `seen.insert(...) { continue }` dedup; GREEN with the merge-by-path map.
 - [ ] **AC-5** `all_test_corpus_never_empty`: when every candidate is test, `rank_entry_points(.., {exclude_tests:true}) ` returns a NON-empty list, importance-ranked.
 - [ ] **AC-5a** `all_test_corpus_caps_to_max_nodes` (NEW — Reviewer 2): when `non_test` empty AND test count > `max_nodes`, the result is non-empty AND length ≤ `max_nodes`.
 - [ ] **AC-6** `retain_tests_when_not_excluding`: with `exclude_tests:false` and a mix, test candidates appear AFTER all non-test candidates (demoted, not dropped).
