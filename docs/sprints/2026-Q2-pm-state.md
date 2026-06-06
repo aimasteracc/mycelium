@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v87 — PRs #606+#608+#609+#610+#611 merged; issues #612/#613/#614 opened (Codex spin-offs for RFC-0118/0119/0120); all 10 Codex findings addressed; RFC-0118/0119/0120 designs on develop; PR #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117/0118/0119/0120 Phase implementations** (P1 — autonomous). RFC-0113 Ph2 ✅ RFC-0114 Ph2 ✅. RFC-0118/0119/0120 design RFCs on develop; implementations next. |
+| Last updated | 2026-06-06 (PM dispatch v88 — PR #615 Codex P2 fixed (`68b8243`) + merged; PR #616 (RFC-0118 Part A NodeKind::Unresolved, squash `8b04acb2`) merged; PR #568 v0.3.0 ceremony P0 unchanged) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0118/0119/0120 Phase implementations** (P1 — autonomous). RFC-0113 Ph2 ✅ RFC-0114 Ph2 ✅ RFC-0118 Part A ✅. RFC-0118 Parts B+C (Issue #612) next. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -117,6 +117,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **chore(pm): PM state v84** — PR #604 closed superseded; PR #605 MERGED (squash `b373cb8`).
 - [x] **chore(pm): PM state v85** — PR #607 MERGED (squash `755c2048`). Codex P1 rejected (stale SHA, DCO CI ✅).
 - [x] **feat(health): RFC-0114 Phase 2 — project-health CLI+MCP+Skill** — PR #606 ✅ MERGED (squash `65f03a80`). `project-health` CLI/MCP/Skill done. Codex P2 fixed (`bba7afe`).
+- [x] **chore(pm): PM state v87** — PR #615 ✅ MERGED (Codex P2 fixed `68b8243`: stale PR #606 open→MERGED in Post-v0.3.0 list). PM state v87 on develop.
+- [x] **feat(core): RFC-0118 Part A — `NodeKind::Unresolved` de-noises symbol/rank/pagerank** — PR #616 ✅ MERGED (squash `8b04acb2`). No Codex findings. Part B (method disambiguation) + Part C (kind_map orphan) → Issue #612.
 
 ---
 
@@ -126,11 +128,11 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 1. **PR #568 finalize**: All registries published (crates.io ✅ npm ✅ PyPI ✅). Trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: merge #568 → main, tag `v0.3.0`, GH Release, back-merge. **Do NOT re-publish registries.**
 
 **P1 — Autonomous (implementations ready to proceed, TDD):**
-2. **RFC-0114 Phase 2**: ✅ **MERGED** — PR #606 (squash `65f03a80`). `project-health` CLI/MCP/Skill done.
-3. **RFC-0113 Phase 3** (Issue #598): Import-context gating for stdlib/external callee classification — thread caller file's import set into `callees_payload`; gate allowlist tier on presence of relevant import. Phase 2 merged `4adce0c`. **← rust-implementer next**
-4. **RFC-0118 Phase 1** (Issue #612): `NodeKind::Unresolved` + static receiver-type inference at extraction time. Design on develop (`bb70f2a9`). Implementation notes in Issue #612.
-5. **RFC-0119 Phase 1** (Issue #613): Pure scorer `rank_entry_points` + test classifier `classify_test_path`. Design on develop (`ca45aebf`). Implementation notes in Issue #613.
-6. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`). Implementation notes in Issue #614.
+2. **RFC-0118 Part A**: ✅ **MERGED** — PR #616 (squash `8b04acb2`). `NodeKind::Unresolved` + `is_real_symbol()` gate on all_symbols/page_rank/rank_symbols.
+3. **RFC-0118 Parts B+C** (Issue #612): method-call disambiguation (`get-callers=0`) + kind_map orphan fix — follow-up to Part A. **← rust-implementer next**
+4. **RFC-0113 Phase 3** (Issue #598): Import-context gating for stdlib/external callee classification — thread caller file's import set into `callees_payload`; gate allowlist tier on presence of relevant import. Phase 2 merged `4adce0c`.
+5. **RFC-0119 Phase 1** (Issue #613): Pure scorer `rank_entry_points` + test classifier `classify_test_path`. Design on develop (`ca45aebf`).
+6. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`).
 7. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs — TDD RED→GREEN.
 8. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD.
 9. **RFC-0117 Phase 1**: Pure `evaluate(rules, edges) → Vec<Violation>` — immutable frozen types. TDD.
@@ -147,16 +149,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v87)
+## Dispatch state (2026-06-06 v88)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action** | PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. |
-| PM | **DONE ✅** | v87: PRs #606+#608+#609+#610+#611 merged; issues #612/#613/#614 opened; all 10 Codex findings addressed; PM state v87 pushed. |
+| PM | **DONE ✅** | v88: PR #615 Codex P2 fixed + merged; PR #616 (RFC-0118 Part A, squash `8b04acb2`) merged; PM state v88 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1 — next** | RFC-0113 Phase 3 (import-context gating, Issue #598). Then RFC-0118/0119/0120/0115/0116/0117 Phase 1 per priorities above. |
+| rust-implementer | **P1 — next** | RFC-0118 Parts B+C (Issue #612): method-call disambiguation + kind_map orphan. Then RFC-0113 Phase 3 (Issue #598). Then RFC-0119/0120/0115/0116/0117 Phase 1. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -189,6 +191,25 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v88 (this run)
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/merge-discipline/tdd/three-surface/git-workflow), PM state v87 (from chore/pm-state-v87 branch), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #615 (PM state v87, CI ✅ 22/22, 1 Codex P2 — stale PR #606 open status), #616 (RFC-0118 Part A NodeKind::Unresolved, CI in_progress, no Codex yet), #568 (v0.3.0 ceremony, awaiting founder finalize).
+- 0 open P0/P1 issues.
+- Develop CI: HEAD `33125d5c` (RFC-0120, from v87 merged PRs). All checks green.
+- v0.3.0: crates.io ✅ npm ✅ PyPI ✅ all published; PR #568 awaiting founder `finalize` workflow_dispatch. Prior PM v64 comment on #568 has full instructions.
+
+**Actions taken:**
+1. **Fixed PR #615 Codex P2** (stale PR #606 open status in Post-v0.3.0 list): updated line 119 `- [ ] ... PR #606 open` → `- [x] ... PR #606 ✅ MERGED (squash 65f03a80)`; commit `68b8243`; pushed to branch; replied to Codex thread. ✅
+2. **Merged PR #615** (PM state v87, squash, CI ✅, Codex P2 fixed). ✅
+3. **Merged PR #616** (RFC-0118 Part A NodeKind::Unresolved, Quality Gate ✅ 14:09:08Z, 0 Codex findings, squash `8b04acb2`). ✅
+4. **PM state v88** written; decisions.jsonl v88+v88b entries appended. ✅
+
+**Escalations to founder:**
+- **(P0) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. All registries published; founder action required for Steps 1–4. Full instructions on PR #568 (PM v64 comment 2026-06-05T13:07Z).
 
 ### 2026-06-06 PM dispatch v87 (this run)
 
