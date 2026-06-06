@@ -167,7 +167,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 **Assessment (current GitHub state):**
 - 8 open PRs: #568 (v0.3.0 ceremony READY), #575/#578/#579/#580 (design RFCs, founder review), #576 (RFC-0113 impl, CI FAILURE docs job), #577 (RFC-0114 Phase 1, CI ✅ 20/20), #584 (PM v72 chore, CI running on `e566c05`).
-- 1 open issue: #555 (RFC-0103 per-edge rewrite enhancement — confirmed tracked).
+- 0 open issues (Issue #555 closed by PR #572 `7190d327` in v71).
 - Develop CI ✅ (HEAD c62b4c2, v71 chore squash).
 
 **Actions taken:**
