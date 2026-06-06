@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **RFC-0118 Part B Phase 1: pure receiver-inference core (`resolver::receiver`
+  module).** New side-effect-free `infer_receiver_type` + `disambiguate` functions
+  over plain `ReceiverContext` / `Candidate` structs. Five inference rules
+  (self/cls/this → impl type; param annotation; local constructor; field annotation;
+  import alias terminal). Used by the post-merge pass in Phase 2b to disambiguate
+  multi-match method stubs (`get-callers = 0` root cause). 14 unit tests, ≥ 90%
+  coverage on the new module.
+
+- **RFC-0118 Part C: resolver passes now clean `kind_map` + `span_map` when
+  removing a resolved stub.** Previously `resolve_bare_call_stubs_simple`,
+  `resolve_import_aware_stubs`, and `resolve_import_aware_extends_stubs` called
+  `self.trunk.remove(stub_id)` directly, leaving a stale `NodeKind::Unresolved`
+  entry in `kind_map`. Since `NodeId` is content-derived from the path, this entry
+  would survive re-index cycles. All three passes now route through
+  `Store::remove_node` which cleans `trunk`, `synapse`, `kind_map`, and `span_map`
+  atomically. Two regression tests added (AC-3).
+
 - **RFC-0118 Part A: unresolved-callee phantoms no longer pollute the symbol
   universe.** The resolver mints placeholder nodes for calls it can't statically
   resolve (e.g. `unwrap`, `HashMap`, `Db>upsert_node`) and links a `Calls` edge

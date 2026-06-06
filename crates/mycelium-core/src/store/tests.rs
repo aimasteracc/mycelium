@@ -6505,3 +6505,77 @@ fn store_health_connected_project_grades_a() {
         report.grade.as_str()
     );
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// RFC-0118 Part C — resolver pass kind_map hygiene
+// ──────────────────────────────────────────────────────────────────────
+
+/// AC-3 (Part C): After `resolve_bare_call_stubs()`, the resolved stub's `kind_map`
+/// entry is cleaned up. Stale `kind_map[stub_id] = Unresolved` must NOT survive
+/// stub removal — it would re-appear across re-index cycles since `NodeId` is
+/// content-derived from the path.
+#[test]
+fn resolve_bare_call_stubs_simple_cleans_kind_map() {
+    let mut store = Store::new();
+
+    // Caller node.
+    let caller_id = store.upsert_node(path("src/main.rs>main"));
+
+    // Unresolved bare stub: a bare name (no '>') with NodeKind::Unresolved.
+    let stub_path = TrunkPath::parse("upsert_node").unwrap();
+    let stub_id = store.upsert_node_with_kind(stub_path, NodeKind::Unresolved);
+
+    // Caller calls the stub.
+    store.upsert_edge(EdgeKind::Calls, caller_id, stub_id);
+
+    // Unique definition — resolve_bare_call_stubs_simple will bind stub → def.
+    let _def_id = store.upsert_node(path("src/store.rs>Store>upsert_node"));
+
+    // Pre-condition: kind_map has the Unresolved entry.
+    assert_eq!(store.kind_of(stub_id), Some(NodeKind::Unresolved));
+
+    store.resolve_bare_call_stubs();
+
+    // Post-condition (AC-3): stub removed from trunk AND from kind_map.
+    assert!(
+        store.lookup("upsert_node").is_none(),
+        "stub must be removed from trunk"
+    );
+    assert!(
+        store.kind_of(stub_id).is_none(),
+        "kind_map must not retain a stale Unresolved entry for the resolved stub"
+    );
+}
+
+/// AC-3b: `resolve_import_aware_stubs` also cleans `kind_map` for stubs it resolves.
+#[test]
+fn resolve_import_aware_stubs_cleans_kind_map() {
+    let mut store = Store::new();
+
+    // Two files, one imports the other.
+    let file_a = store.upsert_node_with_kind(TrunkPath::parse("src/a.rs").unwrap(), NodeKind::File);
+    let file_b = store.upsert_node_with_kind(TrunkPath::parse("src/b.rs").unwrap(), NodeKind::File);
+    store.upsert_edge(EdgeKind::Imports, file_a, file_b);
+
+    // Caller in a.rs.
+    let caller_id = store.upsert_node(path("src/a.rs>caller_fn"));
+    // Two competing definitions — simple pass won't resolve (ambiguous).
+    let _def_b = store.upsert_node(path("src/b.rs>Module>helper"));
+    let _def_c = store.upsert_node(path("src/c.rs>Other>helper"));
+
+    // Bare stub.
+    let stub_path = TrunkPath::parse("helper").unwrap();
+    let stub_id = store.upsert_node_with_kind(stub_path, NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, caller_id, stub_id);
+
+    assert_eq!(store.kind_of(stub_id), Some(NodeKind::Unresolved));
+
+    store.resolve_bare_call_stubs();
+
+    // Import-aware pass resolves to b.rs (caller imports b.rs).
+    // kind_map entry must be gone.
+    assert!(
+        store.kind_of(stub_id).is_none(),
+        "import-aware pass must clean kind_map for resolved stubs"
+    );
+}

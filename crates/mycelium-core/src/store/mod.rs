@@ -1233,7 +1233,10 @@ impl Store {
             if matches.len() == 1 {
                 let def_id = matches[0];
                 self.synapse.redirect_node(stub_id, def_id);
-                self.trunk.remove(stub_id);
+                // RFC-0118 Part C: route through remove_node so kind_map + span_map
+                // are cleaned alongside trunk. redirect_node already cleared synapse,
+                // so the synapse.remove_node call inside is a no-op.
+                self.remove_node(stub_id);
                 resolved += 1;
             }
         }
@@ -1326,7 +1329,8 @@ impl Store {
 
             if let Some(def_id) = best_def {
                 self.synapse.redirect_node(stub_id, def_id);
-                self.trunk.remove(stub_id);
+                // RFC-0118 Part C: kind_map + span_map hygiene (same as simple pass).
+                self.remove_node(stub_id);
                 resolved += 1;
             }
         }
@@ -1446,7 +1450,9 @@ impl Store {
             // Checking only Extends-incoming would corrupt the graph when the
             // same bare name also has Calls/References edges (Codex P2, PR #572).
             if self.synapse.is_isolated(stub_id) {
-                self.trunk.remove(stub_id);
+                // RFC-0118 Part C: kind_map + span_map hygiene. Stub is already
+                // isolated so synapse.remove_node inside is a no-op.
+                self.remove_node(stub_id);
                 resolved += 1;
             }
         }

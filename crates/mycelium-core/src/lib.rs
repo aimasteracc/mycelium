@@ -45,6 +45,7 @@ pub mod error;
 pub mod extractor;
 pub mod health;
 pub mod queries;
+pub mod resolver;
 pub mod store;
 pub mod synapse;
 pub mod test_gap;
