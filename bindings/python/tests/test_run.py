@@ -1,6 +1,7 @@
 # Unit tests for the SDK runner (spawn + parse + error model, RFC-0111 Phase 2).
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -99,6 +100,23 @@ class DefaultSpawnOutputCapTests(unittest.TestCase):
         self.assertEqual(result["status"], 137)
         self.assertLessEqual(len(result["stdout"]), 1024)
         self.assertIn("cap", result["stderr"])
+
+    def test_overflow_kills_a_child_that_holds_the_pipe_open(self):
+        # Regression (Codex P2, PR #590): a runaway child that writes past the
+        # cap then keeps the pipe open (here: sleeps 30 s) must be KILLED the
+        # moment overflow is seen, not awaited — otherwise the drain loop hangs
+        # to EOF. With the kill-on-overflow fix the call returns in well under
+        # the sleep; the 30 s sleep merely bounds the damage if it ever breaks.
+        prog = (
+            "import sys, time; sys.stdout.write('a' * (50 * 1024)); "
+            "sys.stdout.flush(); time.sleep(30)"
+        )
+        start = time.monotonic()
+        with mock.patch.object(_run, "MAX_OUTPUT_BYTES", 1024):
+            result = default_spawn(sys.executable, ["-c", prog])
+        elapsed = time.monotonic() - start
+        self.assertEqual(result["status"], 137)
+        self.assertLess(elapsed, 10.0, "overflow did not kill the child promptly")
 
 
 if __name__ == "__main__":

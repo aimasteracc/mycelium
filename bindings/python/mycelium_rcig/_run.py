@@ -32,17 +32,23 @@ class MyceliumError(Exception):
         self.args_ = list(args) if args is not None else []
 
 
-def _drain_capped(stream, limit, out):
+def _drain_capped(stream, limit, out, on_overflow):
     """Read ``stream`` into ``out['data']`` (a bytearray), capped at ``limit``.
 
-    Sets ``out['overflow']`` if more than ``limit`` bytes arrive. Always drains
-    the pipe to EOF (even past the cap, discarding the excess) so the child never
-    blocks on a full pipe — the caller kills it once overflow is observed.
+    On the first byte past ``limit`` this sets ``out['overflow']`` and calls
+    ``on_overflow`` — which kills the child so *both* pipes reach EOF promptly —
+    then keeps looping only to drain whatever the kernel already buffered
+    (a runaway child that never closes the pipe would otherwise hang the read
+    forever; killing it is what guarantees EOF).
     """
     data = out["data"]
     overflow = False
     while True:
-        chunk = stream.read(65536)
+        # read1: one underlying syscall, returns whatever is already available
+        # rather than blocking until the full 64 KiB (or EOF) arrives. With
+        # plain .read(n) the loop would block past the cap until the child
+        # closed the pipe — defeating the kill-on-overflow guard entirely.
+        chunk = stream.read1(65536)
         if not chunk:
             break
         if not overflow and len(data) + len(chunk) > limit:
@@ -51,9 +57,11 @@ def _drain_capped(stream, limit, out):
             keep = limit - len(data)
             if keep > 0:
                 data.extend(chunk[:keep])
+            on_overflow()  # kill the child NOW so this and the sibling pipe EOF
         elif not overflow:
             data.extend(chunk)
-        # past the cap we keep looping to drain, discarding the bytes
+        # past the cap we keep looping to drain the already-buffered bytes; the
+        # kill above ensures the stream closes rather than feeding us forever.
 
 
 def default_spawn(binary, args):
@@ -79,21 +87,30 @@ def default_spawn(binary, args):
         return {"status": 127, "signal": None, "stdout": "", "stderr": str(err)}
 
     # Drain stderr on a thread so a child that fills its stderr pipe while we
-    # read stdout can't deadlock. stderr shares the same cap.
+    # read stdout can't deadlock. stderr shares the same cap. The moment either
+    # stream overflows, `kill_once` terminates the child so BOTH pipes reach EOF
+    # and neither drain loop can hang on a child that never closes the pipe.
+    kill_lock = threading.Lock()
+    killed = {"done": False}
+
+    def kill_once():
+        with kill_lock:
+            if not killed["done"]:
+                killed["done"] = True
+                proc.kill()
+
     out = {"data": bytearray(), "overflow": False}
     err_out = {"data": bytearray(), "overflow": False}
     err_thread = threading.Thread(
-        target=_drain_capped, args=(proc.stderr, MAX_OUTPUT_BYTES, err_out)
+        target=_drain_capped, args=(proc.stderr, MAX_OUTPUT_BYTES, err_out, kill_once)
     )
     err_thread.start()
-    _drain_capped(proc.stdout, MAX_OUTPUT_BYTES, out)
+    _drain_capped(proc.stdout, MAX_OUTPUT_BYTES, out, kill_once)
     err_thread.join()
     proc.stdout.close()
     proc.stderr.close()
 
     overflowed = out["overflow"] or err_out["overflow"]
-    if overflowed:
-        proc.kill()
     rc = proc.wait()
 
     stdout = out["data"].decode("utf-8", "replace")
