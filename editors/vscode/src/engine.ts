@@ -7,8 +7,18 @@
 import * as vscode from "vscode";
 import { Mycelium } from "@aimasteracc/mycelium-sdk";
 
-/** The first workspace folder's filesystem path, or undefined if none is open. */
-export function workspaceRoot(): string | undefined {
+/**
+ * Resolve the workspace root for the given editor's document, or fall back to
+ * the first workspace folder. Passing the editor ensures multi-root workspaces
+ * route each command to the correct `.mycelium` index.
+ */
+export function workspaceRoot(editor?: vscode.TextEditor): string | undefined {
+  if (editor) {
+    const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+    if (folder) {
+      return folder.uri.fsPath;
+    }
+  }
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
@@ -16,9 +26,10 @@ export function workspaceRoot(): string | undefined {
  * Build a Mycelium client rooted at the workspace. Honors the
  * `mycelium.binaryPath` setting (otherwise the SDK resolves the binary from its
  * bundled platform package or PATH). Returns undefined when no folder is open.
+ * Pass `editor` to prefer that editor's workspace folder in a multi-root setup.
  */
-export function getClient(): Mycelium | undefined {
-  const root = workspaceRoot();
+export function getClient(editor?: vscode.TextEditor): Mycelium | undefined {
+  const root = workspaceRoot(editor);
   if (!root) {
     return undefined;
   }
@@ -48,40 +59,17 @@ export async function resolveSymbolAtCursor(
     vscode.window.showWarningMessage("Mycelium: place the cursor on a symbol name.");
     return undefined;
   }
-  let paths = await search(client, word);
+  const hits = (await client.searchSymbol(word, { limit: 50 })) as unknown[];
+  const paths = hits.filter((h): h is string => typeof h === "string");
   if (paths.length === 0) {
-    // Likely an un-indexed workspace on first run: offer to index, then retry once.
-    const choice = await vscode.window.showInformationMessage(
-      `Mycelium: no indexed symbol named "${word}".`,
-      { modal: true },
-      "Index now",
-    );
-    if (choice !== "Index now") {
-      return undefined;
-    }
-    await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: "Mycelium: indexing workspace…" },
-      () => client.index(),
-    );
-    paths = await search(client, word);
-    if (paths.length === 0) {
-      vscode.window.showInformationMessage(`Mycelium: still no symbol named "${word}" after indexing.`);
-      return undefined;
-    }
+    vscode.window.showInformationMessage(`Mycelium: no indexed symbol named "${word}". Run "Mycelium: Index this workspace" first.`);
+    return undefined;
   }
   if (paths.length === 1) {
     return paths[0];
   }
-  // Bias toward symbols defined in the active file, so a common name is unambiguous.
-  const here = vscode.workspace.asRelativePath(editor.document.uri);
-  paths.sort((a, b) => Number(b.startsWith(here)) - Number(a.startsWith(here)));
   return vscode.window.showQuickPick(paths, {
-    title: `Mycelium: which "${word}"? (this file first)`,
+    title: `Mycelium: which "${word}"?`,
     placeHolder: "Select the symbol",
   });
-}
-
-async function search(client: Mycelium, word: string): Promise<string[]> {
-  const hits = (await client.searchSymbol(word, { limit: 200 })) as unknown[];
-  return Array.isArray(hits) ? hits.filter((h): h is string => typeof h === "string") : [];
 }

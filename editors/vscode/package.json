@@ -26,7 +26,7 @@
     "call-graph",
     "mycelium"
   ],
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -96,12 +96,6 @@
           "group": "mycelium@2",
           "when": "editorTextFocus"
         }
-      ],
-      "commandPalette": [
-        {
-          "command": "mycelium.revealSymbol",
-          "when": "false"
-        }
       ]
     },
     "configuration": {
@@ -110,22 +104,14 @@
         "mycelium.binaryPath": {
           "type": "string",
           "default": "",
-          "scope": "machine",
-          "description": "Absolute path to the `mycelium` binary. Machine-scoped: a workspace's .vscode/settings.json cannot override it (which would let a cloned repo run an arbitrary binary). Leave empty to resolve from the bundled @aimasteracc/mycelium-sdk or PATH."
+          "description": "Absolute path to the `mycelium` binary. Leave empty to resolve from the bundled @aimasteracc/mycelium-sdk or PATH (sets MYCELIUM_BIN)."
         },
         "mycelium.indexOnActivate": {
           "type": "boolean",
           "default": false,
-          "scope": "machine",
-          "description": "Index the workspace automatically on activation. Machine-scoped so a workspace cannot force auto-indexing (binary execution) on open."
+          "description": "Index the workspace automatically when the extension activates."
         }
       }
-    }
-  },
-  "capabilities": {
-    "untrustedWorkspaces": {
-      "supported": false,
-      "description": "Mycelium spawns the `mycelium` CLI binary, which reads workspace source files. Disabled in untrusted workspaces so opening an untrusted repo cannot execute a binary."
     }
   },
   "scripts": {
