@@ -144,6 +144,29 @@ class ClientTests(unittest.TestCase):
             ["get-callees", "a>b", "--root", ".", "--format", "json", "--budget", "small"],
         )
 
+    def test_argv_smuggling_guard_rejects_leading_dash(self):
+        # Every bare positional that flows into argv must reject a leading "-"
+        # so it can't be re-parsed by the CLI as a flag — and reject *before*
+        # the binary is ever spawned.
+        client, calls = spy_client()
+        for call in (
+            lambda: client.query("--root"),
+            lambda: client.search_symbol("-x"),
+            lambda: client.get_symbol_info("--format"),
+            lambda: client.get_callers("-evil"),
+            lambda: client.get_callees("-evil"),
+            lambda: client.index("--root=/etc"),
+        ):
+            with self.assertRaises(MyceliumError):
+                call()
+        self.assertEqual(calls, [])
+
+    def test_argv_smuggling_guard_allows_ordinary_values(self):
+        client, calls = spy_client()
+        client.query("#login")  # '#', not '-' — fine
+        client.index("./src")
+        self.assertEqual(len(calls), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
