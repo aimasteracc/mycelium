@@ -34,10 +34,11 @@ The original draft claimed these phantoms are "counted as real symbols by `dead_
 - `isolated_symbols` (`store/mod.rs:3282+`): requires zero in/out across all kinds.
 - `entry_points` (`store/mod.rs:929+`): requires `incoming(Calls)` empty.
 
-Every minted phantom is the **target** of a `Calls` edge, so it has in-degree ≥ 1 and is **already excluded** from all three. The genuinely-leaking queries are exactly two:
+Every minted phantom is the **target** of a `Calls` edge, so it has in-degree ≥ 1 and is **already excluded** from all three. The genuinely-leaking queries are **three** (the draft said two; Codex P2 on PR #609 added the third):
 
 - **`all_symbols(None, None)`** (`store/mod.rs:2459`): filters `p.contains('>')` with **no edge-degree gate**, so the `prefix>callee` phantom is counted.
 - **`page_rank`** (`store/mod.rs:3937`): seeds from `symbol_nodes()` (a pure `p.contains('>')` filter, `trunk/mod.rs:244`), so the phantom enters the rank universe and is allotted PageRank mass; the output filter has no kind exclusion.
+- **`rank_symbols`** (`top_symbols_by_incoming` / `top_callee_symbols`): these iterate `trunk.all_paths()` and rank by incoming-edge count, and the extractor deliberately adds a `Calls` edge to every phantom — so both bare and qualified unresolved targets get ranked and can outrank real symbols in `mycelium rank-symbols` / `mycelium_rank_symbols`. Part A's `is_real_symbol` predicate gates this query too (with a CLI↔MCP parity snapshot — see AC-20).
 
 > The bare phantom (no `>`, e.g. `unwrap`) does **not** enter `all_symbols`/`page_rank`/`symbol_nodes()` (no `>`), and `all_file_paths` is already interim-guarded by a `NodeKind::File` presence-gate (`store/mod.rs:904`). Part A generalizes that presence-gate pattern from one query to the two that actually leak, and replaces the heuristic with an authoritative predicate.
 
@@ -121,12 +122,16 @@ Returns `None` when no rule fires. **No** rule crosses function boundaries, trac
 
 ### EXTRACTOR-SIDE wiring (Part B) — at the call site, Charter §4 compliant
 
-The extractor already reads the receiver identifier at `extractor/mod.rs:326-332` and computes a per-call-site `resolved_target` at `:366`. RFC-0118 inserts disambiguation **there**, before the shared-stub fallback:
+The extractor already reads the receiver identifier at `extractor/mod.rs:326-332` and computes a per-call-site `resolved_target` at `:366`.
 
-1. Build a per-call-site `ReceiverContext` from the in-scope alias table + the new binding facts (locals/params/fields/self).
-2. Call `infer_receiver_type` → `disambiguate` over the candidate definitions visible in the store.
-3. On `Resolution::Unique(path)`: bind the `Calls` edge directly to that definition's `NodeId` (no stub).
-4. On `Resolution::Ambiguous`: mint the placeholder via `upsert_node_with_kind(..., NodeKind::Unresolved)` exactly as today (just kinded now) and let the post-pass handle it conservatively.
+> **CORRECTION (Codex P1, PR #609): extraction-time *binding* is order-dependent and must NOT be done inline.** The CLI extracts every file/chunk first and only calls `resolve_bare_call_stubs()` after all files are merged. For `let s = Store::new(); s.upsert_node();` where `Store` is defined in a *later* file/chunk, an inline `disambiguate` at extraction time would see **no candidate**, fall back to the shared bare stub, and — because the shared stub carries no per-call-site context — the receiver type would be **lost**, leaving F5 unresolved and order-dependent. RFC-0118 therefore **captures** receiver context at extraction time but **resolves** it post-merge, two-phase:
+
+1. **Extraction (capture, no binding).** For every method call site, the extractor appends a `CallSiteContext { caller_id, method_name, receiver_ctx }` to a new `Store` side table (`call_site_contexts: Vec<CallSiteContext>`), where `receiver_ctx` holds the in-scope alias table + binding facts (locals/params/fields/self) for *that* call site. It still mints the kinded placeholder `upsert_node_with_kind(.., NodeKind::Unresolved)` + the conservative `Calls` edge exactly as today (so the caller is never falsely "dead"). No binding decision yet — later-file definitions do not exist at this point.
+2. **Post-merge resolution.** A new pass `resolve_call_site_contexts()` runs **after** the trie/synapse hold every definition (alongside the existing `resolve_bare_call_stubs()`). For each `CallSiteContext`: `infer_receiver_type(receiver_ctx)` → `disambiguate` over the now-complete candidate set.
+   - `Resolution::Unique(path)`: **rewire that call site** — add `Calls(caller_id → path)`; the caller→stub edge is removed only once *all* of that caller's call sites targeting the stub have resolved (a caller with both `store.upsert_node()` and `trunk.upsert_node()` produces two contexts → two precise edges; the shared stub edge is dropped only when none remain unresolved).
+   - `Resolution::Ambiguous`/`None`: leave the conservative stub edge; the existing single-match post-pass still applies.
+
+This makes F5 **order-independent**: a receiver type defined anywhere resolves, because resolution runs against the merged store, not mid-extraction. The `call_site_contexts` table is Codex's "post-merge call-site context table".
 
 The binding facts come from **new tree-sitter captures** added to each `packs/<lang>/queries.scm`: `@binding.local`, `@binding.ctor`, `@param.type`, `@field.type`. **Data only — no core edit adds a language** (1 file/pack, well within ≤3, Charter §4). The pure resolver stays language-agnostic.
 
@@ -190,6 +195,8 @@ The binding facts come from **new tree-sitter captures** added to each `packs/<l
 - [ ] **AC-17 (perf SLA).** Benchmark `page_rank` and `all_symbols` warm-query latency before/after Part A on the dogfood corpus; assert within the RFC-0104 warm-query budget (≤ the documented warm-query SLA number; no regression beyond noise). Benchmark extraction-time inference overhead per file is bounded and reported.
 - [ ] **AC-18 (quality gate).** `cargo fmt --check`; `cargo clippy --all-targets --all-features -- -D warnings`; `cargo test --all`; `cargo llvm-cov` on `crates/mycelium-core/src/resolver/receiver.rs` reports ≥90% lines.
 - [ ] **AC-19.** RFC acceptance-criteria checkboxes flipped `[ ]→[x]` as each lands; Status → Implemented when all green.
+- [ ] **AC-20 (rank_symbols de-noised — Codex P2 #609).** A multi-def fixture with a phantom unresolved callee asserts the phantom appears in neither `mycelium rank-symbols` nor `mycelium_rank_symbols` output after Part A, and that the CLI and MCP results are byte-identical (§5.13 1:1). RED today: the phantom currently ranks because it has an incoming `Calls` edge.
+- [ ] **AC-21 (order-independent F5 — Codex P1 #609).** A two-file fixture where the receiver type is defined in a file indexed *after* the call site (`let s = Store::new(); s.upsert_node();` with `Store` in a later chunk) asserts `get-callers` on `…>Store>upsert_node` includes the caller. RED with any extraction-time-inline binding; GREEN only with the post-merge `resolve_call_site_contexts()` pass.
 
 ---
 
