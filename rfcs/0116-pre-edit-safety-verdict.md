@@ -8,7 +8,7 @@
   (graph-native HealthReport: grade A–F + dimensions — an *optional input* to a
   full verdict; link resolves once that RFC lands), RFC-0115 (test-gap signal —
   the third input to a full verdict; sequence after it so we **compose, not
-  duplicate**), `mycelium_impact` (existing blast-radius/transitive-dependents —
+  duplicate**), `mycelium_get_reachable_to` (existing blast-radius/transitive-dependents —
   the **primary, already-extracted** input),
   [ADR-0010](../docs/adr/0010-no-live-lsp-prefer-scip-ingestion.md)
   (no live LSP — this verdict is pure graph arithmetic, the sanctioned static
@@ -35,7 +35,7 @@ test-gap signal into a single **`SAFE | CAUTION | REVIEW | UNSAFE`** verdict wit
 a short reason list and a pre-edit checklist. This answers the one question
 agents ask before mutating code: *"do I know enough before I touch this?"* It is
 **pure verdict logic over a metrics struct** — no new extraction, gated entirely
-on data `mycelium_impact` already produces. This is THE "agents know before they
+on data `mycelium_get_reachable_to` already produces. This is THE "agents know before they
 touch" story and directly powers the planned IDE plugin
 ([RFC-0112](0112-ide-plugin-vscode-thin-client.md)).
 
@@ -45,7 +45,7 @@ touch" story and directly powers the planned IDE plugin
    visibility into downstream impact. An agent told "just rename this" will
    happily mutate a 200-dependent foundation symbol exactly as readily as a
    dead private helper. Mycelium *already knows* the difference
-   (`mycelium_impact`, caller counts) — but only as raw numbers the agent must
+   (`mycelium_get_reachable_to`, caller counts) — but only as raw numbers the agent must
    interpret. A single verdict turns "47 transitive dependents" into an
    actionable **`UNSAFE` + checklist**.
 2. **Raw metrics are not a decision.** Charter's commercial positioning is
@@ -75,14 +75,17 @@ verdict logic must be testable with zero graph fixtures.
 
 pub struct EditMetrics {
     pub direct_callers: u32,         // from caller-count (already extracted)
-    pub blast_radius: u32,           // transitive dependents from mycelium_impact
+    pub blast_radius: u32,           // transitive dependents from mycelium_get_reachable_to
     pub symbol_found: bool,          // false ⇒ NOT_FOUND
     pub parse_broken: bool,          // true  ⇒ ERROR short-circuit (TSA M3 port)
     pub health: Option<HealthGrade>, // RFC-0114, optional
     pub test_gap: Option<TestGap>,   // RFC-0115, optional
 }
 
-pub enum Verdict { Safe, Caution, Review, Unsafe } // plus the envelope tokens below
+// Full enum — the decision axis AND the envelope/short-circuit tokens live in
+// ONE type so `parse_broken` → ERROR and `!symbol_found` → NOT_FOUND are
+// representable without changing the public type during implementation.
+pub enum Verdict { Safe, Caution, Review, Unsafe, Error, NotFound } // as_str → SAFE..NOT_FOUND
 
 pub struct EditVerdict {
     pub verdict: Verdict,
@@ -121,11 +124,19 @@ TSA `_build_required_actions` / `pre_edit_checklist`), e.g. `UNSAFE` →
 
 ### Phase 2 — thin Store adapter + CLI/MCP + Skill
 
-A thin adapter assembles `EditMetrics` from the existing engine (caller count +
-`mycelium_impact` blast radius; `health`/`test_gap` populated only once
-RFC-0114/0115 land) and surfaces it as a new capability `mycelium_safe_to_edit`
-on **both** CLI and MCP (1:1), covered by a category Skill (see Three-Surface
-below).
+A thin adapter assembles `EditMetrics` from the existing engine and surfaces it
+as a new capability `mycelium_safe_to_edit` on **both** CLI and MCP (1:1),
+covered by a category Skill (see Three-Surface below). The metric sources are
+the **already-shipped** reachability surface — no new extraction:
+
+- **`blast_radius`** = size of the transitive *dependents* set, from
+  `Store::reachable_to(id, kind, max_depth)` (MCP `mycelium_get_reachable_to` /
+  batch `Store::batch_reachable_to`) — i.e. "who depends on me", the impact
+  direction (see `crates/mycelium-mcp/src/lib.rs`). *(This is the real, shipped
+  surface — earlier drafts called it `mycelium_impact`, which is not a symbol in
+  the tree; the adapter MUST bind to `reachable_to`.)*
+- **`direct_callers`** = incoming-edge count from the existing callers query.
+- **`health` / `test_gap`** populated only once RFC-0114 / RFC-0115 land.
 
 ## Verdict vocabulary — reconcile, do not invent
 
@@ -155,7 +166,7 @@ it is a Phase-2 surfacing obligation, not an additive field:
   and JSON output (`{ verdict, reasons, checklist, blast_radius, direct_callers }`).
 - **Skill coverage (N:1).** The new CLI+MCP pair MUST appear in ≥1
   `skills/<category>/SKILL.md` `allowed-tools` — the natural home is the
-  pre-edit / impact category alongside `mycelium_impact`. No orphan, no
+  pre-edit / impact category alongside `mycelium_get_reachable_to`. No orphan, no
   Skill-only.
 
 ## Acceptance criteria
@@ -174,7 +185,7 @@ it is a Phase-2 surfacing obligation, not an additive field:
 
 **Phase 2 — adapter + surfaces:**
 - [ ] Thin Store adapter assembles `EditMetrics` from existing caller-count +
-      `mycelium_impact`; `health`/`test_gap` left `None` until RFC-0114/0115 land.
+      `mycelium_get_reachable_to`; `health`/`test_gap` left `None` until RFC-0114/0115 land.
 - [ ] `mycelium safe-to-edit` (CLI) + `mycelium_safe_to_edit` (MCP), byte-identical
       (parity snapshot test).
 - [ ] ≥1 category Skill lists the new pair in `allowed-tools`.
@@ -191,7 +202,7 @@ it is a Phase-2 surfacing obligation, not an additive field:
   competing (ADR-0010's reserved path): if/when SCIP lands it makes
   `blast_radius` more precise — but the verdict *function* is unchanged; it
   consumes whatever blast radius the engine computes.
-- **Let the agent eyeball raw `mycelium_impact` numbers.** Rejected: that is
+- **Let the agent eyeball raw `mycelium_get_reachable_to` numbers.** Rejected: that is
   the status quo and it fails — agents don't reliably convert "47 dependents"
   into "stop". The verdict's value is the *pre-digested gate*, per the
   context-layer positioning.
@@ -211,6 +222,6 @@ it is a Phase-2 surfacing obligation, not an additive field:
   graph all packs already feed.
 - **Charter §5.13 (Three-Surface):** ✅ honored — Phase 2 ships CLI ↔ MCP 1:1
   plus a covering category Skill. No surface is left behind.
-- **No new extraction / SLA:** ✅ — gated on existing `mycelium_impact` +
+- **No new extraction / SLA:** ✅ — gated on existing `mycelium_get_reachable_to` +
   caller-count data; the pure core does no I/O, so it cannot regress the
   extraction performance SLA.

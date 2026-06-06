@@ -52,7 +52,7 @@ pub struct EditMetrics {
     pub parse_broken: bool,
     /// Direct callers (incoming Calls edges).
     pub direct_callers: u32,
-    /// Transitive dependents (from `mycelium_impact`).
+    /// Transitive dependents (from `Store::reachable_to` / MCP `mycelium_get_reachable_to`).
     pub blast_radius: u32,
 }
 
