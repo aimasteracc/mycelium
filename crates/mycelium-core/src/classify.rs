@@ -585,13 +585,16 @@ static PYTHON_STDLIB_FUNCTIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(
 /// unittest.mock. Conservative — only overwhelmingly-test-framework names.
 static PYTHON_EXTERNAL_METHODS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     [
+        // NOTE: bare names that are also common *application* method names
+        // (skip, mark, text, target, event, patch, call) are deliberately
+        // EXCLUDED — they collide with ordinary user code (`obj.text`,
+        // `self.skip()`, `mock.call`) and would mislabel project calls as
+        // external. We keep only names distinctive enough to be unambiguous.
         // pytest
         "raises",
-        "skip",
         "skipif",
         "parametrize",
         "fixture",
-        "mark",
         "approx",
         "warns",
         "deprecated_call",
@@ -602,7 +605,6 @@ static PYTHON_EXTERNAL_METHODS: LazyLock<HashSet<&'static str>> = LazyLock::new(
         "integers",
         "sampled_from",
         "characters",
-        "text",
         "floats",
         "lists",
         "dictionaries",
@@ -611,8 +613,6 @@ static PYTHON_EXTERNAL_METHODS: LazyLock<HashSet<&'static str>> = LazyLock::new(
         "composite",
         "assume",
         "note",
-        "target",
-        "event",
         "reproduce_failure",
         // unittest.mock
         "assert_called_once_with",
@@ -627,8 +627,6 @@ static PYTHON_EXTERNAL_METHODS: LazyLock<HashSet<&'static str>> = LazyLock::new(
         "reset_mock",
         "configure_mock",
         "MagicMock",
-        "patch",
-        "call",
     ]
     .into_iter()
     .collect()
