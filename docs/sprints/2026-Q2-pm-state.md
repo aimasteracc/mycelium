@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v95 — PR #626 CI fix pushed (`da552d8`, rustdoc broken intra-doc link); Codex findings on #626+#627 handled; PR #627 admin-merged `2f8857d`; #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0119/0120/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0119 Phase 1 PR#623 ✅ merged. RFC-0119 Phase 2 PR#626 CI fix pushed (`da552d8`) → CI re-running, merge pending. |
+| Last updated | 2026-06-06 (PM dispatch v96 — PR #626 MERGED (`ee22f7e`, RFC-0119 Phase 2); RFC-0116 Phase 1 AC-2 implemented (health/test_gap escalation, 6 RED→GREEN tests); RFC-0115/0116/0117 Phase 1 ACs all [x]; PR #629 opened (CI running); PR #568 Codex thread resolved) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0116 Phase 1 AC-2 close + RFC-0115/0116/0117 Phase 1 AC housekeeping** (P1 — PR #629 CI running). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -138,7 +138,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 3. **RFC-0118 Parts B+C** (Issue #612): ✅ **MERGED** — PR #618 (squash `5b09145b`). Pure `resolver::receiver` core (Part B Phase 1, 14 tests) + resolver kind_map hygiene (Part C, 2 regression tests).
 4. **RFC-0113 Phase 3** (Issue #598): ✅ **MERGED** — PR #620 (squash `12cf4252`). Module-specific stdlib gate. Issue #598 closed.
 5. **RFC-0119 Phase 1** (Issue #613): ✅ **MERGED** — PR #623 (squash `5c8e9b9`). Pure ranking core.
-6. **RFC-0119 Phase 2** (Issue #613): **PR #626** — `seed_entry_points` BTreeMap adapter + `real_in_degree` + test demotion (AC-4b, AC-10, AC-11). CI running. **← admin-merge once CI green.**
+6. **RFC-0119 Phase 2** (Issue #613): ✅ **MERGED** — PR #626 (squash `ee22f7e`). `seed_entry_points` BTreeMap adapter + `real_in_degree` + test demotion (AC-4b, AC-10, AC-11). Codex P2 rejected.
 8. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`).
 9. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs — TDD RED→GREEN.
 10. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD.
@@ -160,12 +160,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #626 (RFC-0119 Phase 2) once CI green — fix commit `da552d8` addresses rustdoc broken intra-doc link + Codex P2 rejected. |
-| PM | **DONE ✅** | v95: PR #626 CI fix pushed (`da552d8`, rustdoc NodeKind path); Codex P2/#626 rejected; PR #627 Codex P1 rejected + admin-merged (`2f8857d`). |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #629 (RFC-0116 Phase 1 AC-2 + 0115/0116/0117 AC close) once CI green. |
+| PM | **DONE ✅** | v96: PR #626 MERGED; RFC-0116 Phase 1 AC-2 implemented (health/test_gap escalation); RFC-0115/0116/0117 ACs [x]; PR #629 opened; #568 Codex thread resolved. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | PR #626 CI fix pushed ✅ (RFC-0119 Phase 2, CI re-running). Next: RFC-0119 Phase 3 or RFC-0120 Phase 1. |
+| rust-implementer | **P1** | PR #629 opened ✅ (RFC-0116 Phase 1 AC-2 health/test_gap escalation). Next: RFC-0119 Phase 3 or RFC-0120 Phase 1. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (after #626 merges). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -198,6 +198,30 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v96 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v95 (develop HEAD `f0b4dd3`), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #568 (release/v0.3.0, CI all green/skipped, crates.io+npm+PyPI published, awaiting founder `finalize` workflow_dispatch).
+- 0 open P0/P1 issues.
+- Develop CI: GREEN (latest runs all `success`).
+- PR #626 (RFC-0119 Phase 2): MERGED `ee22f7e` (2026-06-06T22:06Z, 20/20 checks green, Codex P2 rejected with justification).
+- RFC-0115/0116/0117 Phase 1 modules already on develop (PM v87 era) but RFC ACs were all unchecked `[ ]` — TDD §5.1 Step-5 housekeeping gap identified.
+- RFC-0116 Phase 1 AC-2 specifically missing: `health`/`test_gap_uncovered` escalation not in `EditMetrics`; only blast-radius bands implemented.
+
+**Actions taken:**
+1. **Resolved outdated Codex thread** on PR #568 (P1 → founder replied + issue #560 closed; thread was `is_outdated: true`). ✅
+2. **Implemented RFC-0116 Phase 1 AC-2**: Added `health: Option<HealthGrade>` and `test_gap_uncovered: Option<bool>` to `EditMetrics`; `step_up` const fn; monotonic one-step escalation for D/F grades and uncovered symbols. TDD: wrote 6 RED tests (compile error confirmed), implemented GREEN. Clippy+fmt clean. ✅
+3. **Updated RFC-0115, RFC-0116, RFC-0117 Phase 1 ACs** from `[ ]` to `[x]`. ✅
+4. **Updated CHANGELOG Unreleased**. ✅
+5. **Opened PR #629** (`feat(verdict): RFC-0116 Phase 1 AC-2 + RFC-0115/0116/0117 Phase 1 AC close`). CI running. ✅
+6. **Updated PM state v96**, appended decisions.jsonl. ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: v0.3.0 ceremony — trigger `finalize` workflow_dispatch. crates.io ✅ npm ✅ PyPI ✅ all published; CI all green; Codex thread resolved.
+- **(2) PR #629**: Admin-merge once CI green (RFC-0116 Phase 1 AC-2 completion).
 
 ### 2026-06-06 PM dispatch v95 (this run)
 
