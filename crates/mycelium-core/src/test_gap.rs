@@ -60,6 +60,17 @@ pub struct TestGap {
 /// deliberately excluded.
 #[must_use]
 pub fn is_covered(span: &SymbolSpan, facts: &CoverageFacts) -> bool {
+    // An inverted span (`body_start > end_line`) makes the `..=` range empty, so
+    // `.any` is vacuously false — the symbol reads as uncovered with no signal
+    // that the span itself is corrupt. The debug-assert flags it in tests/dev;
+    // release still fails closed (uncovered) rather than panicking.
+    debug_assert!(
+        span.body_start <= span.end_line,
+        "inverted span for {}: body_start {} > end_line {}",
+        span.file,
+        span.body_start,
+        span.end_line
+    );
     facts
         .executed_lines
         .get(&span.file)
