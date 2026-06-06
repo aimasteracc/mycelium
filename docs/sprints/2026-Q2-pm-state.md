@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v78 — founder merged PRs #575–#580/#587/#588 (TSA-reuse + VS Code + GH Action); PM v77 PR #592 Codex P2 fixed + CI green → merged; develop HEAD post-#587; v0.3.0 ceremony still READY) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase 1 implementations** on deck (P1 — autonomous). All 8 TSA-reuse/editor/integration PRs now on develop. |
+| Last updated | 2026-06-06 (PM dispatch v80 — PR #594 merged (PM v79 + Codex P1 fix); PR #595 opened (RFC-0113 Phase 2 `class` field); develop CI ✅; v0.3.0 ceremony P0 escalation unchanged) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 open as PR #595. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -104,7 +104,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 - [x] **fix(sdk): argv-smuggling guard (Node+Py) + Python 64 MiB output cap** — PR #590, squash `61350b59` ✅ MERGED 2026-06-06 (founder). Security: `execFile`/`subprocess` argv smuggling via leading `-`; Python `maxBuffer` 64 MiB cap with kill on overflow.
 - [x] **docs(rfc): RFC-0113 stdlib/builtin callee classification design** — PR #575, squash `7c1a675x` ✅ MERGED 2026-06-06 (founder). TSA-reuse #1: cascaded project→stdlib→builtin→external→unknown tier; 83.9%→95.9% callee coverage. Phase 1 impl on develop via #576.
-- [x] **feat(core): RFC-0113 Phase 1 — `classify.rs` static callee classifier** — PR #576 ✅ MERGED 2026-06-06 (founder). Pure `classify_python(name) → CalleeClass`; ported TSA allowlists (82 stdlib modules, ~90 builtins, ~190 stdlib methods); 7 TDD tests. **Phase 2 (resolver wiring + `class` field + Three-Surface) is next P1 autonomous task.**
+- [x] **feat(core): RFC-0113 Phase 1 — `classify.rs` static callee classifier** — PR #576 ✅ MERGED 2026-06-06 (founder). Pure `classify_python(name) → CalleeClass`; ported TSA allowlists (82 stdlib modules, ~90 builtins, ~190 stdlib methods); 7 TDD tests.
+- [ ] **feat(core): RFC-0113 Phase 2 — additive `class` field on `callees_payload`** — PR #595 🔧 CI running. Wire `classify_python()` into callee output; `callees` array with `{path,class}` objects alongside backward-compat `callee_paths`; 6 TDD tests; `cargo test --all` ✅ locally.
 - [x] **feat(core): RFC-0114 Phase 1 — `health.rs` graph-native project health scorer** — PR #577 ✅ MERGED 2026-06-06 (founder). A–F grade from dead/isolation/connectivity; weighted 0–100; 7 TDD tests. **Phase 2 (`Store::health()` + CLI + MCP + Skill) is next P1 autonomous task.**
 - [x] **docs(rfc): RFC-0117 architectural-constraint DSL (TSA reuse #5, design)** — PR #578 ✅ MERGED 2026-06-06 (founder). YAML `forbid-rule` DSL over Calls/Imports edges; layering invariants; Phase 1 pure evaluator TDD is next.
 - [x] **docs(rfc): RFC-0116 pre-edit safety verdict (TSA reuse #4, design)** — PR #580 ✅ MERGED 2026-06-06 (founder). `SAFE|CAUTION|REVIEW|UNSAFE` verdict from blast-radius + caller count; Phase 1 pure evaluator TDD is next.
@@ -120,7 +121,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 1. **PR #568 finalize**: All registries published (crates.io ✅ npm ✅ PyPI ✅). Trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: merge #568 → main, tag `v0.3.0`, GH Release, back-merge. **Do NOT re-publish registries.**
 
 **P1 — Autonomous (implementations ready to proceed, TDD):**
-2. **RFC-0113 Phase 2**: Wire `classify_python()` into `resolve_bare_call_stubs()` (the project-ownership shadow gate: only bare stubs that remain after project resolution reach the tier); surface additive `class` field on `get_callees` / `get_dead_symbols` CLI+MCP (byte-identical); CLI+MCP+Skill = Three-Surface. Dogfood: measure unknown-tail drop on Mycelium's own corpus.
+2. **RFC-0113 Phase 2** — PR #595 🔧 CI running. Monitor CI; admin-merge once green + Codex addressed.
 3. **RFC-0114 Phase 2**: `Store::health()` adapter (calls `dead_symbols`/`isolated_symbols`/degree metrics) + `project-health` CLI + `mycelium_project_health` MCP (byte-identical) + category Skill entry. Phase 1 `health.rs` scorer already on develop (#577).
 4. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs (no Store/FS/coverage parsing) — TDD RED→GREEN. Body-line coverage guard (Codex-P1 compliance: `def` line = covered on import ≠ body covered). 7+ tests.
 5. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD. Reuse `mycelium_context` verdict vocabulary.
@@ -180,6 +181,27 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v80 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: release-governance/merge-discipline/ci/append-only/git-workflow/similar_names-clippy), PM state v79 (branch `chore/pm-state-v79`, post-v78 squash `c2b6386`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0 → main; CI ✅ 28/28; all registries published; `finalize` skipped = founder required), #594 (PM v79 chore; CI ✅ 20/20; 1 Codex P1 — `--squash` vs `--merge` in manual fallback).
+- 0 open P0/P1 issues.
+- Develop CI: HEAD `c2b6386` (post-#593 squash). All checks green.
+- Nightly on main (v0.2.0): mutation kill-rate failure — expected; PR #531 fix is in v0.3.0 branch, resolves on ceremony.
+
+**Actions taken:**
+1. **Fixed Codex P1 on PR #594**: `--squash` → `--merge` (no-ff) in the v0.3.0 manual fallback (both ceremony checklist + escalation note). Committed `16e4d1d`, pushed, replied to Codex thread. ✅
+2. **Merged PR #594** (PM v79 + Codex P1 fix, squash `cc437d91`, CI ✅ 20/20, Codex P1 addressed). ✅
+3. **Implemented RFC-0113 Phase 2**: TDD RED→GREEN. Wrote 6 failing tests (`callees_payload_project_callee_has_class_project`, `callees_payload_bare_builtin_stub_classified`, `callees_payload_bare_stdlib_method_stub_classified`, `callees_payload_bare_unknown_stub_classified`, `callees_payload_empty_for_leaf` extended, `callees_payload_mixed_project_and_stubs_sorted_by_path`). Updated `callees_payload()` to return additive `callees: [{path, class}]` alongside backward-compat `callee_paths`. Fixed `similar_names` clippy lint (renamed `caller`/`callee` → `src`/`dst`). `cargo test --all` ✅ 696+ tests. `cargo fmt --check` ✅. `cargo clippy -D warnings` ✅. ✅
+4. **Opened PR #595** (`feature/RFC-0113-phase2` → develop). CI running. ✅
+5. **Updated PM state v80** (this file). ✅
+6. **Appended decisions.jsonl**: v80 entry. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: `gh pr merge --admin --merge #568` → main (no-ff), tag `v0.3.0`, GH Release, back-merge.
 
 ### 2026-06-06 PM dispatch v78 (this run)
 
