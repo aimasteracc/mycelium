@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **ci(nightly): upload `mutants.out/` report directory as a separate artifact.** The
+  nightly mutation-testing job now uploads both `mutants.log` (the console transcript)
+  and `mutants.out/` (the full `cargo-mutants` report directory containing
+  `outcomes.json`, per-mutant `logs/`, `caught.txt`, `missed.txt`) so reviewers
+  can triage survivors when the ≥70% kill-rate gate fires. Tracked by Issue #601.
+
 - **Agent-facing dogfooding fixes (F1/F3/F6).** Found by using Mycelium's own
   CLI as an AI agent against its own repo:
   - **F3 branding leak:** `mycelium_context`'s agent-facing `summary_line` was
