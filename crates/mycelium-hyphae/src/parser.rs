@@ -19,7 +19,13 @@ use crate::{
 #[derive(thiserror::Error, Clone, Debug, PartialEq, Eq)]
 pub enum ParseError {
     /// A token was encountered that does not fit the grammar at that position.
-    #[error("unexpected token `{0}` at position {1}")]
+    #[error(
+        "unexpected token `{0}` at position {1}\n  \
+         Hyphae is CSS-like: `#id`, `.Name`, a bare tag (`function`/`class`/`method`), \
+         `parent > child`, and `:pseudo(arg)`. A node kind + name is written `class.Name` \
+         (e.g. `class.AuthService > method:calls(#UserRepo)`) — NOT `class:name(Name)`.\n  \
+         Grammar: rfcs/0003-hyphae-query-language.md and rfcs/0091-hyphae-jquery-selectors.md"
+    )]
     UnexpectedToken(String, usize),
 
     /// The input ended before the grammar was satisfied.
@@ -449,5 +455,24 @@ mod tests {
     #[test]
     fn invalid_char_error() {
         assert!(matches!(parse("@bad"), Err(ParseError::LexError(_))));
+    }
+
+    #[test]
+    fn unexpected_token_error_teaches_the_grammar() {
+        // Dogfood F6: an agent improvising `class:name(Store)` (CSS-ish but wrong)
+        // got "unexpected token Ident(...)" with no guidance. The rendered error
+        // must now name the token, show the grammar shape, suggest the `.Name`
+        // correction, and point at the docs.
+        let err = parse("class:name(Store)").expect_err("should not parse");
+        let msg = err.to_string();
+        assert!(msg.contains("class"), "names the offending token: {msg}");
+        assert!(
+            msg.contains("class.") || msg.contains(".Name"),
+            "suggests the kind.Name form: {msg}"
+        );
+        assert!(
+            msg.to_lowercase().contains("rfc") || msg.contains("hyphae"),
+            "points at the grammar/docs: {msg}"
+        );
     }
 }
