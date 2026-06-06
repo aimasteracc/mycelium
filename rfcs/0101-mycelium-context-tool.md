@@ -287,6 +287,12 @@ implementation must lower default code-block count before raising the SLA.
       has related_files, success has related_files, all 7 RFC keys present,
       budget truncation fires, edge_kinds param accepted).
 - [x] Existing quality gate remains green: fmt, clippy, tests pass.
+- [x] **§3-4 score-ordering implemented** (RFC-0119 Phase 2): `seed_entry_points` now
+      ranks by `(exact_match desc, non_test desc, importance desc, order asc)` via the
+      pure-core `rank_entry_points` scorer. Test-code candidates are excluded when
+      non-test candidates exist (never-empty guarantee). In-degree counts only real-symbol
+      callers. This brings the implementation into compliance with §3's "Prefer exact
+      path/name matches, then high-rank fuzzy matches" contract.
 
 ## Open questions
 

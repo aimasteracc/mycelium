@@ -21,7 +21,7 @@ mod ranking_tests;
 use serde_json::{Value, json};
 
 use crate::store::Store;
-use crate::types::EdgeKind;
+use crate::types::{EdgeKind, NodeId};
 
 /// Words that are never useful symbol candidates on their own.
 const CONTEXT_STOP_WORDS: &[&str] = &[
@@ -158,22 +158,78 @@ pub fn looks_like_hyphae(task: &str) -> bool {
         .is_some_and(|c| c.is_ascii_alphabetic())
 }
 
-/// Seed entry points by symbol-searching each candidate, deduped and capped.
+/// Seed entry points via importance-weighted, exact-match-first, test-demoted ranking
+/// (RFC-0119 Phase 2).
+///
+/// Collects symbol-search hits across all candidates, then delegates to the pure
+/// [`ranking::rank_entry_points`] scorer.  Key guarantees:
+/// - **Merge semantics**: a path observed first via a fuzzy candidate and later via
+///   an exact candidate records `exact_match = true` (RFC-0119 AC-4b).
+/// - **Stub exclusion**: paths whose store node is
+///   [`crate::types::NodeKind::Unresolved`] are skipped.
+/// - **Stub-robust in-degree**: only incoming [`EdgeKind::Calls`] edges whose source
+///   is a real symbol count toward importance (AC-11).
 #[must_use]
 pub fn seed_entry_points(store: &Store, candidates: &[String], max_nodes: usize) -> Vec<String> {
-    let mut eps: Vec<String> = Vec::new();
+    use std::collections::BTreeMap;
+    let mut by_path: BTreeMap<String, ranking::ScoredCandidate> = BTreeMap::new();
+    let mut order = 0usize;
+    let per_candidate = std::cmp::max(5, max_nodes / 3);
     for candidate in candidates.iter().take(10) {
-        let matches = store.search_symbol(candidate, std::cmp::max(5, max_nodes / 3));
-        for m in matches {
-            if !eps.contains(&m) {
-                eps.push(m);
+        let cand_lc = candidate.to_ascii_lowercase();
+        for path in store.search_symbol(candidate, per_candidate) {
+            let Some(id) = store.lookup(&path) else {
+                continue;
+            };
+            // Skip unresolved-callee phantom nodes — not real subsystem entry points.
+            if !store.is_real_symbol(id) {
+                continue;
             }
-            if eps.len() >= max_nodes {
-                return eps;
+            let leaf = path
+                .rsplit('>')
+                .next()
+                .unwrap_or(&path)
+                .to_ascii_lowercase();
+            let exact = leaf == cand_lc;
+            // Merge: never discard a later exact-match observation (AC-4b).
+            if let Some(existing) = by_path.get_mut(&path) {
+                existing.exact_match |= exact;
+            } else {
+                #[allow(clippy::cast_precision_loss)]
+                let importance = real_in_degree(store, id) as f64;
+                by_path.insert(
+                    path.clone(),
+                    ranking::ScoredCandidate {
+                        path,
+                        exact_match: exact,
+                        importance,
+                        order,
+                    },
+                );
+                order += 1;
             }
         }
     }
-    eps
+    let scored: Vec<_> = by_path.into_values().collect();
+    ranking::rank_entry_points(
+        &scored,
+        ranking::RankOpts {
+            max_nodes,
+            exclude_tests: true,
+        },
+    )
+}
+
+/// Count incoming [`EdgeKind::Calls`] edges whose source is a real symbol.
+///
+/// Phantom [`crate::types::NodeKind::Unresolved`] stubs are excluded so they
+/// cannot inflate the importance of nodes they happen to call into (RFC-0119 AC-11).
+fn real_in_degree(store: &Store, id: NodeId) -> usize {
+    store
+        .incoming(id, EdgeKind::Calls)
+        .iter()
+        .filter(|&&src| store.is_real_symbol(src))
+        .count()
 }
 
 fn path_leaf_name(trunk_path: &str) -> &str {
