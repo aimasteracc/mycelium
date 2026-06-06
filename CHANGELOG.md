@@ -15,7 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leaf names — no regex, no I/O). New `rank_entry_points` orders `ScoredCandidate` slices
   by `(exact_match desc, non_test desc, importance desc, order asc)`, drops or demotes test
   candidates, and guarantees non-empty output even for all-test corpora. 14 unit tests;
-  zero `Store` dependency. Phase 2 (thin adapter in `seed_entry_points`) follows.
+  zero `Store` dependency.
+- **RFC-0119 Phase 2: importance-weighted entry-point adapter** (`seed_entry_points`
+  rewritten). `mycelium_context`'s natural-language entry-point selector now ranks
+  candidates by exact-match precedence, test-code demotion, and stub-robust in-degree
+  importance instead of alphabetical order. **Behavioral change**: test-code entry points
+  (paths in `tests/`, `__tests__/`, `*.test.*`, `test_*.py`, `tests.rs` stems, etc.) are
+  excluded when at least one non-test candidate exists. Unresolved-callee phantom nodes
+  (`NodeKind::Unresolved`) are skipped. In-degree counts only real-symbol callers
+  (RFC-0119 AC-11). Merge semantics preserve exact-match across multiple candidate
+  searches for the same path (AC-4b). Existing call sites in MCP and CLI are unchanged
+  (signature-preserving rewrite).
 
 ### Fixed
 
