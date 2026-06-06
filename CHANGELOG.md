@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Agent-facing dogfooding fixes (F1/F3/F6).** Found by using Mycelium's own
+  CLI as an AI agent against its own repo:
+  - **F3 branding leak:** `mycelium_context`'s agent-facing `summary_line` was
+    emitting the literal `codegraph_context: …` (a different product's name);
+    rebranded both branches to `mycelium_context`.
+  - **F1 `get-files` noise:** `Store::all_file_paths` selected files with a
+    `!path.contains('>')` string heuristic, so kind-less resolver stubs
+    (`unwrap`, `std::collections::HashMap`) were reported as fake files
+    (786 entries, 671 junk on the self-index). Now gates on the authoritative
+    `NodeKind::File` → 115 entries, 0 junk. Language-agnostic.
+  - **F6 unhelpful DSL errors:** a Hyphae parse error now teaches the grammar,
+    suggests the `class.Name` (not `class:name(Name)`) correction, and points at
+    RFC-0003/0091 — and the CLI now prints the error's `Display` (was `Debug`,
+    which hid the guidance).
+
 ### Added
 
 - **RFC-0113 Phase 2 — callee classification (`class` field on `get_callees`).**
