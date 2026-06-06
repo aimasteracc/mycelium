@@ -1110,6 +1110,48 @@ fn unresolved_phantoms_excluded_from_symbol_queries() {
 }
 
 #[test]
+fn zero_degree_unresolved_orphan_excluded_from_degree_queries() {
+    // Codex P2 (#616) / AC-7: after remove_file drops a caller, a qualified
+    // phantom can be left as a ZERO-degree Unresolved orphan. The degree-based
+    // queries (dead/isolated/entry_points) are only in-degree-protected while the
+    // caller exists, so they must ALSO kind-gate to keep the orphan out.
+    let mut store = Store::new();
+    let _real = store.upsert_node_with_kind(path("a.rs>real"), NodeKind::Function);
+    // An orphan phantom with NO edges at all (the post-remove_file state).
+    let _orphan = store.upsert_node_with_kind(path("Db>upsert_node"), NodeKind::Unresolved);
+
+    assert!(
+        !store
+            .dead_symbols(None)
+            .iter()
+            .any(|p| p == "Db>upsert_node"),
+        "zero-degree Unresolved orphan must not be reported dead: {:?}",
+        store.dead_symbols(None)
+    );
+    assert!(
+        !store
+            .isolated_symbols(None)
+            .iter()
+            .any(|p| p == "Db>upsert_node"),
+        "orphan must not be reported isolated"
+    );
+    assert!(
+        !store
+            .entry_points(None)
+            .iter()
+            .any(|p| p == "Db>upsert_node"),
+        "orphan must not be reported as an entry point"
+    );
+    assert!(
+        !store
+            .dead_symbols_for_kind(EdgeKind::Calls, None)
+            .iter()
+            .any(|p| p == "Db>upsert_node"),
+        "orphan must not be reported dead for a specific edge kind"
+    );
+}
+
+#[test]
 fn is_real_symbol_only_excludes_unresolved() {
     let mut store = Store::new();
     let f = store.upsert_node_with_kind(path("a.rs>f"), NodeKind::Function);

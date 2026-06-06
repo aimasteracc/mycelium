@@ -963,6 +963,16 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude NodeKind::Unresolved phantoms. Forward-safety
+            // (Codex P2 #616): these degree-based queries are in-degree-protected
+            // only while the caller exists; after remove_file drops the caller's
+            // Calls edge, a qualified phantom becomes a zero-degree orphan that
+            // would otherwise resurface here. The kind gate makes it permanent.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
             .filter(|p| {
                 self.trunk
@@ -2461,6 +2471,16 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude NodeKind::Unresolved phantoms. Forward-safety
+            // (Codex P2 #616): these degree-based queries are in-degree-protected
+            // only while the caller exists; after remove_file drops the caller's
+            // Calls edge, a qualified phantom becomes a zero-degree orphan that
+            // would otherwise resurface here. The kind gate makes it permanent.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
             .filter(|p| {
                 self.trunk.lookup_path(p).is_some_and(|id| {
@@ -2483,6 +2503,16 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude NodeKind::Unresolved phantoms. Forward-safety
+            // (Codex P2 #616): these degree-based queries are in-degree-protected
+            // only while the caller exists; after remove_file drops the caller's
+            // Calls edge, a qualified phantom becomes a zero-degree orphan that
+            // would otherwise resurface here. The kind gate makes it permanent.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
             .filter(|p| {
                 self.trunk
@@ -3334,6 +3364,16 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude NodeKind::Unresolved phantoms. Forward-safety
+            // (Codex P2 #616): these degree-based queries are in-degree-protected
+            // only while the caller exists; after remove_file drops the caller's
+            // Calls edge, a qualified phantom becomes a zero-degree orphan that
+            // would otherwise resurface here. The kind gate makes it permanent.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
             .filter(|p| {
                 self.trunk.lookup_path(p).is_some_and(|id| {
