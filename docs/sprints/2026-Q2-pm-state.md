@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v81 — PR #595 (RFC-0113 Phase 2) merged; PR #596 (PM v80) superseded; PR #597 (nightly mutants CI fix) opened; Issue #598 (Phase 3 import-gate) opened; Codex P2 on #595 rejected+spun-off; PR #568 v0.3.0 ceremony P0 escalation unchanged) |
+| Last updated | 2026-06-06 (PM dispatch v84 — PR #597 (nightly mutants crash fix) merged (`b36d3ff`); PR #602 (PM v82) closed superseded; PR #603 rebased+CI running; PR #604 Codex P2 fixed (683999a) + CI running; PR #568 v0.3.0 ceremony P0 unchanged) |
 | Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 MERGED (`4adce0c`). RFC-0114 Phase 2 is next P1. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
@@ -112,7 +112,9 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **feat(editors): RFC-0112 Phase 1 — VS Code extension MVP** — PR #587 ✅ MERGED 2026-06-06 (founder). `editors/vscode/` thin client over `@aimasteracc/mycelium-sdk@0.3.0`; `Copy context for AI` + findCallers/findCallees/symbolInfo/index; zero engine code. Phase 1.5: marketplace + `vsce publish`.
 - [x] **feat(integrations): GitHub Action — code-intelligence summary in CI** — PR #588 ✅ MERGED 2026-06-06 (founder). `integrations/github-action/` composite action; installs published CLI; job summary + sticky PR comment; `summarize.py` 4 unit tests; e2e smoke with `mycelium 0.3.0`.
 - [x] **feat(core): RFC-0113 Phase 2 — additive `class` field on `get_callees`** — PR #595 ✅ MERGED 2026-06-06 (squash `4adce0c`). `callees_payload` now returns `callees: [{path, class}]` alongside backward-compat `callee_paths`. Python allowlist classification: project/builtin/stdlib/external/unknown. Codex P2 (import-context gating) rejected → Phase 3 tracked in Issue #598.
-- [ ] **ci(nightly): fix mutants.out file/directory collision** — PR #597 CI running. `tee mutants.out` created a plain file conflicting with cargo-mutants' `mutants.out/` output directory → renamed to `mutants.log`.
+- [x] **ci(nightly): fix mutants.out file/directory collision** — PR #597 MERGED (`b36d3ff`). `tee mutants.out` created a plain file conflicting with cargo-mutants' `mutants.out/` output directory → renamed to `mutants.log`.
+- [ ] **ci(nightly): upload mutants.out/ report directory as artifact** — PR #603 rebased + CI running (closes Issue #601). Adds second artifact upload step alongside `mutants.log`.
+- [ ] **chore(pm): PM state v83** — PR #604 CI running (Codex P2 fixed commit `683999a`). v82+v83 archive entries land here when merged.
 
 ---
 
@@ -140,12 +142,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v81)
+## Dispatch state (2026-06-06 v84)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (or manual Steps 1–4 with `--merge`). crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #597 (nightly mutants CI fix) once CI green. **(3)** After v0.3.0 ships: VS Code Phase 1.5 + GitHub Action live run. |
-| PM | **DONE ✅** | v81: PR #595 merged; PR #596 superseded; PR #597 opened (nightly fix); Issue #598 opened (Phase 3); Codex findings all addressed; PM state v81 pushed. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (or manual Steps 1–4 with `--merge`). crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #603 (mutants.out/ artifact) + PR #604 (PM v83) once CI green — both docs/CI-only, zero Rust. |
+| PM | **DONE ✅** | v84: PR #597 merged; PR #602 closed superseded; PR #603 rebased; PR #604 Codex P2 fixed + CI re-triggered; PM state v84 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -182,6 +184,31 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v84 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v83 on branch chore/pm-state-v83), anti-patterns (domains: ci/release-governance/merge-discipline/git-workflow/append-only), PM state v28 (stale local develop from remote exec clone), v0.2 PRD. Fetched origin to get current state.
+
+**Assessment:**
+- 5 open PRs: #604 (PM v83, CI ✅ 22/22, 1 Codex P2 — future-dated timestamp), #603 (mutants.out artifact, CI ✅ 22/22, 1 Codex P2 — merge-order warning), #602 (PM v82, CI ✅ 20/20, 0 Codex), #597 (nightly mutants crash fix, CI ✅ 20/20, Codex spun-off to #601), #568 (release/v0.3.0 → main, CI ✅, all registries published, awaiting finalize).
+- 0 open P0 or P1 issues.
+- Develop CI: HEAD 5998fbf (PR #600). All checks green.
+
+**Actions taken:**
+1. **Fixed PR #604 Codex P2** (future-dated timestamp): appended correction record to `.hive/memory/decisions.jsonl` (v83 entry stamped `09:30:00Z` vs commit time `09:13:05Z`); committed `683999a`; force-pushed to `chore/pm-state-v83`; replied to Codex thread (option a: fixed). ✅
+2. **Replied to PR #603 Codex P2** (merge-order warning): rejected with justification — `mutants.out/` dir and `mutants.log` file are distinct paths; PR correctly relies on #597 merging first. ✅
+3. **Closed PR #602** (PM v82): superseded by PR #604 (v83 state includes v82 archive). Comment posted. ✅
+4. **Merged PR #597** (nightly mutants crash fix, squash `b36d3ff`, CI ✅ 20/20, Codex spun-off+addressed). ✅
+5. **Rebased PR #603** onto post-#597 develop (new SHA `72e8f5a`); force-pushed. CI re-running. ✅
+6. **PM state v84** (this file) written. decisions.jsonl v84 entry appended. ✅
+
+**Pending (CI running):**
+- PR #604 (PM v83): CI running on commit `683999a`; merge when Quality Gate green + 0 open Codex.
+- PR #603 (mutants.out artifact): CI running on rebased `72e8f5a`; merge when green.
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (preferred) or manual Steps 1–4.
+- **(P1)** Admin-merge PR #603 + PR #604 once CI green — both docs/CI-only, zero Rust.
 
 ### 2026-06-06 PM dispatch v81 (this run)
 
