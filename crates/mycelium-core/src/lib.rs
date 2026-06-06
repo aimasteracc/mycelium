@@ -38,6 +38,7 @@
 
 pub mod budget;
 pub mod classify;
+pub mod constraints;
 pub mod context;
 pub mod cortex;
 pub mod error;
