@@ -90,6 +90,12 @@ pub struct Violation {
 /// A target path is "resolved" if it names a file or a nested symbol — a bare
 /// stub (a lone identifier, no `/` and no `>`) is an unresolved/dynamic callee
 /// and is skipped, to avoid false positives (TSA's "no callee file → skip").
+///
+/// Invariant on `path` format: this assumes the project's canonical edge-path
+/// convention — `/`-separated file path, with nested symbols appended after
+/// `>` (`src/db/pool.rs>Pool>get`). A path using a different separator (e.g. a
+/// Windows `\` or a `::` module path) would be misclassified as an unresolved
+/// stub and silently skipped. Callers MUST normalise to this format upstream.
 fn is_resolved(path: &str) -> bool {
     path.contains('/') || path.contains('>')
 }
@@ -103,6 +109,16 @@ pub fn glob_match(pattern: &str, text: &str) -> bool {
     glob_rec(&p, &t)
 }
 
+/// Recursive backtracking glob matcher.
+///
+/// Complexity: each `**` branches into `t.len()+1` recursive calls and each `*`
+/// branches in two, so a pattern with `k` wildcards over text of length `n` is
+/// worst-case O(n^k) — pathological only for adversarial patterns like
+/// `**a**a**a…` against a long non-matching text. Real constraint globs carry a
+/// handful of wildcards over short edge paths, so this stays effectively linear;
+/// we accept the worst case rather than pull in a regex engine. If untrusted
+/// patterns are ever admitted, switch to an iterative two-pointer matcher (which
+/// makes single-`*` linear) or cap wildcard count at parse time.
 fn glob_rec(p: &[char], t: &[char]) -> bool {
     let Some(&first) = p.first() else {
         return t.is_empty();
