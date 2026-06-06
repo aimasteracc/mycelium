@@ -36,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and MCP `mycelium_get_callees` share the same `callees_payload` builder, so the
   new field is byte-identical on both surfaces (Charter §5.13). 6 new TDD tests.
 
+### Fixed
+
+- **ci(nightly): fix `mutants.out` file/directory path collision.** `cargo-mutants`
+  creates `mutants.out/` as its output directory, but `tee mutants.out` was
+  creating a plain file of the same name first, causing `lock.json: Not a directory
+  (os error 20)` crash on every nightly run. Renamed tee sink and artifact path
+  to `mutants.log`.
+
 ### Security
 
 - **SDK argv-smuggling guard + Python output cap (RFC-0111, Node + Python).**
