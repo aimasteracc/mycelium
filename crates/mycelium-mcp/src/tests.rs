@@ -15,7 +15,10 @@ async fn server_with_fixture() -> MyceliumServer {
     let server = MyceliumServer::new();
     {
         let mut store = server.store.write().await;
-        let file = store.upsert_node(TrunkPath::parse("src/greet.rs").unwrap());
+        let file = store.upsert_node_with_kind(
+            TrunkPath::parse("src/greet.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
         let greet = store.upsert_node(TrunkPath::parse("src/greet.rs>greet").unwrap());
         let helper = store.upsert_node(TrunkPath::parse("src/greet.rs>helper").unwrap());
         store.upsert_edge(EdgeKind::Contains, file, greet);
@@ -1451,9 +1454,18 @@ async fn get_files_filters_by_prefix() {
     let server = MyceliumServer::new();
     {
         let mut store = server.store.write().await;
-        store.upsert_node(TrunkPath::parse("src/auth.rs").unwrap());
-        store.upsert_node(TrunkPath::parse("tests/auth_test.rs").unwrap());
-        store.upsert_node(TrunkPath::parse("src/main.rs").unwrap());
+        store.upsert_node_with_kind(
+            TrunkPath::parse("src/auth.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
+        store.upsert_node_with_kind(
+            TrunkPath::parse("tests/auth_test.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
+        store.upsert_node_with_kind(
+            TrunkPath::parse("src/main.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
     }
     let raw = server
         .mycelium_get_files(Parameters(GetFilesRequest {
@@ -1487,9 +1499,18 @@ async fn get_files_returns_sorted_order() {
     let server = MyceliumServer::new();
     {
         let mut store = server.store.write().await;
-        store.upsert_node(TrunkPath::parse("z.rs").unwrap());
-        store.upsert_node(TrunkPath::parse("a.rs").unwrap());
-        store.upsert_node(TrunkPath::parse("m.rs").unwrap());
+        store.upsert_node_with_kind(
+            TrunkPath::parse("z.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
+        store.upsert_node_with_kind(
+            TrunkPath::parse("a.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
+        store.upsert_node_with_kind(
+            TrunkPath::parse("m.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
     }
     let raw = server
         .mycelium_get_files(Parameters(GetFilesRequest {

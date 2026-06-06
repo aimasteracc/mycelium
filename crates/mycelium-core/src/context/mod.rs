@@ -312,7 +312,7 @@ pub fn build_payload(
             "related_files": [],
             "stats": { "entry_points": 0, "nodes": 0, "edges": 0, "code_blocks": 0, "related_files": 0 },
             "agent_summary": {
-                "summary_line": "codegraph_context: no entry points found",
+                "summary_line": "mycelium_context: no entry points found",
                 "verdict": "NOT_FOUND",
                 "next_step": "Try mycelium_search_symbol with an exact symbol name or broaden the task."
             }
@@ -325,7 +325,7 @@ pub fn build_payload(
     let code_blocks = collect_code_blocks(store, &nodes, opts.max_code_blocks);
 
     let summary_line = format!(
-        "codegraph_context: {} entry points, {} nodes, {} edges, {} code blocks",
+        "mycelium_context: {} entry points, {} nodes, {} edges, {} code blocks",
         entry_points.len(),
         nodes.len(),
         edges.len(),

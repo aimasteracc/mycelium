@@ -44,7 +44,9 @@ pub(crate) fn execute(index_path: &Path, selector: &str) -> Result<Vec<String>> 
     }
     let store = Store::load(index_path)
         .with_context(|| format!("failed to load index from {}", index_path.display()))?;
-    let ast = parse(selector).map_err(|e| anyhow!("hyphae parse error: {e:?}"))?;
+    // `{e}` (Display), not `{e:?}` (Debug): ParseError's Display carries the
+    // grammar hint + did-you-mean + docs pointer; Debug would dump the bare enum.
+    let ast = parse(selector).map_err(|e| anyhow!("hyphae parse error: {e}"))?;
     let evaluator = Evaluator::new(&store);
     Ok(evaluator.eval(&ast))
 }

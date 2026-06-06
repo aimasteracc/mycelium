@@ -19,7 +19,14 @@ use crate::{
 #[derive(thiserror::Error, Clone, Debug, PartialEq, Eq)]
 pub enum ParseError {
     /// A token was encountered that does not fit the grammar at that position.
-    #[error("unexpected token `{0}` at position {1}")]
+    #[error(
+        "unexpected token `{0}` at position {1}\n  \
+         A Hyphae simple selector is `#Name` (by symbol name), `.kind` (e.g. \
+         `.function`, `.class`), or `*` (any) — combined with `>` (child), \
+         `:pseudo(arg)`, and `[attr=value]`. To find a symbol named `Foo`, write \
+         `#Foo` (NOT `Foo`, `class.Foo`, or `class:name(Foo)`).\n  \
+         Grammar: rfcs/0003-hyphae-query-language.md and rfcs/0091-hyphae-jquery-selectors.md"
+    )]
     UnexpectedToken(String, usize),
 
     /// The input ended before the grammar was satisfied.
@@ -449,5 +456,35 @@ mod tests {
     #[test]
     fn invalid_char_error() {
         assert!(matches!(parse("@bad"), Err(ParseError::LexError(_))));
+    }
+
+    #[test]
+    fn unexpected_token_error_teaches_the_grammar() {
+        // Dogfood F6: an agent improvising `class:name(Store)` (CSS-ish but wrong)
+        // got "unexpected token Ident(...)" with no guidance. The rendered error
+        // must now name the token, show the grammar shape, suggest the `.Name`
+        // correction, and point at the docs.
+        let err = parse("class:name(Store)").expect_err("should not parse");
+        let msg = err.to_string();
+        assert!(msg.contains("class"), "names the offending token: {msg}");
+        // Must suggest syntax the grammar ACTUALLY accepts — `#Name`, the id
+        // selector (verified working) — and explicitly steer away from the
+        // invalid `class.Name` / `class:name(...)` forms (Codex P2, PR #600).
+        assert!(
+            msg.contains("#Foo"),
+            "suggests the working #Name form: {msg}"
+        );
+        assert!(
+            msg.contains("#Name") || msg.contains("`#Name`") || msg.contains("by symbol name"),
+            "describes #Name as the by-name selector: {msg}"
+        );
+        assert!(
+            !msg.contains("`class.Name`"),
+            "must NOT teach the invalid class.Name form: {msg}"
+        );
+        assert!(
+            msg.to_lowercase().contains("rfc") || msg.contains("hyphae"),
+            "points at the grammar/docs: {msg}"
+        );
     }
 }

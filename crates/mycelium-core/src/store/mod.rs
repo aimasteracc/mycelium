@@ -874,21 +874,45 @@ impl Store {
     /// ```
     /// use mycelium_core::store::Store;
     /// use mycelium_core::trunk::TrunkPath;
+    /// use mycelium_core::types::NodeKind;
     ///
     /// let mut store = Store::new();
-    /// store.upsert_node(TrunkPath::parse("src/auth.rs").unwrap());
+    /// // File nodes carry NodeKind::File (set by the extractor at index time).
+    /// store.upsert_node_with_kind(TrunkPath::parse("src/auth.rs").unwrap(), NodeKind::File);
     /// store.upsert_node(TrunkPath::parse("src/auth.rs>login").unwrap());
-    /// store.upsert_node(TrunkPath::parse("src/main.rs").unwrap());
+    /// store.upsert_node_with_kind(TrunkPath::parse("src/main.rs").unwrap(), NodeKind::File);
+    /// // A kind-less bare stub (e.g. an unresolved callee) is NOT a file.
+    /// store.upsert_node(TrunkPath::parse("unwrap").unwrap());
     ///
     /// let files = store.all_file_paths();
     /// assert_eq!(files, vec!["src/auth.rs", "src/main.rs"]);
     /// ```
     #[must_use]
     pub fn all_file_paths(&self) -> Vec<String> {
+        // Prefer the authoritative `NodeKind::File` (set by the extractor at
+        // index time) over the old `!p.contains('>')` string heuristic. The
+        // resolver mints kind-less stub nodes for unresolved callees (`unwrap`)
+        // and import targets (`std::collections::HashMap`) — none contain `>`,
+        // so the heuristic reported them all as fake files (dogfood F1: 671 of
+        // 786 get-files entries were such junk).
+        //
+        // Presence-gated for backward compatibility: only trust the kind when
+        // the store is actually kind-annotated (≥1 `File` node, i.e. it was
+        // built by the extractor). A purely programmatic / test store that
+        // never set kinds keeps the historical RFC-0018 "no `>`" contract, so
+        // it does not silently return an empty file list.
+        let kind_annotated = self.kind_map.values().any(|k| *k == NodeKind::File);
         let mut files: Vec<String> = self
             .trunk
             .all_paths()
-            .filter(|p| !p.contains('>'))
+            .filter(|p| {
+                if kind_annotated {
+                    self.trunk.lookup_path(p).and_then(|id| self.kind_of(id))
+                        == Some(NodeKind::File)
+                } else {
+                    !p.contains('>')
+                }
+            })
             .map(str::to_owned)
             .collect();
         files.sort_unstable();
