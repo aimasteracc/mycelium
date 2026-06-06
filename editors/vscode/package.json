@@ -1,0 +1,130 @@
+{
+  "name": "mycelium-vscode",
+  "displayName": "Mycelium — code intelligence + context for AI",
+  "description": "Bring Mycelium's reactive code-intelligence graph into VS Code: call-graph navigation and one-click token-dense context for your AI assistant. Thin client over the prebuilt mycelium CLI — no Rust toolchain.",
+  "version": "0.1.0",
+  "publisher": "aimasteracc",
+  "license": "MIT",
+  "homepage": "https://github.com/aimasteracc/mycelium",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aimasteracc/mycelium.git",
+    "directory": "editors/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "code-intelligence",
+    "code-graph",
+    "ai",
+    "context",
+    "call-graph",
+    "mycelium"
+  ],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mycelium.copyContextForAI",
+        "title": "Mycelium: Copy context for AI",
+        "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.findCallers",
+        "title": "Mycelium: Find callers of symbol at cursor",
+        "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.findCallees",
+        "title": "Mycelium: Find callees of symbol at cursor",
+        "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.symbolInfo",
+        "title": "Mycelium: Show symbol info at cursor",
+        "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.index",
+        "title": "Mycelium: Index this workspace",
+        "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.showCallGraph",
+        "title": "Mycelium: Show call graph for symbol at cursor",
+        "category": "Mycelium"
+      },
+      {
+        "command": "mycelium.revealSymbol",
+        "title": "Mycelium: Reveal symbol",
+        "category": "Mycelium"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mycelium",
+          "title": "Mycelium",
+          "icon": "$(type-hierarchy)"
+        }
+      ]
+    },
+    "views": {
+      "mycelium": [
+        {
+          "id": "mycelium.callGraph",
+          "name": "Call graph",
+          "icon": "$(type-hierarchy)"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "mycelium.copyContextForAI",
+          "group": "mycelium@1",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "mycelium.findCallers",
+          "group": "mycelium@2",
+          "when": "editorTextFocus"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Mycelium",
+      "properties": {
+        "mycelium.binaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the `mycelium` binary. Leave empty to resolve from the bundled @aimasteracc/mycelium-sdk or PATH (sets MYCELIUM_BIN)."
+        },
+        "mycelium.indexOnActivate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Index the workspace automatically when the extension activates."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "@aimasteracc/mycelium-sdk": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
