@@ -64,6 +64,39 @@ fn not_found_payload_has_all_seven_keys() {
 }
 
 #[test]
+fn agent_summary_is_branded_mycelium_not_a_competitor() {
+    // Regression: the agent-facing summary_line must not leak another product's
+    // name. Both the empty (NOT_FOUND) branch and the populated branch are checked.
+    let mut store = Store::new();
+
+    // NOT_FOUND branch.
+    let empty = build_payload(&store, "nothing", &[], &[], Routing::Natural, &opts(vec![]));
+    let empty_summary = empty["agent_summary"]["summary_line"]
+        .as_str()
+        .expect("summary_line");
+    assert!(
+        empty_summary.starts_with("mycelium_context"),
+        "empty summary leaked branding: {empty_summary}"
+    );
+    assert!(!empty_summary.to_lowercase().contains("codegraph"));
+
+    // Populated branch.
+    let a = store.upsert_node(path("src/auth.rs>AuthService>login"));
+    let b = store.upsert_node(path("src/db.rs>Db>query"));
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    let eps = vec!["src/auth.rs>AuthService>login".to_owned()];
+    let full = build_payload(&store, "login", &[], &eps, Routing::Natural, &opts(vec![]));
+    let full_summary = full["agent_summary"]["summary_line"]
+        .as_str()
+        .expect("summary_line");
+    assert!(
+        full_summary.starts_with("mycelium_context"),
+        "populated summary leaked branding: {full_summary}"
+    );
+    assert!(!full_summary.to_lowercase().contains("codegraph"));
+}
+
+#[test]
 fn payload_includes_distinct_related_files() {
     let mut store = Store::new();
     let a = store.upsert_node(path("src/auth.rs>AuthService>login"));
