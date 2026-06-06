@@ -58,7 +58,8 @@ def build_summary(
         return "—" if value is None else f"`{value}`"
 
     lines = [
-        "## 🍄 Mycelium — code intelligence",
+        "<!-- mycelium-code-intel -->",
+        "## \U0001f344 Mycelium — code intelligence",
         "",
         f"Indexed **`{root}`** with the [Mycelium](https://github.com/aimasteracc/mycelium) graph engine.",
         "",

@@ -57,8 +57,19 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        MYCELIUM_SUMMARY: ${{ steps.run.outputs.summary }}
       run: |
         PR='${{ github.event.pull_request.number }}'
-        # Edit the previous comment when present (sticky), else create one.
-        gh pr comment "$PR" --edit-last --body "${{ steps.run.outputs.summary }}" \
-          || gh pr comment "$PR" --body "${{ steps.run.outputs.summary }}"
+        REPO='${{ github.repository }}'
+        # Write to file — avoids bash re-evaluating Markdown backticks/specials in $MYCELIUM_SUMMARY.
+        printf '%s' "$MYCELIUM_SUMMARY" > /tmp/myc-comment.md
+        # Sticky update: find the existing Mycelium comment by its marker, else create a new one.
+        EXISTING_ID="$(gh api "repos/$REPO/issues/$PR/comments" \
+          --jq '[.[] | select(.body | startswith("<!-- mycelium-code-intel -->"))] | last | .id // empty' \
+          2>/dev/null || true)"
+        if [ -n "$EXISTING_ID" ]; then
+          gh api --method PATCH "repos/$REPO/issues/comments/$EXISTING_ID" \
+            --field "body=@/tmp/myc-comment.md"
+        else
+          gh pr comment "$PR" --body-file /tmp/myc-comment.md
+        fi
