@@ -641,6 +641,22 @@ impl Store {
         self.kind_map.get(&id).copied()
     }
 
+    /// Whether `id` is a real indexed symbol — i.e. NOT an unresolved-callee
+    /// placeholder (RFC-0118 Part A).
+    ///
+    /// The resolver mints phantom nodes for calls whose receiver/callee cannot
+    /// be statically resolved (e.g. `unwrap`, `Db>upsert_node`) and links a
+    /// `Calls` edge to them so the caller is not falsely "dead"; those phantoms
+    /// carry [`NodeKind::Unresolved`]. Everything else — real kinded symbols,
+    /// AND kind-less nodes from programmatic/test stores that predate the kind
+    /// contract — counts as real. This is a *negative* marker (exclude if
+    /// `Unresolved`), so it needs no presence-gate: a store that never set kinds
+    /// has no `Unresolved` nodes and is therefore unchanged (back-compatible).
+    #[must_use]
+    pub fn is_real_symbol(&self, id: NodeId) -> bool {
+        self.kind_of(id) != Some(NodeKind::Unresolved)
+    }
+
     /// Record the [`SourceSpan`] for an already-upserted node.
     ///
     /// Overwrites any previous value for the same `id`.
@@ -830,6 +846,10 @@ impl Store {
             .all_paths()
             .filter_map(|p| {
                 let id = self.trunk.lookup_path(p)?;
+                // RFC-0118 Part A: never rank unresolved-callee phantoms.
+                if !self.is_real_symbol(id) {
+                    return None;
+                }
                 let count = self.synapse.incoming(id, EdgeKind::Calls).len();
                 if count > 0 {
                     Some((p.to_owned(), count))
@@ -853,6 +873,10 @@ impl Store {
             .all_paths()
             .filter_map(|p| {
                 let id = self.trunk.lookup_path(p)?;
+                // RFC-0118 Part A: never rank unresolved-callee phantoms.
+                if !self.is_real_symbol(id) {
+                    return None;
+                }
                 let count = self.synapse.incoming(id, kind).len();
                 if count > 0 {
                     Some((p.to_owned(), count))
@@ -2461,6 +2485,12 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: drop unresolved-callee phantoms (NodeKind::Unresolved).
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
             .filter(|p| {
                 kind.is_none_or(|k| {
@@ -3955,7 +3985,12 @@ impl Store {
         let damping = damping.clamp(0.0, 1.0);
 
         // Collect all symbol NodeIds in a stable order (no trie navigation).
-        let symbols: Vec<NodeId> = self.symbol_nodes().map(|(id, _)| id).collect();
+        // RFC-0118 Part A: exclude unresolved-callee phantoms from the rank universe.
+        let symbols: Vec<NodeId> = self
+            .symbol_nodes()
+            .filter(|(id, _)| self.is_real_symbol(*id))
+            .map(|(id, _)| id)
+            .collect();
         let n = symbols.len();
         if n == 0 {
             return Vec::new();

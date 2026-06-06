@@ -386,11 +386,18 @@ impl Extractor {
                         let resolved_target =
                             self_method_target.or(receiver_target).or(bare_alias_target);
 
+                        // RFC-0118 Part A: a callee we cannot resolve to an existing
+                        // definition is minted as a `NodeKind::Unresolved` placeholder, so
+                        // `is_real_symbol` keeps it out of the symbol universe (all_symbols /
+                        // page_rank / rank_symbols). `upsert_node_with_kind` only runs in the
+                        // `lookup == None` branch, so it never overwrites an existing real
+                        // node; and if the real definition is indexed later, its own
+                        // definition-extraction `set_kind` corrects this node's kind.
                         let callee_id = if let Some(qualified) = resolved_target {
                             if let Some(id) = store.lookup(&qualified) {
                                 id
                             } else if let Ok(path) = TrunkPath::parse(&qualified) {
-                                store.upsert_node(path)
+                                store.upsert_node_with_kind(path, NodeKind::Unresolved)
                             } else {
                                 continue;
                             }
@@ -399,7 +406,7 @@ impl Extractor {
                             if let Some(id) = store.lookup(&intra) {
                                 id
                             } else if let Ok(bare) = TrunkPath::parse(callee_name) {
-                                store.upsert_node(bare)
+                                store.upsert_node_with_kind(bare, NodeKind::Unresolved)
                             } else {
                                 continue;
                             }
