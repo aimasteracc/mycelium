@@ -93,6 +93,12 @@ pub enum NodeKind {
     Route,
     /// A UI component declaration.
     Component,
+    /// An unresolved-callee placeholder minted by the resolver when a call's
+    /// receiver/callee cannot be statically resolved (RFC-0118). NOT real code:
+    /// excluded from the symbol universe (`all_symbols`, `page_rank`,
+    /// `rank_symbols`) via `Store::is_real_symbol`, so phantom callees never
+    /// pollute symbol listings or rank mass.
+    Unresolved,
 }
 
 impl NodeKind {
@@ -119,6 +125,7 @@ impl NodeKind {
             Self::Export => "export",
             Self::Route => "route",
             Self::Component => "component",
+            Self::Unresolved => "unresolved",
         }
     }
 
@@ -145,6 +152,7 @@ impl NodeKind {
             "export" => Self::Export,
             "route" => Self::Route,
             "component" => Self::Component,
+            "unresolved" => Self::Unresolved,
             _ => return None,
         })
     }

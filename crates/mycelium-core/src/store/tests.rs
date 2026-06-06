@@ -996,6 +996,93 @@ fn store_all_file_paths_returns_sorted_order() {
     assert_eq!(files, sorted, "all_file_paths must return sorted results");
 }
 
+// ── RFC-0118 Part A: NodeKind::Unresolved phantoms excluded from the symbol universe ──
+
+#[test]
+fn unresolved_phantoms_excluded_from_symbol_queries() {
+    let mut store = Store::new();
+    // A real symbol, and two resolver phantoms (a qualified one and a bare one),
+    // each the target of a Calls edge (so they have in-degree ≥ 1 — exactly how
+    // the extractor mints them, which is why they leak into rank/all/pagerank).
+    let caller = store.upsert_node_with_kind(path("app.rs>main"), NodeKind::Function);
+    let real = store.upsert_node_with_kind(path("db.rs>Db>query"), NodeKind::Method);
+    let phantom_q = store.upsert_node_with_kind(path("Db>upsert_node"), NodeKind::Unresolved);
+    let phantom_bare = store.upsert_node_with_kind(path("unwrap"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, caller, real);
+    store.upsert_edge(EdgeKind::Calls, caller, phantom_q);
+    store.upsert_edge(EdgeKind::Calls, caller, phantom_bare);
+
+    // all_symbols: real symbol present, neither phantom.
+    let syms = store.all_symbols(None, None);
+    assert!(
+        syms.contains(&"db.rs>Db>query".to_string()),
+        "real symbol must list: {syms:?}"
+    );
+    assert!(
+        !syms.contains(&"Db>upsert_node".to_string()),
+        "qualified phantom must be excluded: {syms:?}"
+    );
+    assert!(
+        !syms.iter().any(|s| s == "unwrap"),
+        "bare phantom must be excluded: {syms:?}"
+    );
+
+    // rank_symbols (top_callee_symbols + top_symbols_by_incoming): phantoms must
+    // not be ranked even though they have incoming Calls edges.
+    let by_callee: Vec<String> = store
+        .top_callee_symbols(10)
+        .into_iter()
+        .map(|(p, _)| p)
+        .collect();
+    assert!(
+        !by_callee
+            .iter()
+            .any(|p| p == "Db>upsert_node" || p == "unwrap"),
+        "phantoms must not appear in top_callee_symbols: {by_callee:?}"
+    );
+    let by_incoming: Vec<String> = store
+        .top_symbols_by_incoming(EdgeKind::Calls, 10)
+        .into_iter()
+        .map(|(p, _)| p)
+        .collect();
+    assert!(
+        !by_incoming
+            .iter()
+            .any(|p| p == "Db>upsert_node" || p == "unwrap"),
+        "phantoms must not appear in top_symbols_by_incoming: {by_incoming:?}"
+    );
+
+    // page_rank: phantoms must not be in the ranked symbol universe.
+    let ranked: Vec<String> = store
+        .page_rank(EdgeKind::Calls, 0.85, 5)
+        .into_iter()
+        .map(|e| e.path)
+        .collect();
+    assert!(
+        !ranked
+            .iter()
+            .any(|p| p == "Db>upsert_node" || p == "unwrap"),
+        "phantoms must not appear in page_rank: {ranked:?}"
+    );
+}
+
+#[test]
+fn is_real_symbol_only_excludes_unresolved() {
+    let mut store = Store::new();
+    let f = store.upsert_node_with_kind(path("a.rs>f"), NodeKind::Function);
+    let u = store.upsert_node_with_kind(path("ghost"), NodeKind::Unresolved);
+    let kindless = store.upsert_node(path("b.rs>g")); // no kind (e.g. test/programmatic store)
+    assert!(store.is_real_symbol(f), "a real kinded symbol is real");
+    assert!(
+        !store.is_real_symbol(u),
+        "an Unresolved phantom is NOT real"
+    );
+    assert!(
+        store.is_real_symbol(kindless),
+        "a kind-less node stays real (back-compat)"
+    );
+}
+
 #[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();

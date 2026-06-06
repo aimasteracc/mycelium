@@ -58,6 +58,7 @@ pub(super) const fn node_kind_tag(kind: NodeKind) -> u8 {
         NodeKind::Export => 16,
         NodeKind::Route => 17,
         NodeKind::Component => 18,
+        NodeKind::Unresolved => 19,
         // NodeKind is #[non_exhaustive]; a new variant must get a stable tag
         // here before it can be persisted. Fail loud (like `edge_kind_tag` in
         // redb_tags.rs) instead of writing a 255 sentinel that `tag_to_node_kind`
@@ -89,6 +90,7 @@ pub(super) const fn tag_to_node_kind(tag: u8) -> Option<NodeKind> {
         16 => NodeKind::Export,
         17 => NodeKind::Route,
         18 => NodeKind::Component,
+        19 => NodeKind::Unresolved,
         _ => return None,
     })
 }
@@ -141,6 +143,7 @@ mod tests {
             NodeKind::Export,
             NodeKind::Route,
             NodeKind::Component,
+            NodeKind::Unresolved,
         ];
         let mut seen_tags = Vec::new();
         for kind in all {

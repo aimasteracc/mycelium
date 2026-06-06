@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **RFC-0118 Part A: unresolved-callee phantoms no longer pollute the symbol
+  universe.** The resolver mints placeholder nodes for calls it can't statically
+  resolve (e.g. `unwrap`, `HashMap`, `Db>upsert_node`) and links a `Calls` edge
+  so the caller isn't falsely "dead". These now carry a new `NodeKind::Unresolved`
+  marker, and `all_symbols`, `page_rank`, and `rank_symbols` (`top_callee_symbols`
+  / `top_symbols_by_incoming`) exclude them via `Store::is_real_symbol`. On the
+  Mycelium self-index this tags **966** such phantoms out of the symbol/rank
+  universe (previously inflating symbol listings and rank mass). The marker is a
+  *negative* gate, so kind-less programmatic/test stores are unaffected
+  (back-compatible). redb gains additive tag `19` (fail-loud, round-trip tested).
+
 ### Added
 
 - **RFC-0114 Phase 2: `project-health` CLI + `mycelium_project_health` MCP + Skill coverage.**
