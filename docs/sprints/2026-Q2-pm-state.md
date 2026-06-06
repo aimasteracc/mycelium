@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v81 — PR #595 (RFC-0113 Phase 2) merged; PR #596 (PM v80) superseded; PR #597 (nightly mutants CI fix) opened; Issue #598 (Phase 3 import-gate) opened; Codex P2 on #595 rejected+spun-off; PR #568 v0.3.0 ceremony P0 escalation unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 MERGED (`4adce0c`). RFC-0114 Phase 2 is next P1. |
+| Last updated | 2026-06-06 (PM dispatch v82 — PR #597 rebased+pushed (nightly CI fix); PR #599 (PM v81) merged; PR #600 CI fixed (NodeKind::File test fixtures); Issue #601 opened (mutants.out artifact spin-off); Codex P2 on #597 spun-off; PR #600 CI pending) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ dogfood quick wins PR #600 (CI pending)** + **RFC-0113/0114/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0113 Phase 2 MERGED (`4adce0c`). RFC-0114 Phase 2 is next P1. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -140,12 +140,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v81)
+## Dispatch state (2026-06-06 v82)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (or manual Steps 1–4 with `--merge`). crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #597 (nightly mutants CI fix) once CI green. **(3)** After v0.3.0 ships: VS Code Phase 1.5 + GitHub Action live run. |
-| PM | **DONE ✅** | v81: PR #595 merged; PR #596 superseded; PR #597 opened (nightly fix); Issue #598 opened (Phase 3); Codex findings all addressed; PM state v81 pushed. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (or manual Steps 1–4 with `--merge`). crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #597 (nightly mutants CI fix, rebased, CI pending) once CI green. **(3)** Admin-merge PR #600 (dogfood F1/F3/F6 fixes, CI pending) once CI green. **(4)** After v0.3.0 ships: VS Code Phase 1.5 + GitHub Action live run. |
+| PM | **DONE ✅** | v82: PR #597 rebased+pushed; PR #599 merged; Issue #601 opened; Codex on #597 addressed; PR #600 CI fixed + pushed (fix/context-branding-leak). PM state v82 PR open. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -182,6 +182,29 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v82 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release), PM state v81 (develop HEAD after #599 squash merge), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #568 (v0.3.0 release, all registries ✅, ceremony READY — founder action), #597 (nightly mutants fix, CI ✅ before rebase), #599 (PM v81, CI ✅), #600 (dogfood F1/F3/F6, CI ❌ — 2 unit test failures).
+- 1 open issue with P-label: none (Issue #598 opened by v81 for RFC-0113 Phase 3).
+- CI: develop green. PR #600 was RED (2 tests: `get_files_returns_only_file_paths` + `get_files_filters_by_prefix`).
+
+**Actions taken:**
+1. **Diagnosed PR #600 CI failure**: `get_files_returns_only_file_paths` + `get_files_filters_by_prefix` failed because F1's `NodeKind::File` gate was presence-gated (30a590e) but test fixtures used plain `upsert_node` (no kind) — confirmed no File nodes → fallback should work, but... actually 30a590e already fixed the issue. My 672e0ef commit is additive (tests now exercise annotated-store path). Pushed fix; PR #600 CI re-running. ✅
+2. **Created Issue #601**: `ci(nightly): upload mutants.out/ directory as artifact alongside mutants.log` — Codex P2 spin-off from PR #597. ✅
+3. **Replied to Codex P2 on PR #597** (comment #3366881146): spin-off to Issue #601. ✅
+4. **Merged PR #599** (PM state v81, CI ✅, no Codex) → squash `e477a375`. ✅
+5. **Rebased PR #597** onto develop (CHANGELOG.md conflict resolved: both Added + Fixed sections kept); pushed `a6857b9`. CI re-triggered. ✅
+6. **Wrote PM state v82** (this file): header v81→v82, dispatch table updated, v82 archive entry prepended.
+7. **Append decisions.jsonl** (next step).
+
+**Escalations to founder:**
+- **(1) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (unchanged from v81).
+- **(2) PR #597**: Admin-merge once CI green (rebased CI now re-running).
+- **(3) PR #600**: Admin-merge once CI green (fix pushed, CI running).
 
 ### 2026-06-06 PM dispatch v81 (this run)
 
