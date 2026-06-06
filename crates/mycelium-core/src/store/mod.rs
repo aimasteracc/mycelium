@@ -889,18 +889,29 @@ impl Store {
     /// ```
     #[must_use]
     pub fn all_file_paths(&self) -> Vec<String> {
-        // Gate on `NodeKind::File`, NOT the old `!p.contains('>')` string
-        // heuristic. The resolver mints kind-less stub nodes for unresolved
-        // callees (`unwrap`) and import targets (`std::collections::HashMap`) —
-        // none contain `>`, so the heuristic reported them all as fake files
-        // (dogfood F1: 671 of 786 get-files entries were such junk). A real file
-        // node always carries `NodeKind::File` (set by the extractor at index
-        // time), so that is the authoritative, language-agnostic predicate.
+        // Prefer the authoritative `NodeKind::File` (set by the extractor at
+        // index time) over the old `!p.contains('>')` string heuristic. The
+        // resolver mints kind-less stub nodes for unresolved callees (`unwrap`)
+        // and import targets (`std::collections::HashMap`) — none contain `>`,
+        // so the heuristic reported them all as fake files (dogfood F1: 671 of
+        // 786 get-files entries were such junk).
+        //
+        // Presence-gated for backward compatibility: only trust the kind when
+        // the store is actually kind-annotated (≥1 `File` node, i.e. it was
+        // built by the extractor). A purely programmatic / test store that
+        // never set kinds keeps the historical RFC-0018 "no `>`" contract, so
+        // it does not silently return an empty file list.
+        let kind_annotated = self.kind_map.values().any(|k| *k == NodeKind::File);
         let mut files: Vec<String> = self
             .trunk
             .all_paths()
             .filter(|p| {
-                self.trunk.lookup_path(p).and_then(|id| self.kind_of(id)) == Some(NodeKind::File)
+                if kind_annotated {
+                    self.trunk.lookup_path(p).and_then(|id| self.kind_of(id))
+                        == Some(NodeKind::File)
+                } else {
+                    !p.contains('>')
+                }
             })
             .map(str::to_owned)
             .collect();

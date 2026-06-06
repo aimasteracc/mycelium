@@ -21,9 +21,10 @@ pub enum ParseError {
     /// A token was encountered that does not fit the grammar at that position.
     #[error(
         "unexpected token `{0}` at position {1}\n  \
-         Hyphae is CSS-like: `#id`, `.Name`, a bare tag (`function`/`class`/`method`), \
-         `parent > child`, and `:pseudo(arg)`. A node kind + name is written `class.Name` \
-         (e.g. `class.AuthService > method:calls(#UserRepo)`) — NOT `class:name(Name)`.\n  \
+         A Hyphae simple selector is `#Name` (by symbol name), `.kind` (e.g. \
+         `.function`, `.class`), or `*` (any) — combined with `>` (child), \
+         `:pseudo(arg)`, and `[attr=value]`. To find a symbol named `Foo`, write \
+         `#Foo` (NOT `Foo`, `class.Foo`, or `class:name(Foo)`).\n  \
          Grammar: rfcs/0003-hyphae-query-language.md and rfcs/0091-hyphae-jquery-selectors.md"
     )]
     UnexpectedToken(String, usize),
@@ -466,9 +467,20 @@ mod tests {
         let err = parse("class:name(Store)").expect_err("should not parse");
         let msg = err.to_string();
         assert!(msg.contains("class"), "names the offending token: {msg}");
+        // Must suggest syntax the grammar ACTUALLY accepts — `#Name`, the id
+        // selector (verified working) — and explicitly steer away from the
+        // invalid `class.Name` / `class:name(...)` forms (Codex P2, PR #600).
         assert!(
-            msg.contains("class.") || msg.contains(".Name"),
-            "suggests the kind.Name form: {msg}"
+            msg.contains("#Foo"),
+            "suggests the working #Name form: {msg}"
+        );
+        assert!(
+            msg.contains("#Name") || msg.contains("`#Name`") || msg.contains("by symbol name"),
+            "describes #Name as the by-name selector: {msg}"
+        );
+        assert!(
+            !msg.contains("`class.Name`"),
+            "must NOT teach the invalid class.Name form: {msg}"
         );
         assert!(
             msg.to_lowercase().contains("rfc") || msg.contains("hyphae"),
