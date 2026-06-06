@@ -18,7 +18,7 @@
 //! resolver (so only *remaining* bare stubs reach it — the project-ownership
 //! shadow gate) is a separate step.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 /// Classification of a callee that project resolution did not bind to a
@@ -74,6 +74,87 @@ pub fn classify_python(name: &str) -> CalleeClass {
     } else {
         CalleeClass::Unknown
     }
+}
+
+/// Classify a bare Python callee name with **import-context gating** (RFC-0113 Phase 3).
+///
+/// Unlike [`classify_python`] (name-only), this function requires import evidence
+/// before firing the stdlib/external tiers. The gate is module-specific:
+///
+/// - **Builtins** never need an import — they fire unconditionally.
+/// - **Stdlib module names** (e.g. `json`, `os`): fire only when `caller_imports`
+///   contains that exact module name.
+/// - **Stdlib module-level functions** (e.g. `getcwd` → `os`, `dumps` → `json`/`pickle`):
+///   fire only when `caller_imports` contains one of the function's owning modules.
+///   See [`STDLIB_FUNCTION_MODULES`] for the ownership map.
+/// - **Stdlib methods** (str/pathlib/datetime/re/argparse/io): conservative gate —
+///   any stdlib import enables classification. String methods are always available
+///   but in practice every file using stdlib methods imports at least one stdlib
+///   module. A per-method module map is deferred to a future phase.
+/// - **External** names (pytest/hypothesis/mock): fire only when `caller_imports`
+///   contains `pytest`, `hypothesis`, `mock`, or `unittest`.
+/// - All other names return `Unknown`.
+///
+/// `caller_imports` is the set of module-name stems from the caller file's
+/// `Imports` + `TypeImports` edges — e.g. `{"pathlib", "json"}` from
+/// `import pathlib; from json import dumps`.
+#[must_use]
+pub fn classify_python_import_gated<S: std::hash::BuildHasher>(
+    name: &str,
+    caller_imports: &std::collections::HashSet<String, S>,
+) -> CalleeClass {
+    // Builtins are always available without an import.
+    if PYTHON_BUILTINS.contains(name) {
+        return CalleeClass::Builtin;
+    }
+
+    // Stdlib module name (e.g. `json`, `os`): require that exact module imported.
+    if PYTHON_STDLIB_MODULES.contains(name) {
+        return if caller_imports.contains(name) {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    // Stdlib module-level function (e.g. `getcwd` → os, `dumps` → json/pickle):
+    // require that one of the owning modules is imported.
+    if let Some(owners) = STDLIB_FUNCTION_MODULES.get(name) {
+        let imported = owners.iter().any(|&m| caller_imports.contains(m));
+        return if imported {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    // Stdlib method (str/pathlib/datetime/re/argparse/io): conservative gate.
+    // Any stdlib import enables method classification (string methods are always
+    // available; the gate mainly keeps completely import-free files clean).
+    if PYTHON_STDLIB_METHODS.contains(name) {
+        let has_stdlib = caller_imports
+            .iter()
+            .any(|m| PYTHON_STDLIB_MODULES.contains(m.as_str()));
+        return if has_stdlib {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    if PYTHON_EXTERNAL_METHODS.contains(name) {
+        const EXTERNAL_ROOTS: &[&str] = &["pytest", "hypothesis", "mock", "unittest"];
+        let has_external_import = caller_imports
+            .iter()
+            .any(|m| EXTERNAL_ROOTS.contains(&m.as_str()));
+        return if has_external_import {
+            CalleeClass::External
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    CalleeClass::Unknown
 }
 
 /// Classify a module-qualified Python call `receiver.method()`.
@@ -580,6 +661,123 @@ static PYTHON_STDLIB_FUNCTIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(
     .collect()
 });
 
+/// Maps each name in [`PYTHON_STDLIB_FUNCTIONS`] to the module(s) that own it.
+/// Used by [`classify_python_import_gated`] to enforce module-specific import
+/// evidence: `getcwd` requires `os`; `dumps`/`loads` accept either `json` or `pickle`.
+static STDLIB_FUNCTION_MODULES: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            // os
+            ("getcwd", vec!["os"]),
+            ("getcwdb", vec!["os"]),
+            ("getenv", vec!["os"]),
+            ("listdir", vec!["os"]),
+            ("makedirs", vec!["os"]),
+            ("getpid", vec!["os"]),
+            ("getppid", vec!["os"]),
+            ("urandom", vec!["os"]),
+            ("fspath", vec!["os"]),
+            ("scandir", vec!["os"]),
+            // json / pickle (both expose dumps/loads)
+            ("dumps", vec!["json", "pickle"]),
+            ("loads", vec!["json", "pickle"]),
+            // subprocess
+            ("check_output", vec!["subprocess"]),
+            ("check_call", vec!["subprocess"]),
+            ("getoutput", vec!["subprocess"]),
+            ("getstatusoutput", vec!["subprocess"]),
+            // base64
+            ("b64encode", vec!["base64"]),
+            ("b64decode", vec!["base64"]),
+            ("urlsafe_b64encode", vec!["base64"]),
+            ("urlsafe_b64decode", vec!["base64"]),
+            // logging
+            ("getLogger", vec!["logging"]),
+            ("basicConfig", vec!["logging"]),
+            // random
+            ("randint", vec!["random"]),
+            ("randrange", vec!["random"]),
+            ("getrandbits", vec!["random"]),
+            ("shuffle", vec!["random"]),
+            ("uniform", vec!["random"]),
+            ("gauss", vec!["random"]),
+            // hashlib
+            ("sha256", vec!["hashlib"]),
+            ("sha1", vec!["hashlib"]),
+            ("sha512", vec!["hashlib"]),
+            ("sha224", vec!["hashlib"]),
+            ("sha384", vec!["hashlib"]),
+            ("md5", vec!["hashlib"]),
+            ("blake2b", vec!["hashlib"]),
+            ("blake2s", vec!["hashlib"]),
+            // uuid
+            ("uuid1", vec!["uuid"]),
+            ("uuid3", vec!["uuid"]),
+            ("uuid4", vec!["uuid"]),
+            ("uuid5", vec!["uuid"]),
+            // itertools
+            ("islice", vec!["itertools"]),
+            ("permutations", vec!["itertools"]),
+            ("combinations", vec!["itertools"]),
+            ("groupby", vec!["itertools"]),
+            ("accumulate", vec!["itertools"]),
+            ("starmap", vec!["itertools"]),
+            ("zip_longest", vec!["itertools"]),
+            ("dropwhile", vec!["itertools"]),
+            ("takewhile", vec!["itertools"]),
+            // functools
+            ("lru_cache", vec!["functools"]),
+            ("cmp_to_key", vec!["functools"]),
+            ("reduce", vec!["functools"]),
+            ("partial", vec!["functools"]),
+            ("wraps", vec!["functools"]),
+            // shutil
+            ("copytree", vec!["shutil"]),
+            ("rmtree", vec!["shutil"]),
+            ("copyfileobj", vec!["shutil"]),
+            ("copyfile", vec!["shutil"]),
+            ("make_archive", vec!["shutil"]),
+            // collections
+            ("defaultdict", vec!["collections"]),
+            ("namedtuple", vec!["collections"]),
+            ("OrderedDict", vec!["collections"]),
+            ("deque", vec!["collections"]),
+            // textwrap
+            ("dedent", vec!["textwrap"]),
+            ("shorten", vec!["textwrap"]),
+            // glob
+            ("iglob", vec!["glob"]),
+            // math
+            ("isclose", vec!["math"]),
+            ("factorial", vec!["math"]),
+            ("hypot", vec!["math"]),
+            ("isnan", vec!["math"]),
+            ("isinf", vec!["math"]),
+            ("copysign", vec!["math"]),
+            // time
+            ("monotonic", vec!["time"]),
+            ("perf_counter", vec!["time"]),
+            ("process_time", vec!["time"]),
+            ("gmtime", vec!["time"]),
+            ("localtime", vec!["time"]),
+            // tempfile
+            ("mkdtemp", vec!["tempfile"]),
+            ("mkstemp", vec!["tempfile"]),
+            ("gettempdir", vec!["tempfile"]),
+            // importlib
+            ("import_module", vec!["importlib"]),
+            // inspect
+            ("getsource", vec!["inspect"]),
+            ("getmembers", vec!["inspect"]),
+            ("signature", vec!["inspect"]),
+            ("getfullargspec", vec!["inspect"]),
+            // secrets
+            ("token_hex", vec!["secrets"]),
+            ("token_urlsafe", vec!["secrets"]),
+            ("token_bytes", vec!["secrets"]),
+        ])
+    });
+
 /// Well-known third-party (test-framework) method names. Ported from
 /// `EXTERNAL_METHODS_PY` (RFC-0005 in tree-sitter-analyzer): pytest, hypothesis,
 /// unittest.mock. Conservative — only overwhelmingly-test-framework names.
@@ -734,6 +932,168 @@ mod tests {
         assert_eq!(
             classify_python_qualified("obj", "frobnicate"),
             CalleeClass::Unknown
+        );
+    }
+
+    // ── RFC-0113 Phase 3: import-gated classification ─────────────────────────
+
+    fn imports(modules: &[&str]) -> std::collections::HashSet<String> {
+        modules.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    #[test]
+    fn import_gate_builtins_always_fire_without_imports() {
+        // Builtins need no import — unconditional.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("len", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(
+            classify_python_import_gated("print", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(
+            classify_python_import_gated("ValueError", &none),
+            CalleeClass::Builtin
+        );
+    }
+
+    #[test]
+    fn import_gate_stdlib_method_blocked_without_import() {
+        // write_text is a pathlib stdlib method; no import → unknown.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("write_text", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("isoformat", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn import_gate_stdlib_function_blocked_without_import() {
+        // getcwd / dumps need an import (os / json) — no stdlib import → unknown.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("getcwd", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("dumps", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn import_gate_stdlib_allowed_with_any_stdlib_import() {
+        // Any stdlib import enables the stdlib tier (conservative gate).
+        let with_os = imports(&["os"]);
+        assert_eq!(
+            classify_python_import_gated("getcwd", &with_os),
+            CalleeClass::Stdlib
+        );
+
+        let with_json = imports(&["json"]);
+        assert_eq!(
+            classify_python_import_gated("dumps", &with_json),
+            CalleeClass::Stdlib
+        );
+
+        let with_pathlib = imports(&["pathlib"]);
+        assert_eq!(
+            classify_python_import_gated("write_text", &with_pathlib),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn import_gate_external_blocked_without_test_import() {
+        // pytest.raises → external, but no pytest import → unknown.
+        let none = imports(&[]);
+        assert_eq!(
+            classify_python_import_gated("raises", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("parametrize", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn import_gate_external_allowed_with_pytest_import() {
+        let with_pytest = imports(&["pytest"]);
+        assert_eq!(
+            classify_python_import_gated("raises", &with_pytest),
+            CalleeClass::External
+        );
+        assert_eq!(
+            classify_python_import_gated("parametrize", &with_pytest),
+            CalleeClass::External
+        );
+    }
+
+    #[test]
+    fn import_gate_external_allowed_with_hypothesis_import() {
+        let with_hypothesis = imports(&["hypothesis"]);
+        assert_eq!(
+            classify_python_import_gated("given", &with_hypothesis),
+            CalleeClass::External
+        );
+    }
+
+    #[test]
+    fn import_gate_unknown_names_stay_unknown_regardless_of_imports() {
+        let lots = imports(&["os", "json", "pathlib", "pytest"]);
+        assert_eq!(
+            classify_python_import_gated("frobnicate", &lots),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_python_import_gated("my_project_helper", &lots),
+            CalleeClass::Unknown
+        );
+    }
+
+    // ── RFC-0113 Phase 3 Codex fix: module-specific gate ─────────────────────
+
+    #[test]
+    fn import_gate_wrong_module_does_not_enable_stdlib_function() {
+        // `json` imported but `getcwd` belongs to `os` — wrong module → unknown.
+        let with_json = imports(&["json"]);
+        assert_eq!(
+            classify_python_import_gated("getcwd", &with_json),
+            CalleeClass::Unknown
+        );
+        // `pathlib` imported but `dumps` belongs to `json`/`pickle` — wrong module → unknown.
+        let with_pathlib = imports(&["pathlib"]);
+        assert_eq!(
+            classify_python_import_gated("dumps", &with_pathlib),
+            CalleeClass::Unknown
+        );
+        // `os` imported but `uuid4` belongs to `uuid` — wrong module → unknown.
+        let with_os = imports(&["os"]);
+        assert_eq!(
+            classify_python_import_gated("uuid4", &with_os),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn import_gate_module_name_requires_exact_module_imported() {
+        // `name = "json"` but only `os` imported → json not in caller_imports → unknown.
+        let with_os = imports(&["os"]);
+        assert_eq!(
+            classify_python_import_gated("json", &with_os),
+            CalleeClass::Unknown
+        );
+        // `name = "os"` and `os` is imported → stdlib.
+        assert_eq!(
+            classify_python_import_gated("os", &with_os),
+            CalleeClass::Stdlib
         );
     }
 }

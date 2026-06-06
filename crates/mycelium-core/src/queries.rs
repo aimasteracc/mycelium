@@ -26,7 +26,27 @@ use crate::types::{EdgeKind, NodeId};
 /// Both arrays are sorted lexicographically by path and deduplicated.
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
-    use crate::classify::{CalleeClass, classify_python};
+    use crate::classify::{CalleeClass, classify_python_import_gated};
+    use std::collections::HashSet;
+
+    // RFC-0113 Phase 3: build the caller file's import-module set for gating.
+    // Extract the file prefix of the caller's path, look up its NodeId, then
+    // collect the module-name stems of all its Imports edges.
+    let caller_imports: HashSet<String> = store
+        .path_of(id)
+        .map(|p| p.split('>').next().unwrap_or(p))
+        .and_then(|file_path| store.lookup(file_path))
+        .map(|file_id| {
+            store
+                .imports_of(file_id)
+                .into_iter()
+                .map(|imp| {
+                    imp.split_once('>')
+                        .map_or_else(|| imp.clone(), |(stem, _)| stem.to_owned())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
 
     let mut entries: Vec<(String, &'static str)> = store
         .outgoing(id, kind)
@@ -36,7 +56,7 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
                 let class = if path.contains('>') {
                     CalleeClass::Project.as_str()
                 } else {
-                    classify_python(path).as_str()
+                    classify_python_import_gated(path, &caller_imports).as_str()
                 };
                 (path.to_owned(), class)
             })
@@ -196,12 +216,51 @@ mod tests {
     }
 
     #[test]
-    fn callees_payload_bare_stdlib_method_stub_classified() {
-        // bare stub "write_text" — pathlib stdlib method
+    fn callees_payload_bare_stdlib_method_without_import_is_unknown() {
+        // RFC-0113 Phase 3: bare stub "write_text" with no stdlib import → unknown
+        // (import gate blocks the stdlib tier when no stdlib module is imported).
         let mut store = Store::new();
         let src = store.upsert_node(p("src/a.py>A>run"));
         let stub = store.upsert_node(p("write_text"));
         store.upsert_edge(EdgeKind::Calls, src, stub);
+        // intentionally no Imports edge on src/a.py
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["class"], "unknown");
+    }
+
+    #[test]
+    fn callees_payload_bare_stdlib_method_with_stdlib_import_is_stdlib() {
+        // RFC-0113 Phase 3: bare stub "write_text" + pathlib import → stdlib.
+        // The file node must be explicitly upserted (trunk does not auto-create
+        // intermediate nodes for ancestor paths).
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let file = store.upsert_node_with_kind(p("src/a.py"), NodeKind::File);
+        let src = store.upsert_node(p("src/a.py>A>run"));
+        let stub = store.upsert_node(p("write_text"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+        let pathlib_mod = store.upsert_node_with_kind(p("pathlib"), NodeKind::Module);
+        store.upsert_edge(EdgeKind::Imports, file, pathlib_mod);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["path"], "write_text");
+        assert_eq!(entries[0]["class"], "stdlib");
+    }
+
+    #[test]
+    fn callees_payload_stdlib_function_with_import_is_stdlib() {
+        // RFC-0113 Phase 3: bare stub "getcwd" + os import → stdlib.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let file = store.upsert_node_with_kind(p("src/a.py"), NodeKind::File);
+        let src = store.upsert_node(p("src/a.py>A>run"));
+        let stub = store.upsert_node(p("getcwd"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+        let os_mod = store.upsert_node_with_kind(p("os"), NodeKind::Module);
+        store.upsert_edge(EdgeKind::Imports, file, os_mod);
 
         let v = callees_payload(&store, src, EdgeKind::Calls);
         let entries = v["callees"].as_array().expect("callees must be an array");
