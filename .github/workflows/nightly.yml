@@ -136,3 +136,10 @@ jobs:
           name: mutants-report
           path: mutants.log
           if-no-files-found: ignore
+      - name: Upload mutants report directory
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mutants-report-dir
+          path: mutants.out/
+          if-no-files-found: warn
