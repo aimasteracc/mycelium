@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **SDK argv-smuggling guard + Python output cap (RFC-0111, Node + Python).**
+  Both thin-CLI-wrapper SDKs now reject a user-supplied positional that begins
+  with `-` (e.g. a query of `--root`), which the `mycelium` CLI would otherwise
+  re-parse as a flag rather than a value (`execFile`/`subprocess` already avoid
+  the shell, so this closes the residual argv-smuggling surface). The Python
+  runner additionally streams stdout/stderr with a hard 64 MiB cap — mirroring
+  the Node SDK's `execFile` `maxBuffer` — and kills a child that overflows it,
+  so a runaway or hostile binary can't exhaust host memory. 4 new Node tests +
+  4 new Python tests.
+
 ### Fixed
 
 - **RFC-0103 per-edge `Extends` resolution for mixed-import sites (Issue #555).**
