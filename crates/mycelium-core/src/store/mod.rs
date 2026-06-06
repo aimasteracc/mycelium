@@ -811,8 +811,16 @@ impl Store {
     /// Iterate all symbol nodes (paths with `>`). Yields `(NodeId, &str)`.
     ///
     /// O(V) — no trie navigation. Replaces `all_paths() + filter + lookup_path()` loops.
+    ///
+    /// RFC-0118 Part A: excludes unresolved-callee phantoms (`NodeKind::Unresolved`)
+    /// so every consumer of the symbol universe (`page_rank`, `health`, `leaf_symbols`,
+    /// `degree_histogram`, `graph_metrics`, …) is de-noised by construction. The
+    /// resolve passes deliberately do NOT use this — they iterate `trunk.all_paths`
+    /// because they must still see the phantoms in order to resolve them.
     pub fn symbol_nodes(&self) -> impl Iterator<Item = (NodeId, &str)> + '_ {
-        self.trunk.symbol_nodes()
+        self.trunk
+            .symbol_nodes()
+            .filter(|(id, _)| self.is_real_symbol(*id))
     }
 
     /// Return the top `limit` symbols ranked by incoming `Calls` edge count,
@@ -2182,6 +2190,12 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude unresolved-callee phantoms.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter_map(|p| {
                 self.trunk.lookup_path(p).map(|id| {
                     let in_deg = self.synapse.incoming(id, kind).len();
@@ -2283,6 +2297,12 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude unresolved-callee phantoms.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter_map(|p| {
                 let id = self.trunk.lookup_path(p)?;
                 let inc = self.synapse.incoming(id, kind);
@@ -3387,6 +3407,12 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude unresolved-callee phantoms.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter_map(|p| {
                 self.trunk.lookup_path(p).map(|id| {
                     let degree = self.synapse.incoming(id, kind).len()
@@ -3457,8 +3483,14 @@ impl Store {
     #[must_use]
     pub fn symbol_count_by_kind(&self) -> Vec<(String, usize)> {
         let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-        for &kind in self.kind_map.values() {
-            *counts.entry(kind.as_str().to_owned()).or_insert(0) += 1;
+        // Only count nodes that still exist in the trunk. `resolve_bare_call_stubs`
+        // removes redirected stubs via raw `trunk.remove`, which does not clean
+        // `kind_map` (RFC-0118 Part C, deferred), so a stale entry could otherwise
+        // inflate the breakdown — skip any id with no live trunk path.
+        for (&id, &kind) in &self.kind_map {
+            if self.trunk.path_of(id).is_some() {
+                *counts.entry(kind.as_str().to_owned()).or_insert(0) += 1;
+            }
         }
         counts.into_iter().collect()
     }
@@ -3534,6 +3566,12 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude unresolved-callee phantoms.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter_map(|p| {
                 self.trunk.lookup_path(p).map(|id| {
                     let deg = self.synapse.outgoing(id, kind).len();
@@ -3555,6 +3593,12 @@ impl Store {
             .trunk
             .all_paths()
             .filter(|p| p.contains('>'))
+            // RFC-0118 Part A: exclude unresolved-callee phantoms.
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_none_or(|id| self.is_real_symbol(id))
+            })
             .filter_map(|p| {
                 self.trunk.lookup_path(p).map(|id| {
                     let deg = self.synapse.incoming(id, kind).len();
@@ -3985,12 +4029,9 @@ impl Store {
         let damping = damping.clamp(0.0, 1.0);
 
         // Collect all symbol NodeIds in a stable order (no trie navigation).
-        // RFC-0118 Part A: exclude unresolved-callee phantoms from the rank universe.
-        let symbols: Vec<NodeId> = self
-            .symbol_nodes()
-            .filter(|(id, _)| self.is_real_symbol(*id))
-            .map(|(id, _)| id)
-            .collect();
+        // RFC-0118 Part A: `symbol_nodes()` already excludes NodeKind::Unresolved
+        // phantoms, so the rank universe is de-noised by construction.
+        let symbols: Vec<NodeId> = self.symbol_nodes().map(|(id, _)| id).collect();
         let n = symbols.len();
         if n == 0 {
             return Vec::new();

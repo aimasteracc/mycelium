@@ -1064,6 +1064,49 @@ fn unresolved_phantoms_excluded_from_symbol_queries() {
             .any(|p| p == "Db>upsert_node" || p == "unwrap"),
         "phantoms must not appear in page_rank: {ranked:?}"
     );
+
+    // Secondary symbol-universe queries are gated too (RFC-0118 Part A sweep).
+    let is_phantom = |p: &String| p == "Db>upsert_node" || p == "unwrap";
+    assert!(
+        !store
+            .most_connected(10, EdgeKind::Calls)
+            .iter()
+            .any(|(p, _)| is_phantom(p)),
+        "phantoms must not appear in most_connected"
+    );
+    assert!(
+        !store
+            .fan_in_rank(EdgeKind::Calls, 10)
+            .iter()
+            .any(|(p, _)| is_phantom(p)),
+        "phantoms (in-degree >= 1) must not appear in fan_in_rank"
+    );
+    assert!(
+        !store
+            .singly_referenced(EdgeKind::Calls, 10)
+            .iter()
+            .any(|(p, _)| is_phantom(p)),
+        "phantom with exactly one incoming edge must not appear in singly_referenced"
+    );
+    // leaf_symbols (out-degree 0): phantoms have no outgoing edges, so without the
+    // gate they would be reported as leaves.
+    assert!(
+        !store
+            .leaf_symbols(EdgeKind::Calls, 100)
+            .iter()
+            .any(is_phantom),
+        "phantoms must not appear in leaf_symbols"
+    );
+    // symbol_count_by_kind counts the two live Unresolved nodes (no orphan inflation).
+    let counts = store.symbol_count_by_kind();
+    let unresolved = counts
+        .iter()
+        .find(|(k, _)| k == "unresolved")
+        .map_or(0, |(_, n)| *n);
+    assert_eq!(
+        unresolved, 2,
+        "two live Unresolved nodes expected: {counts:?}"
+    );
 }
 
 #[test]

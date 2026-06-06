@@ -388,11 +388,13 @@ impl Extractor {
 
                         // RFC-0118 Part A: a callee we cannot resolve to an existing
                         // definition is minted as a `NodeKind::Unresolved` placeholder, so
-                        // `is_real_symbol` keeps it out of the symbol universe (all_symbols /
-                        // page_rank / rank_symbols). `upsert_node_with_kind` only runs in the
-                        // `lookup == None` branch, so it never overwrites an existing real
-                        // node; and if the real definition is indexed later, its own
-                        // definition-extraction `set_kind` corrects this node's kind.
+                        // `is_real_symbol` keeps it out of the symbol universe. The mint
+                        // only runs in the `lookup == None` branch, so it never overwrites
+                        // an existing real node. Two outcomes thereafter: (a) a bare stub
+                        // that uniquely matches a definition is redirected + removed by
+                        // `resolve_bare_call_stubs`; (b) a qualified-but-undefined phantom
+                        // (path differs from any real def path) correctly stays Unresolved
+                        // and excluded — that is the desired end state, not a missed fixup.
                         let callee_id = if let Some(qualified) = resolved_target {
                             if let Some(id) = store.lookup(&qualified) {
                                 id
@@ -437,13 +439,15 @@ impl Extractor {
                                 .map(|p| chain_resolve(&alias_table, p))
                                 .and_then(|q| {
                                     store.lookup(&q).or_else(|| {
-                                        TrunkPath::parse(&q).ok().map(|p| store.upsert_node(p))
+                                        TrunkPath::parse(&q).ok().map(|p| {
+                                            store.upsert_node_with_kind(p, NodeKind::Unresolved)
+                                        })
                                     })
                                 })
                             {
                                 resolved
                             } else if let Ok(bare) = TrunkPath::parse(cb_name) {
-                                store.upsert_node(bare)
+                                store.upsert_node_with_kind(bare, NodeKind::Unresolved)
                             } else {
                                 continue;
                             }
@@ -476,9 +480,9 @@ impl Extractor {
                                 .map(|t| alias_target_to_file_path(t))
                                 .and_then(|qualified| {
                                     store.lookup(&qualified).or_else(|| {
-                                        TrunkPath::parse(&qualified)
-                                            .ok()
-                                            .map(|p| store.upsert_node(p))
+                                        TrunkPath::parse(&qualified).ok().map(|p| {
+                                            store.upsert_node_with_kind(p, NodeKind::Unresolved)
+                                        })
                                     })
                                 })
                             {
@@ -486,7 +490,7 @@ impl Extractor {
                                 id
                             } else if let Ok(bare) = TrunkPath::parse(base_name) {
                                 // Fallback: bare stub (will be resolved post-extraction if unambiguous).
-                                store.upsert_node(bare)
+                                store.upsert_node_with_kind(bare, NodeKind::Unresolved)
                             } else {
                                 continue;
                             }
@@ -516,15 +520,15 @@ impl Extractor {
                                 .map(|t| alias_target_to_file_path(t))
                                 .and_then(|qualified| {
                                     store.lookup(&qualified).or_else(|| {
-                                        TrunkPath::parse(&qualified)
-                                            .ok()
-                                            .map(|p| store.upsert_node(p))
+                                        TrunkPath::parse(&qualified).ok().map(|p| {
+                                            store.upsert_node_with_kind(p, NodeKind::Unresolved)
+                                        })
                                     })
                                 })
                             {
                                 id
                             } else if let Ok(bare) = TrunkPath::parse(iface_name) {
-                                store.upsert_node(bare)
+                                store.upsert_node_with_kind(bare, NodeKind::Unresolved)
                             } else {
                                 continue;
                             }
