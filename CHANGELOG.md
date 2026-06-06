@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0113 Phase 2 — callee classification (`class` field on `get_callees`).**
+  `callees_payload` now returns an additive `callees` array alongside the
+  backward-compatible `callee_paths` array. Each entry is
+  `{ "path": "...", "class": "project|stdlib|builtin|external|unknown" }`.
+  Project-defined callees (path contains `>`) are classified `"project"`;
+  unresolved bare stubs are classified against the Python stdlib/builtin/external
+  allowlists from `classify.rs` (RFC-0113 Phase 1). Both the CLI `get-callees`
+  and MCP `mycelium_get_callees` share the same `callees_payload` builder, so the
+  new field is byte-identical on both surfaces (Charter §5.13). 6 new TDD tests.
+
 ### Security
 
 - **SDK argv-smuggling guard + Python output cap (RFC-0111, Node + Python).**

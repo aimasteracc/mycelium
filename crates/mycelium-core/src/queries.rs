@@ -12,18 +12,46 @@ use serde_json::{Value, json};
 use crate::store::Store;
 use crate::types::{EdgeKind, NodeId};
 
-/// Build the `{ "callee_paths": [...] }` payload for `get_callees`: the sorted,
-/// deduplicated trunk paths reachable from `id` via one outgoing `kind` edge.
+/// Build the `{ "callee_paths": [...], "callees": [{path, class}, ...] }` payload
+/// for `get_callees` (RFC-0109 Option A shape + RFC-0113 Phase 2 class field).
+///
+/// `callee_paths` is kept for backward compatibility. `callees` is the additive
+/// array where each entry carries the trunk path **and** a static classification:
+/// - Paths containing `>` are project-defined symbols → `"project"`.
+/// - Bare stub paths (no `>`) are classified against the Python stdlib/builtin/
+///   external allowlists ([`crate::classify::classify_python`]). Callers must
+///   apply the project-ownership shadow first (only unresolved stubs reach here),
+///   which `resolve_bare_call_stubs` already ensures.
+///
+/// Both arrays are sorted lexicographically by path and deduplicated.
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
-    let mut paths: Vec<String> = store
+    use crate::classify::{CalleeClass, classify_python};
+
+    let mut entries: Vec<(String, &'static str)> = store
         .outgoing(id, kind)
         .iter()
-        .filter_map(|&dst| store.path_of(dst).map(str::to_owned))
+        .filter_map(|&dst| {
+            store.path_of(dst).map(|path| {
+                let class = if path.contains('>') {
+                    CalleeClass::Project.as_str()
+                } else {
+                    classify_python(path).as_str()
+                };
+                (path.to_owned(), class)
+            })
+        })
         .collect();
-    paths.sort();
-    paths.dedup();
-    json!({ "callee_paths": paths })
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+    entries.dedup_by_key(|e| e.0.clone());
+
+    let paths: Vec<&str> = entries.iter().map(|(p, _)| p.as_str()).collect();
+    let callees: Vec<Value> = entries
+        .iter()
+        .map(|(p, c)| json!({ "path": p, "class": c }))
+        .collect();
+
+    json!({ "callee_paths": paths, "callees": callees })
 }
 
 /// Build the `{ "caller_paths": [...] }` payload for `get_callers`.
@@ -133,6 +161,95 @@ mod tests {
         let leaf = store.upsert_node(p("src/a.rs>A>leaf"));
         let v = callees_payload(&store, leaf, EdgeKind::Calls);
         assert_eq!(v["callee_paths"].as_array().unwrap().len(), 0);
+        assert_eq!(v["callees"].as_array().unwrap().len(), 0);
+    }
+
+    // RFC-0113 Phase 2: callee classification ─────────────────────────────────
+
+    #[test]
+    fn callees_payload_project_callee_has_class_project() {
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/a.py>A>run"));
+        let dst = store.upsert_node(p("src/b.py>B>helper"));
+        store.upsert_edge(EdgeKind::Calls, src, dst);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "src/b.py>B>helper");
+        assert_eq!(entries[0]["class"], "project");
+    }
+
+    #[test]
+    fn callees_payload_bare_builtin_stub_classified() {
+        // bare stub "len" — Python builtin; project resolution already failed
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/a.py>A>run"));
+        let stub = store.upsert_node(p("len"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "len");
+        assert_eq!(entries[0]["class"], "builtin");
+    }
+
+    #[test]
+    fn callees_payload_bare_stdlib_method_stub_classified() {
+        // bare stub "write_text" — pathlib stdlib method
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/a.py>A>run"));
+        let stub = store.upsert_node(p("write_text"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["class"], "stdlib");
+    }
+
+    #[test]
+    fn callees_payload_bare_unknown_stub_classified() {
+        // bare stub "frobnicate" — no match in any table
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/a.py>A>run"));
+        let stub = store.upsert_node(p("frobnicate"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["class"], "unknown");
+    }
+
+    #[test]
+    fn callees_payload_mixed_project_and_stubs_sorted_by_path() {
+        // project symbol + two stubs; result sorted lexicographically
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/a.py>A>run"));
+        let proj = store.upsert_node(p("src/b.py>B>helper"));
+        let b_stub = store.upsert_node(p("len"));
+        let u_stub = store.upsert_node(p("frobnicate"));
+        store.upsert_edge(EdgeKind::Calls, src, proj);
+        store.upsert_edge(EdgeKind::Calls, src, b_stub);
+        store.upsert_edge(EdgeKind::Calls, src, u_stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let paths = v["callee_paths"]
+            .as_array()
+            .expect("callee_paths must be present (backward compat)");
+        let entries = v["callees"].as_array().expect("callees must be an array");
+
+        // Both arrays must have the same length and the same sort order.
+        assert_eq!(paths.len(), 3);
+        assert_eq!(entries.len(), 3);
+
+        // Sorted: "frobnicate" < "len" < "src/b.py>B>helper"
+        assert_eq!(entries[0]["path"], "frobnicate");
+        assert_eq!(entries[0]["class"], "unknown");
+        assert_eq!(entries[1]["path"], "len");
+        assert_eq!(entries[1]["class"], "builtin");
+        assert_eq!(entries[2]["path"], "src/b.py>B>helper");
+        assert_eq!(entries[2]["class"], "project");
     }
 
     #[test]
