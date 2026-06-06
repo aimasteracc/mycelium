@@ -37,6 +37,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod budget;
+pub mod classify;
 pub mod context;
 pub mod cortex;
 pub mod error;
