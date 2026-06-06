@@ -71,7 +71,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **PyPI**: RESOLVED — founder switched to twine token auth (commit `38c3214`); Release run #79 `conclusion: success` ✅ (2026-06-05T18:00Z). crates.io ✅ npm ✅ PyPI ✅ all published.
 - [ ] **Preferred path**: Trigger `finalize` workflow_dispatch on `release.yml` — handles Steps 1–4 automatically (merge → tag → GitHub Release → back-merge). Stop here if finalize succeeds.
 - [ ] **Manual fallback only** (if finalize unavailable):
-  - [ ] **Step 1**: `gh pr merge --admin --squash #568` → `main`
+  - [ ] **Step 1**: `gh pr merge --admin --merge #568` → `main` (no-ff merge commit preserves DCO evidence + matches `release.yml` finalize path)
   - [ ] **Step 2**: `git tag -s v0.3.0 && git push origin v0.3.0`
   - [ ] **Step 3**: `gh release create v0.3.0 --title "v0.3.0" --generate-notes` — **do NOT run finalize after manual Steps 1+2**; finalize re-runs merge+tag and will fail or double-apply them
   - [ ] **Step 4**: Back-merge `release/v0.3.0` → `develop`
@@ -198,7 +198,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 5. **PM state v79 written** (this file): header, dispatch state, archive updated. ✅
 
 **Escalations to founder:**
-- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: `gh pr merge --admin --squash #568` → main, tag `v0.3.0`, GH Release, back-merge. **crates.io ✅ npm ✅ PyPI ✅ already published — do NOT republish.**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml` (preferred) OR manual Steps 1–4: `gh pr merge --admin --merge #568` → main (no-ff; matches automation), tag `v0.3.0`, GH Release, back-merge. **crates.io ✅ npm ✅ PyPI ✅ already published — do NOT republish.**
 - **(P1, post-v0.3.0)** VS Code Phase 1.5: `vsce publish` wiring + marketplace metadata sign-off.
 - **(P1, post-v0.3.0)** GitHub Action live run on this repo.
 
