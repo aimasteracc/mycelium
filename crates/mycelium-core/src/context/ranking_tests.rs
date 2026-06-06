@@ -277,6 +277,33 @@ fn rank_dedups_and_caps() {
     assert_eq!(result.len(), sorted.len(), "no duplicate paths");
 }
 
+// AC-7 addendum: first-seen wins even when a later duplicate has higher importance (Codex P2 #623)
+#[test]
+fn rank_first_seen_wins_over_higher_importance_duplicate() {
+    let candidates = vec![
+        sc("src/a.rs>foo", false, 1.0, 0), // first-seen foo, importance=1
+        sc("src/b.rs>bar", false, 5.0, 1),
+        sc("src/a.rs>foo", false, 10.0, 2), // duplicate: higher importance, must NOT win
+    ];
+    let result = rank_entry_points(
+        &candidates,
+        RankOpts {
+            max_nodes: 30,
+            exclude_tests: false,
+        },
+    );
+    assert_eq!(result.len(), 2, "duplicate must collapse to single entry");
+    // first-seen foo survives with importance=1; bar(5) > foo(1) → [bar, foo]
+    assert_eq!(
+        result[0], "src/b.rs>bar",
+        "bar (importance=5) above first-seen foo (importance=1)"
+    );
+    assert_eq!(
+        result[1], "src/a.rs>foo",
+        "first-seen (importance=1) not the duplicate (importance=10)"
+    );
+}
+
 // AC-8: paths without '>' separator (bare file nodes)
 #[test]
 fn classify_handles_paths_without_separator() {

@@ -135,21 +135,29 @@ pub fn classify_test_path(trunk_path: &str) -> TestKind {
 /// Rank candidates by `(exact_match desc, non_test desc, importance desc, order asc)`.
 ///
 /// Algorithm (RFC-0119 §Design):
-/// 1. Classify each candidate via [`classify_test_path`].
-/// 2. Partition into `non_test` and `test` buckets.
-/// 3. Sort each bucket by the ordering key.
-/// 4. Concatenate: `non_test` first, `test` appended (dropped when `exclude_tests` and
+/// 1. Dedup by path (first-seen) — a later duplicate with higher importance must not
+///    steal the rank position of the first-seen entry (AC-7 contract).
+/// 2. Classify each surviving candidate via [`classify_test_path`].
+/// 3. Partition into `non_test` and `test` buckets.
+/// 4. Sort each bucket by the ordering key.
+/// 5. Concatenate: `non_test` first, `test` appended (dropped when `exclude_tests` and
 ///    `non_test` is non-empty).
-/// 5. Dedup by path preserving first-seen order; truncate to `max_nodes`.
+/// 6. Truncate to `max_nodes`.
 ///
 /// **Never-empty guarantee:** if every candidate is test code, they are returned
 /// importance-ranked regardless of `exclude_tests`.
 #[must_use]
 pub fn rank_entry_points(candidates: &[ScoredCandidate], opts: RankOpts) -> Vec<String> {
+    // Dedup by path (first-seen) before partitioning so a later duplicate with
+    // higher importance cannot silently promote an entry point (AC-7).
+    let mut seen_paths = std::collections::HashSet::new();
     let mut non_test: Vec<&ScoredCandidate> = Vec::new();
     let mut test: Vec<&ScoredCandidate> = Vec::new();
 
     for c in candidates {
+        if !seen_paths.insert(c.path.as_str()) {
+            continue;
+        }
         match classify_test_path(&c.path) {
             TestKind::None => non_test.push(c),
             TestKind::TestFile | TestKind::TestSymbol => test.push(c),
@@ -182,11 +190,8 @@ pub fn rank_entry_points(candidates: &[ScoredCandidate], opts: RankOpts) -> Vec<
         v
     };
 
-    // Dedup by path preserving first-seen (sorted) order; cap to max_nodes.
-    let mut seen = std::collections::HashSet::new();
     ordered
         .into_iter()
-        .filter(|c| seen.insert(c.path.clone()))
         .take(opts.max_nodes)
         .map(|c| c.path.clone())
         .collect()
