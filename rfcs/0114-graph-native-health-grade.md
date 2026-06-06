@@ -1,6 +1,6 @@
 # RFC-0114: graph-native project health grade (A–F)
 
-- **Status**: **Draft** (design + Phase-1 scorer core in the opening PR)
+- **Status**: **Implemented** (Phase 1 scorer core + Phase 2 Store adapter + CLI/MCP/Skill surface)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: existing graph metrics — [RFC-0046](0046-node-degree.md)/[RFC-0073](0073-degree-histogram.md)
@@ -99,9 +99,9 @@ core) adds no surface — it is internal scaffolding, exactly like RFC-0113's
 - [x] No edits to `store/mod.rs` / `synapse/` (zero overlap with PR #572).
 
 **Phase 2 — surface (follow-up, after #572 + this design's review):**
-- [ ] `Store::health()` adapter over the public metric API.
-- [ ] `project-health` CLI + `mycelium_project_health` MCP (byte-identical) + Skill.
-- [ ] README + CHANGELOG; optional structure dimension (degree/clustering).
+- [x] `Store::health()` adapter over the public metric API.
+- [x] `project-health` CLI + `mycelium_project_health` MCP (byte-identical) + Skill.
+- [x] README + CHANGELOG; optional structure dimension (degree/clustering).
 
 ## Alternatives considered
 

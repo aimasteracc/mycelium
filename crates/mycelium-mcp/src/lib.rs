@@ -1730,6 +1730,24 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "Compute a graph-native A–F project health grade from the indexed RCIG graph. \
+                       Returns { grade, score, dimensions } where grade is A/B/C/D/F, score is \
+                       0–100, and dimensions is a breakdown by dead_code / isolation / connectivity. \
+                       Cross-language by construction — no cyclomatic complexity, no coverage file. \
+                       An empty index returns grade F, score 0. (RFC-0114.)"
+    )]
+    async fn mycelium_project_health(
+        &self,
+        Parameters(req): Parameters<GetProjectHealthRequest>,
+    ) -> CallToolResult {
+        let store = self.store.read().await;
+        let report = store.health();
+        drop(store);
+        let value = mycelium_core::health::project_health_payload(&report);
+        success_str(self.render(req.output_format, &value))
+    }
+
+    #[tool(
         description = "Return comprehensive per-kind statistics about the indexed symbol graph: \
                        total node and edge counts plus breakdowns by NodeKind (file, function, \
                        class, …) and EdgeKind (calls, imports, extends, …). \

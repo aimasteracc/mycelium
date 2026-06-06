@@ -6385,3 +6385,36 @@ fn delta_roundtrip_via_base64() {
         Some(NodeKind::Function)
     );
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Store::health() — RFC-0114 Phase 2
+// ──────────────────────────────────────────────────────────────────────
+
+#[test]
+fn store_health_empty_store_fails_closed() {
+    let store = Store::new();
+    let report = store.health();
+    assert_eq!(report.grade, crate::health::HealthGrade::F);
+    assert_eq!(report.score, 0);
+}
+
+#[test]
+fn store_health_connected_project_grades_a() {
+    let mut store = Store::new();
+    // Add 10 well-connected symbols (ring topology: each calls the next).
+    let ids: Vec<_> = (0..10)
+        .map(|i| store.upsert_node(path(&format!("src/lib.rs>sym{i}"))))
+        .collect();
+    for i in 0..ids.len() {
+        store.upsert_edge(EdgeKind::Calls, ids[i], ids[(i + 1) % ids.len()]);
+    }
+    let report = store.health();
+    // 0 dead, 0 isolated, density = 10 edges / 10 nodes = 1.0 (≥ target/2).
+    // Should grade B or better.
+    assert!(
+        report.score >= 80,
+        "expected B or A, got score={} grade={}",
+        report.score,
+        report.grade.as_str()
+    );
+}

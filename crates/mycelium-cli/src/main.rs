@@ -315,6 +315,14 @@ enum Cmd {
         #[arg(long)]
         budget: Option<String>,
     },
+    /// Compute a graph-native A–F project health grade (RFC-0114).
+    /// Returns { grade, score, dimensions } — the CLI twin of `mycelium_project_health`.
+    ProjectHealth {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Return `imports` + `imported_by` for a file/module.
     GetImports {
         path: String,
@@ -1320,6 +1328,10 @@ fn dispatch(cmd: Cmd) -> Result<()> {
                 budget.as_deref(),
                 format.into(),
             )?;
+        }
+        Cmd::ProjectHealth { root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_project_health(&canonical, format.into())?;
         }
         Cmd::GetImports { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
