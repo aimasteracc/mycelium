@@ -158,12 +158,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #623 once CI green (Codex P2 addressed). **(3)** Admin-merge PR #624 once CI green. |
-| PM | **DONE ✅** | v93: PR #623 Codex P2 fixed (`b2a456e`); PR #624 correction appended (`7b9384e`); both CIs running; PM state v93 written. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #625 (PM state v93) once CI green — #624 was superseded and is closed. |
+| PM | **DONE ✅** | v93: PR #623 merged ✅ (`5c8e9b9`); PR #624 closed (superseded); PR #625 CI running. Codex P2 on #625 line 161 fixed (stale #624 ref → #625). |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1 — pending merge** | PR #623 (RFC-0119 Phase 1, pure ranking core, Codex-clean): admin-merge pending CI. Next: RFC-0119 Phase 2 (thin Store adapter in seed_entry_points). |
+| rust-implementer | **P1** | PR #623 MERGED ✅ (`5c8e9b9`). Next: RFC-0119 Phase 2 (thin Store adapter in `seed_entry_points`). |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
