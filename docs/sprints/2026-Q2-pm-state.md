@@ -144,11 +144,10 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 11. **GitHub Action live run**: Test the action on the Mycelium repo itself with a real PR (after v0.3.0 ships).
 
 **P2 — Deferred:**
-12. **Issue #601** (ci: nightly): Upload `mutants.out/` directory as artifact alongside `mutants.log` (3-line YAML addition, no Rust changes).
-13. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
-14. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
-15. **Skills marketplace submission**: metadata sign-off (founder).
-16. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
+12. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
+13. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
+14. **Skills marketplace submission**: metadata sign-off (founder).
+15. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
 
 ---
 
