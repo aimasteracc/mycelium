@@ -129,12 +129,32 @@ RED tests live (see acceptance criteria). It is the entire reusable algorithm.
 ### Phase 2 — thin adapter + Three-Surface wiring
 
 A thin Store adapter:
-- enumerates `SymbolSpan`s from the graph (decl/body/end lines already in the
-  attribute store),
+- enumerates `SymbolSpan`s from the graph, and
 - fills `GraphReach` from existing public metrics (`mycelium_impact` for
   blast-radius, callers for `in_degree`, `degree_centrality`),
 - and feeds the pure core. **No new graph metric is invented** — this composes
   what RFC-0114 / impact already expose.
+
+**`body_start` data path (explicit prerequisite).** The pure core needs a
+`body_start` distinct from the declaration line, but the persisted span today is
+only `SourceSpan { start_line, end_line }` (`crates/mycelium-core/src/types.rs`)
+— it has no signature/body boundary. The adapter therefore **cannot** derive
+`body_start` from the current attribute store, and the RFC does **not** assume it
+can. Phase 2 resolves this by one of (decided at implementation, tracked as the
+first Phase-2 task):
+  1. **Extend the indexed span** — add a `body_start` (and optionally
+     `signature_end`) field to the symbol attribute, populated **at index time**
+     from the tree-sitter node, where the signature/decorator vs. body boundary
+     is already known. Preferred: one-time index cost, no re-parse at query time,
+     and it makes multi-line signatures + decorators correct by construction
+     (the TSA `sym.line + 1` heuristic generalised). This is an indexing-format
+     change and so requires its own ADR.
+  2. **Re-derive on demand** — re-parse the symbol's source range through the
+     language pack to recover the body boundary when the analysis runs. No format
+     change, but pays a parse cost per analysed symbol and needs source access.
+
+Until one is landed, the adapter has no body boundary to feed the core; this is
+the gating Phase-2 prerequisite, not an assumed-existing capability.
 
 ## Coverage artifact handling (consume, never execute)
 
