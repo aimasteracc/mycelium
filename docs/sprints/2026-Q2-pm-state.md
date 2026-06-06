@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v75 — **Corrects v74**: Issue #555 is OPEN on GitHub (implementation on develop via PR #572 `7190d327`; GitHub auto-close fires on `main` only, not `develop`); PRs #584/#585 closed (superseded); PR #586 merged; PRs #587/#588 Codex P2s fixed + CI ✅ (`87821c48`, `6737851f`), ready for founder review) |
+| Last updated | 2026-06-06 (PM dispatch v76 — PR #589 merged (PM v75 chore, Codex P1 addressed with justification); PR #590 (SDK security fix) CI in-progress; RFC-0112 Draft→Accepted gate added to #587 dispatch item; develop HEAD `d2c04c6d`) |
 | Current sprint | **release/v0.3.0 ceremony READY** — crates.io ✅ + npm ✅ + PyPI ✅ (twine token auth fix; run #79 green). Charter §5.12: Step 1 (PR #568 → main) is UNBLOCKED — founder can now trigger finalize. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); Release CI ✅ run #79 green (all registries published); **READY FOR CEREMONY** |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -109,8 +109,9 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 3. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). CI ✅ on `be60dd2` (doc-link fix in v73 + develop merged via `918eba7`). All Codex findings addressed. **Ready for founder review.**
 4. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). CI ✅ on `89724eb` (develop merged via `89724eb` merge commit). All Codex findings addressed. **Ready for founder review.**
 5. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
-6. **PR #587** (`feature/RFC-0112-vscode-mvp`): VS Code extension MVP (RFC-0112 Phase 1). CI ✅ on `87821c48`. 3 Codex P2s fixed (multi-root workspace root; `withClient` index helper; `onStartupFinished` activation). **Ready for founder review.**
+6. **PR #587** (`feature/RFC-0112-vscode-mvp`): VS Code extension MVP (RFC-0112 Phase 1). CI ✅ on `87821c48`. 3 Codex P2s fixed. **Gate: RFC-0112 must move from `Status: Draft` → `Status: Accepted` before this PR can merge.** Ready for founder review + RFC ratification.
 7. **PR #588** (`feature/github-action-code-intel`): GitHub Action CI integration (ADR-0010 compliant). CI ✅ on `6737851f`. 2 Codex P2s fixed (shell backtick env + `--body-file`; sticky comment `<!-- mycelium-code-intel -->` marker + PATCH). **Ready for founder review.**
+8. **PR #590** (`fix/sdk-argv-smuggling-guard`): SDK security — argv smuggling guard (Node + Python) + Python 64 MiB output cap. CI in-progress (started 2026-06-06T02:02Z). Monitor: merge when green + Codex clean.
 
 **P2 — Autonomous (post-v0.3.0):**
 8. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
@@ -120,12 +121,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v75)
+## Dispatch state (2026-06-06 v76)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** Review + merge PRs #587 (VS Code extension, CI ✅ `87821c48`, Codex P2s Fixed) + #588 (GitHub Action, CI ✅ `6737851f`, Codex P2s Fixed). **(3)** Review + merge PRs #576 (#575 design) + #577 (RFC-0113/0114 Phase 1, CI ✅, Codex clean). **(4)** Review design RFCs #578/#579/#580. |
-| PM | **DONE ✅** | v75: Issue #555 corrected to OPEN (implementation on develop `7190d327`; GitHub auto-close fires on main only); PRs #587/#588 Codex P2s fixed + CI ✅; PM state v75 pushed. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** Ratify RFC-0112 (move Draft→Accepted) then review + merge #587 (VS Code) + #588 (GitHub Action). **(3)** Review + merge PRs #576 (#575 design) + #577 (RFC-0113/0114 Phase 1, CI ✅, Codex clean). **(4)** Review design RFCs #578/#579/#580. **(5)** Monitor PR #590 CI; merge when green + Codex clean. |
+| PM | **DONE ✅** | v76: PR #589 merged (PM v75, Codex P1 justified+rejected); RFC-0112 gate clarified in #587 dispatch; #590 security fix tracked; PM state v76 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder finalize. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
 | architect | **P1 review** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). TSA-reuse roadmap design review: PRs #575/#578/#579/#580. |
@@ -162,6 +163,30 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v76 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v75 on develop HEAD `d2c04c6d` post-#589 squash), anti-patterns (domains: release-governance/merge-discipline/ci-portability/append-only), PM state v75 (GitHub branch `chore/pm-state-v75`), v0.2 PRD.
+
+**Assessment (current GitHub state):**
+- 11 open PRs: #568 (v0.3.0 ceremony READY, release CI ✅ all registries published), #575/#578/#579/#580 (design RFCs), #576 (RFC-0113 Ph1, CI ✅ Quality Gate `39e6153`), #577 (RFC-0114 Ph1, CI ✅ Quality Gate `402a482`), #587 (VS Code MVP, CI ✅ `87821c48`), #588 (GitHub Action, CI ✅ `6737851f`), #589 (PM v75, CI ✅ — merged this run), #590 (SDK security fix, CI in-progress).
+- 0 open P0/P1 issues.
+- Develop CI: HEAD `d2c04c6d` (post-#589 squash). No red CI on develop.
+
+**Actions taken:**
+1. **Checked Codex on all 11 open PRs**. Findings: #589 had 1 live P1 (RFC-0112 Draft concern); #576/#577/#588 had fully addressed (outdated) threads. ✅
+2. **Replied to Codex P1 on PR #589** — explicit rejection with one-paragraph justification: #587 is founder-gated per Charter §5.10; RFC-0112 status is the founder's gate; v76 will add explicit gate language. Codex finding addressed (option b). ✅
+3. **Merged PR #589** (PM state v75, squash `d2c04c6d`, CI ✅, all Codex addressed). ✅
+4. **Updated live priorities**: Added PR #590 (security fix, CI in-progress); added RFC-0112 Draft→Accepted gate requirement on #587. ✅
+5. **Updated dispatch state** v75 → v76. ✅
+6. **Appended decisions.jsonl** (v76 summary). ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual Steps 1–4). crates.io ✅ npm ✅ PyPI ✅.
+- **(P1)** Ratify RFC-0112 (move `Status: Draft` → `Status: Accepted`) then review + merge PR #587 + #588.
+- **(P1)** Review + merge PRs #576 + #577 (CI ✅, Codex clean).
+- **(P1)** Review design RFCs #575/#578/#579/#580.
+- **(P1)** Monitor PR #590 (SDK security fix): merge when CI green + Codex clean.
 
 ### 2026-06-06 PM dispatch v75 (this run)
 
