@@ -874,21 +874,34 @@ impl Store {
     /// ```
     /// use mycelium_core::store::Store;
     /// use mycelium_core::trunk::TrunkPath;
+    /// use mycelium_core::types::NodeKind;
     ///
     /// let mut store = Store::new();
-    /// store.upsert_node(TrunkPath::parse("src/auth.rs").unwrap());
+    /// // File nodes carry NodeKind::File (set by the extractor at index time).
+    /// store.upsert_node_with_kind(TrunkPath::parse("src/auth.rs").unwrap(), NodeKind::File);
     /// store.upsert_node(TrunkPath::parse("src/auth.rs>login").unwrap());
-    /// store.upsert_node(TrunkPath::parse("src/main.rs").unwrap());
+    /// store.upsert_node_with_kind(TrunkPath::parse("src/main.rs").unwrap(), NodeKind::File);
+    /// // A kind-less bare stub (e.g. an unresolved callee) is NOT a file.
+    /// store.upsert_node(TrunkPath::parse("unwrap").unwrap());
     ///
     /// let files = store.all_file_paths();
     /// assert_eq!(files, vec!["src/auth.rs", "src/main.rs"]);
     /// ```
     #[must_use]
     pub fn all_file_paths(&self) -> Vec<String> {
+        // Gate on `NodeKind::File`, NOT the old `!p.contains('>')` string
+        // heuristic. The resolver mints kind-less stub nodes for unresolved
+        // callees (`unwrap`) and import targets (`std::collections::HashMap`) —
+        // none contain `>`, so the heuristic reported them all as fake files
+        // (dogfood F1: 671 of 786 get-files entries were such junk). A real file
+        // node always carries `NodeKind::File` (set by the extractor at index
+        // time), so that is the authoritative, language-agnostic predicate.
         let mut files: Vec<String> = self
             .trunk
             .all_paths()
-            .filter(|p| !p.contains('>'))
+            .filter(|p| {
+                self.trunk.lookup_path(p).and_then(|id| self.kind_of(id)) == Some(NodeKind::File)
+            })
             .map(str::to_owned)
             .collect();
         files.sort_unstable();

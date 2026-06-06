@@ -954,12 +954,18 @@ fn store_edge_count_excludes_contains_edges() {
 #[test]
 fn store_all_file_paths_returns_only_file_nodes() {
     let mut store = Store::new();
-    store.upsert_node(path("src/auth.rs"));
+    // Real file nodes carry NodeKind::File (the extractor sets it at index time).
+    store.upsert_node_with_kind(path("src/auth.rs"), NodeKind::File);
     store.upsert_node(path("src/auth.rs>AuthService"));
-    store.upsert_node(path("src/main.rs"));
+    store.upsert_node_with_kind(path("src/main.rs"), NodeKind::File);
     store.upsert_node(path("src/main.rs>main"));
+    // A bare, kind-less import/call stub WITHOUT a `>` — exactly the kind of node
+    // the resolver mints for unresolved callees (`unwrap`) and import targets
+    // (`HashMap`). It must NOT be reported as a file (dogfood F1: get-files
+    // returned 671/786 such fakes).
+    store.upsert_node(path("unwrap"));
+
     let files = store.all_file_paths();
-    // Only file-level paths (no `>`) should be returned.
     assert!(
         files.contains(&"src/auth.rs".to_string()),
         "auth.rs must be listed"
@@ -972,14 +978,18 @@ fn store_all_file_paths_returns_only_file_nodes() {
         !files.iter().any(|p| p.contains('>')),
         "symbol-level paths must not appear in file list"
     );
+    assert!(
+        !files.contains(&"unwrap".to_string()),
+        "a kind-less bare stub must not be reported as a file: {files:?}"
+    );
 }
 
 #[test]
 fn store_all_file_paths_returns_sorted_order() {
     let mut store = Store::new();
-    store.upsert_node(path("z.rs"));
-    store.upsert_node(path("a.rs"));
-    store.upsert_node(path("m.rs"));
+    store.upsert_node_with_kind(path("z.rs"), NodeKind::File);
+    store.upsert_node_with_kind(path("a.rs"), NodeKind::File);
+    store.upsert_node_with_kind(path("m.rs"), NodeKind::File);
     let files = store.all_file_paths();
     let mut sorted = files.clone();
     sorted.sort_unstable();
