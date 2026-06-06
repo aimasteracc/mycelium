@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-05 (PM dispatch v71 — PR #572 MERGED (closes #555, squash `7190d327`); PR #582 Codex P2 fixed + merged; PRs #576/#577 CI 0 check runs flagged; v0.3.0 ceremony escalated) |
+| Last updated | 2026-06-06 (PM dispatch v75 — **Corrects v74**: Issue #555 is OPEN on GitHub (implementation on develop via PR #572 `7190d327`; GitHub auto-close fires on `main` only, not `develop`); PRs #584/#585 closed (superseded); PR #586 merged; PRs #587/#588 Codex P2s fixed + CI ✅ (`87821c48`, `6737851f`), ready for founder review) |
 | Current sprint | **release/v0.3.0 ceremony READY** — crates.io ✅ + npm ✅ + PyPI ✅ (twine token auth fix; run #79 green). Charter §5.12: Step 1 (PR #568 → main) is UNBLOCKED — founder can now trigger finalize. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); Release CI ✅ run #79 green (all registries published); **READY FOR CEREMONY** |
 | Next release target | **v0.3.0** — Node/TS SDK (RFC-0111 Ph1) + Python SDK (RFC-0111 Ph2) + RFC-0103 + RFC-0094 Ph4 + god-file slice 3 + npm/launcher fixes |
@@ -106,9 +106,11 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 **P1 — Founder review (TSA-reuse roadmap PRs):**
 2. **PR #575** (`feature/RFC-0113-stdlib-callee-classification`): RFC-0113 design doc. CI ✅ on `302ee5f`. Codex clean. Escalated to founder for design review (data-home decision: pack.toml vs allowlist file).
-3. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). **⚠️ CI 0 check runs** on `0530983` — CI may not have triggered (runner queue or branch trigger issue); verify before merge. All Codex findings addressed.
-4. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). **⚠️ CI 0 check runs** on `8f4e48f` — same potential runner issue as #576. All Codex findings addressed.
+3. **PR #576** (`feature/RFC-0113-classifier-impl`): RFC-0113 Phase 1 classifier core (7 TDD tests). CI ✅ on `be60dd2` (doc-link fix in v73 + develop merged via `918eba7`). All Codex findings addressed. **Ready for founder review.**
+4. **PR #577** (`feature/RFC-0114-graph-health-grade`): RFC-0114 Phase 1 scorer core (7 TDD tests). CI ✅ on `89724eb` (develop merged via `89724eb` merge commit). All Codex findings addressed. **Ready for founder review.**
 5. **PRs #578/#579/#580** (design RFCs): RFC-0117 constraint DSL / RFC-0115 test-gap / RFC-0116 safe-to-edit. All Codex findings replied to with technical analysis. Escalated to founder for design review.
+6. **PR #587** (`feature/RFC-0112-vscode-mvp`): VS Code extension MVP (RFC-0112 Phase 1). CI ✅ on `87821c48`. 3 Codex P2s fixed (multi-root workspace root; `withClient` index helper; `onStartupFinished` activation). **Ready for founder review.**
+7. **PR #588** (`feature/github-action-code-intel`): GitHub Action CI integration (ADR-0010 compliant). CI ✅ on `6737851f`. 2 Codex P2s fixed (shell backtick env + `--body-file`; sticky comment `<!-- mycelium-code-intel -->` marker + PATCH). **Ready for founder review.**
 
 **P2 — Autonomous (post-v0.3.0):**
 8. **MCP god-file split slice 4** — lib.rs ~4,485 lines; `#[tool_router]` constraint; `include!()` or delegation approach.
@@ -118,16 +120,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-05 v71)
+## Dispatch state (2026-06-06 v75)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** Investigate **PRs #576/#577 CI 0 check runs** — runner queue issue suspected (verify + re-push if needed). **(3)** Review **PR #575** (RFC-0113 design doc, CI ✅ — data-home decision). **(4)** Review design RFCs #578/#579/#580. |
-| PM | **DONE ✅** | v71: PR #572 merged (`7190d327`, closes #555); PR #582 Codex P2 fixes (`4815361`) + merged; PRs #576/#577 CI 0 check runs flagged; decisions.jsonl appended. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (or manual: merge #568 → main, tag `v0.3.0`, GH Release, back-merge). PyPI ✅ crates.io ✅ npm ✅. **(2)** Review + merge PRs #587 (VS Code extension, CI ✅ `87821c48`, Codex P2s Fixed) + #588 (GitHub Action, CI ✅ `6737851f`, Codex P2s Fixed). **(3)** Review + merge PRs #576 (#575 design) + #577 (RFC-0113/0114 Phase 1, CI ✅, Codex clean). **(4)** Review design RFCs #578/#579/#580. |
+| PM | **DONE ✅** | v75: Issue #555 corrected to OPEN (implementation on develop `7190d327`; GitHub auto-close fires on main only); PRs #587/#588 Codex P2s fixed + CI ✅; PM state v75 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅ run #79. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder finalize. |
 | security-reviewer | **P2** | Post-v0.3.0 scan (after release ships). |
 | architect | **P1 review** | RFC-0104 cold SLA (founder Charter §2 amendment after nightly data). TSA-reuse roadmap design review: PRs #575/#578/#579/#580. |
-| rust-implementer | **P1 — CI blocked** | PRs #576/#577: 0 CI check runs on fix commits; founder to verify runner state before review+merge. God-file-split slice 4 (after v0.3.0 ships). |
+| rust-implementer | **P1 — awaiting founder review** | PRs #576/#577: CI ✅ (develop merged, doc-link fix applied). Blocked on founder design + code review before merge. God-file-split slice 4 (after v0.3.0 ships). |
 | e2e-runner | **P2** | v0.3.0 regression pass after release ships. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). RFC-0112 Phase 1 docs (after RFC approved). |
@@ -160,6 +162,60 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-06 PM dispatch v75 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v74, develop HEAD `0540c51b`), anti-patterns (domains: ci/testing/release-governance/git-workflow/merge-discipline/append-only), PM state v74 (develop), v0.2 PRD.
+
+**Assessment (current GitHub state):**
+- 9 open PRs: #568 (v0.3.0 ceremony READY), #575/#578/#579/#580 (design RFCs), #576 (RFC-0113 impl, CI ✅ `be60dd2`), #577 (RFC-0114 impl, CI ✅ `89724eb`), #587 (VS Code MVP, CI ✅ `87821c48`, 3 Codex P2s fixed), #588 (GitHub Action, CI ✅ `6737851f`, 2 Codex P2s fixed).
+- **1 open issue: #555** — OPEN on GitHub. Implementation (Synapse::remove_edge + per-edge resolver) is on develop via PR #572 squash `7190d327`. GitHub auto-close fires only on default-branch (`main`) merges; PR #572 was merged to `develop`. Issue will auto-close when PR #568 (v0.3.0) merges to main. **v74 "0 open issues" was incorrect.**
+- Develop HEAD: `0540c51b` (PR #586 squash, PM v74).
+
+**Actions by prior session (v75 prep — documented here for memory discipline):**
+1. **Closed PRs #584/#585** (stale/superseded chore PRs for PM v72/v73). v72/v73 memory entries were not recoverable (closed without merging). ✅
+2. **Merged PR #586** (PM state v74, squash `0540c51b`). Replied to Codex P2 thread acknowledging Issue #555 is open; noted v75 will correct. ✅
+3. **Fixed 3 Codex P2s on PR #587** (VS Code extension RFC-0112 Phase 1): (a) `workspaceRoot(editor?)` calls `getWorkspaceFolder(doc.uri)` for multi-root correctness; (b) `withClient()` helper — `indexWorkspace` works without an open editor; (c) `activationEvents: ["onStartupFinished"]` — extension loads on startup. Committed `87821c48`. Replied to all 3 threads (option (a) Fixed). ✅
+4. **Fixed 2 Codex P2s on PR #588** (GitHub Action CI integration): (a) shell backtick re-eval — replaced `--body "${{ ... }}"` with env-var + `printf` + `--body-file`; (b) sticky comment from `--edit-last` → `<!-- mycelium-code-intel -->` marker + PATCH. Committed `6737851f`. Replied to both threads (option (a) Fixed). ✅
+
+**v75 (this session):**
+5. **Corrected PM state** v74 → v75: Issue #555 count 0 → 1 (OPEN on GitHub; auto-close discipline); PRs #587/#588 added to live priorities + dispatch state. ✅
+6. **Appended decisions.jsonl** v75 entry. ✅
+7. **Pushed chore/pm-state-v75** PR. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (preferred) or manual Steps 1–4.
+- **(P1)** PRs #587/#588: CI ✅, all Codex P2s fixed + replied. Ready for founder review + merge.
+- **(P1)** PRs #576/#577: CI ✅, Codex clean, develop merged — ready for founder review + merge.
+- **(P1)** PRs #575/#578/#579/#580: TSA-reuse roadmap design review.
+
+### 2026-06-06 PM dispatch v74 (prior run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v71 on develop HEAD `c62b4c2`), anti-patterns (domains: ci/testing/release-governance/git-workflow/merge-discipline/append-only), PM state v71 (develop HEAD) + v72/v73 from unmerged PRs #584/#585, v0.2 PRD.
+
+**Assessment (current GitHub state):**
+- 9 open PRs: #568 (v0.3.0 ceremony READY), #575/#578/#579/#580 (design RFCs), #576 (RFC-0113 impl, CI ✅ `be60dd2`), #577 (RFC-0114 impl, CI ✅ `89724eb`), #584 (PM v72 chore, CI ✅), #585 (PM v73 chore, CI ✅ `dd9c995` + 1 Codex P2 live).
+- 0 open issues.
+- Develop CI ✅ (HEAD `c62b4c2`, v71 chore squash). Release CI ✅ (PR #568 run #79, all registries published).
+
+**Actions taken:**
+1. **Fixed Codex P2 on PR #585**: v73 assessment showed "1 open issue: #555" but Issue #555 was closed by PR #572 in v71. Corrected to "0 open issues". Committed `e838f56`, pushed to `chore/pm-state-v73`. Replied to Codex thread (option (a) Fixed). ✅
+2. **Confirmed PRs #576/#577 develop-merged**: Checked out both branches — `feature/RFC-0113-classifier-impl` has merge commit `918eba7` (develop `c62b4c2` in history, merge-base = develop HEAD). `feature/RFC-0114-graph-health-grade` has merge commit `89724eb`. CI ✅ on both. The "CI 0 check runs" issue from v71 was self-healed after doc-link fix pushes in v73 session. Both PRs are now ready for founder review + merge. ✅
+3. **PM state v74 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P0)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch (preferred) or manual Steps 1–4. PyPI ✅ crates.io ✅ npm ✅.
+- **(P1)** PR #585: admin-merge once CI green on `e838f56` + Codex clean (1 finding Fixed). Then close PR #584 as superseded.
+- **(P1)** PRs #576 + #577: CI ✅, Codex clean, develop merged — ready for design + code review + merge.
+- **(P1)** PRs #575/#578/#579/#580: TSA-reuse roadmap design review.
+
+### 2026-06-05 PM dispatch v73 (2 runs ago — on unmerged PR #585)
+
+*(Captured in PR #585 — pending admin-merge after Codex P2 fix `e838f56`.)*
+
+### 2026-06-05 PM dispatch v72 (3 runs ago — superseded by #585)
+
+*(Captured in PR #584 — superseded; close after #585 merges.)*
 
 ### 2026-06-05 PM dispatch v71 (this run)
 
