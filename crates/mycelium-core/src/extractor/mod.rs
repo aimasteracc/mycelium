@@ -313,6 +313,28 @@ impl Extractor {
             }
         }
 
+        // De-shadow: a name bound to DIFFERENT constructor types within one
+        // function (Rust block shadowing, e.g. `let s = Store::new(); { let s =
+        // Trunk::new(); s.m(); }`) is ambiguous — we don't track block scopes, so
+        // we must not guess which binding is visible. Drop every entry for a
+        // name that has conflicting types so inference declines rather than
+        // mis-binds (Codex P2 #635). Same-name same-type repeats are harmless.
+        for bindings in local_bindings.values_mut() {
+            let mut seen: HashMap<String, String> = HashMap::new();
+            let mut conflicting: Vec<String> = Vec::new();
+            for b in bindings.iter() {
+                let ty = b.ctor_type.clone().unwrap_or_default();
+                if let Some(prev) = seen.insert(b.name.clone(), ty.clone()) {
+                    if prev != ty {
+                        conflicting.push(b.name.clone());
+                    }
+                }
+            }
+            if !conflicting.is_empty() {
+                bindings.retain(|b| !conflicting.contains(&b.name));
+            }
+        }
+
         // ─── Pass 2: references ──────────────────────────────────────────
         // All definitions are now in the store; intra-file callee lookup
         // will succeed for both backward and forward references.

@@ -949,6 +949,42 @@ fn beta() {
 }
 
 #[test]
+fn extractor_rust_shadowed_binding_declines_no_misbind() {
+    // Block shadowing: the same name `s` is bound to two different types in one
+    // function. We don't track block scopes, so inference must DECLINE (leave the
+    // conservative stub) rather than guess — never mis-bind (Codex P2 #635).
+    let source = "\
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn run() {
+    let s = Store::new();
+    let s = Trunk::new();
+    s.upsert_node();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store.lookup("test.rs>Store>upsert_node").expect("exists");
+    let trunk_m = store.lookup("test.rs>Trunk>upsert_node").expect("exists");
+    // Conflicting shadowed bindings → neither precise edge is added (declined).
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must not guess Store on a shadowed binding"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "must not guess Trunk on a shadowed binding"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_python_call_inside_function_creates_calls_edge() {
     // foo calls bar; bar is defined in the same file.
