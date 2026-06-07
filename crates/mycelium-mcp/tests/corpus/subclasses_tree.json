@@ -1,0 +1,27 @@
+{
+  "root": "crates/mycelium-core/src/lib.rs>StorageBackend",
+  "nodes": [
+    {
+      "path": "crates/mycelium-core/src/lib.rs>StorageBackend",
+      "kind": "Trait",
+      "depth": 0,
+      "subclasses": [
+        "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend",
+        "crates/mycelium-core/src/store/in_memory_backend.rs>InMemoryBackend"
+      ]
+    },
+    {
+      "path": "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend",
+      "kind": "Struct",
+      "depth": 1,
+      "subclasses": []
+    },
+    {
+      "path": "crates/mycelium-core/src/store/in_memory_backend.rs>InMemoryBackend",
+      "kind": "Struct",
+      "depth": 1,
+      "subclasses": []
+    }
+  ],
+  "truncated": false
+}

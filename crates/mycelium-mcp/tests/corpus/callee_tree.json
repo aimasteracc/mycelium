@@ -1,0 +1,47 @@
+{
+  "root": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
+  "depth": 3,
+  "nodes": [
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
+      "depth": 0,
+      "children": [
+        "crates/mycelium-core/src/trunk.rs>Trunk::upsert",
+        "crates/mycelium-core/src/synapse.rs>Synapse::upsert_edge",
+        "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend::write_node"
+      ]
+    },
+    {
+      "path": "crates/mycelium-core/src/trunk.rs>Trunk::upsert",
+      "depth": 1,
+      "children": [
+        "crates/mycelium-core/src/trunk.rs>Trunk::find_or_insert",
+        "crates/mycelium-core/src/trunk.rs>Trunk::update_metadata"
+      ]
+    },
+    {
+      "path": "crates/mycelium-core/src/synapse.rs>Synapse::upsert_edge",
+      "depth": 1,
+      "children": [
+        "crates/mycelium-core/src/synapse.rs>AdjacencyList::upsert",
+        "crates/mycelium-core/src/synapse.rs>Synapse::write_reverse"
+      ]
+    },
+    {
+      "path": "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend::write_node",
+      "depth": 1,
+      "children": []
+    },
+    {
+      "path": "crates/mycelium-core/src/trunk.rs>Trunk::find_or_insert",
+      "depth": 2,
+      "children": []
+    },
+    {
+      "path": "crates/mycelium-core/src/trunk.rs>Trunk::update_metadata",
+      "depth": 2,
+      "children": []
+    }
+  ],
+  "truncated": false
+}
