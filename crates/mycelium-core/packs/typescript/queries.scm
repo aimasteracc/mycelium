@@ -148,7 +148,14 @@
 ; Captures a local name and the constructor TYPE so the post-merge receiver
 ; disambiguation pass can bind `x.method()` to `…>Ctor>method`. Matches the
 ; idiomatic `new Ctor()` RHS; the core keeps only Title-case ctor names and
-; declines on any ambiguity (e.g. a shadowed rebinding) rather than guessing.
+; declines on any ambiguity (a shadowed rebinding, or a reassignment to a
+; non-constructor — see @binding.rebind below) rather than guessing.
+; KNOWN LIMITATION: scope detection uses FUNCTION_KINDS, which does not include
+; `arrow_function`, so a binding inside an arrow folds into the enclosing named
+; function's scope. In the rare shape where one sibling arrow declares `x` and a
+; DIFFERENT sibling arrow calls `x.method()` (a free var there), this could
+; over-scope. Mitigated by the de-shadow + rebind passes for conflicting cases;
+; consistent with the pre-existing Rust closure handling. Tracked as a follow-up.
 (variable_declarator
   name: (identifier) @binding.local
   value: (new_expression
@@ -163,3 +170,13 @@
   left: (identifier) @binding.local
   right: (new_expression
     constructor: (identifier) @binding.ctor)) @reference.binding
+
+; Rebind invalidation (RFC-0118 Part B, Codex P1 #647): capture ANY local
+; declaration or reassignment target. The core compares the rebind count per
+; name against the recognized-constructor-binding count; a name reassigned to a
+; non-constructor (e.g. `s = factory()`) DECLINES rather than trusting the stale
+; declared type — preserving "never mis-bind" under TypeScript structural typing.
+(variable_declarator
+  name: (identifier) @binding.rebind)
+(assignment_expression
+  left: (identifier) @binding.rebind)

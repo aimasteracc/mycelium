@@ -1122,6 +1122,145 @@ function run(): void {
 }
 
 #[test]
+fn extractor_python_rebind_to_non_ctor_declines_no_misbind() {
+    // The "never mis-bind" invariant under dynamic typing (Codex P1 #647): a local
+    // first bound to a Title-case ctor, then REASSIGNED to a non-constructor RHS,
+    // must DECLINE — the original ctor type is stale at the call site. Pre-fix this
+    // mis-bound to Store because the lowercase rebind was dropped by the title-case
+    // filter before the conflict could be seen.
+    // Two types define `upsert_node` (multi-match), so binding to Store is only
+    // possible via receiver inference — the single-match fallback cannot bind it.
+    let source = "\
+class Store:
+    def upsert_node(self): pass
+class Trunk:
+    def upsert_node(self): pass
+def make_trunk(): return Trunk()
+def run():
+    s = Store()
+    s = make_trunk()
+    s.upsert_node()
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.py>run").expect("run exists");
+    let store_m = store.lookup("test.py>Store>upsert_node").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must DECLINE: `s` was reassigned to a non-constructor, so its type is unknown"
+    );
+}
+
+#[test]
+fn extractor_typescript_rebind_to_non_ctor_declines_no_misbind() {
+    // Same invariant for TypeScript: `const s = new Store(); s = factory();` —
+    // the factory reassignment is a call_expression (not new_expression), so the
+    // declared type is stale. Must DECLINE, not bind to Store.
+    // Two types define `upsert_node` (multi-match) so only receiver inference
+    // could bind Store — the single-match fallback cannot.
+    let source = "\
+class Store { upsert_node(): void {} }
+class Trunk { upsert_node(): void {} }
+function factory(): Trunk { return new Trunk(); }
+function run(): void {
+    let s = new Store();
+    s = factory();
+    s.upsert_node();
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.ts>run").expect("run exists");
+    let store_m = store.lookup("test.ts>Store>upsert_node").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must DECLINE: `s` was reassigned via a non-constructor call"
+    );
+}
+
+#[test]
+fn extractor_python_receiver_inference_no_cross_function_leak() {
+    // A binding in `alpha` must never affect inference in `beta` (symmetric with
+    // the Rust no-cross-function-leak guard).
+    let source = "\
+class Store:
+    def run(self): pass
+class Trunk:
+    def run(self): pass
+def alpha():
+    h = Trunk()
+    h.run()
+def beta():
+    h = Store()
+    h.run()
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let alpha = store.lookup("test.py>alpha").expect("alpha exists");
+    let beta = store.lookup("test.py>beta").expect("beta exists");
+    let store_run = store.lookup("test.py>Store>run").expect("exists");
+    let trunk_run = store.lookup("test.py>Trunk>run").expect("exists");
+    assert!(store.incoming(trunk_run, EdgeKind::Calls).contains(&alpha));
+    assert!(
+        !store.incoming(store_run, EdgeKind::Calls).contains(&alpha),
+        "alpha must NOT leak to Store>run"
+    );
+    assert!(store.incoming(store_run, EdgeKind::Calls).contains(&beta));
+    assert!(
+        !store.incoming(trunk_run, EdgeKind::Calls).contains(&beta),
+        "beta must NOT leak to Trunk>run"
+    );
+}
+
+#[test]
+fn extractor_typescript_receiver_inference_no_cross_function_leak() {
+    let source = "\
+class Store { run(): void {} }
+class Trunk { run(): void {} }
+function alpha(): void {
+    const h = new Trunk();
+    h.run();
+}
+function beta(): void {
+    const h = new Store();
+    h.run();
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let alpha = store.lookup("test.ts>alpha").expect("alpha exists");
+    let beta = store.lookup("test.ts>beta").expect("beta exists");
+    let store_run = store.lookup("test.ts>Store>run").expect("exists");
+    let trunk_run = store.lookup("test.ts>Trunk>run").expect("exists");
+    assert!(store.incoming(trunk_run, EdgeKind::Calls).contains(&alpha));
+    assert!(
+        !store.incoming(store_run, EdgeKind::Calls).contains(&alpha),
+        "alpha must NOT leak to Store>run"
+    );
+    assert!(store.incoming(store_run, EdgeKind::Calls).contains(&beta));
+    assert!(
+        !store.incoming(trunk_run, EdgeKind::Calls).contains(&beta),
+        "beta must NOT leak to Trunk>run"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_python_call_inside_function_creates_calls_edge() {
     // foo calls bar; bar is defined in the same file.

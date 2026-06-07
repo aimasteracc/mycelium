@@ -175,12 +175,26 @@
 
 ; ── RFC-0118 Part B: local constructor bindings (x = Ctor()) ──────────
 ; Captures a local name and the constructor TYPE so the post-merge receiver
-; disambiguation pass can bind `x.method()` to `…>Ctor>method`. Only a bare
-; constructor-call RHS (`x = Ctor()`) is matched — never `x = obj.m()` or a
-; plain factory — and the core keeps only Title-case ctor names, dropping
-; lowercase utility calls like `x = make()`. Conservative: declines on any
-; ambiguity (e.g. a shadowed rebinding) rather than guessing.
+; disambiguation pass can bind `x.method()` to `…>Ctor>method`. The query itself
+; matches only a bare-name call RHS (`x = Ctor()` / `x = make()`); attribute
+; calls `x = obj.m()` don't match (function field is `(attribute)`, not
+; `(identifier)`). The core then keeps only Title-case ctor names, dropping
+; lowercase factory/utility calls like `x = make()`. Conservative: declines on
+; any ambiguity — a shadowed rebinding (handled by the de-shadow conflict pass)
+; or a reassignment to a non-constructor (handled by @binding.rebind below).
+; NOTE: scope detection uses FUNCTION_KINDS; a binding inside a lambda is not
+; separately scoped (lambdas fold into the enclosing def) — acceptable since it
+; only ever causes a conservative decline, never a wrong bind.
 (assignment
   left: (identifier) @binding.local
   right: (call
     function: (identifier) @binding.ctor)) @reference.binding
+
+; Rebind invalidation (RFC-0118 Part B, Codex P1 #647): capture ANY assignment
+; target identifier. The core compares the rebind count per name against the
+; recognized-constructor-binding count; if a name was reassigned to a
+; non-constructor (count exceeds ctor bindings), inference DECLINES rather than
+; trusting the stale declared type — preserving "never mis-bind" under Python's
+; dynamic typing.
+(assignment
+  left: (identifier) @binding.rebind)

@@ -19,9 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in a Python/TS repo now gets the real callers instead of 0 wherever the receiver
   was a locally-constructed instance. Conservative throughout: only Title-case
   constructors bind, and a name rebound to a conflicting type **declines** (never
-  mis-binds). For TypeScript, reassignment to a constructor (`x = new Other()`) is
-  also captured so structural-typing rebinds trigger the decline rather than
-  trusting a stale declarator type.
+  mis-binds). Under dynamic/structural typing a local can be reassigned to a
+  value of a different type, so **any** reassignment of a bound name to a
+  non-constructor RHS (`s = factory()`, `s = some_dict[k]`, …) invalidates the
+  binding and makes inference decline rather than trust the stale declared type
+  — captured via a `@binding.rebind` signal on every assignment target and a
+  count check in the extractor (preserves the "never mis-bind" invariant).
 
 ### Fixed
 
