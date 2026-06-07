@@ -50,6 +50,30 @@
     (method_declaration
       name: (identifier) @name))) @definition.method
 
+; Enum bodies (methods/constructors live under enum_body_declarations).
+(enum_declaration
+  body: (enum_body
+    (enum_body_declarations
+      (method_declaration
+        name: (identifier) @name)))) @definition.method
+
+(enum_declaration
+  body: (enum_body
+    (enum_body_declarations
+      (constructor_declaration
+        name: (identifier) @name)))) @definition.method
+
+; Records (Java 16+) — their body is a class_body.
+(record_declaration
+  body: (class_body
+    (method_declaration
+      name: (identifier) @name))) @definition.method
+
+(record_declaration
+  body: (class_body
+    (constructor_declaration
+      name: (identifier) @name))) @definition.method
+
 ; ── Import statements (Synapse Imports edges) ────────────────────────────
 
 ; import com.example.Foo;

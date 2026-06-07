@@ -2117,6 +2117,29 @@ fn extractor_java_method_path_is_class_method_not_doubled() {
 }
 
 #[test]
+fn extractor_java_enum_and_record_methods_captured_with_type_path() {
+    // Regression (PR #656 review): re-anchoring @definition.method on class/
+    // interface bodies must NOT drop enum or record methods. They must be captured
+    // at EnumName>method / RecordName>method (nested under their type, not flat).
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.java",
+        b"enum Status { ACTIVE; void describe() {} }\nrecord Point(int x) { void show() {} }",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    assert!(
+        store.lookup("test.java>Status>describe").is_some(),
+        "enum method must be captured at Status>describe"
+    );
+    assert!(
+        store.lookup("test.java>Point>show").is_some(),
+        "record method must be captured at Point>show"
+    );
+}
+
+#[test]
 fn extractor_java_receiver_type_binds_multi_match_method_f5() {
     // RFC-0118 Part B (Java): `save` is a method on TWO classes (multi-match).
     // Java declares local types, so `Store s = new Store()` (or any RHS) binds

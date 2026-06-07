@@ -761,7 +761,7 @@ fn enclosing_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<Stri
     let mut cur = node;
     while let Some(parent) = cur.parent() {
         let kind = parent.kind();
-        if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item" {
+        if is_type_container(kind) {
             chain.push(container_name(parent, source).to_owned());
         }
         cur = parent;
@@ -1031,8 +1031,7 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
             let mut scan = parent;
             while let Some(ancestor) = scan.parent() {
                 let kind = ancestor.kind();
-                if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item"
-                {
+                if is_type_container(kind) {
                     containers.push(container_name(ancestor, source).to_owned());
                 }
                 scan = ancestor;
@@ -1070,7 +1069,7 @@ fn build_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> 
     let mut cur = node;
     while let Some(parent) = cur.parent() {
         let kind = parent.kind();
-        if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item" {
+        if is_type_container(kind) {
             ancestors.push(container_name(parent, source).to_owned());
         }
         cur = parent;
@@ -1097,6 +1096,25 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
         .unwrap_or("_Unknown");
     // Strip generic parameters (e.g. "Vec<T>" → "Vec").
     text.split('<').next().unwrap_or(text)
+}
+
+/// Whether `kind` is a type-container node whose name participates in a member's
+/// dotted path (e.g. `Class>method`). Single source of truth so a member's chain
+/// is consistent across `build_class_chain`, `enclosing_class_chain`, and
+/// `enclosing_function_path`. Covers Python `class_definition`, TS/JS/Java/C#
+/// `class_declaration`, Rust `impl_item`, and Java `enum_declaration` /
+/// `record_declaration` / `interface_declaration` (so enum/record/interface
+/// methods nest correctly instead of landing at file scope).
+fn is_type_container(kind: &str) -> bool {
+    matches!(
+        kind,
+        "class_definition"
+            | "class_declaration"
+            | "impl_item"
+            | "enum_declaration"
+            | "record_declaration"
+            | "interface_declaration"
+    )
 }
 
 /// Return `true` if `node` is a TypeScript `import type { ... }` statement.
