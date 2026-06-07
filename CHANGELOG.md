@@ -50,6 +50,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — captured via a `@binding.rebind` signal on every assignment target and a
   count check in the extractor (preserves the "never mis-bind" invariant).
 
+### Changed
+
+- **RFC-0120 Phase 1c: real ripgrep corpus measured — Charter §2 token-efficiency claim
+  requires founder decision.** `scripts/capture_token_corpus.sh` ran against a
+  shallow-clone of `BurntSushi/ripgrep` (101 files, ~850 nodes). Real BPE ratio:
+  **0.753** (TextFormatter uses 75.3% as many `cl100k_base` tokens as JsonFormatter;
+  24.7% reduction). The `bpe_charter_sla_binding` test fails: Charter §2 asserts
+  ≤30% (70%+ reduction). REPORT.md updated to v2-ripgrep. Founder must choose: retract
+  the claim, redesign the formatter, or reframe the comparison (see REPORT.md §Decision).
+- **fix(scripts): `fetch-e2e-fixtures.sh` multi-`local` bash declaration bug fixed.**
+  Split `local name="$1" url="$2" dest="$FIXTURES/$name"` into three separate `local`
+  statements so `$name` in `dest` resolves to the locally-declared value, not the
+  outer-scope unbound variable (which causes `set -u` failure).
+
 ### Fixed
 
 - **Shipped binary ran stale Tree-sitter queries (pack-parity gap).** The engine

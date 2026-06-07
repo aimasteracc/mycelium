@@ -1,47 +1,68 @@
 {
-  "root": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
-  "depth": 3,
-  "nodes": [
+  "path": "build.rs>main",
+  "children": [
     {
-      "path": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
-      "depth": 0,
+      "path": "build.rs>set_git_revision_hash",
       "children": [
-        "crates/mycelium-core/src/trunk.rs>Trunk::upsert",
-        "crates/mycelium-core/src/synapse.rs>Synapse::upsert_edge",
-        "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend::write_node"
+        {
+          "path": "new",
+          "children": []
+        },
+        {
+          "path": "args",
+          "children": []
+        },
+        {
+          "path": "from_utf8_lossy",
+          "children": []
+        },
+        {
+          "path": "trim",
+          "children": []
+        },
+        {
+          "path": "to_string",
+          "children": []
+        },
+        {
+          "path": "is_empty",
+          "children": []
+        },
+        {
+          "path": "tests/util.rs>TestCommand>output",
+          "children": [
+            {
+              "path": "tests/util.rs>TestCommand>raw_output",
+              "children": []
+            },
+            {
+              "path": "tests/util.rs>TestCommand>expect_success",
+              "children": []
+            }
+          ]
+        }
       ]
     },
     {
-      "path": "crates/mycelium-core/src/trunk.rs>Trunk::upsert",
-      "depth": 1,
+      "path": "build.rs>set_windows_exe_options",
       "children": [
-        "crates/mycelium-core/src/trunk.rs>Trunk::find_or_insert",
-        "crates/mycelium-core/src/trunk.rs>Trunk::update_metadata"
+        {
+          "path": "var",
+          "children": []
+        },
+        {
+          "path": "current_dir",
+          "children": []
+        },
+        {
+          "path": "push",
+          "children": []
+        },
+        {
+          "path": "to_str",
+          "children": []
+        }
       ]
-    },
-    {
-      "path": "crates/mycelium-core/src/synapse.rs>Synapse::upsert_edge",
-      "depth": 1,
-      "children": [
-        "crates/mycelium-core/src/synapse.rs>AdjacencyList::upsert",
-        "crates/mycelium-core/src/synapse.rs>Synapse::write_reverse"
-      ]
-    },
-    {
-      "path": "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend::write_node",
-      "depth": 1,
-      "children": []
-    },
-    {
-      "path": "crates/mycelium-core/src/trunk.rs>Trunk::find_or_insert",
-      "depth": 2,
-      "children": []
-    },
-    {
-      "path": "crates/mycelium-core/src/trunk.rs>Trunk::update_metadata",
-      "depth": 2,
-      "children": []
     }
-  ],
-  "truncated": false
+  ]
 }

@@ -1,56 +1,15 @@
-{
-  "matches": [
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store",
-      "kind": "Struct",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::new",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::open",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::remove_node",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::search_symbol",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::get_callees",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::get_callers",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::replace_file",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    },
-    {
-      "path": "crates/mycelium-core/src/lib.rs>Store::index_directory",
-      "kind": "Function",
-      "file": "crates/mycelium-core/src/lib.rs"
-    }
-  ],
-  "count": 10,
-  "truncated": false
-}
+[
+  "crates/core/flags/defs.rs>Vimgrep",
+  "crates/core/flags/defs.rs>test_vimgrep",
+  "crates/grep/examples/simplegrep.rs",
+  "crates/grep/src/lib.rs",
+  "grep_matcher::LineTerminator",
+  "grep_matcher::Matcher",
+  "grep_matcher::{LineMatchKind, Matcher}",
+  "grep_regex::RegexMatcher",
+  "grep_searcher::Searcher",
+  "grep_searcher::sinks::UTF8",
+  "pkg/brew/ripgrep-bin.rb",
+  "pkg/brew/ripgrep-bin.rb>RipgrepBin",
+  "{grep::matcher::Matcher, termcolor::WriteColor}"
+]
