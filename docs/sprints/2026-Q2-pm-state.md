@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v119 — PR #671 merged (AC-20 tests squash `40ffbc6f`); PR #672 closed superseded; Issue #673 opened (CLI phantom defense-in-depth); next: Issue #636 (RFC-0118 Part B Phase 3 shadowed bindings)) |
+| Last updated | 2026-06-07 (PM dispatch v120 — PR #674 Codex P2 fixed (line 94 incorrect v117-v118/PR#670 attribution → v116); #674 merged; next: Issue #636 (RFC-0118 Part B Phase 3 shadowed bindings)) |
 | Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b + AC-20 ✅**. Three-Surface **94/94** ✅. Next P1 autonomous: Issue #636 (shadowed local bindings, RFC-0118 Part B Phase 3). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
@@ -91,7 +91,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **feat(core): RFC-0118 Part B rule-b (Rust param-type receiver)** — PR #667 (squash `f7330ae`) ✅ MERGED.
 - [x] **docs(skills): Three-Surface INDEX 94/94 + graph-structure Skill** — PR #668 (squash `27cbe5ab`) ✅ MERGED.
 - [x] **chore(pm): PM states v115–v116** — PRs #669 ✅ MERGED.
-- [x] **chore(pm): PM states v117–v118** — PRs #670 ✅ MERGED (via develop, prior to #671).
+- [x] **chore(pm): PM state v116** — PR #670 ✅ MERGED (squash `276807a`). PM dispatches v117–v118 had no separate develop chore commits (v117: dispatch-only; v118: feature-branch CI fix).
 - [x] **test(RFC-0118): AC-20 regression tests — rank_symbols excludes Unresolved phantoms** — PR #671, squash `40ffbc6f` ✅ MERGED 2026-06-07. `rank_symbols_excludes_unresolved_phantom` (MCP, `tests.rs:1445`) + `rank_symbols_json_shape_parity_with_mcp` (CLI, `cli_centrality.rs:63`). RFC-0118 AC-20 ✅. Codex P2 → Issue #673 (CLI phantom integration test, P2 defense-in-depth).
 
 ---
@@ -117,12 +117,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-07 v119)
+## Dispatch state (2026-06-07 v120)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v119: PR #671 merged (AC-20 tests `40ffbc6f`); PR #672 closed superseded; Issue #673 opened; decisions.jsonl appended. |
+| PM | **DONE ✅** | v120: PR #674 Codex P2 fixed (line 94 v117-v118 attribution corrected to v116) + merged; decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -159,7 +159,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-07 PM dispatch v119 (this run)
+### 2026-06-07 PM dispatch v120 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns, PM state v119 (PR #674 branch), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #674 (PM v119 chore, CI 22/22 ✅, 1 Codex P2), #568 (release/v0.3.0, founder).
+- 4 open issues: #673 (P2), #657 (P2), #636 (P1), #612 (P2).
+- Develop CI GREEN (all 3 workflows on develop HEAD `40ffbc6f` success).
+- PR #568: all registries published; awaiting founder `finalize`.
+
+**Actions taken:**
+1. **Analyzed Codex P2** on PR #674 (thread `PRRT_kwDOSq56sc6HsT9w`): line 94 incorrectly attributed "PM states v117–v118" to PR #670, but archive confirms PR #670 = PM v116 chore (squash `276807a`); v117/v118 had no separate develop chore commits. Decision: option (a) fix.
+2. **Fixed line 94**: corrected to "PM state v116 — PR #670 ✅ MERGED (squash `276807a`); v117–v118 had no separate develop chore commits." ✅
+3. **Updated PM state to v120** (header, dispatch state, archive). ✅
+4. **Appended decisions.jsonl**. ✅
+5. **Pushed fix to PR #674 branch** + replied to Codex thread. ✅
+6. **Merged PR #674** once CI green. ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — choose Option A/B/C.
+
+### 2026-06-07 PM dispatch v119 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns (domains: ci/testing/release-governance/git-workflow), PM state v118 (from chore branch), v0.2 PRD.
 
