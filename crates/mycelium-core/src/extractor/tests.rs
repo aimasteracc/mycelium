@@ -2649,3 +2649,71 @@ fn extractor_csharp_receiver_type_binds_multi_match_method_f5() {
         "Run() must NOT be mis-bound to Cache>Save"
     );
 }
+
+// ── C++ (RFC-0118 Part B + method-path fix) ─────────────────────────────────
+
+fn cpp_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_cpp::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/cpp/queries.scm");
+    Extractor::new(language, query_src).expect("c++ extractor should build")
+}
+
+#[test]
+fn extractor_cpp_method_path_is_class_method() {
+    // In-class method: `class Foo { void bar() {} };` must be at Foo>bar
+    // (the existing pattern anchors on field_declaration_list, which has no name,
+    //  and class_specifier wasn't a recognized container → was mis-pathed).
+    let ext = cpp_extractor();
+    let mut store = Store::new();
+    ext.extract("test.cpp", b"class Foo { void bar() {} };", &mut store)
+        .expect("extraction should succeed");
+    assert!(
+        store.lookup("test.cpp>Foo>bar").is_some(),
+        "C++ method must be at Foo>bar"
+    );
+    // struct + union methods also nest under their type (no coverage regression
+    // from the class-only re-anchor; PR #661 review).
+    let mut s2 = Store::new();
+    ext.extract(
+        "u.cpp",
+        b"struct S { void m() {} };\nunion U { int i; void reset() {} };",
+        &mut s2,
+    )
+    .expect("extraction should succeed");
+    assert!(s2.lookup("u.cpp>S>m").is_some(), "struct method at S>m");
+    assert!(
+        s2.lookup("u.cpp>U>reset").is_some(),
+        "union method at U>reset"
+    );
+}
+
+#[test]
+fn extractor_cpp_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (C++): `save` on TWO structs (multi-match). The declared
+    // local `Store s;` binds s→Store → s.save() resolves to Store>save.
+    let ext = cpp_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.cpp",
+        b"struct Store { void save() {} };\nstruct Cache { void save() {} };\nvoid run() { Store s; s.save(); }",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.cpp>run").expect("run exists");
+    let store_m = store
+        .lookup("test.cpp>Store>save")
+        .expect("Store::save exists");
+    let cache_m = store
+        .lookup("test.cpp>Cache>save")
+        .expect("Cache::save exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>save after receiver inference"
+    );
+    assert!(
+        !store.incoming(cache_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Cache>save"
+    );
+}

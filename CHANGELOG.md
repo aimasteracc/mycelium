@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0118 Part B now covers C++: `get-callers` on a multi-type method returns
+  real callers.** Added `@call.receiver` on identifier-receiver `obj.m()`/`ptr->m()`
+  calls + a declared-type local binding (`Store s;` / `Store s = …` binds `s →
+  Store`). Reuses the binding machinery; `class_specifier`/`struct_specifier`
+  added to the type-container set.
+
+### Fixed
+
+- **C++ (and C) callers were all attributed to `_unknown`.** `enclosing_function_path`
+  used `child_by_field_name("name")`, but a C/C++ `function_definition` has no
+  `name` field — the name lives at the end of the `declarator` chain. Added
+  `descend_declarator_name` (walks `declarator → … → identifier/field_identifier/
+  qualified_identifier`), so every C/C++ caller is now correctly named. Fixes
+  `get-callers`/`get-callees` attribution for all C and C++ code.
+- **C++ methods were mis-pathed `_Unknown>method`.** The `@definition.method`
+  capture anchored on `field_declaration_list` (which has no name) and
+  `class_specifier`/`struct_specifier` weren't recognized type containers. Re-anchored
+  the method capture on the enclosing `class_specifier`/`struct_specifier` body →
+  methods are correctly at `Type>method`.
+
 - **RFC-0118 Part B now covers C#: `get-callers` on a multi-class method returns
   real callers.** Added `@call.receiver` on identifier-receiver invocations + a
   declared-type local binding (`Store s = …` binds `s → Store`; C# is statically

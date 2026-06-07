@@ -927,7 +927,7 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
 /// Function/method node kinds across the supported grammars. A single source of
 /// truth for "what counts as an enclosing function scope".
 const FUNCTION_KINDS: &[&str] = &[
-    "function_definition",     // Python
+    "function_definition",     // Python / C / C++
     "function_declaration",    // TS/JS
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
@@ -946,7 +946,7 @@ const FUNCTION_KINDS: &[&str] = &[
 /// the call-site lookup walks the scope CHAIN so legitimate outer-scope closure
 /// captures still resolve (no recall loss).
 const BINDING_SCOPE_KINDS: &[&str] = &[
-    "function_definition",     // Python
+    "function_definition",     // Python / C / C++
     "function_declaration",    // TS/JS
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
@@ -1024,6 +1024,7 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
                         .and_then(|n| n.utf8_text(source).ok())
                         .map(str::to_owned)
                 })
+                .or_else(|| descend_declarator_name(parent, source))
                 .unwrap_or_else(|| "_unknown".to_owned());
 
             // Collect enclosing class/impl containers (outermost first).
@@ -1098,6 +1099,34 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
     text.split('<').next().unwrap_or(text)
 }
 
+/// Extract a function/method name from a C/C++ `function_definition`, which has
+/// no `name` field — the name lives at the end of the `declarator` chain
+/// (`function_definition → declarator (function_declarator) → declarator →
+/// identifier` for a free function, `field_identifier` for a method,
+/// `qualified_identifier` for an out-of-line `Foo::bar`). Returns `None` for
+/// non-C++ nodes (which have a `name` field handled by the caller). Without this,
+/// every C++ caller was attributed to `_unknown`.
+fn descend_declarator_name(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
+    let mut cur = node.child_by_field_name("declarator")?;
+    for _ in 0..16 {
+        match cur.kind() {
+            "identifier" | "field_identifier" | "type_identifier" => {
+                return cur.utf8_text(source).ok().map(str::to_owned);
+            }
+            "qualified_identifier" => {
+                return cur
+                    .child_by_field_name("name")
+                    .and_then(|n| n.utf8_text(source).ok())
+                    .map(str::to_owned);
+            }
+            _ => {
+                cur = cur.child_by_field_name("declarator")?;
+            }
+        }
+    }
+    None
+}
+
 /// Whether `kind` is a type-container node whose name participates in a member's
 /// dotted path (e.g. `Class>method`). Single source of truth so a member's chain
 /// is consistent across `build_class_chain`, `enclosing_class_chain`, and
@@ -1115,6 +1144,9 @@ fn is_type_container(kind: &str) -> bool {
             | "record_declaration"
             | "interface_declaration"
             | "struct_declaration" // C# (also Rust struct_item is handled via impl_item)
+            | "class_specifier" // C++
+            | "struct_specifier" // C++
+            | "union_specifier" // C++
     )
 }
 
