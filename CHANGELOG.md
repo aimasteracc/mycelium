@@ -38,6 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   canonical root copies — stayed green**. Resynced the three core copies to canonical
   and extended the parity check to verify the core subset (the 5 cortex-embedded
   langs), with a negative test proving a stale core copy now fails CI.
+- **fix(scripts): `capture_token_corpus.sh` now uses correct CLI flags.** Replaced
+  non-existent `mycelium index --output` with the actual invocation (`mycelium index
+  <path>`, index written to `<path>/.mycelium/index.rmp`). Replaced non-existent
+  `--index` global flag with per-command `--root <FIXTURE_ROOT>`. Fixed subcommand
+  names (`search` → `search-symbol`, `symbol-info` → `get-symbol-info`, `get-callees`
+  → `get-callee-tree`, `get-callers` → `get-caller-tree`). Fixed `--depth` →
+  `--max-depth`. Also fixes `importers_tree`/`subclasses_tree` corpus entries to use
+  the dedicated `get-importers-tree`/`subclasses-tree` commands (Codex P2). Resolves
+  RFC-0120 Phase 1 item #614.
 - **RFC-0118 Part B (Rust): `get-callers` on a multi-type method now returns real
   callers (the F5 fix).** The extractor captures the receiver of a method call
   plus local `let x = T::new()` constructor bindings (new Rust pack captures
