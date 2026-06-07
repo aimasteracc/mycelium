@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0118 Part B now covers C#: `get-callers` on a multi-class method returns
+  real callers.** Added `@call.receiver` on identifier-receiver invocations + a
+  declared-type local binding (`Store s = …` binds `s → Store`; C# is statically
+  typed so the declared type is authoritative, no `@binding.rebind` needed).
+  Reuses the `method_declaration`/`constructor_declaration` `FUNCTION_KINDS`
+  entries; added `struct_declaration` to the type-container set.
+
+### Fixed
+
+- **C# methods were mis-pathed `Class>method>method`, and constructors collided
+  with the class node.** Like Java, the C# `@definition.method` anchored on the
+  method node (→ doubled path), and `@definition.constructor` fell through the
+  generic definition branch producing a flat `file>Ctor` that aliased the class
+  node (`Ctor` == class name). Re-anchored method **and** constructor captures on
+  the enclosing `class`/`struct`/`interface`/`record` `declaration_list` body so
+  members are correctly at `Type>method` / `Type>Type` (constructor).
+
 - **RFC-0118 Part B now covers Java: `get-callers` on a multi-class method
   returns real callers.** Added `@call.receiver` on identifier-receiver method
   invocations plus a DECLARED-TYPE local binding (`Store s = …` binds `s` to

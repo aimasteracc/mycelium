@@ -1114,6 +1114,7 @@ fn is_type_container(kind: &str) -> bool {
             | "enum_declaration"
             | "record_declaration"
             | "interface_declaration"
+            | "struct_declaration" // C# (also Rust struct_item is handled via impl_item)
     )
 }
 

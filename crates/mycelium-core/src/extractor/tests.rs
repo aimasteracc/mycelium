@@ -2555,3 +2555,72 @@ fn extractor_go_type_definition_is_kinded_and_searchable() {
         "Go type definition must be searchable, got: {results:?}"
     );
 }
+
+// ── C# (RFC-0118 Part B + method-path fix) ──────────────────────────────────
+
+fn csharp_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_c_sharp::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/csharp/queries.scm");
+    Extractor::new(language, query_src).expect("c# extractor should build")
+}
+
+#[test]
+fn extractor_csharp_method_path_is_class_method_not_doubled() {
+    // C# had the same Class>method>method mis-path (and a constructor colliding
+    // with the class node). Methods must be at Class>method, constructors at
+    // Class>Class, with no doubled phantom.
+    let ext = csharp_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.cs",
+        b"class Foo { void Bar() {} public Foo() {} }",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    let m = store
+        .lookup("test.cs>Foo>Bar")
+        .expect("method must be at Foo>Bar");
+    assert_eq!(store.kind_of(m), Some(crate::types::NodeKind::Method));
+    assert!(
+        store.lookup("test.cs>Foo>Bar>Bar").is_none(),
+        "no doubled Foo>Bar>Bar phantom"
+    );
+    assert!(
+        store.lookup("test.cs>Foo>Foo").is_some(),
+        "constructor must be at Foo>Foo (nested under the class, not colliding with it)"
+    );
+}
+
+#[test]
+fn extractor_csharp_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (C#): `Save` defined on TWO classes (multi-match). The
+    // declared-type local `Store s = new Store();` binds s→Store → s.Save()
+    // resolves to Store>Save, not Cache>Save.
+    let ext = csharp_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.cs",
+        b"class Store { void Save() {} }\nclass Cache { void Save() {} }\nclass Runner { void Run() { Store s = new Store(); s.Save(); } }",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store
+        .lookup("test.cs>Runner>Run")
+        .expect("Runner.Run exists");
+    let store_m = store
+        .lookup("test.cs>Store>Save")
+        .expect("Store.Save exists");
+    let cache_m = store
+        .lookup("test.cs>Cache>Save")
+        .expect("Cache.Save exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "Run() must be a caller of Store>Save after receiver inference"
+    );
+    assert!(
+        !store.incoming(cache_m, EdgeKind::Calls).contains(&run),
+        "Run() must NOT be mis-bound to Cache>Save"
+    );
+}
