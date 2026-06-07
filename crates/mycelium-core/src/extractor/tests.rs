@@ -822,6 +822,47 @@ fn extract_rs(source: &str) -> Store {
 }
 
 #[test]
+fn extractor_rust_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B end-to-end (the F5 fix): `upsert_node` is a method on TWO
+    // types. A bare `s.upsert_node()` is multi-match, so the single-match passes
+    // decline and get-callers would be 0. The local binding `let s = Store::new()`
+    // must let the post-merge pass bind the call to Store>upsert_node — and NOT
+    // Trunk>upsert_node.
+    let source = "\
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn run() {
+    let s = Store::new();
+    s.upsert_node();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store
+        .lookup("test.rs>Store>upsert_node")
+        .expect("Store::upsert_node exists");
+    let trunk_m = store
+        .lookup("test.rs>Trunk>upsert_node")
+        .expect("Trunk::upsert_node exists");
+
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>upsert_node after receiver inference"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Trunk>upsert_node"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_python_call_inside_function_creates_calls_edge() {
     // foo calls bar; bar is defined in the same file.

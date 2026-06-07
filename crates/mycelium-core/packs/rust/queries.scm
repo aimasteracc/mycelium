@@ -151,8 +151,11 @@
   function: (identifier) @name) @reference.call
 
 ; Method calls: self.method() / obj.method()
+; @call.receiver captures the receiver expression (RFC-0118 Part B) so the
+; post-merge pass can infer its type and disambiguate multi-match methods.
 (call_expression
   function: (field_expression
+    value: (_) @call.receiver
     field: (field_identifier) @name)) @reference.call
 
 ; Scoped / qualified path calls: Type::method() / crate::mod::func()
@@ -167,3 +170,21 @@
 (call_expression
   function: (scoped_identifier
     name: (identifier) @name)) @reference.call
+
+; ── RFC-0118 Part B: local constructor bindings (let x = Type::new()) ──
+; Captures the local name and the constructor TYPE so the post-merge receiver
+; disambiguation pass can bind `x.method()` to `…>Type>method`. Handles both
+; `let x = Type::new()` and `let mut x = Type::new()`. Only constructor-style
+; RHS (`Type::func(...)`) is matched, never plain `foo()` — conservative.
+(let_declaration
+  pattern: (identifier) @binding.local
+  value: (call_expression
+    function: (scoped_identifier
+      path: (identifier) @binding.ctor))) @reference.binding
+
+; `let mut x = Type::new()` — the mutable form nests the identifier in mut_pattern.
+(let_declaration
+  pattern: (mut_pattern (identifier) @binding.local)
+  value: (call_expression
+    function: (scoped_identifier
+      path: (identifier) @binding.ctor))) @reference.binding
