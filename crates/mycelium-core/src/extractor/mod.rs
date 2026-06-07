@@ -1128,12 +1128,20 @@ fn node_to_span(node: tree_sitter::Node<'_>) -> SourceSpan {
 /// handle that case separately using `NodeKind::File`).
 fn cap_suffix_to_kind(suffix: &str) -> Option<NodeKind> {
     match suffix {
-        "mod" | "module" => Some(NodeKind::Module),
-        "function" => Some(NodeKind::Function),
-        "class" => Some(NodeKind::Class),
-        "method" => Some(NodeKind::Method),
+        // `namespace` (C++/C#) is a module-like container.
+        "mod" | "module" | "namespace" => Some(NodeKind::Module),
+        // `template_function` (C++) is a function with type parameters.
+        "function" | "template_function" => Some(NodeKind::Function),
+        // `template_class` (C++) is a class with type parameters.
+        "class" | "template_class" => Some(NodeKind::Class),
+        // `constructor` (C#) is a method.
+        "method" | "constructor" => Some(NodeKind::Method),
         "interface" | "trait" => Some(NodeKind::Interface),
-        "type_alias" | "associated_type" => Some(NodeKind::TypeAlias),
+        // Generic named-type declaration: `type` is one `@definition.type` capture
+        // covering Go `type X struct/interface/…`, C struct/union/typedef and TS
+        // `type` — map to the neutral `TypeAlias` so they are categorized and stay
+        // navigable/searchable rather than landing kind-less (PR #651 review).
+        "type_alias" | "associated_type" | "type" => Some(NodeKind::TypeAlias),
         // `static FOO: T = ...` and `impl T { const X: ... }` are both
         // compile-time-constant kinds at the language level; reuse
         // `NodeKind::Constant` so they participate in `get-symbols-by-kind`,

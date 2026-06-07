@@ -19,10 +19,12 @@ async fn server_with_fixture() -> MyceliumServer {
             TrunkPath::parse("src/greet.rs").unwrap(),
             mycelium_core::types::NodeKind::File,
         );
-        // Set definition kinds — a real extractor-built store always assigns a
-        // kind to every definition (the File kind above makes this a kind-
-        // annotated store, so `search_symbol` de-noises against unnavigable
-        // nodes; kind-less symbols would be dropped as import-stub-like).
+        // Set definition kinds — the extractor maps every `@definition.<suffix>`
+        // the packs use to a kind (see `cap_suffix_to_kind`; enforced by
+        // `every_pack_definition_suffix_maps_to_a_kind`), so a real indexed store
+        // has kinded symbols. The File kind above makes this a kind-annotated
+        // store, so `search_symbol` de-noises against unnavigable nodes; a
+        // kind-less symbol would be dropped as import-stub-like.
         let greet = store.upsert_node_with_kind(
             TrunkPath::parse("src/greet.rs>greet").unwrap(),
             mycelium_core::types::NodeKind::Function,

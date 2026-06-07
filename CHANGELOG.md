@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Go/C/C++/C# definitions were minted kind-less (now correctly kinded).** The
+  extractor's `cap_suffix_to_kind` had no mapping for five `@definition.<suffix>`
+  captures used in shipping packs — `type` (Go/C/TS), `namespace` (C++/C#),
+  `template_class`/`template_function` (C++), `constructor` (C#) — so those
+  definitions got no `NodeKind` and were invisible to `get-symbols-by-kind` /
+  `symbol-count-by-kind` (and would have been dropped by the new search de-noise
+  below). Mapped them (`type`→`TypeAlias`, `namespace`→`Module`,
+  `template_class`→`Class`, `template_function`→`Function`,
+  `constructor`→`Method`). A new guard test scans every pack and asserts each
+  `@definition` suffix maps, so a future pack can't silently reintroduce the gap.
 - **`search-symbol` no longer returns unnavigable junk.** On a kind-annotated
   index (built by the extractor), `Store::search_symbol` now drops nodes an agent
   can't jump to — `NodeKind::Unresolved` resolver phantoms and the kind-less
