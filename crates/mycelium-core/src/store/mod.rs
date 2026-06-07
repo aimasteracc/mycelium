@@ -58,6 +58,7 @@ use serde::{Deserialize, Serialize};
 
 use hashbrown::HashMap;
 
+use crate::resolver::receiver::{self, Candidate, ReceiverContext, Resolution};
 use crate::synapse::Synapse;
 use crate::trunk::{Trunk, TrunkPath};
 use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
@@ -413,6 +414,27 @@ pub struct Store {
     kind_map: HashMap<NodeId, NodeKind>,
     /// Per-node source span (file + line/col/byte), populated by the extractor.
     span_map: HashMap<NodeId, SourceSpan>,
+    /// Per-call-site receiver context captured by the extractor (RFC-0118 Part B).
+    ///
+    /// Transient: `#[serde(skip)]` — captured during extraction, drained by the
+    /// post-merge [`Store::resolve_call_site_contexts`] pass, and never persisted
+    /// (so the snapshot/redb wire format is unchanged). Empty in a loaded store.
+    #[serde(default, skip)]
+    call_site_contexts: Vec<CallSiteContext>,
+}
+
+/// One captured method call site awaiting post-merge disambiguation (RFC-0118 B).
+///
+/// The extractor records this when it cannot statically bind a method call to a
+/// definition and falls back to the shared `Unresolved` stub.
+#[derive(Clone, Debug)]
+pub struct CallSiteContext {
+    /// The calling symbol (source of the conservative `Calls` edge).
+    pub caller_id: NodeId,
+    /// The `Unresolved` placeholder the extractor minted for this call.
+    pub stub_id: NodeId,
+    /// The per-call-site receiver facts for [`receiver::infer_receiver_type`].
+    pub receiver_ctx: ReceiverContext,
 }
 
 impl Store {
@@ -735,6 +757,14 @@ impl Store {
         for (kind, src, dst) in other.synapse.all_edges() {
             self.synapse.add(kind, src, dst);
         }
+        // 3. Carry the captured call-site contexts forward (RFC-0118 Part B).
+        //    Parallel indexing records contexts into per-thread sub-stores; if
+        //    merge dropped them, the post-merge disambiguation pass would see an
+        //    empty table and silently no-op in parallel mode. NodeIds are
+        //    content-hashes (identity-stable across sub-stores), so the captured
+        //    caller_id/stub_id remain valid in `self` with no remapping.
+        self.call_site_contexts
+            .extend(other.call_site_contexts.iter().cloned());
     }
 
     /// Remove the node `id` from both Trunk and Synapse.
@@ -1209,7 +1239,94 @@ impl Store {
         let base = self.resolve_bare_call_stubs_simple();
         let aware = self.resolve_import_aware_stubs();
         let extends_aware = self.resolve_import_aware_extends_stubs();
-        base + aware + extends_aware
+        // RFC-0118 Part B: receiver-type disambiguation runs LAST, after the
+        // single-match passes above have removed every unambiguous stub. It only
+        // resolves the multi-match method calls those passes decline (the F5
+        // `store.upsert_node()` case), using captured per-call-site context.
+        let by_receiver = self.resolve_call_site_contexts();
+        base + aware + extends_aware + by_receiver
+    }
+
+    /// Record a method call site for post-merge receiver disambiguation
+    /// (RFC-0118 Part B). Called by the extractor when a method call cannot be
+    /// statically bound and falls back to the shared `Unresolved` stub.
+    pub fn record_call_site(
+        &mut self,
+        caller_id: NodeId,
+        stub_id: NodeId,
+        receiver_ctx: ReceiverContext,
+    ) {
+        self.call_site_contexts.push(CallSiteContext {
+            caller_id,
+            stub_id,
+            receiver_ctx,
+        });
+    }
+
+    /// Post-merge pass (RFC-0118 Part B): for each captured call site, infer the
+    /// receiver type statically and, when it disambiguates to exactly one
+    /// definition, **add** the precise `Calls(caller → …>Type>method)` edge.
+    /// Order-independent: runs against the fully merged graph, so a receiver type
+    /// defined in any file resolves. Returns the number of call sites bound.
+    ///
+    /// **Does NOT remove the conservative `caller → stub` edge** (Codex P2 #633).
+    /// Synapse stores a single deduplicated `caller → stub` edge that may stand
+    /// for *multiple* calls — including ones with no recorded context (e.g. a bare
+    /// `m()` alongside `s.m()`). Removing it from the recorded contexts alone
+    /// could drop an edge a still-unresolved call needs. The stub carries
+    /// `NodeKind::Unresolved`, so Part A already excludes it from the symbol/rank
+    /// universe; the precise edge added here is a pure gain. Safe stub-edge
+    /// removal is deferred to when the extractor records *every* unresolved call.
+    #[must_use]
+    pub fn resolve_call_site_contexts(&mut self) -> usize {
+        let contexts = std::mem::take(&mut self.call_site_contexts);
+        if contexts.is_empty() {
+            return 0;
+        }
+        // Snapshot all real-symbol paths once for candidate lookup.
+        let all_paths: Vec<String> = self
+            .trunk
+            .all_paths()
+            .filter(|p| p.contains('>'))
+            .filter(|p| {
+                self.trunk
+                    .lookup_path(p)
+                    .is_some_and(|id| self.is_real_symbol(id))
+            })
+            .map(str::to_owned)
+            .collect();
+
+        let mut resolved = 0usize;
+        for ctx in &contexts {
+            // Skip a context whose stub an earlier single-match pass already
+            // resolved + removed (the call is bound; re-binding would inflate the
+            // count). A stub still in the trunk is one the prior passes declined.
+            if self.trunk.path_of(ctx.stub_id).is_none() {
+                continue;
+            }
+            let suffix = format!(">{}", ctx.receiver_ctx.method);
+            let candidates: Vec<Candidate> = all_paths
+                .iter()
+                .filter(|p| p.ends_with(&suffix))
+                .map(|p| Candidate {
+                    node_path: p.clone(),
+                })
+                .collect();
+
+            let inferred = receiver::infer_receiver_type(&ctx.receiver_ctx);
+            if let Resolution::Unique(path) = receiver::disambiguate(inferred, &candidates) {
+                if let Some(def_id) = self.trunk.lookup_path(&path) {
+                    // Don't bind a call to itself. (A stub can't be a candidate:
+                    // candidates come from all_paths filtered to contain '>',
+                    // and stubs are bare names without '>'.)
+                    if def_id != ctx.caller_id {
+                        self.synapse.add(EdgeKind::Calls, ctx.caller_id, def_id);
+                        resolved += 1;
+                    }
+                }
+            }
+        }
+        resolved
     }
 
     fn resolve_bare_call_stubs_simple(&mut self) -> usize {

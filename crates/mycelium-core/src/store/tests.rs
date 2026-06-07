@@ -4,6 +4,7 @@
 //! or §Testing strategy.
 
 use super::{NodeDegree, Store};
+use crate::resolver::receiver::{LocalBinding, ReceiverContext};
 use crate::store::journal::Journal;
 use crate::trunk::TrunkPath;
 use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
@@ -1149,6 +1150,200 @@ fn store_top_callee_symbols_respects_limit() {
     }
     let ranked = store.top_callee_symbols(3);
     assert_eq!(ranked.len(), 3, "limit must be respected");
+}
+
+// ── RFC-0118 Part B: post-merge receiver disambiguation (resolve_call_site_contexts) ──
+
+#[test]
+fn resolve_call_site_contexts_binds_multi_match_method_via_receiver_type() {
+    // The F5 case: `let store = Store::new(); store.upsert_node();`. `upsert_node`
+    // is defined on TWO types (multi-match), so the single-match passes decline
+    // and get-callers would return 0. Receiver inference (local `store: Store`)
+    // must bind the call to Store>upsert_node — and NOT to Trunk>upsert_node.
+    let mut store = Store::new();
+    let store_def = store.upsert_node_with_kind(path("a.rs>Store>upsert_node"), NodeKind::Method);
+    let trunk_def = store.upsert_node_with_kind(path("b.rs>Trunk>upsert_node"), NodeKind::Method);
+    let caller = store.upsert_node_with_kind(path("c.rs>run"), NodeKind::Function);
+    // The conservative stub the extractor would mint, plus the caller→stub edge.
+    let stub = store.upsert_node_with_kind(path("upsert_node"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+
+    store.record_call_site(
+        caller,
+        stub,
+        ReceiverContext {
+            receiver: "store".to_owned(),
+            method: "upsert_node".to_owned(),
+            imports: vec![],
+            locals: vec![LocalBinding {
+                name: "store".to_owned(),
+                ctor_type: Some("Store".to_owned()),
+            }],
+            self_type: None,
+            params: vec![],
+            fields: vec![],
+        },
+    );
+
+    let bound = store.resolve_call_site_contexts();
+    assert_eq!(bound, 1, "one call site should resolve");
+
+    // Precise edge added to Store>upsert_node, NOT Trunk>upsert_node.
+    assert!(
+        store.incoming(store_def, EdgeKind::Calls).contains(&caller),
+        "caller must now call Store>upsert_node"
+    );
+    assert!(
+        !store.incoming(trunk_def, EdgeKind::Calls).contains(&caller),
+        "caller must NOT be mis-bound to Trunk>upsert_node"
+    );
+    // The conservative stub edge is intentionally KEPT (Codex P2 #633): Synapse
+    // dedups one caller→stub edge that may cover unrecorded calls, so this pass
+    // only ADDS the precise edge and never removes the shared stub. The stub is
+    // NodeKind::Unresolved, so Part A already hides it from symbol/rank queries.
+    assert!(
+        store.incoming(stub, EdgeKind::Calls).contains(&caller),
+        "stub edge is preserved (removal deferred until all call sites are recorded)"
+    );
+}
+
+#[test]
+fn resolve_call_site_contexts_keeps_stub_edge_when_unresolvable() {
+    // No receiver evidence → Ambiguous → leave the conservative stub edge intact
+    // (never guess, never mis-bind).
+    let mut store = Store::new();
+    let _a = store.upsert_node_with_kind(path("a.rs>Store>m"), NodeKind::Method);
+    let _b = store.upsert_node_with_kind(path("b.rs>Trunk>m"), NodeKind::Method);
+    let caller = store.upsert_node_with_kind(path("c.rs>run"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(path("m"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+    store.record_call_site(
+        caller,
+        stub,
+        ReceiverContext {
+            receiver: "x".to_owned(), // unknown receiver, no binding facts
+            method: "m".to_owned(),
+            imports: vec![],
+            locals: vec![],
+            self_type: None,
+            params: vec![],
+            fields: vec![],
+        },
+    );
+    assert_eq!(
+        store.resolve_call_site_contexts(),
+        0,
+        "nothing should resolve"
+    );
+    assert!(
+        store.incoming(stub, EdgeKind::Calls).contains(&caller),
+        "stub edge must remain for the unresolved call"
+    );
+}
+
+#[test]
+fn resolve_call_site_contexts_keeps_stub_when_partially_resolved() {
+    // One caller invokes the SAME method on TWO receivers via the SAME bare stub:
+    // one resolvable (local `s: Store`), one not (unknown receiver). The resolved
+    // one must bind, but the shared stub edge must STAY (one site still needs it).
+    // This exercises the group_total(2) vs group_resolved(1) counting — a no-op
+    // implementation would fail (no edge bound, wrong count).
+    let mut store = Store::new();
+    let store_def = store.upsert_node_with_kind(path("a.rs>Store>do"), NodeKind::Method);
+    let _other = store.upsert_node_with_kind(path("b.rs>Trunk>do"), NodeKind::Method);
+    let caller = store.upsert_node_with_kind(path("c.rs>run"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(path("do"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+
+    // Site 1: resolvable — `let s = Store::new(); s.do()`.
+    store.record_call_site(
+        caller,
+        stub,
+        ReceiverContext {
+            receiver: "s".to_owned(),
+            method: "do".to_owned(),
+            imports: vec![],
+            locals: vec![LocalBinding {
+                name: "s".to_owned(),
+                ctor_type: Some("Store".to_owned()),
+            }],
+            self_type: None,
+            params: vec![],
+            fields: vec![],
+        },
+    );
+    // Site 2: unresolvable — unknown receiver, no evidence.
+    store.record_call_site(
+        caller,
+        stub,
+        ReceiverContext {
+            receiver: "mystery".to_owned(),
+            method: "do".to_owned(),
+            imports: vec![],
+            locals: vec![],
+            self_type: None,
+            params: vec![],
+            fields: vec![],
+        },
+    );
+
+    assert_eq!(
+        store.resolve_call_site_contexts(),
+        1,
+        "exactly one site resolves"
+    );
+    assert!(
+        store.incoming(store_def, EdgeKind::Calls).contains(&caller),
+        "the resolvable site must bind to Store>do"
+    );
+    assert!(
+        store.incoming(stub, EdgeKind::Calls).contains(&caller),
+        "stub edge must REMAIN because the second site is still unresolved"
+    );
+}
+
+#[test]
+fn merge_carries_call_site_contexts_for_parallel_indexing() {
+    // RFC-0118 Part B (Codex/reviewer BLOCKING): parallel indexing records call
+    // sites into per-thread sub-stores, then merges them. If merge dropped the
+    // contexts, the post-merge pass would no-op in parallel mode. This proves
+    // merge carries them through and the merged store resolves correctly.
+    let mut main = Store::new();
+    main.upsert_node_with_kind(path("a.rs>Store>upsert"), NodeKind::Method);
+    main.upsert_node_with_kind(path("b.rs>Trunk>upsert"), NodeKind::Method);
+
+    let mut worker = Store::new();
+    let caller = worker.upsert_node_with_kind(path("c.rs>run"), NodeKind::Function);
+    let stub = worker.upsert_node_with_kind(path("upsert"), NodeKind::Unresolved);
+    worker.upsert_edge(EdgeKind::Calls, caller, stub);
+    worker.record_call_site(
+        caller,
+        stub,
+        ReceiverContext {
+            receiver: "store".to_owned(),
+            method: "upsert".to_owned(),
+            imports: vec![],
+            locals: vec![LocalBinding {
+                name: "store".to_owned(),
+                ctor_type: Some("Store".to_owned()),
+            }],
+            self_type: None,
+            params: vec![],
+            fields: vec![],
+        },
+    );
+
+    main.merge(&worker);
+    assert_eq!(
+        main.resolve_call_site_contexts(),
+        1,
+        "merged-in context must resolve (merge must carry call_site_contexts)"
+    );
+    let store_def = main.lookup("a.rs>Store>upsert").expect("def exists");
+    assert!(
+        main.incoming(store_def, EdgeKind::Calls).contains(&caller),
+        "parallel-captured call must bind to Store>upsert after merge"
+    );
 }
 
 #[test]
