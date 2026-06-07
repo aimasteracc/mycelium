@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v95 — PR #626 CI fix pushed (`da552d8`, rustdoc broken intra-doc link); Codex findings on #626+#627 handled; PR #627 admin-merged `2f8857d`; #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0119/0120/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0119 Phase 1 PR#623 ✅ merged. RFC-0119 Phase 2 PR#626 CI fix pushed (`da552d8`) → CI re-running, merge pending. |
+| Last updated | 2026-06-07 (PM dispatch v99 — RFC-0118 Part B PR #633 Codex P1+P2 addressed (commits `740ed7b`/`fd570e0`), CI running; PR #632 closed superseded; decisions.jsonl appended) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0118 Part B PR #633 CI running** (merge once green → wired-but-inert resolution engine) + **RFC-0120 Phase 1 next** (P1). RFC-0115/0116/0117 Phase 1 ✅. RFC-0119 Phase 1+2 ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -124,7 +124,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **chore(pm): PM state v89** — PR #619 ✅ MERGED (squash `63900329`). Codex P1 rejected (stale SHA, DCO CI ✅); Codex P2 fixed (removed Issue #601 from P2 queue, commit `297f687`).
 - [x] **feat(classify): RFC-0113 Phase 3 — import-context gate** — PR #620 ✅ MERGED (squash `12cf4252`). Module-specific gate (STDLIB_FUNCTION_MODULES map). Issue #598 closed.
 - [x] **feat(context): RFC-0119 Phase 1 — pure entry-point ranking core** — PR #623, squash `5c8e9b9` ✅ MERGED. `classify_test_path` + `rank_entry_points`, 15 tests (AC-1–AC-9 + AC-7 first-seen addendum). Codex P2 fixed (`b2a456e`).
-- [ ] **feat(context): RFC-0119 Phase 2 — importance-weighted entry-point adapter** — PR #626. `seed_entry_points` rewritten: BTreeMap dedup + `rank_entry_points`; `real_in_degree` helper (stub-robust); test demotion (AC-10); merge semantics AC-4b; AC-11 stub-caller exclusion. CI fix pushed (`da552d8` — fully-qualified `crate::types::NodeKind::Unresolved` intra-doc links); Codex P2 rejected (window-completeness out of Phase 2 scope). → admin-merge once CI green.
+- [x] **feat(context): RFC-0119 Phase 2 — importance-weighted entry-point adapter** — PR #626, squash `ee22f7e` ✅ MERGED 2026-06-06 (founder). `seed_entry_points` BTreeMap dedup + `rank_entry_points`; `real_in_degree` helper (stub-robust); test demotion (AC-10); merge semantics AC-4b; AC-11 stub-caller exclusion. Codex P2 rejected (window-completeness out of Phase 2 scope).
+- [x] **feat(verdict): RFC-0116 Phase 1 AC-2 — health/test_gap monotonic escalation** — PR #629, squash `be7a330` ✅ MERGED 2026-06-07. `EditMetrics` gains `health` + `test_gap_uncovered` optional fields; `step_up` const fn; 6 new TDD tests. RFC-0115/0116/0117 Phase 1 ACs all marked `[x]`. Codex P2 rejected (Phase 2 scope).
 
 ---
 
@@ -138,35 +139,37 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 3. **RFC-0118 Parts B+C** (Issue #612): ✅ **MERGED** — PR #618 (squash `5b09145b`). Pure `resolver::receiver` core (Part B Phase 1, 14 tests) + resolver kind_map hygiene (Part C, 2 regression tests).
 4. **RFC-0113 Phase 3** (Issue #598): ✅ **MERGED** — PR #620 (squash `12cf4252`). Module-specific stdlib gate. Issue #598 closed.
 5. **RFC-0119 Phase 1** (Issue #613): ✅ **MERGED** — PR #623 (squash `5c8e9b9`). Pure ranking core.
-6. **RFC-0119 Phase 2** (Issue #613): **PR #626** — `seed_entry_points` BTreeMap adapter + `real_in_degree` + test demotion (AC-4b, AC-10, AC-11). CI running. **← admin-merge once CI green.**
-8. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`).
-9. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs — TDD RED→GREEN.
-10. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD.
-11. **RFC-0117 Phase 1**: Pure `evaluate(rules, edges) → Vec<Violation>` — immutable frozen types. TDD.
+6. **RFC-0119 Phase 2** (Issue #613): ✅ **MERGED** — PR #626 (squash `ee22f7e`). `seed_entry_points` BTreeMap adapter + `real_in_degree` + test demotion (AC-4b, AC-10, AC-11).
+7. **RFC-0116 Phase 1 AC-2** (health/test_gap escalation): ✅ **MERGED** — PR #629 (squash `be7a330`). RFC-0116 Phase 1 complete.
+8. **RFC-0118 Part B (resolution engine)**: PR #633 CI running on `fd570e0` (Codex P1 addressed in `740ed7b`, P2 in `fd570e0`, both threads replied). → merge once CI green.
+9. **RFC-0115 Phase 1**: ✅ **DONE** — `test_gap.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
+10. **RFC-0116 Phase 1**: ✅ **AC-1 DONE** — `verdict.rs` on develop. **AC-2 (health/test_gap)** ✅ MERGED (PR #629).
+11. **RFC-0117 Phase 1**: ✅ **DONE** — `constraints.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
+12. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript — validates ranking on actual Mycelium self-index. RFC-0119 Phase 3 is optional future PageRank swap (single-line, RFC says "not required").
+13. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`). **← next P1 autonomous task after #633 merges.**
 
 **P1 — Founder review (post-v0.3.0 ship):**
-12. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
-13. **GitHub Action live run**: Test the action on the Mycelium repo itself with a real PR (after v0.3.0 ships).
+14. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
+15. **GitHub Action live run**: Test the action on the Mycelium repo itself with a real PR (after v0.3.0 ships).
 
 **P2 — Deferred:**
-14. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
-15. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
-16. **Skills marketplace submission**: metadata sign-off (founder).
-17. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
-
+16. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
+17. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
+18. **Skills marketplace submission**: metadata sign-off (founder).
+19. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
 ---
 
-## Dispatch state (2026-06-06 v95)
+## Dispatch state (2026-06-07 v99)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #626 (RFC-0119 Phase 2) once CI green — fix commit `da552d8` addresses rustdoc broken intra-doc link + Codex P2 rejected. |
-| PM | **DONE ✅** | v95: PR #626 CI fix pushed (`da552d8`, rustdoc NodeKind path); Codex P2/#626 rejected; PR #627 Codex P1 rejected + admin-merged (`2f8857d`). |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. |
+| PM | **DONE ✅** | v99: PR #633 Codex P1+P2 addressed (replies posted, fix commits 740ed7b/fd570e0); PR #632 closed superseded (Codex P2 valid — fixed in v99); PM state v99 written. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | PR #626 CI fix pushed ✅ (RFC-0119 Phase 2, CI re-running). Next: RFC-0119 Phase 3 or RFC-0120 Phase 1. |
-| e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (after #626 merges). |
+| rust-implementer | **P1** | (1) Merge PR #633 once CI green (RFC-0118 Part B resolution engine, Codex clean). (2) Then: RFC-0120 Phase 1 (Issue #614). |
+| e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (after #633 merges). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
 
@@ -199,7 +202,71 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ## Archive
 
-### 2026-06-06 PM dispatch v95 (this run)
+### 2026-06-07 PM dispatch v99 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail, anti-patterns, PM state v98 (from GitHub `chore/pm-state-v98`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #633 (RFC-0118 Part B receiver disambiguation, CI ✅ 20/20 on `740ed7b`, then fix commit `fd570e0` CI in_progress), #632 (PM state v98 chore, CI ✅ 22/22, 1 Codex P2 live — stale PR #629), #568 (v0.3.0 ceremony, founder-gated).
+- 3 open issues: #614 (RFC-0120 Phase 1 notes, P2), #612 (RFC-0118 Phase 1 notes, P2), #555 (RFC-0103 follow-up, auto-closes when #568 → main).
+- Develop CI: GREEN (HEAD `be7a330`, RFC-0116 Phase 1 AC-2 squash).
+- PR #633 Codex: P1 ("call_site_contexts not merged") + P2 ("stub removal too aggressive") — both LIVE but fix commits already on branch.
+
+**Actions taken:**
+1. **Diagnosed Codex P1 on PR #633**: The finding was valid at original commit `cd74466` but already fixed by independent review commit `740ed7b` (Store::merge now extends call_site_contexts). Posted reply on thread confirming fix. ✅
+2. **Diagnosed Codex P2 on PR #633**: The finding was valid but fixed by commit `fd570e0` — resolve_call_site_contexts now never removes the shared stub edge (docstring explains invariant). Posted reply on thread confirming fix. ✅
+3. **Closed PR #632** (PM state v98) as superseded by v99 — the Codex P2 ("stale PR #629 in live priorities") is fixed in this state. ✅
+4. **Created PM state v99** (this file): live priority item 7 corrected (PR #629 ✅ MERGED), item 8 added (RFC-0118 Part B PR #633 CI running), renumbered 9–19. ✅
+5. **Appended decisions.jsonl** (v99 entry). ✅
+
+**Escalations to founder:**
+- **(P0) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. All registries published. ✅✅✅
+
+
+### 2026-06-07 PM dispatch v98 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (develop tail), anti-patterns (hits: git-workflow, ci), PM state v97 (from closed PR #631 branch), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #629 (RFC-0116 Phase 1 AC-2, 20/20 CI ✅, Codex P2 already rejected by v97), #631 (PM v97, 22/22 CI ✅, Codex P1 + P2 live), #568 (v0.3.0 ceremony, founder-gated).
+- 0 open P0/P1 issues.
+- Develop HEAD: `be7a330` after PR #629 squash-merge. CI green.
+- Local clone was at `release/v0.2.0` (detached HEAD) — fetched `origin/develop` to get current state.
+
+**Actions taken:**
+1. **Merged PR #629** (squash `be7a330`) — RFC-0116 Phase 1 AC-2 + RFC-0115/0116/0117 Phase 1 AC close. Codex P2 already rejected. CI 20/20 ✅. ✅
+2. **Replied to PR #631 Codex P1** (rejected): DCO CI job 79917943513 shows `conclusion:success`; stale-SHA false positive (same pattern as PRs #617, #627, #619). ✅
+3. **Replied to PR #631 Codex P2** (acknowledged + fixed): numbering collision is real; P1-Founder-review starts at 13, P2-Deferred starts at 15 in v98. ✅
+4. **Closed PR #631** as superseded by v98. ✅
+5. **Clarified RFC-0119 Phase 3**: RFC itself says "Phase 3 (optional, future) — PageRank importance swap" (single-line change, not required). PM state label "Three-Surface wiring" was incorrect. Item 12 renamed to RFC-0119 AC-12/AC-13 (e2e-runner validation task). ✅
+6. **PM state v98** written with corrected numbering. decisions.jsonl appended.
+
+**Escalations to founder:**
+- **(P0) PR #568**: v0.3.0 ceremony — trigger `finalize` workflow_dispatch on `release.yml`. All registries published.
+
+### 2026-06-07 PM dispatch v97 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/git-workflow domains), PM state v95 (develop HEAD — v96 was on closed PR #630), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (v0.3.0 release ceremony, founder-gated, all registries ✅), #629 (RFC-0116 Phase 1 AC-2, CI RED — rustfmt failure on `verdict.rs`), #630 (PM state v96 chore, CI ✅, Codex P2 — stale PR #626 entry).
+- 0 open P0/P1 issues.
+- Develop CI: GREEN (last merge: PM state v95 squash `2f8857d`).
+- PR #626 (RFC-0119 Phase 2): MERGED — confirmed via decisions.jsonl and v96 PM state branch. Develop HEAD has `ee22f7e`. PM state on develop (v95) still had PR #626 as `[ ]` (Codex P2 on PR #630 was correct).
+
+**Actions taken:**
+1. **Fixed PR #629 rustfmt failure**: 3 long-line wraps in `verdict.rs` (if-let pattern, push call, iterator chain). `cargo fmt` applied. Commit `011fe58` pushed to feature branch. CI re-triggered. ✅
+2. **Replied to Codex P2 on PR #629** (rejected): RFC-0117 Phase 1 AC scope is pure evaluator with frozen types; `is_resolved` heuristic is correct for Phase 1; unresolved-filter guard is Phase 2 scope. Spinning off tracking issue. ✅
+3. **Replied to Codex P2 on PR #630** (acknowledged): Valid finding (PR #626 stale `[ ]`) — closing PR #630 as superseded; v97 fixes the stale entry. ✅
+4. **Closed PR #630** as superseded by v97 (retitled to indicate superseded status). ✅
+5. **Updated PM state to v97**: PR #626 → `[x] MERGED`; PR #629 added as `[ ]` pending; priorities and dispatch state corrected. ✅
+6. **Appended decisions.jsonl** (v97 entry). ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch. All registries published. **Do NOT re-publish.**
+- **(2) PR #629**: Admin-merge once CI green (rustfmt fix `011fe58` in flight). RFC-0116 Phase 1 AC-2 + RFC-0115/0116/0117 ACs.
+
+### 2026-06-06 PM dispatch v95 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v94 (2f8857d develop HEAD), v0.2 PRD.
 
