@@ -735,8 +735,8 @@ mod tests {
             "Rect type must be extracted"
         );
         assert!(
-            store.lookup("geom.go>Area").is_some(),
-            "Go method must be extracted"
+            store.lookup("geom.go>Rect>Area").is_some(),
+            "Go method must be extracted under its receiver type (Rect>Area)"
         );
     }
 

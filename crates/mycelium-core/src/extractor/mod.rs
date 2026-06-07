@@ -160,7 +160,11 @@ impl Extractor {
                     }
                     "definition.method" => {
                         let method_name = name_text.unwrap_or("_unknown");
-                        let class_chain = build_class_chain(anchor, source);
+                        // Go methods path under their RECEIVER type (not a lexical
+                        // chain); every other language uses the lexical container
+                        // chain via build_class_chain.
+                        let class_chain = go_receiver_type(anchor, source)
+                            .map_or_else(|| build_class_chain(anchor, source), |recv| vec![recv]);
                         let chain_str = class_chain.join(">");
                         let path_str = format!("{file_path}>{chain_str}>{method_name}");
                         if let Ok(path) = TrunkPath::parse(&path_str) {
@@ -932,7 +936,7 @@ const FUNCTION_KINDS: &[&str] = &[
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
     "function_item",           // Rust
-    "method_declaration",      // Java/C#
+    "method_declaration",      // Java/C#/Go
     "constructor_declaration", // Java/C#
 ];
 
@@ -951,7 +955,7 @@ const BINDING_SCOPE_KINDS: &[&str] = &[
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
     "function_item",           // Rust
-    "method_declaration",      // Java/C#
+    "method_declaration",      // Java/C#/Go
     "constructor_declaration", // Java/C#
     "arrow_function",          // JS/TS
     "lambda",                  // Python
@@ -1039,6 +1043,15 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
             }
             containers.reverse();
 
+            // Go methods: the receiver type is the container (not a lexical
+            // ancestor), so a call inside `func (s *Server) Run()` is attributed
+            // to `Server>Run` — matching the method's definition path.
+            if containers.is_empty() {
+                if let Some(recv) = go_receiver_type(parent, source) {
+                    containers.push(recv);
+                }
+            }
+
             return Some(if containers.is_empty() {
                 fn_name
             } else {
@@ -1106,6 +1119,41 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
 /// `qualified_identifier` for an out-of-line `Foo::bar`). Returns `None` for
 /// non-C++ nodes (which have a `name` field handled by the caller). Without this,
 /// every C++ caller was attributed to `_unknown`.
+/// For a Go `method_declaration`, return its RECEIVER TYPE — the container the
+/// method should be pathed under (`Server` for `func (s *Server) Run()`). Go
+/// methods aren't lexically nested in their type; the type lives in the
+/// `receiver` parameter list, so `build_class_chain` (a lexical walk) can't find
+/// it. Returns `None` for non-method nodes / non-Go (no `receiver` field).
+fn go_receiver_type(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
+    if node.kind() != "method_declaration" {
+        return None;
+    }
+    let recv = node.child_by_field_name("receiver")?;
+    let mut cursor = recv.walk();
+    for child in recv.children(&mut cursor) {
+        if child.kind() != "parameter_declaration" {
+            continue;
+        }
+        let Some(ty) = child.child_by_field_name("type") else {
+            continue;
+        };
+        // `*Server` (pointer_type) → unwrap to the inner type_identifier.
+        let type_node = if ty.kind() == "pointer_type" {
+            ty.named_child(0).unwrap_or(ty)
+        } else {
+            ty
+        };
+        if let Ok(t) = type_node.utf8_text(source) {
+            // Strip generics (`Server[T]`/`Server<T>` → `Server`).
+            let base = t.split(['<', '[']).next().unwrap_or(t).trim();
+            if !base.is_empty() {
+                return Some(base.to_owned());
+            }
+        }
+    }
+    None
+}
+
 fn descend_declarator_name(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
     let mut cur = node.child_by_field_name("declarator")?;
     for _ in 0..16 {

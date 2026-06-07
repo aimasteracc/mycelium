@@ -2717,3 +2717,76 @@ fn extractor_cpp_receiver_type_binds_multi_match_method_f5() {
         "run() must NOT be mis-bound to Cache>save"
     );
 }
+
+// ── Go (RFC-0118 Part B + receiver-type method path) ────────────────────────
+
+fn go_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/go/queries.scm");
+    Extractor::new(language, query_src).expect("go extractor should build")
+}
+
+#[test]
+fn extractor_go_method_path_uses_receiver_type() {
+    // Go methods carry their receiver type in the signature, not a lexical chain.
+    // `func (s *Server) Run() {}` must be at Server>Run (not the flat file>Run).
+    let ext = go_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.go",
+        b"package main\ntype Server struct{}\nfunc (s *Server) Run() {}",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    assert!(
+        store.lookup("test.go>Server>Run").is_some(),
+        "Go method must be at Server>Run (receiver type)"
+    );
+    // Value receiver `func (r Rect)` (no pointer) must also resolve to the type.
+    let mut s2 = Store::new();
+    ext.extract(
+        "v.go",
+        b"package main\ntype Rect struct{}\nfunc (r Rect) Area() int { return 0 }",
+        &mut s2,
+    )
+    .expect("extraction should succeed");
+    assert!(
+        s2.lookup("v.go>Rect>Area").is_some(),
+        "Go value-receiver method must be at Rect>Area"
+    );
+}
+
+#[test]
+fn extractor_go_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (Go): `Run` is a method on TWO types (multi-match). The
+    // local `s := Server{}` binds s→Server → s.Run() resolves to Server>Run.
+    let ext = go_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.go",
+        b"package main\ntype Server struct{}\nfunc (s *Server) Run() {}\ntype Worker struct{}\nfunc (w *Worker) Run() {}\nfunc caller() {\n\ts := Server{}\n\ts.Run()\n}",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let caller = store.lookup("test.go>caller").expect("caller exists");
+    let server_run = store
+        .lookup("test.go>Server>Run")
+        .expect("Server.Run exists");
+    let worker_run = store
+        .lookup("test.go>Worker>Run")
+        .expect("Worker.Run exists");
+    assert!(
+        store
+            .incoming(server_run, EdgeKind::Calls)
+            .contains(&caller),
+        "caller() must be a caller of Server>Run after receiver inference"
+    );
+    assert!(
+        !store
+            .incoming(worker_run, EdgeKind::Calls)
+            .contains(&caller),
+        "caller() must NOT be mis-bound to Worker>Run"
+    );
+}
