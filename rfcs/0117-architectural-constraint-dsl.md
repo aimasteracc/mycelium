@@ -180,13 +180,13 @@ Three-Surface Rule (Charter §5.13):
 ## Acceptance criteria
 
 **Phase 1 — pure core (this PR's scope when promoted):**
-- [ ] `Constraint` / `EdgeRef` / `Violation` frozen types in
+- [x] `Constraint` / `EdgeRef` / `Violation` frozen types in
       `crates/mycelium-core/src/constraints/types.rs`; no setters; constructed once.
-- [ ] `evaluate(rules, edges) -> Vec<Violation>` pure (no I/O, no clock). TDD with
+- [x] `evaluate(rules, edges) -> Vec<Violation>` pure (no I/O, no clock). TDD with
       hand-built fixtures (RED first): `ui→db` Calls edge → 1 violation; same edge
       with `exceptions` covering the caller → 0; `applies_to: imports` ignores a
       Calls edge; unresolved `to_path` stub → skipped; non-matching layer → 0.
-- [ ] Glob matcher is a **self-contained matcher in `mycelium-core`** (no new
+- [x] Glob matcher is a **self-contained matcher in `mycelium-core`** (no new
       regex/`globset` dependency). Rationale: the only existing path-glob helper
       is the private `build_globset` in `crates/mycelium-mcp/src/subscription.rs`,
       and `mycelium-core` neither depends on `mycelium-mcp` nor pulls in `globset`
@@ -196,7 +196,7 @@ Three-Surface Rule (Charter §5.13):
       not cross `/`), and `file>Type>member` symbol-path targeting. Snapshot tests.
       (If a future need arises to share one matcher, factor it into a core util
       that `mycelium-mcp` then consumes — never the reverse.)
-- [ ] `clippy -D warnings`, `fmt --check`, ≥90% line coverage on the new module.
+- [x] `clippy -D warnings`, `fmt --check`, ≥90% line coverage on the new module.
 
 **Phase 2 — adapter + surfaces:**
 - [ ] Store adapter projects synapse Calls+Imports edges → `EdgeRef`; integration
