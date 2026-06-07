@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **docs(skills): corrected `project_health` JSON example** — dimensions are `{"name": "dead_code", "score": N}` objects, not `["dead", N]` tuples; first dimension key is `dead_code`, not `dead`. Aligns with `project_health_payload()` in `crates/mycelium-core/src/health.rs`.
+
 ### Added
 
 - **skills(graph-structure): `project_health` registered in coverage matrix (RFC-0114)** — `mycelium project-health` CLI + `mycelium_project_health` MCP were already implemented but the entry was missing from `skills/INDEX.md` and the `graph-structure` SKILL.md description lacked a `project_health` section. Fixes the Three-Surface Rule audit gap: INDEX now shows 94/94 compliant. The `graph-structure` Skill's `allowed-tools` already contained `mcp__mycelium__project_health`; this change adds the canonical INDEX row and the capability description.

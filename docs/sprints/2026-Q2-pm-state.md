@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v115 — RFC-0118 Part B ALL 9 complete + rule-b (#667); Three-Surface gap fixed (#668); #663/#666 closed; 2 P0 escalations carried forward) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE** (Java #656, C# #659, C++ #661, Go #662, Ruby #665, rule-b #667). Three-Surface 94/94 (PR #668). |
+| Last updated | 2026-06-07 (PM dispatch v116 — PR #668 merged (Three-Surface 94/94 confirmed) + PR #669 merged (PM v115); Codex findings resolved; next: AC-20 tests fresh branch) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b**. Three-Surface **94/94** ✅ (`skills/INDEX.md` + `graph-structure` SKILL confirmed on develop). Next P1 autonomous: AC-20 tests (Issue #612 item 2, fresh branch). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -181,9 +181,9 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 16. **GitHub Action live run**: Test the action on the Mycelium repo itself with a real PR (after v0.3.0 ships).
 
 **P1 — Next autonomous:**
-17. **PR #668** (Three-Surface INDEX fix): CI running — admin-merge when green. Closes the 93→94 audit gap for `project_health`.
+17. ~~**PR #668** (Three-Surface INDEX fix)~~: ✅ **MERGED** (squash `27cbe5ab`) — Three-Surface 94/94 confirmed on develop. Codex P2 fixed (JSON example `dead_code` + object shape).
 18. **AC-20 tests** (Issue #612 item 2): PR #663 closed stale (conflicts). Recreate on fresh branch from develop — `rank_symbols_excludes_unresolved_phantom` + CLI shape-parity test in `cli_centrality.rs`. Closes Issue #612 item 2.
-19. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference. P2 but scheduled next after #668.
+19. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference. P2 but scheduled next after AC-20.
 
 **P2 — Deferred:**
 20. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
@@ -194,16 +194,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-07 v115)
+## Dispatch state (2026-06-07 v116)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop (PR #649): choose Option A/B/C. |
-| PM | **DONE ✅** | v115: RFC-0118 Part B all 9 langs + rule-b confirmed on develop; Three-Surface INDEX gap fixed (PR #668 opened); #663/#666 closed; decisions.jsonl appended. |
+| PM | **DONE ✅** | v116: PRs #668+#669 merged; Codex findings all resolved (fixed + rejected with justification); Three-Surface 94/94 live on develop; decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | RFC-0114 Phase 2 DONE (CLI+MCP+Skill all on develop). Next: Recreate AC-20 tests (PR #663 stale → fresh branch) then Issue #636 Phase 3. |
+| rust-implementer | **P1** | Next: AC-20 tests on fresh branch from develop HEAD (Issue #612 item 2) — `rank_symbols_excludes_unresolved_phantom` + CLI centrality shape-parity test. Then Issue #636 Phase 3. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -237,6 +237,27 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v116 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns (ci/tdd/three-surface), PM state v115 (develop `651819a1` post-merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at start: #668 (Three-Surface fix, CI green after Codex fix), #669 (PM v115, CI green, Codex P2 pending), #568 (release/v0.3.0, founder). 0 P0/P1 issues; 3 P2.
+- Develop CI green (last run: `chore/pm-state-v115` 22/22 ✅). Two Codex P2 findings required action before merging.
+
+**Actions taken:**
+1. **Diagnosed Codex P2 on PR #668**: JSON example wrong (`dead` → `dead_code`, tuple array → object array). Verified against `health.rs` `project_health_payload()`. Fixed in commit `4fe590c`. ✅
+2. **Replied to Codex thread on #668** (fix): commit `4fe590c` addresses the schema mismatch. ✅
+3. **Replied to Codex thread on #669** (rejection with justification): #668 merged first; 94/94 state is accurate at merge time. ✅
+4. **Merged PR #668** (squash `27cbe5ab`) — Three-Surface 94/94 confirmed on develop. ✅
+5. **Merged PR #669** (squash `651819a1`) — PM state v115 on develop. ✅
+6. **PM state v116** written; dispatch state updated. ✅
+7. **Appended decisions.jsonl** (this entry). ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`
+- **(P0-2)** RFC-0120 Charter §2 governance event: ratio 0.753 vs ≤0.30. Choose Option A/B/C from REPORT.md §Decision.
 
 ### 2026-06-07 PM dispatch v115 (this run)
 
