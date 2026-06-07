@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0118 Part B now covers JavaScript: `get-callers` on a multi-class method
+  returns real callers.** JavaScript previously captured `@call.receiver` but had
+  no local constructor-binding captures, so receiver disambiguation never fired —
+  `get-callers` on a method shared across classes (e.g. `save` on both `Store` and
+  `Cache`) returned 0. Ported the four-pattern Part B block to `packs/javascript/`
+  (`const x = new Ctor()` / `x = new Ctor()` bindings + `@binding.rebind`
+  invalidation on every assignment target). Pack-only (the core Pass-1c wiring is
+  language-agnostic; `FUNCTION_KINDS` already covers JS). Conservative: only
+  Title-case ctors bind, conflicting/rebind-to-non-ctor declines (never mis-binds).
+
 ### Fixed
 
 - **Go/C/C++/C# definitions were minted kind-less (now correctly kinded).** The
