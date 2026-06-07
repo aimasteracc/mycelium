@@ -900,6 +900,55 @@ fn caller_b() { let s = Store::new(); s.upsert_node(); }
 }
 
 #[test]
+fn extractor_rust_receiver_inference_no_cross_function_leak() {
+    // Two functions, the SAME local name `h`, DIFFERENT constructor types, and a
+    // method `run` defined on both types. Each call must bind to ITS OWN type —
+    // a binding from one function must never leak into the other (the "never
+    // mis-bind" invariant, independent-reviewer finding). Also covers `let mut`.
+    let source = "\
+struct Store;
+impl Store { fn run(&self) {} }
+struct Trunk;
+impl Trunk { fn run(&self) {} }
+fn alpha() {
+    let h = Trunk::new();
+    h.run();
+}
+fn beta() {
+    let mut h = Store::new();
+    h.run();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let alpha = store.lookup("test.rs>alpha").expect("alpha exists");
+    let beta = store.lookup("test.rs>beta").expect("beta exists");
+    let store_run = store
+        .lookup("test.rs>Store>run")
+        .expect("Store::run exists");
+    let trunk_run = store
+        .lookup("test.rs>Trunk>run")
+        .expect("Trunk::run exists");
+
+    // alpha's `h: Trunk` → Trunk>run only.
+    assert!(store.incoming(trunk_run, EdgeKind::Calls).contains(&alpha));
+    assert!(
+        !store.incoming(store_run, EdgeKind::Calls).contains(&alpha),
+        "alpha must NOT leak to Store>run"
+    );
+    // beta's `let mut h: Store` → Store>run only (also proves `let mut` is captured).
+    assert!(store.incoming(store_run, EdgeKind::Calls).contains(&beta));
+    assert!(
+        !store.incoming(trunk_run, EdgeKind::Calls).contains(&beta),
+        "beta must NOT leak to Trunk>run"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_python_call_inside_function_creates_calls_edge() {
     // foo calls bar; bar is defined in the same file.

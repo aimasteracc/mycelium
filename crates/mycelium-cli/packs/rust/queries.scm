@@ -173,18 +173,14 @@
 
 ; ── RFC-0118 Part B: local constructor bindings (let x = Type::new()) ──
 ; Captures the local name and the constructor TYPE so the post-merge receiver
-; disambiguation pass can bind `x.method()` to `…>Type>method`. Handles both
-; `let x = Type::new()` and `let mut x = Type::new()`. Only constructor-style
-; RHS (`Type::func(...)`) is matched, never plain `foo()` — conservative.
+; disambiguation pass can bind `x.method()` to `…>Type>method`. Only
+; constructor-style RHS (`Type::func(...)`) is matched, never plain `foo()` —
+; conservative. `let mut x = ...` also matches: tree-sitter-rust models `mut` as
+; a `mutable_specifier` sibling of the `pattern` field, so `pattern:(identifier)`
+; still binds the name. The core then keeps only title-case ctor types, dropping
+; lowercase utility-module calls like `mem::take`.
 (let_declaration
   pattern: (identifier) @binding.local
-  value: (call_expression
-    function: (scoped_identifier
-      path: (identifier) @binding.ctor))) @reference.binding
-
-; `let mut x = Type::new()` — the mutable form nests the identifier in mut_pattern.
-(let_declaration
-  pattern: (mut_pattern (identifier) @binding.local)
   value: (call_expression
     function: (scoped_identifier
       path: (identifier) @binding.ctor))) @reference.binding

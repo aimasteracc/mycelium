@@ -264,11 +264,17 @@ impl Extractor {
         }
 
         // ─── Pass 1c: per-function local constructor bindings (RFC-0118 B) ──
-        // `let x = Type::new()` → record (x → Type) under the enclosing function
-        // path, so Pass 2's method-call handler can attach a ReceiverContext and
-        // the post-merge pass can bind `x.method()` to `…>Type>method`. Pure
+        // `let x = Type::new()` → record (x → Type) under the enclosing function,
+        // so Pass 2's method-call handler can attach a ReceiverContext and the
+        // post-merge pass can bind `x.method()` to `…>Type>method`. Pure
         // capture-driven (pack data), language-agnostic core.
-        let mut local_bindings: HashMap<String, Vec<LocalBinding>> = HashMap::new();
+        //
+        // Keyed by the enclosing function NODE's start byte (a unique scope id),
+        // NOT its name — two distinct functions that happen to share a name (e.g.
+        // nested `fn inner` in different outer fns) must NOT share a binding scope,
+        // or a binding could leak across functions and mis-bind (independent
+        // reviewer finding). The matching Pass-2 call uses the same node key.
+        let mut local_bindings: HashMap<usize, Vec<LocalBinding>> = HashMap::new();
         {
             let mut cursor = QueryCursor::new();
             let mut matches = cursor.matches(&self.query, root, source);
@@ -286,11 +292,18 @@ impl Extractor {
                         .flatten()
                 });
                 let Some(ctor_type) = ctor else { continue };
-                // Scope the binding to its enclosing function (file-level lets
-                // have no receiver scope we track).
-                if let Some(suffix) = enclosing_function_path(local_node, source) {
+                // Only treat title-case RHS paths as constructor TYPES. This drops
+                // utility-module calls like `mem::take` / `io::stdin` (lowercase
+                // module → not a type), preventing a wrong-bind if a struct ever
+                // shared that name (reviewer finding). Cross-language: types are
+                // title-case in Rust/Python/TS/Go-exported/Java/C#.
+                if !ctor_type.chars().next().is_some_and(char::is_uppercase) {
+                    continue;
+                }
+                // Scope to the enclosing function node (file-level lets are skipped).
+                if let Some(scope) = enclosing_function_node(local_node) {
                     local_bindings
-                        .entry(format!("{file_path}>{suffix}"))
+                        .entry(scope.start_byte())
                         .or_default()
                         .push(LocalBinding {
                             name: local_name.to_owned(),
@@ -475,9 +488,8 @@ impl Extractor {
                         if callee_is_unresolved {
                             if let Some(recv) = receiver {
                                 if !matches!(recv, "self" | "cls" | "this") {
-                                    let locals = caller_full
-                                        .as_deref()
-                                        .and_then(|p| local_bindings.get(p))
+                                    let locals = enclosing_function_node(anchor)
+                                        .and_then(|scope| local_bindings.get(&scope.start_byte()))
                                         .cloned()
                                         .unwrap_or_default();
                                     store.record_call_site(
@@ -847,15 +859,34 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
 /// that can be appended to `file_path>` to build the full caller path.
 ///
 /// Returns `None` if the call is at module level (no enclosing function).
-fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
-    const FUNCTION_KINDS: &[&str] = &[
-        "function_definition",  // Python
-        "function_declaration", // TS/JS
-        "function_expression",  // JS/TS
-        "method_definition",    // TS/JS
-        "function_item",        // Rust
-    ];
+/// Function/method node kinds across the supported grammars. A single source of
+/// truth for "what counts as an enclosing function scope".
+const FUNCTION_KINDS: &[&str] = &[
+    "function_definition",  // Python
+    "function_declaration", // TS/JS
+    "function_expression",  // JS/TS
+    "method_definition",    // TS/JS
+    "function_item",        // Rust
+];
 
+/// Return the nearest enclosing function/method NODE, or `None` at file scope.
+///
+/// Its `start_byte()` is a stable, collision-free scope identifier — unlike the
+/// function *name*, two distinct same-named functions (e.g. nested `fn inner` in
+/// different outer fns) get different start bytes, so per-function binding scopes
+/// never leak into each other (RFC-0118 Part B, reviewer finding).
+fn enclosing_function_node(node: tree_sitter::Node<'_>) -> Option<tree_sitter::Node<'_>> {
+    let mut cur = node;
+    while let Some(parent) = cur.parent() {
+        if FUNCTION_KINDS.contains(&parent.kind()) {
+            return Some(parent);
+        }
+        cur = parent;
+    }
+    None
+}
+
+fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
     let mut cur = node;
     while let Some(parent) = cur.parent() {
         if FUNCTION_KINDS.contains(&parent.kind()) {
