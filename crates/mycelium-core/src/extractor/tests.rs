@@ -1051,6 +1051,41 @@ fn run(s: &Store) {
 }
 
 #[test]
+fn extractor_rust_param_mut_binds_and_non_receiver_params_decline() {
+    // `mut s: &Store` (mutability is a sibling specifier, pattern stays an
+    // identifier) must still bind. Non-receiver params (`n: u32`, `cb: impl Fn()`)
+    // normalize to None and contribute no binding — a call on them declines.
+    let source = "\
+struct Store;
+impl Store { fn run(&self) {} }
+struct Trunk;
+impl Trunk { fn run(&self) {} }
+fn go(mut s: &Store, n: u32) {
+    s.run();
+    n.run();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+    let go = store.lookup("test.rs>go").expect("go exists");
+    let store_run = store.lookup("test.rs>Store>run").expect("exists");
+    let trunk_run = store.lookup("test.rs>Trunk>run").expect("exists");
+    assert!(
+        store.incoming(store_run, EdgeKind::Calls).contains(&go),
+        "`mut s: &Store` must bind s.run() to Store>run"
+    );
+    // `n: u32` is not a Title-case type → no binding → n.run() declines (it must
+    // not bind to either Store>run or Trunk>run).
+    assert!(
+        !store.incoming(trunk_run, EdgeKind::Calls).contains(&go),
+        "primitive param must not produce a binding"
+    );
+}
+
+#[test]
 fn extractor_python_receiver_type_binds_multi_match_method_f5() {
     // RFC-0118 Part B (Python): `upsert_node` is a method on TWO classes. A bare
     // `s.upsert_node()` is multi-match → declines → get-callers 0. The local
