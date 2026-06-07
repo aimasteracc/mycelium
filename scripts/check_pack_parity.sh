@@ -26,8 +26,21 @@ CANON="$ROOT/packs"
 FULL_COPIES=("crates/mycelium-mcp/packs" "crates/mycelium-cli/packs")
 SUBSET_COPIES=("crates/mycelium-core/packs")
 # Langs the binary embeds via cortex.rs include_str! — these MUST exist in the
-# core subset copy (keeps the check honest if a lang dir is accidentally lost).
-CORE_EMBEDDED=(go javascript python rust typescript)
+# core subset copy. DERIVED from cortex.rs itself (not hardcoded) so the list
+# can never silently drift from what the binary actually compiles in — the same
+# class of footgun this script guards against. Each cortex.rs line reads:
+#   const <X>_QUERIES: &str = include_str!("../packs/<lang>/queries.scm");
+CORTEX_RS="$ROOT/crates/mycelium-core/src/cortex.rs"
+CORE_EMBEDDED=()
+while IFS= read -r lang; do
+    [ -n "$lang" ] && CORE_EMBEDDED+=("$lang")
+done < <(grep -oE 'include_str!\("\.\./packs/[a-z_]+/queries\.scm"\)' "$CORTEX_RS" \
+    | sed -E 's#.*/packs/([a-z_]+)/.*#\1#')
+if [ "${#CORE_EMBEDDED[@]}" -eq 0 ]; then
+    echo "ERROR: could not derive cortex-embedded langs from $CORTEX_RS" >&2
+    echo "       (expected lines like: include_str!(\"../packs/rust/queries.scm\"))" >&2
+    exit 1
+fi
 FAIL=0
 
 diff_or_fail() {
