@@ -19,8 +19,20 @@ async fn server_with_fixture() -> MyceliumServer {
             TrunkPath::parse("src/greet.rs").unwrap(),
             mycelium_core::types::NodeKind::File,
         );
-        let greet = store.upsert_node(TrunkPath::parse("src/greet.rs>greet").unwrap());
-        let helper = store.upsert_node(TrunkPath::parse("src/greet.rs>helper").unwrap());
+        // Set definition kinds — the extractor maps every `@definition.<suffix>`
+        // the packs use to a kind (see `cap_suffix_to_kind`; enforced by
+        // `every_pack_definition_suffix_maps_to_a_kind`), so a real indexed store
+        // has kinded symbols. The File kind above makes this a kind-annotated
+        // store, so `search_symbol` de-noises against unnavigable nodes; a
+        // kind-less symbol would be dropped as import-stub-like.
+        let greet = store.upsert_node_with_kind(
+            TrunkPath::parse("src/greet.rs>greet").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
+        let helper = store.upsert_node_with_kind(
+            TrunkPath::parse("src/greet.rs>helper").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
         store.upsert_edge(EdgeKind::Contains, file, greet);
         store.upsert_edge(EdgeKind::Contains, file, helper);
     }

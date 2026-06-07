@@ -2248,3 +2248,76 @@ fn extractor_rust_associated_type_has_type_alias_kind() {
         "associated type Out must be kinded as TypeAlias"
     );
 }
+
+#[test]
+fn every_pack_definition_suffix_maps_to_a_kind() {
+    // Guard against a whole bug class: a pack that uses `@definition.<suffix>`
+    // with no `cap_suffix_to_kind` mapping mints KIND-LESS nodes, which then
+    // silently vanish from kind-gated queries (search_symbol de-noise,
+    // get-symbols-by-kind). This was real: type / namespace / template_class /
+    // template_function / constructor (Go/C/C++/C#) were unmapped. Scanning the
+    // canonical packs keeps the mapping table honest as new languages land.
+    use std::collections::BTreeSet;
+    let packs_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../packs");
+    let mut suffixes: BTreeSet<String> = BTreeSet::new();
+    for entry in std::fs::read_dir(packs_dir).expect("packs dir readable") {
+        let scm = entry.unwrap().path().join("queries.scm");
+        let Ok(src) = std::fs::read_to_string(&scm) else {
+            continue;
+        };
+        for frag in src.split("@definition.").skip(1) {
+            let suffix: String = frag
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            if !suffix.is_empty() {
+                suffixes.insert(suffix);
+            }
+        }
+    }
+    assert!(
+        suffixes.len() >= 15,
+        "expected to discover many definition suffixes, found {}: {suffixes:?}",
+        suffixes.len()
+    );
+    for suffix in &suffixes {
+        assert!(
+            super::cap_suffix_to_kind(suffix).is_some(),
+            "pack uses @definition.{suffix} but cap_suffix_to_kind returns None → \
+             kind-less nodes that vanish from search/by-kind queries"
+        );
+    }
+}
+
+#[test]
+fn extractor_go_type_definition_is_kinded_and_searchable() {
+    // Regression (PR #651 review): Go `type X struct {}` uses @definition.type,
+    // which was unmapped → kind-less → dropped by the kind-annotated search
+    // de-noise. After mapping `type` → TypeAlias it is kinded and searchable.
+    let language: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/go/queries.scm");
+    let ext = Extractor::new(language, query_src).expect("go extractor should build");
+    let mut store = Store::new();
+    ext.extract(
+        "user.go",
+        b"package main\ntype UserStore struct {}\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+
+    let id = store
+        .lookup("user.go>UserStore")
+        .expect("Go type UserStore must be a node");
+    assert_eq!(
+        store.kind_of(id),
+        Some(crate::types::NodeKind::TypeAlias),
+        "Go `type` definition must be kinded (was kind-less)"
+    );
+    // Kind-annotated store (extractor set the File kind) → search de-noises, but
+    // the now-kinded Go type must still be returned.
+    let results = store.search_symbol("userstore", 10);
+    assert!(
+        results.iter().any(|p| p == "user.go>UserStore"),
+        "Go type definition must be searchable, got: {results:?}"
+    );
+}
