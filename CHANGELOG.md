@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0118 Part B now covers Go, and Go methods are pathed by receiver type.**
+  Go methods were flat file-level nodes (`file>Run`); they are now correctly
+  pathed under their receiver type (`func (s *Server) Run()` → `Server>Run`),
+  extracted from the method's `receiver` field via a new `go_receiver_type`
+  helper used by both the definition handler and caller attribution. Part B adds
+  `@call.receiver` on `obj.Method()` selector calls + composite-literal local
+  bindings (`s := Server{}` / `&Server{}` → `s : Server`) with rebind
+  invalidation, so `get-callers` on a method shared across types returns the
+  correct callers. This makes Go `get-callers`/`get-callees` correct for the
+  first time (a call inside a method is now attributed to `Server>Run`, not the
+  flat method name).
+
 - **RFC-0118 Part B now covers C++: `get-callers` on a multi-type method returns
   real callers.** Added `@call.receiver` on identifier-receiver `obj.m()`/`ptr->m()`
   calls + a declared-type local binding (`Store s;` / `Store s = …` binds `s →
