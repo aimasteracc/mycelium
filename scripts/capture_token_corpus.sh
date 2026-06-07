@@ -104,10 +104,14 @@ fi
 # mycelium_query: Hyphae result
 capture "query" query ':defined()'
 
-# mycelium_get_reachable_to / mycelium_get_reachable: reachability trees
+# mycelium_get_importers_tree: "who imports me" tree rooted at a file/module.
+# src/main.rs is the representative entry point for Rust projects like ripgrep;
+# the capture helper silently skips if the file is absent in the fixture.
+capture "importers_tree" get-importers-tree "src/main.rs" --max-depth 2
+
+# mycelium_subclasses_tree: recursive subclasses tree (children of children)
 if [[ -n "$REF_SYM" ]]; then
-    capture "importers_tree" get-reachable-to "$REF_SYM" --edge-kind calls --max-depth 2
-    capture "subclasses_tree" get-reachable "$REF_SYM" --edge-kind calls --max-depth 2
+    capture "subclasses_tree" subclasses-tree "$REF_SYM" --max-depth 2
 fi
 
 echo ""
