@@ -14,10 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   C++, Ruby; C is function-only). Added `@call.receiver` on identifier-receiver
   `x.method` calls + a constant-constructor local binding (`x = Store.new` binds
   `x → Store`). Ruby's `method`/`singleton_method` added to `FUNCTION_KINDS` +
-  the binding-scope set, and `class` to the type-container set, so Ruby method
-  callers and binding scopes resolve correctly. Best-effort under Ruby's dynamic
-  typing (a `Const.method` result is conventionally a `Const`; the conflict /
-  rebind passes keep mis-binds rare).
+  the binding-scope set so method bodies are recognized as binding scopes.
+  Best-effort under Ruby's dynamic typing (a `Const.method` result is
+  conventionally a `Const`; the conflict / rebind passes keep mis-binds rare).
+  Known limitation: a call made *inside* a Ruby method is attributed to the flat
+  caller path (`method`, not `Class>method`) — Ruby's `class`/`module` node kinds
+  aren't added to the type-container set because they collide with JS/TS
+  class-expression and Python file-root node kinds respectively; method
+  *definitions* still path correctly as `Class>method`.
 
 - **RFC-0118 Part B now covers Go, and Go methods are pathed by receiver type.**
   Go methods were flat file-level nodes (`file>Run`); they are now correctly
