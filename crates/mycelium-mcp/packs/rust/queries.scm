@@ -184,3 +184,12 @@
   value: (call_expression
     function: (scoped_identifier
       path: (identifier) @binding.ctor))) @reference.binding
+
+; ── RFC-0118 Part B rule-b: function parameters with declared types ──────
+; `fn f(s: &mut Store)` → bind `s` to `Store` so `s.method()` resolves. The core
+; normalizes the type (strips &, mut, lifetimes, generics) and keeps only
+; Title-case base types. Scoped to the enclosing function; a param shadowed by a
+; conflicting local declines (never mis-bind).
+(parameter
+  pattern: (identifier) @param.name
+  type: (_) @param.type) @reference.param
