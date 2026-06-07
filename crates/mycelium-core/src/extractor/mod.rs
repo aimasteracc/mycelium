@@ -466,7 +466,13 @@ impl Extractor {
                         // plain-identifier receiver (not self/cls/this), capture a
                         // ReceiverContext so the post-merge pass can infer the
                         // receiver's type and bind the precise `…>Type>method` edge.
-                        if !resolved {
+                        // The `resolved` flag only distinguishes "new stub" from
+                        // "existing node in the store"; a prior call to the same
+                        // method name may have already created an Unresolved stub
+                        // (resolved=true), so we check the node's actual kind.
+                        let callee_is_unresolved = !resolved
+                            || matches!(store.kind_of(callee_id), Some(NodeKind::Unresolved));
+                        if callee_is_unresolved {
                             if let Some(recv) = receiver {
                                 if !matches!(recv, "self" | "cls" | "this") {
                                     let locals = caller_full

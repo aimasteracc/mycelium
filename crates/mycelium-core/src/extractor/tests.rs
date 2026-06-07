@@ -863,6 +863,43 @@ fn run() {
 }
 
 #[test]
+fn extractor_rust_receiver_context_recorded_for_second_call_site() {
+    // Regression: after the first `a.upsert_node()` creates a bare stub, the
+    // second `b.upsert_node()` finds the same stub (resolved=true).  Without
+    // the kind_of() guard the second caller's ReceiverContext would not be
+    // recorded, so get-callers would be 1 instead of 2.
+    let source = "\
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn caller_a() { let s = Store::new(); s.upsert_node(); }
+fn caller_b() { let s = Store::new(); s.upsert_node(); }
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let ca = store.lookup("test.rs>caller_a").expect("caller_a exists");
+    let cb = store.lookup("test.rs>caller_b").expect("caller_b exists");
+    let store_m = store
+        .lookup("test.rs>Store>upsert_node")
+        .expect("Store::upsert_node exists");
+
+    let callers = store.incoming(store_m, EdgeKind::Calls);
+    assert!(
+        callers.contains(&ca),
+        "caller_a must be a caller of Store>upsert_node"
+    );
+    assert!(
+        callers.contains(&cb),
+        "caller_b must also be a caller of Store>upsert_node (second call-site fix)"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_python_call_inside_function_creates_calls_edge() {
     // foo calls bar; bar is defined in the same file.
