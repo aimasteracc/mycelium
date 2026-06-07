@@ -111,6 +111,45 @@ pub trait TokenCounter {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WhitespaceTokenCounter;
 
+/// BPE token counter using tiktoken-rs `cl100k_base` encoding.
+///
+/// This is the **figure-of-record** tokenizer for Charter §2 "AI token efficiency
+/// (Hyphae DSL vs JSON) ≤ 30% of JSON token count" SLA (RFC-0120 Phase 1b).
+///
+/// Gated behind the `tiktoken` cargo feature so ordinary CI remains hermetic.
+/// Run `cargo test --features tiktoken` to execute the binding corpus assertion.
+///
+/// The tokenizer family (`cl100k_base`) is the GPT-4o / Claude-adjacent BPE used
+/// by RFC-0094 when it first asserted the ~70% claim.  The stated assumption is
+/// committed in `tests/corpus/REPORT.md` so the measurement is reproducible.
+#[cfg(feature = "tiktoken")]
+pub struct BpeTokenCounter {
+    bpe: tiktoken_rs::CoreBPE,
+}
+
+#[cfg(feature = "tiktoken")]
+impl BpeTokenCounter {
+    /// Construct a counter backed by the `cl100k_base` BPE encoding.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the tiktoken-rs encoding data cannot be loaded (should only
+    /// happen if the tiktoken-rs crate is misconfigured).
+    #[must_use]
+    pub fn cl100k_base() -> Self {
+        Self {
+            bpe: tiktoken_rs::cl100k_base().expect("tiktoken-rs cl100k_base load failed"),
+        }
+    }
+}
+
+#[cfg(feature = "tiktoken")]
+impl TokenCounter for BpeTokenCounter {
+    fn count(&self, s: &str) -> usize {
+        self.bpe.encode_ordinary(s).len()
+    }
+}
+
 impl TokenCounter for WhitespaceTokenCounter {
     fn count(&self, s: &str) -> usize {
         let mut count = 0usize;

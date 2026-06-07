@@ -20,6 +20,9 @@ name = "mycelium_mcp"
 # redb is the default storage backend (RFC-0100 Phase 3 flip, 2026-06-02).
 default = ["redb-backend"]
 redb-backend = ["mycelium-core/redb-backend"]
+# tiktoken enables BpeTokenCounter (cl100k_base BPE) — the figure-of-record
+# tokenizer for Charter §2 token-efficiency SLA (RFC-0120 Phase 1b).
+tiktoken = ["dep:tiktoken-rs"]
 
 [lints]
 workspace = true
@@ -59,6 +62,7 @@ hex                     = "0.4"
 regex                   = "1"
 uuid                    = { workspace = true }
 globset                 = { workspace = true }
+tiktoken-rs             = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile  = { workspace = true }

@@ -4,9 +4,12 @@
 //! `WhitespaceTokenCounter`, and asserts sanity properties that must hold regardless
 //! of tokenizer choice.
 //!
-//! The tiktoken-gated snapshot (BPE token counts + tight band assertion) is Phase 2.
+//! The tiktoken-gated snapshot (BPE token counts + tight band assertion) requires the
+//! `tiktoken` cargo feature (`cargo test --features tiktoken`).
 //! No `Store`, no indexing, no network — purely static string/formatter arithmetic.
 
+#[cfg(feature = "tiktoken")]
+use mycelium_mcp::token_bench::BpeTokenCounter;
 use mycelium_mcp::token_bench::{FixtureCase, WhitespaceTokenCounter, measure_corpus};
 use std::path::Path;
 
@@ -90,5 +93,155 @@ fn per_fixture_totals_sum_to_aggregate() {
     assert_eq!(
         sum_text, report.total_text_tokens,
         "per-fixture text_tokens must sum to total_text_tokens"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RFC-0120 Phase 1b — BPE (tiktoken cl100k_base) figure-of-record tests.
+//
+// These tests are gated behind `--features tiktoken` so normal CI stays
+// hermetic. They are the binding measurement for Charter §2 "AI token
+// efficiency (Hyphae DSL vs JSON) ≤ 30% of JSON token count" SLA.
+// ---------------------------------------------------------------------------
+
+/// Measures `TextFormatter` vs `JsonFormatter` BPE token ratio over the committed corpus.
+///
+/// **Current corpus is Phase 1a scaffolding** (small Mycelium self-index fixtures).
+/// Phase 1b captures real ripgrep outputs via `scripts/capture_token_corpus.sh`.
+/// The Charter §2 binding assertion (≤ 30% ratio) activates after real corpus lands.
+///
+/// This test always passes — it prints the measured ratio and fails loudly only when
+/// the ratio exceeds 1.0 (`TextFormatter` makes things *larger* than `JsonFormatter`).
+/// The `bpe_charter_sla_binding` test below holds the gated binding assertion.
+#[cfg(feature = "tiktoken")]
+#[test]
+fn bpe_text_to_json_ratio_informational() {
+    let corpus = load_corpus();
+    let counter = BpeTokenCounter::cl100k_base();
+    let report = measure_corpus(&corpus, &counter);
+    let ratio = report.text_to_json_token_ratio();
+    // Print for visibility in CI output.
+    println!(
+        "RFC-0120 BPE measurement (cl100k_base, corpus v1-synthetic):\n  \
+         ratio = {ratio:.4} ({pct:.1}% of JSON tokens)  reduction = {red:.1}%\n  \
+         json_tokens={jt}  text_tokens={tt}\n  \
+         NOTE: corpus is Phase 1a synthetic fixtures. \
+         Regenerate with scripts/capture_token_corpus.sh for the binding figure.",
+        pct = ratio * 100.0,
+        red = report.token_reduction_pct(),
+        jt = report.total_json_tokens,
+        tt = report.total_text_tokens,
+    );
+    // Infrastructure sanity: TextFormatter must never inflate token count.
+    assert!(
+        ratio < 1.0,
+        "TextFormatter must not increase BPE token count vs JsonFormatter; ratio = {ratio:.4}"
+    );
+}
+
+/// Charter §2 binding assertion: `TextFormatter` ≤ 30% of `JsonFormatter` tokens
+/// over the **real** ripgrep corpus (captured via `scripts/capture_token_corpus.sh`).
+///
+/// This test is gated behind the `MYCELIUM_REAL_CORPUS` environment variable so it
+/// does NOT run on the Phase 1a synthetic corpus (which produces a ~77% ratio on
+/// small fixtures — not representative of large real-world tool outputs).
+/// It activates when:
+///   (a) the corpus has been regenerated from real ripgrep output, AND
+///   (b) `MYCELIUM_REAL_CORPUS=1` is set (done automatically by capture script).
+#[cfg(feature = "tiktoken")]
+#[test]
+fn bpe_charter_sla_binding() {
+    if std::env::var("MYCELIUM_REAL_CORPUS").is_err() {
+        println!(
+            "SKIP: bpe_charter_sla_binding — set MYCELIUM_REAL_CORPUS=1 after running \
+             scripts/capture_token_corpus.sh to activate the Charter §2 binding assertion."
+        );
+        return;
+    }
+    let corpus = load_corpus();
+    let counter = BpeTokenCounter::cl100k_base();
+    let report = measure_corpus(&corpus, &counter);
+    let ratio = report.text_to_json_token_ratio();
+    assert!(
+        ratio <= 0.30,
+        "Charter §2 SLA requires TextFormatter tokens ≤ 30% of JsonFormatter tokens \
+         (cl100k_base over real ripgrep corpus). Measured ratio = {ratio:.4} ({pct:.1}%). \
+         If the honest number exceeds 30%, update Charter §2 and README per RFC-0120 §Decision.",
+        pct = ratio * 100.0,
+    );
+}
+
+/// Sanity: BPE also reduces tokens vs JSON (same direction as whitespace counter).
+#[cfg(feature = "tiktoken")]
+#[test]
+fn bpe_text_format_reduces_tokens_over_corpus() {
+    let corpus = load_corpus();
+    let counter = BpeTokenCounter::cl100k_base();
+    let report = measure_corpus(&corpus, &counter);
+    assert!(
+        report.text_to_json_token_ratio() < 1.0,
+        "TextFormatter must use fewer BPE tokens than JsonFormatter; ratio = {:.4}",
+        report.text_to_json_token_ratio()
+    );
+}
+
+/// Sanity: BPE counter returns non-zero for a non-empty input.
+#[cfg(feature = "tiktoken")]
+#[test]
+fn bpe_counter_non_zero_for_nonempty_input() {
+    use mycelium_mcp::token_bench::TokenCounter;
+    let counter = BpeTokenCounter::cl100k_base();
+    assert!(
+        counter.count("hello world") > 0,
+        "BpeTokenCounter must return a positive count for non-empty input"
+    );
+}
+
+/// Prints per-fixture BPE breakdown for REPORT.md generation.
+#[cfg(feature = "tiktoken")]
+#[test]
+#[allow(clippy::cast_precision_loss)]
+fn bpe_per_fixture_breakdown() {
+    use mycelium_mcp::token_bench::measure_case;
+    let corpus = load_corpus();
+    let counter = BpeTokenCounter::cl100k_base();
+    println!(
+        "\n{:<24} {:>10} {:>10} {:>8}",
+        "fixture", "json_tok", "text_tok", "ratio"
+    );
+    println!("{}", "-".repeat(56));
+    for case in &corpus {
+        let r = measure_case(case, &counter);
+        let ratio = if r.json_tokens > 0 {
+            r.text_tokens as f64 / r.json_tokens as f64
+        } else {
+            1.0
+        };
+        println!(
+            "{:<24} {:>10} {:>10} {:>7.3}",
+            r.name, r.json_tokens, r.text_tokens, ratio,
+        );
+    }
+    let report = measure_corpus(&corpus, &counter);
+    println!("{}", "-".repeat(56));
+    println!(
+        "{:<24} {:>10} {:>10} {:>7.3}",
+        "TOTAL",
+        report.total_json_tokens,
+        report.total_text_tokens,
+        report.text_to_json_token_ratio(),
+    );
+}
+
+/// Sanity: BPE counter returns zero for empty string.
+#[cfg(feature = "tiktoken")]
+#[test]
+fn bpe_counter_zero_for_empty_input() {
+    use mycelium_mcp::token_bench::TokenCounter;
+    let counter = BpeTokenCounter::cl100k_base();
+    assert_eq!(
+        counter.count(""),
+        0,
+        "BpeTokenCounter must return 0 for empty string"
     );
 }
