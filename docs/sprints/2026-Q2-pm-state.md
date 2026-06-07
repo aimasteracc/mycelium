@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v105 — PRs #642+#643 merged; PR #645 opened (capture script fix — dedicated tree CLI commands); issue #614 Item 3 updated; RFC-0120 Phase 1c unblocked) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Phase 1c PR #645 CI running** (P1). RFC-0115/0116/0117/0118 Phase 1 ✅. RFC-0119 Phase 1+2 ✅. RFC-0120 Phase 1a+1b ✅. |
+| Last updated | 2026-06-07 (PM dispatch v106 — PR #647 merged (RFC-0118 Part B Python+TypeScript); PRs #645+#646 conflict-resolved + merged; RFC-0120 Phase 1c script on develop; next: real corpus capture) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Phase 1c real corpus capture** (P1 — script merged, binary build next). RFC-0118 Part B Python+TypeScript ✅. RFC-0120 Phase 1a+1b+1c-script ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -129,7 +129,10 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **feat(context): RFC-0119 Phase 2 — importance-weighted entry-point adapter** — PR #626, squash `ee22f7e` ✅ MERGED 2026-06-06 (founder). `seed_entry_points` BTreeMap dedup + `rank_entry_points`; `real_in_degree` helper (stub-robust); test demotion (AC-10); merge semantics AC-4b; AC-11 stub-caller exclusion. Codex P2 rejected (window-completeness out of Phase 2 scope).
 - [x] **feat(verdict): RFC-0116 Phase 1 AC-2 — health/test_gap monotonic escalation** — PR #629, squash `be7a330` ✅ MERGED 2026-06-07. `EditMetrics` gains `health` + `test_gap_uncovered` optional fields; `step_up` const fn; 6 new TDD tests. RFC-0115/0116/0117 Phase 1 ACs all marked `[x]`. Codex P2 rejected (Phase 2 scope).
 - [x] **feat(core): RFC-0118 Part B (resolution engine)** — PR #633, squash `8a92555` ✅ MERGED 2026-06-07. Wired receiver-disambiguation pass; `resolve_call_site_contexts` iterates call_site_contexts and binds precise `…>Type>method` edges. Part B Part 2 (extractor populate) = PR #635.
-- [ ] **fix(extractor): RFC-0118 Part B (F5 fix — extractor populate)** — PR #635 CI running on `222e38f`. `@call.receiver` + local constructor bindings; second-call-site Codex P1 fixed; get-callers 0→60. Merge once CI green. Codex P2 → Issue #636.
+- [x] **fix(extractor): RFC-0118 Part B (F5 fix — extractor populate)** — PR #635, squash `bebcc638` ✅ MERGED 2026-06-07. `@call.receiver` + local constructor bindings; second-call-site Codex P1 fixed; get-callers 0→60. Codex P2 → Issue #636.
+- [x] **feat(packs): RFC-0118 Part B (Python+TypeScript) — local-ctor receiver bindings** — PR #647, squash `97f1267` ✅ MERGED 2026-06-07. Pack-only extension of Rust Part B receiver logic to Python (`assignment` with `call` RHS) and TypeScript (`new` declarator + `new` reassignment). Three-Surface Rule satisfied (pack-only, language-agnostic resolver). Codex P1 rejected (factory-function invalidation requires type-flow analysis beyond tree-sitter scope; Issue #636 Phase 3 tracks). Codex P2 rejected (same reason as Rust Part B).
+- [x] **fix(scripts): RFC-0120 Phase 1c capture script** — PR #645, squash `1e2c3c9` ✅ MERGED 2026-06-07. `capture_token_corpus.sh` now uses correct CLI commands: `get-importers-tree src/main.rs` + `subclasses-tree $REF_SYM` (replacing incorrect reachability commands). All broken flags resolved in Phase 1b. Codex P2 fixed (dedicated tree tools). Phase 1c real corpus capture unblocked.
+- [x] **chore(pm): PM state v105** — PR #646, squash `73fe606` ✅ MERGED 2026-06-07. Codex P2 fixed (stale v104 tail removed from header).
 
 ---
 
@@ -138,7 +141,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 | # | Title | Priority | Status |
 |---|---|---|---|
 | #636 | RFC-0118 Part B Phase 3: shadowed binding scope analysis | P2 | Tracked — Phase 3 additive, post Part B |
-| #614 | RFC-0120 Phase 1 implementation notes (corpus fixture path + `token_bench` visibility) | P2 | **RESOLVED** — PR #639 implements Items 1+2 (`pub mod token_bench`, 8 corpus fixtures) |
+| #614 | RFC-0120 Phase 1 implementation notes (corpus fixture path + `token_bench` visibility) | P2 | **Items 1+2 RESOLVED** (PR #639); **Item 3 RESOLVED** (PR #645 `1e2c3c9` — script CLI flags fixed). Next: run real corpus capture + commit results. |
 | #612 | RFC-0118 Phase 1 notes: cross-file ordering (Phase 2b prerequisite) + `rank_symbols` scope | P2 | Prerequisite for Part B cross-file; no unblocked next action |
 | #555 | RFC-0103 follow-up: per-edge rewrite for mixed-import Extends sites | P2 | Blocked on `Synapse::remove_edge` primitive; no RFC yet |
 
@@ -162,7 +165,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 13. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript — validates ranking on actual Mycelium self-index. RFC-0119 Phase 3 is optional future PageRank swap (single-line, RFC says "not required").
 14. **RFC-0120 Phase 1a** (Issue #614 Items 1+2): ✅ **MERGED** — PR #639 (squash `bd8fce09`). `token_bench` module (`TokenCounter` trait, `WhitespaceTokenCounter`, `measure_case`/`measure_corpus`/`CorpusReport`), 8 corpus fixture JSON files, `token_corpus.rs` (5 integration tests), 9 unit tests. Codex P2 explicitly rejected (synthetic corpus is Phase 1a scaffolding; BPE + real corpus come in Phase 1b atomically). Issue #614 Items 1+2 partially resolved (module visibility ✅ + corpus path ✅; full Phase 1 = Phase 1b).
 15. **RFC-0120 Phase 1b** (Issue #614 full completion): ✅ **MERGED** (PR #642 squash `3d1bdbc`, PR #643 squash `0609a68`) — `BpeTokenCounter` (tiktoken-rs `cl100k_base`, `tiktoken` feature) + 6 BPE tests + `tests/corpus/REPORT.md` (synthetic ratio 0.773, informational) + `scripts/capture_token_corpus.sh` + ADR-0011. Codex P2 (script flags) spun off to issue #614 Item 3 and fixed in PR #645.
-16. **RFC-0120 Phase 1c** (real corpus capture): ⏳ **PR #645 CI running** — script CLI flags fixed (all broken flags resolved: `--output`→removed, `--index`→`--root`, subcommand renames, `--max-depth`). After #645 merges: build release binary, run `scripts/capture_token_corpus.sh`, commit corpus + REPORT.md, run `bpe_charter_sla_binding`. If ratio > 0.30: escalate to founder (governance event).
+16. **RFC-0120 Phase 1c** (real corpus capture): ✅ **Script MERGED** — PR #645 (`1e2c3c9`). **Next step**: build release binary (`cargo build --release`), run `scripts/capture_token_corpus.sh tests/e2e/fixtures/ripgrep/`, commit corpus + REPORT.md, run `MYCELIUM_REAL_CORPUS=1 cargo test … bpe_charter_sla_binding`. If ratio > 0.30: escalate to founder (governance event).
 
 **P1 — Founder review (post-v0.3.0 ship):**
 15. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
@@ -176,17 +179,17 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 21. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference (spun off from Codex P2 on PR #635).
 ---
 
-## Dispatch state (2026-06-07 v104)
+## Dispatch state (2026-06-07 v106)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Nightly `main` mutation kill-rate failure (job #79936500054 — see Escalations). **(3)** RFC-0120 charter §2 honesty — potential governance event (see Escalations). |
-| PM | **DONE ✅** | v105: PRs #642+#643 merged (RFC-0120 Phase 1b on develop); PR #645 opened (Phase 1c script fix, CI running); Codex findings addressed; issue #614 Item 3 added; decisions.jsonl appended. |
+| PM | **DONE ✅** | v106: PR #647 merged (RFC-0118 Part B Python+TypeScript); PRs #645+#646 conflict-resolved + merged; RFC-0120 Phase 1c script on develop; decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | **RFC-0120 Phase 1c** — admin-merge PR #645 (script fix) once CI green + Codex clean, then run real corpus capture. |
-| e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (unblocked — #635 merged). |
+| rust-implementer | **P1** | **RFC-0120 Phase 1c** — script merged (PR #645). **Next**: build release binary, populate `tests/e2e/fixtures/ripgrep/`, run `capture_token_corpus.sh`, commit corpus + REPORT.md, run `bpe_charter_sla_binding`. If ratio > 0.30: governance escalation. |
+| e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (unblocked — #635+#647 merged). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). **Also**: investigate `main` mutation kill-rate failure (nightly job #79936500054). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
 
