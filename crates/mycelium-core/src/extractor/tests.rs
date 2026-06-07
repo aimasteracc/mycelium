@@ -2592,6 +2592,31 @@ fn extractor_csharp_method_path_is_class_method_not_doubled() {
 }
 
 #[test]
+fn extractor_csharp_struct_interface_record_methods_have_type_path() {
+    // The method patterns cover class/struct/interface/record declaration_list
+    // bodies — verify struct/interface/record methods are at Type>method (no
+    // doubled phantom), guarding against the kind of per-container body-node
+    // mismatch that dropped Java enum/record methods (PR #656 review).
+    let ext = csharp_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "t.cs",
+        b"struct S { void M() {} }\ninterface I { void M(); }\nrecord R { void M() {} }",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    for p in ["t.cs>S>M", "t.cs>I>M", "t.cs>R>M"] {
+        assert!(store.lookup(p).is_some(), "{p} must be captured");
+    }
+    for p in ["t.cs>S>M>M", "t.cs>I>M>M", "t.cs>R>M>M"] {
+        assert!(
+            store.lookup(p).is_none(),
+            "{p} doubled phantom must not exist"
+        );
+    }
+}
+
+#[test]
 fn extractor_csharp_receiver_type_binds_multi_match_method_f5() {
     // RFC-0118 Part B (C#): `Save` defined on TWO classes (multi-match). The
     // declared-type local `Store s = new Store();` binds s→Store → s.Save()
