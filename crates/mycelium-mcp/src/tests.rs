@@ -1435,6 +1435,57 @@ async fn rank_symbols_empty_when_no_call_edges() {
     );
 }
 
+// ── RFC-0118 AC-20: rank_symbols excludes NodeKind::Unresolved phantoms ──────
+
+/// AC-20 regression: a phantom callee (NodeKind::Unresolved) with an incoming
+/// Calls edge must not appear in `mycelium_rank_symbols` output even though it
+/// has in-degree ≥ 1 (exactly the leak the RFC-0118 Part A filter closes).
+/// Removing `is_real_symbol` from `top_callee_symbols` makes this fail.
+#[tokio::test]
+async fn rank_symbols_excludes_unresolved_phantom() {
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        let caller = store.upsert_node_with_kind(
+            TrunkPath::parse("src/main.rs>main").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
+        let real = store.upsert_node_with_kind(
+            TrunkPath::parse("src/lib.rs>process").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
+        let phantom = store.upsert_node_with_kind(
+            TrunkPath::parse("ext>unwrap").unwrap(),
+            mycelium_core::types::NodeKind::Unresolved,
+        );
+        // Both real symbol and phantom are callees of main — phantom has in-degree 1.
+        store.upsert_edge(EdgeKind::Calls, caller, real);
+        store.upsert_edge(EdgeKind::Calls, caller, phantom);
+    }
+    let raw = server
+        .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+            limit: Some(10),
+            edge_kind: None,
+            output_format: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    let paths: Vec<&str> = val["symbols"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["path"].as_str())
+        .collect();
+    assert!(
+        paths.contains(&"src/lib.rs>process"),
+        "real symbol must be ranked: {paths:?}"
+    );
+    assert!(
+        !paths.contains(&"ext>unwrap"),
+        "Unresolved phantom must not appear in rank_symbols (AC-20): {paths:?}"
+    );
+}
+
 // ── RFC-0018: mycelium_get_files ─────────────────────────────────────
 
 #[tokio::test]
