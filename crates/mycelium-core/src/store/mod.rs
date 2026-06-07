@@ -681,7 +681,7 @@ impl Store {
 
     /// Whether `id` is a navigable symbol an agent can jump to.
     ///
-    /// Stricter than [`is_real_symbol`]: a node is *searchable* only if it has a
+    /// Stricter than [`Store::is_real_symbol`]: a node is *searchable* only if it has a
     /// recorded definition kind that is not the resolver's `Unresolved` phantom
     /// marker. This additionally excludes KIND-LESS nodes — the import-target
     /// stubs the extractor mints via a bare `upsert_node` (e.g. `anyhow::Context`,
