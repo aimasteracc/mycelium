@@ -48,11 +48,22 @@
   name: (type_identifier) @name) @definition.enum
 
 ; ── Methods (functions inside class/struct body) ─────────────────────
+; Anchor on the ENCLOSING type so build_class_chain yields `Type>method`
+; (anchoring on field_declaration_list — which has no name — produced a
+; `_Unknown>method` path). NOTE: out-of-line definitions (`void Foo::bar(){}`)
+; are a separate follow-up.
 
-(field_declaration_list
-  (function_definition
-    declarator: (function_declarator
-      declarator: (field_identifier) @name))) @definition.method
+(class_specifier
+  body: (field_declaration_list
+    (function_definition
+      declarator: (function_declarator
+        declarator: (field_identifier) @name)))) @definition.method
+
+(struct_specifier
+  body: (field_declaration_list
+    (function_definition
+      declarator: (function_declarator
+        declarator: (field_identifier) @name)))) @definition.method
 
 ; ── Template declarations ─────────────────────────────────────────────
 
@@ -88,3 +99,21 @@
 (call_expression
   function: (field_expression
     field: (field_identifier) @name)) @reference.call
+
+; ── RFC-0118 Part B: receiver capture + declared-type local bindings ──────
+; Method call on a plain-identifier receiver (obj.m() / ptr->m()): capture it.
+(call_expression
+  function: (field_expression
+    argument: (identifier) @call.receiver
+    field: (field_identifier) @name)) @reference.call
+
+; Local with an explicit DECLARED type (`Store s;` or `Store s = …;`). C++ is
+; statically typed → declared type is authoritative (no @binding.rebind); the
+; core keeps only Title-case types so primitives/`auto` decline.
+(declaration
+  type: (type_identifier) @binding.ctor
+  declarator: (identifier) @binding.local) @reference.binding
+(declaration
+  type: (type_identifier) @binding.ctor
+  declarator: (init_declarator
+    declarator: (identifier) @binding.local)) @reference.binding

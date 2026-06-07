@@ -66,6 +66,7 @@ criterion               = { workspace = true }
 # Grammars used ONLY by pack-correctness tests (not embedded by cortex, which
 # compiles in just the 5 Tier-1 langs). Test-only so the core lib stays lean.
 tree-sitter-c-sharp     = { workspace = true }
+tree-sitter-cpp         = { workspace = true }
 insta                   = { workspace = true }
 proptest                = { workspace = true }
 tempfile                = { workspace = true }

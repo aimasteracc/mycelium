@@ -1077,6 +1077,7 @@ dependencies = [
  "tracing",
  "tree-sitter",
  "tree-sitter-c-sharp",
+ "tree-sitter-cpp",
  "tree-sitter-go",
  "tree-sitter-java",
  "tree-sitter-javascript",
