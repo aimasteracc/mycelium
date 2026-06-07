@@ -761,7 +761,7 @@ fn enclosing_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<Stri
     let mut cur = node;
     while let Some(parent) = cur.parent() {
         let kind = parent.kind();
-        if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item" {
+        if is_type_container(kind) {
             chain.push(container_name(parent, source).to_owned());
         }
         cur = parent;
@@ -927,11 +927,13 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
 /// Function/method node kinds across the supported grammars. A single source of
 /// truth for "what counts as an enclosing function scope".
 const FUNCTION_KINDS: &[&str] = &[
-    "function_definition",  // Python
-    "function_declaration", // TS/JS
-    "function_expression",  // JS/TS
-    "method_definition",    // TS/JS
-    "function_item",        // Rust
+    "function_definition",     // Python
+    "function_declaration",    // TS/JS
+    "function_expression",     // JS/TS
+    "method_definition",       // TS/JS
+    "function_item",           // Rust
+    "method_declaration",      // Java/C#
+    "constructor_declaration", // Java/C#
 ];
 
 /// Node kinds that introduce a NESTED LEXICAL SCOPE for local bindings, in
@@ -944,14 +946,17 @@ const FUNCTION_KINDS: &[&str] = &[
 /// the call-site lookup walks the scope CHAIN so legitimate outer-scope closure
 /// captures still resolve (no recall loss).
 const BINDING_SCOPE_KINDS: &[&str] = &[
-    "function_definition",  // Python
-    "function_declaration", // TS/JS
-    "function_expression",  // JS/TS
-    "method_definition",    // TS/JS
-    "function_item",        // Rust
-    "arrow_function",       // JS/TS
-    "lambda",               // Python
-    "closure_expression",   // Rust
+    "function_definition",     // Python
+    "function_declaration",    // TS/JS
+    "function_expression",     // JS/TS
+    "method_definition",       // TS/JS
+    "function_item",           // Rust
+    "method_declaration",      // Java/C#
+    "constructor_declaration", // Java/C#
+    "arrow_function",          // JS/TS
+    "lambda",                  // Python
+    "lambda_expression",       // Java/C#
+    "closure_expression",      // Rust
 ];
 
 /// Return the nearest enclosing binding SCOPE node (function/method/arrow/
@@ -1026,8 +1031,7 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
             let mut scan = parent;
             while let Some(ancestor) = scan.parent() {
                 let kind = ancestor.kind();
-                if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item"
-                {
+                if is_type_container(kind) {
                     containers.push(container_name(ancestor, source).to_owned());
                 }
                 scan = ancestor;
@@ -1065,7 +1069,7 @@ fn build_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<String> 
     let mut cur = node;
     while let Some(parent) = cur.parent() {
         let kind = parent.kind();
-        if kind == "class_definition" || kind == "class_declaration" || kind == "impl_item" {
+        if is_type_container(kind) {
             ancestors.push(container_name(parent, source).to_owned());
         }
         cur = parent;
@@ -1092,6 +1096,25 @@ fn container_name<'a>(node: tree_sitter::Node<'_>, source: &'a [u8]) -> &'a str 
         .unwrap_or("_Unknown");
     // Strip generic parameters (e.g. "Vec<T>" → "Vec").
     text.split('<').next().unwrap_or(text)
+}
+
+/// Whether `kind` is a type-container node whose name participates in a member's
+/// dotted path (e.g. `Class>method`). Single source of truth so a member's chain
+/// is consistent across `build_class_chain`, `enclosing_class_chain`, and
+/// `enclosing_function_path`. Covers Python `class_definition`, TS/JS/Java/C#
+/// `class_declaration`, Rust `impl_item`, and Java `enum_declaration` /
+/// `record_declaration` / `interface_declaration` (so enum/record/interface
+/// methods nest correctly instead of landing at file scope).
+fn is_type_container(kind: &str) -> bool {
+    matches!(
+        kind,
+        "class_definition"
+            | "class_declaration"
+            | "impl_item"
+            | "enum_declaration"
+            | "record_declaration"
+            | "interface_declaration"
+    )
 }
 
 /// Return `true` if `node` is a TypeScript `import type { ... }` statement.

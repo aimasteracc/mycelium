@@ -27,15 +27,52 @@
 (enum_declaration
   name: (identifier) @name) @definition.class
 
-; ── Method declarations (inside class/interface/enum bodies) ─────────────
+; ── Method / constructor declarations ───────────────────────────────────
+; Anchor on the ENCLOSING type (class/interface/enum), not the method node:
+; the extractor's build_class_chain treats the anchor as the innermost container
+; and appends ITS name, so anchoring on `method_declaration` yields the wrong
+; `Type>method>method` path (with `Type>method` left as a kindless intermediate).
+; Anchoring on the type → build_class_chain = [Type], + @name (the method) →
+; the correct `Type>method`. Mirrors the Python/TypeScript method patterns.
 
-(method_declaration
-  name: (identifier) @name) @definition.method
+(class_declaration
+  body: (class_body
+    (method_declaration
+      name: (identifier) @name))) @definition.method
 
-; ── Constructor declarations ─────────────────────────────────────────────
+(class_declaration
+  body: (class_body
+    (constructor_declaration
+      name: (identifier) @name))) @definition.method
 
-(constructor_declaration
-  name: (identifier) @name) @definition.method
+(interface_declaration
+  body: (interface_body
+    (method_declaration
+      name: (identifier) @name))) @definition.method
+
+; Enum bodies (methods/constructors live under enum_body_declarations).
+(enum_declaration
+  body: (enum_body
+    (enum_body_declarations
+      (method_declaration
+        name: (identifier) @name)))) @definition.method
+
+(enum_declaration
+  body: (enum_body
+    (enum_body_declarations
+      (constructor_declaration
+        name: (identifier) @name)))) @definition.method
+
+; Records (Java 16+) — their body is a class_body.
+(record_declaration
+  body: (class_body
+    (method_declaration
+      name: (identifier) @name))) @definition.method
+
+(record_declaration
+  body: (class_body
+    (constructor_declaration
+      name: (identifier) @name))) @definition.method
 
 ; ── Import statements (Synapse Imports edges) ────────────────────────────
 
@@ -69,3 +106,22 @@
 (method_invocation
   object: (_)
   name: (identifier) @name) @reference.call
+
+; ── RFC-0118 Part B: receiver capture + local declared-type bindings ──────
+; Method call on a plain-identifier receiver: capture the receiver so the
+; post-merge pass can infer its type and disambiguate a multi-class method.
+; (Coexists with the bare method_invocation patterns above; the Calls edge is
+; idempotent and only this pattern records a ReceiverContext.)
+(method_invocation
+  object: (identifier) @call.receiver
+  name: (identifier) @name) @reference.call
+
+; Local variable with an explicit DECLARED type (`Store s = …`). Java is
+; statically typed, so the declared type is the receiver type regardless of the
+; RHS — higher recall than matching `new T()`, and reassignment cannot change it
+; (no @binding.rebind needed; Java has no same-name block shadowing either). The
+; core keeps only Title-case types (Java convention), so primitives/`var` decline.
+(local_variable_declaration
+  type: (type_identifier) @binding.ctor
+  declarator: (variable_declarator
+    name: (identifier) @binding.local)) @reference.binding

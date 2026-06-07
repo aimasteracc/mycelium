@@ -2094,6 +2094,94 @@ fn java_extractor() -> Extractor {
 }
 
 #[test]
+fn extractor_java_method_path_is_class_method_not_doubled() {
+    // Pre-existing Java bug (surfaced by Part B): @definition.method anchored on
+    // the method node made build_class_chain emit `Class>method>method`. Methods
+    // must be at `Class>method` (with no `>method>method` phantom).
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("test.java", b"class Foo { void bar() {} }", &mut store)
+        .expect("extraction should succeed");
+    let m = store
+        .lookup("test.java>Foo>bar")
+        .expect("method must be at Foo>bar");
+    assert_eq!(
+        store.kind_of(m),
+        Some(crate::types::NodeKind::Method),
+        "Foo>bar must be a Method (not a kindless intermediate)"
+    );
+    assert!(
+        store.lookup("test.java>Foo>bar>bar").is_none(),
+        "must NOT create a doubled `Foo>bar>bar` phantom"
+    );
+}
+
+#[test]
+fn extractor_java_enum_and_record_methods_captured_with_type_path() {
+    // Regression (PR #656 review): re-anchoring @definition.method on class/
+    // interface bodies must NOT drop enum or record methods. They must be captured
+    // at EnumName>method / RecordName>method (nested under their type, not flat).
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.java",
+        b"enum Status { ACTIVE; void describe() {} }\nrecord Point(int x) { void show() {} }",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    assert!(
+        store.lookup("test.java>Status>describe").is_some(),
+        "enum method must be captured at Status>describe"
+    );
+    assert!(
+        store.lookup("test.java>Point>show").is_some(),
+        "record method must be captured at Point>show"
+    );
+}
+
+#[test]
+fn extractor_java_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (Java): `save` is a method on TWO classes (multi-match).
+    // Java declares local types, so `Store s = new Store()` (or any RHS) binds
+    // `s` to the DECLARED type `Store` → `s.save()` resolves to Store>save, not
+    // Cache>save. Also requires method_declaration in FUNCTION_KINDS so the
+    // caller is attributed to Runner>run (not the file).
+    let source = "\
+class Store { void save() {} }
+class Cache { void save() {} }
+class Runner {
+    void run() {
+        Store s = new Store();
+        s.save();
+    }
+}
+";
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("test.java", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store
+        .lookup("test.java>Runner>run")
+        .expect("Runner.run exists");
+    let store_m = store
+        .lookup("test.java>Store>save")
+        .expect("Store.save exists");
+    let cache_m = store
+        .lookup("test.java>Cache>save")
+        .expect("Cache.save exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>save after receiver inference"
+    );
+    assert!(
+        !store.incoming(cache_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Cache>save"
+    );
+}
+
+#[test]
 fn extractor_java_extends_creates_extends_edge() {
     // `class Sub extends Base` must create an Extends edge Sub → Base.
     // Base is in a separate file so resolution requires resolve_bare_call_stubs().
