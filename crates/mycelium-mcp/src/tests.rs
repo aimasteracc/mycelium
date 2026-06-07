@@ -1437,7 +1437,7 @@ async fn rank_symbols_empty_when_no_call_edges() {
 
 // ── RFC-0118 AC-20: rank_symbols excludes NodeKind::Unresolved phantoms ──────
 
-/// AC-20 regression: a phantom callee (NodeKind::Unresolved) with an incoming
+/// AC-20 regression: a phantom callee (`NodeKind::Unresolved`) with an incoming
 /// Calls edge must not appear in `mycelium_rank_symbols` output even though it
 /// has in-degree ≥ 1 (exactly the leak the RFC-0118 Part A filter closes).
 /// Removing `is_real_symbol` from `top_callee_symbols` makes this fail.

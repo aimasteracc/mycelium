@@ -57,8 +57,8 @@ fn rank_symbols_smoke() {
 }
 
 /// AC-20 (CLI half): rank-symbols --format json output shape must be
-/// byte-identical to the MCP contract: {"symbols": [{"path": str, "caller_count": int}, ...]}.
-/// Removing or renaming the "caller_count" key in run_rank_symbols makes this fail.
+/// byte-identical to the MCP contract: `{"symbols": [{"path": str, "caller_count": int}, ...]}`.
+/// Removing or renaming the `caller_count` key in `run_rank_symbols` makes this fail.
 #[test]
 fn rank_symbols_json_shape_parity_with_mcp() {
     let p = prepare_diamond();
@@ -79,7 +79,7 @@ fn rank_symbols_json_shape_parity_with_mcp() {
             sym["caller_count"].is_number(),
             "each symbol entry must have a numeric 'caller_count' key (AC-20): {sym}"
         );
-        let key_count = sym.as_object().map(|o| o.len()).unwrap_or(0);
+        let key_count = sym.as_object().map_or(0, serde_json::Map::len);
         assert_eq!(
             key_count, 2,
             "MCP parity: symbol entry must have exactly 2 keys {{path, caller_count}}, got {sym}"
