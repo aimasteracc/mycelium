@@ -28,6 +28,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **RFC-0118 Part B receiver inference could mis-bind a Rust `let`-shadowed
+  local.** `let s = Store::new(); let s = compute(); s.m();` shadows `s` with a
+  non-constructor RHS. The Rust constructor-binding query only matches
+  `Type::func(...)` RHS, so the bare `compute()` shadow was invisible to the
+  de-shadow conflict pass: the stale `s → Store` binding survived and `s.m()`
+  mis-bound to `Store>m` even though `s` is whatever `compute()` returns. `let`-
+  shadowing to a different type is legal Rust, so the hazard was real. Fixed by
+  emitting a `@binding.rebind` signal on every Rust local declaration/assignment
+  target (mirroring the Python/TypeScript fix) — the language-agnostic
+  rebind-count drop pass already in the extractor now activates for Rust and
+  declines inference rather than trusting the stale type (never mis-binds).
+
 - **Shipped binary ran stale Tree-sitter queries (pack-parity gap).** The engine
   embeds its pack queries via `cortex.rs` `include_str!` from
   `crates/mycelium-core/packs/<lang>/queries.scm`, but `scripts/check_pack_parity.sh`

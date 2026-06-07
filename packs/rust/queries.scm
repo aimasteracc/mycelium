@@ -184,3 +184,17 @@
   value: (call_expression
     function: (scoped_identifier
       path: (identifier) @binding.ctor))) @reference.binding
+
+; Rebind invalidation (RFC-0118 Part B, Codex P1 #647): capture ANY local
+; declaration or reassignment target. The core compares the rebind count per
+; name against the recognized-constructor-binding count; a name later shadowed or
+; reassigned to a non-constructor (e.g. `let s = compute()` after `let s =
+; Store::new()`) DECLINES rather than trusting the stale declared type. The
+; constructor-binding query only matches `Type::func(...)` RHS, so a bare
+; `compute()` shadow is otherwise invisible to the de-shadow conflict pass —
+; this broad capture surfaces it, preserving "never mis-bind" under Rust
+; `let`-shadowing (which may legally change the binding's type).
+(let_declaration
+  pattern: (identifier) @binding.rebind)
+(assignment_expression
+  left: (identifier) @binding.rebind)

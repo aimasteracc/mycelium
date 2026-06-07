@@ -985,6 +985,49 @@ fn run() {
 }
 
 #[test]
+fn extractor_rust_shadow_to_non_ctor_declines_no_misbind() {
+    // The "never mis-bind" invariant under Rust `let`-shadowing (Codex P1 #647,
+    // mirrored from py/ts): a local first bound to a Title-case ctor, then
+    // SHADOWED by a non-constructor RHS, must DECLINE — the original ctor type is
+    // stale at the call site. The second `let s = compute()` is a bare-identifier
+    // call, so the constructor-binding query never captures it; without the
+    // broad `@binding.rebind` capture the de-shadow conflict pass sees no conflict
+    // and the stale `s → Store` binding survives, mis-binding `s.m()` to Store>m.
+    // Both types define `m` (multi-match), so binding to Store is only possible via
+    // receiver inference — the single-match fallback cannot bind it. Legal Rust:
+    // `let`-shadowing to a different type is allowed.
+    let source = "\
+struct Store;
+impl Store { fn m(&self) {} }
+struct Trunk;
+impl Trunk { fn m(&self) {} }
+fn compute() -> Trunk { Trunk::new() }
+fn run() {
+    let s = Store::new();
+    let s = compute();
+    s.m();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store.lookup("test.rs>Store>m").expect("Store::m exists");
+    let trunk_m = store.lookup("test.rs>Trunk>m").expect("Trunk::m exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must DECLINE: `s` was shadowed by a non-constructor, so its type is unknown"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "must not guess Trunk on a shadow-to-non-ctor binding"
+    );
+}
+
+#[test]
 fn extractor_python_receiver_type_binds_multi_match_method_f5() {
     // RFC-0118 Part B (Python): `upsert_node` is a method on TWO classes. A bare
     // `s.upsert_node()` is multi-match → declines → get-callers 0. The local
