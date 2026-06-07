@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0118 Part B now covers Python and TypeScript: `get-callers` on a
+  multi-type method returns real callers cross-language.** The Rust F5 fix is
+  extended to the two highest-traffic dynamic languages by adding local
+  constructor-binding captures to their packs: `x = Ctor()` (Python `assignment`)
+  and `const x = new Ctor()` (TypeScript `variable_declarator` with `new_expression`).
+  The post-merge receiver-disambiguation pass — already language-agnostic — then
+  binds `x.method()` to `…>Ctor>method`. An agent asking "who calls `Database.query`"
+  in a Python/TS repo now gets the real callers instead of 0 wherever the receiver
+  was a locally-constructed instance. Conservative throughout: only Title-case
+  constructors bind, and a name rebound to a conflicting type **declines** (never
+  mis-binds). For TypeScript, reassignment to a constructor (`x = new Other()`) is
+  also captured so structural-typing rebinds trigger the decline rather than
+  trusting a stale declarator type.
+
 ### Fixed
 
 - **Shipped binary ran stale Tree-sitter queries (pack-parity gap).** The engine

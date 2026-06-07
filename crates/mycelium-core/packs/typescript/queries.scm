@@ -143,3 +143,23 @@
   function: (member_expression
     object: (identifier) @call.receiver
     property: (property_identifier) @name)) @reference.call
+
+; ── RFC-0118 Part B: local constructor bindings (const x = new Ctor()) ──
+; Captures a local name and the constructor TYPE so the post-merge receiver
+; disambiguation pass can bind `x.method()` to `…>Ctor>method`. Matches the
+; idiomatic `new Ctor()` RHS; the core keeps only Title-case ctor names and
+; declines on any ambiguity (e.g. a shadowed rebinding) rather than guessing.
+(variable_declarator
+  name: (identifier) @binding.local
+  value: (new_expression
+    constructor: (identifier) @binding.ctor)) @reference.binding
+
+; Reassignment to a constructor (`x = new Ctor()`) — TypeScript's structural
+; typing lets a variable be reassigned to a different same-shaped class, so a
+; declared type can change at the call site. Capturing the reassignment makes a
+; type-conflicting rebinding DECLINE (never mis-bind) instead of trusting the
+; original declarator.
+(assignment_expression
+  left: (identifier) @binding.local
+  right: (new_expression
+    constructor: (identifier) @binding.ctor)) @reference.binding

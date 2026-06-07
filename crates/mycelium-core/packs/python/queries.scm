@@ -172,3 +172,15 @@
 ; Depth-2+ chains are unresolvable without type inference — no edge is
 ; emitted rather than a misleading global stub.  Direct `obj.method()`
 ; calls (depth 1) continue via the `@call.receiver` pattern above.
+
+; ── RFC-0118 Part B: local constructor bindings (x = Ctor()) ──────────
+; Captures a local name and the constructor TYPE so the post-merge receiver
+; disambiguation pass can bind `x.method()` to `…>Ctor>method`. Only a bare
+; constructor-call RHS (`x = Ctor()`) is matched — never `x = obj.m()` or a
+; plain factory — and the core keeps only Title-case ctor names, dropping
+; lowercase utility calls like `x = make()`. Conservative: declines on any
+; ambiguity (e.g. a shadowed rebinding) rather than guessing.
+(assignment
+  left: (identifier) @binding.local
+  right: (call
+    function: (identifier) @binding.ctor)) @reference.binding
