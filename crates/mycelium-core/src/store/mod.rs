@@ -757,6 +757,14 @@ impl Store {
         for (kind, src, dst) in other.synapse.all_edges() {
             self.synapse.add(kind, src, dst);
         }
+        // 3. Carry the captured call-site contexts forward (RFC-0118 Part B).
+        //    Parallel indexing records contexts into per-thread sub-stores; if
+        //    merge dropped them, the post-merge disambiguation pass would see an
+        //    empty table and silently no-op in parallel mode. NodeIds are
+        //    content-hashes (identity-stable across sub-stores), so the captured
+        //    caller_id/stub_id remain valid in `self` with no remapping.
+        self.call_site_contexts
+            .extend(other.call_site_contexts.iter().cloned());
     }
 
     /// Remove the node `id` from both Trunk and Synapse.
@@ -1291,6 +1299,13 @@ impl Store {
         let mut resolved = 0usize;
 
         for ctx in &contexts {
+            // Skip a context whose stub an earlier single-match pass already
+            // resolved + removed (the call is bound; re-binding would be
+            // redundant and would inflate the resolved count). A stub still in
+            // the trunk is one the prior passes declined — the multi-match work.
+            if self.trunk.path_of(ctx.stub_id).is_none() {
+                continue;
+            }
             *group_total.entry((ctx.caller_id, ctx.stub_id)).or_insert(0) += 1;
 
             let suffix = format!(">{}", ctx.receiver_ctx.method);
@@ -1305,8 +1320,10 @@ impl Store {
             let inferred = receiver::infer_receiver_type(&ctx.receiver_ctx);
             if let Resolution::Unique(path) = receiver::disambiguate(inferred, &candidates) {
                 if let Some(def_id) = self.trunk.lookup_path(&path) {
-                    // Don't bind a call to itself or to the stub.
-                    if def_id != ctx.caller_id && def_id != ctx.stub_id {
+                    // Don't bind a call to itself. (A stub can't be a candidate:
+                    // candidates come from all_paths filtered to contain '>',
+                    // and stubs are bare names without '>'.)
+                    if def_id != ctx.caller_id {
                         self.synapse.add(EdgeKind::Calls, ctx.caller_id, def_id);
                         *group_resolved
                             .entry((ctx.caller_id, ctx.stub_id))
