@@ -1,15 +1,10 @@
 # RFC-0120 Token-Density Corpus Report
 
-**Corpus version**: v1-synthetic (Phase 1a scaffolding — small Mycelium self-index fixtures)  
+**Corpus version**: v2-ripgrep (Phase 1c — real BurntSushi/ripgrep shallow-clone fixture)  
 **Tokenizer**: tiktoken-rs `cl100k_base` (GPT-4o / Claude-adjacent BPE family)  
-**Measured**: 2026-06-07  
-**Regenerate with**: `scripts/capture_token_corpus.sh` (Phase 1b: replaces with real ripgrep output)
-
-> ⚠️ **This corpus is Phase 1a synthetic scaffolding.** The Charter §2 binding
-> assertion (`TextFormatter` ≤ 30% of `JsonFormatter` tokens) requires the real
-> ripgrep corpus captured via `scripts/capture_token_corpus.sh`. The numbers below
-> are informational; they show the BPE infrastructure works but are NOT the
-> figure-of-record for marketing claims or Charter §2.
+**Measured**: 2026-06-07 (PM dispatch v107)  
+**Regenerate with**: `scripts/capture_token_corpus.sh tests/e2e/fixtures/ripgrep/`  
+**Ripgrep fixture**: `git clone --depth=1 https://github.com/BurntSushi/ripgrep.git` (101 files indexed)
 
 ---
 
@@ -17,53 +12,68 @@
 
 | Fixture            | JsonFormatter tokens | TextFormatter tokens | Ratio (text/json) |
 |--------------------|---------------------:|---------------------:|------------------:|
-| callee_tree        |                  419 |                  339 |             0.809 |
-| caller_tree        |                  331 |                  260 |             0.785 |
-| context            |                  375 |                  301 |             0.803 |
-| importers_tree     |                  247 |                  186 |             0.753 |
-| query              |                  270 |                  205 |             0.759 |
-| search_symbol      |                  482 |                  360 |             0.747 |
-| subclasses_tree    |                  206 |                  154 |             0.748 |
-| symbol_info        |                  203 |                  154 |             0.759 |
-| **TOTAL**          |             **2533** |             **1959** |         **0.773** |
+| callee_tree        |                  308 |                  199 |             0.646 |
+| caller_tree        |                   18 |                   11 |             0.611 |
+| context            |                2 603 |                1 984 |             0.762 |
+| search_symbol      |                  155 |                  137 |             0.884 |
+| subclasses_tree    |                   25 |                   14 |             0.560 |
+| symbol_info        |                   67 |                   47 |             0.701 |
+| **TOTAL**          |             **3 176** |             **2 392** |         **0.753** |
+
+> **Note:** `query` (Hyphae) and `importers_tree` corpus captures failed at runtime
+> (unknown error on the ripgrep fixture — these tools need separate investigation).
+> The six captured fixtures represent the primary high-traffic tools.
+
+---
 
 ## Aggregate summary
 
 | Metric                              | Value   |
 |-------------------------------------|---------|
-| Total JSON tokens (cl100k_base)     |  2 533  |
-| Total Text tokens (cl100k_base)     |  1 959  |
-| **text/json token ratio**           | **0.773** |
-| **Token reduction %**               | **22.7%** |
-| Byte reduction %                    |  ~25%   |
+| Total JSON tokens (cl100k_base)     |  3 176  |
+| Total Text tokens (cl100k_base)     |  2 392  |
+| **text/json token ratio**           | **0.753** |
+| **Token reduction %**               | **24.7%** |
+| Ripgrep index size                  | 101 files, ~850 nodes |
 
-## Interpretation (Phase 1a)
+---
 
-- `TextFormatter` uses **22.7% fewer BPE tokens** than `JsonFormatter` over this corpus.
-- Charter §2 claims "≤ 30% of JSON token count" (i.e. ratio ≤ 0.30 = 70% reduction).
-- **The current synthetic corpus does NOT validate this claim** (ratio 0.773 ≫ 0.30).
-- The synthetic fixtures are small (200–480 JSON tokens each); real large tool outputs
-  have proportionally more structural JSON overhead, so the real ratio is expected to be
-  significantly lower.
+## Charter §2 binding result
 
-## Next steps (Phase 1b)
+> ⚠️ **BINDING TEST FAILS.** `bpe_charter_sla_binding` asserts ratio ≤ 0.30; measured 0.753.
 
-1. Build the `mycelium` release binary:
-   ```
-   cargo build --release
-   export PATH="$PWD/target/release:$PATH"
-   ```
-2. Run the capture script against the ripgrep fixture:
-   ```
-   ./scripts/capture_token_corpus.sh tests/e2e/fixtures/ripgrep/
-   ```
-3. Re-run measurement and update this file:
-   ```
-   MYCELIUM_REAL_CORPUS=1 cargo test --package mycelium-rcig-mcp \
-     --test token_corpus --features tiktoken -- bpe --nocapture
-   ```
-4. If `bpe_charter_sla_binding` passes (ratio ≤ 0.30), commit the updated corpus
-   and this REPORT.md and update `README.md` + Charter §2 footnotes with
-   "measured with cl100k_base over corpus v2 (ripgrep)".
-5. If `bpe_charter_sla_binding` fails (ratio > 0.30), the claim must be retracted
-   per RFC-0120 §Decision and founder notified (Charter §2 amendment = governance event).
+Charter §2 claims:
+> "AI token efficiency (Hyphae DSL vs JSON) | ≤ 30% of JSON token count for the same payload"
+
+This means `TextFormatter` output should use ≤ 30% as many BPE tokens as `JsonFormatter` output for the same data — a **70%+ reduction**. The real measurement shows only **24.7% reduction**.
+
+### Why the gap is so large
+
+`TextFormatter` emits the same symbol paths as `JsonFormatter`, minus JSON structural tokens (`{`, `}`, `"key":`, `,`). JSON structural overhead is approximately 25% of total tokens for these tool outputs — not the 70% that would be needed to meet the ≤30% ratio.
+
+For the ratio to reach 0.30, the text format would need to either:
+1. **Omit ~70% of the JSON content entirely** (e.g. by eliding paths and emitting only counts / summaries), OR
+2. **Use a fundamentally different representation** (e.g. Hyphae query results vs raw JSON dumps of multi-thousand-symbol graphs).
+
+### Decision required (founder, Charter §2 governance event)
+
+Per RFC-0120 §Decision, one of the following is required:
+
+| Option | Action |
+|--------|--------|
+| **A — Retract claim** | Amend Charter §2: replace "≤ 30% of JSON token count" with the honest figure (≈ 25% reduction / ratio ≈ 0.75). Update README accordingly. |
+| **B — Redesign formatter** | Redesign `TextFormatter` to emit abbreviated output that genuinely achieves ≥70% token reduction (e.g. short symbol IDs, count-only summaries, Hyphae-native output). |
+| **C — Reframe the claim** | Clarify that the "≤30%" claim applies to *Hyphae query syntax vs JSON API calls* (a different comparison), and measure that instead. |
+
+**Recommendation**: Option A (retract/correct) is the honest and fastest path. The `TextFormatter` is a real improvement (~25% reduction) — just not the improvement the charter claimed. Options B/C are higher-value but require more design work.
+
+**Blocking**: Charter §2 amendment requires BDFL (founder) approval per Charter §9.
+
+---
+
+## Next steps
+
+1. **Founder decision**: choose Option A, B, or C above.
+2. If Option A: open `meta` RFC to amend Charter §2; update README + skills/; close RFC-0120 as "implemented (corrected)".
+3. If Option B: design new TextFormatter (new RFC); this report's corpus is the benchmark baseline.
+4. If Option C: define the Hyphae-vs-JSON comparison, capture the corpus, re-measure.

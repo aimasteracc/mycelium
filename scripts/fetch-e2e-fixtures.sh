@@ -19,7 +19,9 @@ FIXTURES="$SCRIPT_DIR/../tests/e2e/fixtures"
 mkdir -p "$FIXTURES"
 
 clone_shallow() {
-    local name="$1" url="$2" dest="$FIXTURES/$name"
+    local name="$1"
+    local url="$2"
+    local dest="$FIXTURES/$name"
     if [ -d "$dest/.git" ]; then
         echo "✓ $name already present"
         return

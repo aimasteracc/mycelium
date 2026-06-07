@@ -1,38 +1,348 @@
 {
-  "entry_points": [
-    "crates/mycelium-mcp/src/lib.rs>MyceliumServer",
-    "crates/mycelium-mcp/src/lib.rs>MyceliumServer::new",
-    "crates/mycelium-core/src/lib.rs>Store",
-    "crates/mycelium-core/src/lib.rs>Store::open"
+  "success": true,
+  "verdict": "INFO",
+  "task": "explore main entry points and their callee graph",
+  "routing": "natural",
+  "candidates": [
+    "explore",
+    "main",
+    "entry",
+    "points",
+    "their",
+    "callee",
+    "graph"
   ],
-  "callers": {
-    "crates/mycelium-mcp/src/lib.rs>MyceliumServer::new": [
-      "crates/mycelium-cli/src/main.rs>main"
-    ],
-    "crates/mycelium-core/src/lib.rs>Store::open": [
-      "crates/mycelium-mcp/src/lib.rs>MyceliumServer::new",
-      "crates/mycelium-cli/src/main.rs>open_store"
-    ]
-  },
-  "callees": {
-    "crates/mycelium-core/src/lib.rs>Store::open": [
-      "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend::open",
-      "crates/mycelium-core/src/trunk.rs>Trunk::new",
-      "crates/mycelium-core/src/synapse.rs>Synapse::new"
-    ]
-  },
-  "symbols": [
+  "entry_points": [
+    "build.rs>main",
+    "crates/core/main.rs>main",
+    "crates/grep/examples/simplegrep.rs>main",
+    "crates/ignore/examples/walk.rs>main",
+    "crates/searcher/examples/search-stdin.rs>main",
+    "crates/grep/examples/simplegrep.rs>try_main",
+    "crates/searcher/src/searcher/glue.rs>ReadByLine>consume_remaining",
+    "crates/ignore/src/dir.rs>Ignore>matched_dir_entry",
+    "crates/ignore/src/walk.rs>DirEntryRaw>from_entry",
+    "crates/ignore/src/walk.rs>DirEntryRaw>from_entry_os",
+    "crates/ignore/src/walk.rs>Walk>skip_entry",
+    "crates/ignore/src/walk.rs>WalkBuilder>filter_entry",
+    "crates/core/main.rs",
+    "crate::walk::DirEntry",
+    "crates/ignore/examples/walk.rs>DirEntry",
+    "crates/ignore/src/walk.rs>DirEntry",
+    "crates/ignore/src/walk.rs>DirEntryInner",
+    "crates/ignore/src/walk.rs>DirEntryRaw"
+  ],
+  "nodes": [
     {
-      "path": "crates/mycelium-mcp/src/lib.rs>MyceliumServer",
-      "kind": "Struct",
-      "file": "crates/mycelium-mcp/src/lib.rs"
+      "id": "build.rs>main",
+      "name": "main",
+      "path": "build.rs>main"
     },
     {
-      "path": "crates/mycelium-core/src/lib.rs>Store",
-      "kind": "Struct",
-      "file": "crates/mycelium-core/src/lib.rs"
+      "id": "crates/core/main.rs>main",
+      "name": "main",
+      "path": "crates/core/main.rs>main"
+    },
+    {
+      "id": "crates/grep/examples/simplegrep.rs>main",
+      "name": "main",
+      "path": "crates/grep/examples/simplegrep.rs>main"
+    },
+    {
+      "id": "crates/ignore/examples/walk.rs>main",
+      "name": "main",
+      "path": "crates/ignore/examples/walk.rs>main"
+    },
+    {
+      "id": "crates/searcher/examples/search-stdin.rs>main",
+      "name": "main",
+      "path": "crates/searcher/examples/search-stdin.rs>main"
+    },
+    {
+      "id": "crates/grep/examples/simplegrep.rs>try_main",
+      "name": "try_main",
+      "path": "crates/grep/examples/simplegrep.rs>try_main"
+    },
+    {
+      "id": "crates/searcher/src/searcher/glue.rs>ReadByLine>consume_remaining",
+      "name": "consume_remaining",
+      "path": "crates/searcher/src/searcher/glue.rs>ReadByLine>consume_remaining"
+    },
+    {
+      "id": "crates/ignore/src/dir.rs>Ignore>matched_dir_entry",
+      "name": "matched_dir_entry",
+      "path": "crates/ignore/src/dir.rs>Ignore>matched_dir_entry"
+    },
+    {
+      "id": "crates/ignore/src/walk.rs>DirEntryRaw>from_entry",
+      "name": "from_entry",
+      "path": "crates/ignore/src/walk.rs>DirEntryRaw>from_entry"
+    },
+    {
+      "id": "crates/ignore/src/walk.rs>DirEntryRaw>from_entry_os",
+      "name": "from_entry_os",
+      "path": "crates/ignore/src/walk.rs>DirEntryRaw>from_entry_os"
+    },
+    {
+      "id": "crates/ignore/src/walk.rs>Walk>skip_entry",
+      "name": "skip_entry",
+      "path": "crates/ignore/src/walk.rs>Walk>skip_entry"
+    },
+    {
+      "id": "crates/ignore/src/walk.rs>WalkBuilder>filter_entry",
+      "name": "filter_entry",
+      "path": "crates/ignore/src/walk.rs>WalkBuilder>filter_entry"
+    },
+    {
+      "id": "crates/core/main.rs",
+      "name": "crates/core/main.rs",
+      "path": "crates/core/main.rs"
+    },
+    {
+      "id": "crate::walk::DirEntry",
+      "name": "DirEntry",
+      "path": "crate::walk::DirEntry"
+    },
+    {
+      "id": "crates/ignore/examples/walk.rs>DirEntry",
+      "name": "DirEntry",
+      "path": "crates/ignore/examples/walk.rs>DirEntry"
+    },
+    {
+      "id": "crates/ignore/src/walk.rs>DirEntry",
+      "name": "DirEntry",
+      "path": "crates/ignore/src/walk.rs>DirEntry"
+    },
+    {
+      "id": "crates/ignore/src/walk.rs>DirEntryInner",
+      "name": "DirEntryInner",
+      "path": "crates/ignore/src/walk.rs>DirEntryInner"
+    },
+    {
+      "id": "crates/ignore/src/walk.rs>DirEntryRaw",
+      "name": "DirEntryRaw",
+      "path": "crates/ignore/src/walk.rs>DirEntryRaw"
+    },
+    {
+      "id": "build.rs>set_git_revision_hash",
+      "name": "set_git_revision_hash",
+      "path": "build.rs>set_git_revision_hash"
+    },
+    {
+      "id": "build.rs>set_windows_exe_options",
+      "name": "set_windows_exe_options",
+      "path": "build.rs>set_windows_exe_options"
+    },
+    {
+      "id": "crates/core/main.rs>run",
+      "name": "run",
+      "path": "crates/core/main.rs>run"
+    },
+    {
+      "id": "parse",
+      "name": "parse",
+      "path": "parse"
+    },
+    {
+      "id": "chain",
+      "name": "chain",
+      "path": "chain"
+    },
+    {
+      "id": "kind",
+      "name": "kind",
+      "path": "kind"
+    },
+    {
+      "id": "from",
+      "name": "from",
+      "path": "from"
+    },
+    {
+      "id": "exit",
+      "name": "exit",
+      "path": "exit"
+    },
+    {
+      "id": "args",
+      "name": "args",
+      "path": "args"
+    },
+    {
+      "id": "nth",
+      "name": "nth",
+      "path": "nth"
+    },
+    {
+      "id": "unwrap",
+      "name": "unwrap",
+      "path": "unwrap"
+    },
+    {
+      "id": "spawn",
+      "name": "spawn",
+      "path": "spawn"
     }
   ],
-  "total_tokens": 512,
-  "truncated": false
+  "edges": [
+    {
+      "source": "build.rs>main",
+      "target": "build.rs>set_git_revision_hash",
+      "kind": "calls"
+    },
+    {
+      "source": "build.rs>main",
+      "target": "build.rs>set_windows_exe_options",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/core/main.rs>main",
+      "target": "crates/core/main.rs>run",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/core/main.rs>main",
+      "target": "parse",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/core/main.rs>main",
+      "target": "chain",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/core/main.rs>main",
+      "target": "kind",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/core/main.rs>main",
+      "target": "from",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/grep/examples/simplegrep.rs>main",
+      "target": "crates/grep/examples/simplegrep.rs>try_main",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/grep/examples/simplegrep.rs>main",
+      "target": "exit",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/ignore/examples/walk.rs>main",
+      "target": "args",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/ignore/examples/walk.rs>main",
+      "target": "nth",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/ignore/examples/walk.rs>main",
+      "target": "unwrap",
+      "kind": "calls"
+    },
+    {
+      "source": "crates/ignore/examples/walk.rs>main",
+      "target": "spawn",
+      "kind": "calls"
+    }
+  ],
+  "code_blocks": [
+    {
+      "file": "build.rs",
+      "symbol": "main",
+      "span": {
+        "start_line": 1,
+        "start_col": 0,
+        "end_line": 62,
+        "end_col": 0
+      }
+    },
+    {
+      "file": "crates/core/main.rs",
+      "symbol": "main",
+      "span": {
+        "start_line": 1,
+        "start_col": 0,
+        "end_line": 484,
+        "end_col": 0
+      }
+    },
+    {
+      "file": "crates/grep/examples/simplegrep.rs",
+      "symbol": "main",
+      "span": {
+        "start_line": 1,
+        "start_col": 0,
+        "end_line": 70,
+        "end_col": 0
+      }
+    },
+    {
+      "file": "crates/ignore/examples/walk.rs",
+      "symbol": "main",
+      "span": {
+        "start_line": 1,
+        "start_col": 0,
+        "end_line": 65,
+        "end_col": 0
+      }
+    },
+    {
+      "file": "crates/searcher/examples/search-stdin.rs",
+      "symbol": "main",
+      "span": {
+        "start_line": 1,
+        "start_col": 0,
+        "end_line": 35,
+        "end_col": 0
+      }
+    },
+    {
+      "file": "crates/searcher/src/searcher/glue.rs",
+      "symbol": "consume_remaining",
+      "span": {
+        "start_line": 17,
+        "start_col": 0,
+        "end_line": 94,
+        "end_col": 1
+      }
+    }
+  ],
+  "related_files": [
+    "build.rs",
+    "crates/core/main.rs",
+    "crates/grep/examples/simplegrep.rs",
+    "crates/ignore/examples/walk.rs",
+    "crates/searcher/examples/search-stdin.rs",
+    "crates/searcher/src/searcher/glue.rs",
+    "crates/ignore/src/dir.rs",
+    "crates/ignore/src/walk.rs",
+    "crate::walk::DirEntry",
+    "parse",
+    "chain",
+    "kind",
+    "from",
+    "exit",
+    "args",
+    "nth",
+    "unwrap",
+    "spawn"
+  ],
+  "stats": {
+    "entry_points": 18,
+    "nodes": 30,
+    "edges": 13,
+    "code_blocks": 6,
+    "related_files": 18
+  },
+  "agent_summary": {
+    "summary_line": "mycelium_context: 18 entry points, 30 nodes, 13 edges, 6 code blocks",
+    "verdict": "INFO",
+    "next_step": "Answer from code_blocks and the graph now. Only call a narrower tool if a specific edge or symbol is missing."
+  }
 }
