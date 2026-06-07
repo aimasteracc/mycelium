@@ -936,7 +936,7 @@ const FUNCTION_KINDS: &[&str] = &[
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
     "function_item",           // Rust
-    "method_declaration",      // Java/C#
+    "method_declaration",      // Java/C#/Go
     "constructor_declaration", // Java/C#
 ];
 
@@ -955,7 +955,7 @@ const BINDING_SCOPE_KINDS: &[&str] = &[
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
     "function_item",           // Rust
-    "method_declaration",      // Java/C#
+    "method_declaration",      // Java/C#/Go
     "constructor_declaration", // Java/C#
     "arrow_function",          // JS/TS
     "lambda",                  // Python

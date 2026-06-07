@@ -2742,6 +2742,18 @@ fn extractor_go_method_path_uses_receiver_type() {
         store.lookup("test.go>Server>Run").is_some(),
         "Go method must be at Server>Run (receiver type)"
     );
+    // Value receiver `func (r Rect)` (no pointer) must also resolve to the type.
+    let mut s2 = Store::new();
+    ext.extract(
+        "v.go",
+        b"package main\ntype Rect struct{}\nfunc (r Rect) Area() int { return 0 }",
+        &mut s2,
+    )
+    .expect("extraction should succeed");
+    assert!(
+        s2.lookup("v.go>Rect>Area").is_some(),
+        "Go value-receiver method must be at Rect>Area"
+    );
 }
 
 #[test]
