@@ -1265,14 +1265,18 @@ impl Store {
 
     /// Post-merge pass (RFC-0118 Part B): for each captured call site, infer the
     /// receiver type statically and, when it disambiguates to exactly one
-    /// definition, rewire the `Calls` edge from the conservative stub to the real
-    /// `…>Type>method` node. Order-independent: runs against the fully merged
-    /// graph, so a receiver type defined in any file resolves.
+    /// definition, **add** the precise `Calls(caller → …>Type>method)` edge.
+    /// Order-independent: runs against the fully merged graph, so a receiver type
+    /// defined in any file resolves. Returns the number of call sites bound.
     ///
-    /// The shared `caller → stub` edge is removed only when **every** call site
-    /// from that caller to that stub resolved (a caller invoking the same method
-    /// on two different receiver types keeps the stub edge until both bind).
-    /// Returns the number of call sites successfully bound.
+    /// **Does NOT remove the conservative `caller → stub` edge** (Codex P2 #633).
+    /// Synapse stores a single deduplicated `caller → stub` edge that may stand
+    /// for *multiple* calls — including ones with no recorded context (e.g. a bare
+    /// `m()` alongside `s.m()`). Removing it from the recorded contexts alone
+    /// could drop an edge a still-unresolved call needs. The stub carries
+    /// `NodeKind::Unresolved`, so Part A already excludes it from the symbol/rank
+    /// universe; the precise edge added here is a pure gain. Safe stub-edge
+    /// removal is deferred to when the extractor records *every* unresolved call.
     #[must_use]
     pub fn resolve_call_site_contexts(&mut self) -> usize {
         let contexts = std::mem::take(&mut self.call_site_contexts);
@@ -1292,22 +1296,14 @@ impl Store {
             .map(str::to_owned)
             .collect();
 
-        // Per (caller, stub): how many sites total vs. how many resolved — the
-        // stub edge is removable only when total == resolved.
-        let mut group_total: HashMap<(NodeId, NodeId), usize> = HashMap::new();
-        let mut group_resolved: HashMap<(NodeId, NodeId), usize> = HashMap::new();
         let mut resolved = 0usize;
-
         for ctx in &contexts {
             // Skip a context whose stub an earlier single-match pass already
-            // resolved + removed (the call is bound; re-binding would be
-            // redundant and would inflate the resolved count). A stub still in
-            // the trunk is one the prior passes declined — the multi-match work.
+            // resolved + removed (the call is bound; re-binding would inflate the
+            // count). A stub still in the trunk is one the prior passes declined.
             if self.trunk.path_of(ctx.stub_id).is_none() {
                 continue;
             }
-            *group_total.entry((ctx.caller_id, ctx.stub_id)).or_insert(0) += 1;
-
             let suffix = format!(">{}", ctx.receiver_ctx.method);
             let candidates: Vec<Candidate> = all_paths
                 .iter()
@@ -1325,21 +1321,9 @@ impl Store {
                     // and stubs are bare names without '>'.)
                     if def_id != ctx.caller_id {
                         self.synapse.add(EdgeKind::Calls, ctx.caller_id, def_id);
-                        *group_resolved
-                            .entry((ctx.caller_id, ctx.stub_id))
-                            .or_insert(0) += 1;
                         resolved += 1;
                     }
                 }
-            }
-        }
-
-        // Remove the conservative stub edge only where every site resolved.
-        for (key, total) in group_total {
-            if group_resolved.get(&key).copied().unwrap_or(0) == total {
-                let (caller_id, stub_id) = key;
-                self.synapse
-                    .remove_edge(EdgeKind::Calls, caller_id, stub_id);
             }
         }
         resolved

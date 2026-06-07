@@ -1197,10 +1197,13 @@ fn resolve_call_site_contexts_binds_multi_match_method_via_receiver_type() {
         !store.incoming(trunk_def, EdgeKind::Calls).contains(&caller),
         "caller must NOT be mis-bound to Trunk>upsert_node"
     );
-    // The conservative stub edge is removed (the only site for it resolved).
+    // The conservative stub edge is intentionally KEPT (Codex P2 #633): Synapse
+    // dedups one caller→stub edge that may cover unrecorded calls, so this pass
+    // only ADDS the precise edge and never removes the shared stub. The stub is
+    // NodeKind::Unresolved, so Part A already hides it from symbol/rank queries.
     assert!(
-        !store.incoming(stub, EdgeKind::Calls).contains(&caller),
-        "stub edge should be removed once all sites resolved"
+        store.incoming(stub, EdgeKind::Calls).contains(&caller),
+        "stub edge is preserved (removal deferred until all call sites are recorded)"
     );
 }
 
