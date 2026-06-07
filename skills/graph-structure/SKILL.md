@@ -134,7 +134,7 @@ Returns a letter grade (A–F), overall score (0–100), and per-dimension sub-s
 
 ```
 mcp__mycelium__project_health({})
-→ { "grade": "B", "score": 83, "dimensions": [["dead", 91], ["isolation", 88], ["connectivity", 71]] }
+→ { "grade": "B", "score": 83, "dimensions": [{"name":"dead_code","score":91},{"name":"isolation","score":88},{"name":"connectivity","score":71}] }
 ```
 
 CLI:
