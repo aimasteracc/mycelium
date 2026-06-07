@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v102 — PR #638 merged (`d856655` PM state v101); RFC-0120 Phase 1 implemented (PR #639 CI running: `token_bench` module + 8 corpus fixtures + `token_corpus.rs` 9+5 tests, TDD RED→GREEN); Issue #614 Items 1+2 resolved) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Phase 1 PR #639 CI running** (P1 — `token_bench` + corpus). RFC-0115/0116/0117/0118 Phase 1 ✅. RFC-0119 Phase 1+2 ✅. |
+| Last updated | 2026-06-07 (PM dispatch v103 — PR #639 merged (`bd8fce09` RFC-0120 Phase 1a token_bench module + corpus scaffolding); PR #640 merged (`b1995a0d` PM state v102); Codex findings on #639 P2 + #640 P1 both explicitly rejected with justification; RFC-0120 Phase 1b queued as next P1) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Phase 1b** (P1 — BpeTokenCounter + tiktoken-rs + real corpus + REPORT.md). RFC-0115/0116/0117/0118 Phase 1 ✅. RFC-0119 Phase 1+2 ✅. RFC-0120 Phase 1a ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -160,7 +160,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 11. **RFC-0116 Phase 1**: ✅ **AC-1 DONE** — `verdict.rs` on develop. **AC-2 (health/test_gap)** ✅ MERGED (PR #629).
 12. **RFC-0117 Phase 1**: ✅ **DONE** — `constraints.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
 13. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript — validates ranking on actual Mycelium self-index. RFC-0119 Phase 3 is optional future PageRank swap (single-line, RFC says "not required").
-14. **RFC-0120 Phase 1** (Issue #614): ✅ **PR #639 CI running** — `token_bench` module (`WhitespaceTokenCounter` + `measure_case`/`measure_corpus`/`CorpusReport`), 8 corpus fixtures, `token_corpus.rs` (5 integration tests), 9 unit tests. TDD RED→GREEN confirmed. Issue #614 Items 1+2 resolved.
+14. **RFC-0120 Phase 1a** (Issue #614 Items 1+2): ✅ **MERGED** — PR #639 (squash `bd8fce09`). `token_bench` module (`TokenCounter` trait, `WhitespaceTokenCounter`, `measure_case`/`measure_corpus`/`CorpusReport`), 8 corpus fixture JSON files, `token_corpus.rs` (5 integration tests), 9 unit tests. Codex P2 explicitly rejected (synthetic corpus is Phase 1a scaffolding; BPE + real corpus come in Phase 1b atomically). Issue #614 Items 1+2 partially resolved (module visibility ✅ + corpus path ✅; full Phase 1 = Phase 1b).
+15. **RFC-0120 Phase 1b** (Issue #614 full completion): ➡️ **NEXT P1** — Add `tiktoken-rs` under `tiktoken` cargo feature; implement `BpeTokenCounter`; **create** `scripts/capture_token_corpus.sh` (new script: `mycelium index tests/e2e/fixtures/ripgrep/ --output <tmpdir>`, then invoke each representative tool, save `success` payload to `crates/mycelium-mcp/tests/corpus/<tool>.json` — see RFC-0120 §Design "Capture source" for the full tool list and arg shapes); run the script to regenerate corpus with real tool outputs; commit `crates/mycelium-mcp/tests/corpus/REPORT.md` (pinned BPE per-fixture counts); add `--features tiktoken` corpus test (band `[LOWER, UPPER]` assertion); `cargo deny --features tiktoken` + `cargo audit` green; write `docs/adr/NNNN-tiktoken-tokenizer-dependency.md`. TDD RED-first (`BpeTokenCounter` stub fails corpus test → implement → green).
 
 **P1 — Founder review (post-v0.3.0 ship):**
 15. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
@@ -174,16 +175,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 21. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference (spun off from Codex P2 on PR #635).
 ---
 
-## Dispatch state (2026-06-07 v102)
+## Dispatch state (2026-06-07 v103)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #639 once CI green (RFC-0120 Phase 1 `token_bench`). |
-| PM | **DONE ✅** | v102: PR #638 merged (`d856655` PM v101); RFC-0120 Phase 1 implemented (PR #639 CI running). decisions.jsonl appended. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. |
+| PM | **DONE ✅** | v103: PR #639 merged (`bd8fce09` RFC-0120 Phase 1a); PR #640 merged (`b1995a0d` PM v102); Codex #639 P2 + #640 P1 both rejected with justification. RFC-0120 Phase 1b queued. decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | RFC-0120 Phase 2 (after #639 merges): `BpeTokenCounter` (tiktoken feature) + `mycelium_get_token_stats` rewrite + README/Charter §2 reconciliation. |
+| rust-implementer | **P1** | **RFC-0120 Phase 1b** (see item 15): `BpeTokenCounter` + tiktoken-rs + real corpus from `tests/e2e/fixtures/ripgrep/` + REPORT.md + ADR. TDD RED-first. Unblocked (Phase 1a `bd8fce09` on develop). |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (unblocked — #635 merged). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -216,6 +217,29 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v103 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: ci/testing, git-workflow, governance/rfc, release-governance), PM state v28-on-disk (deeply stale — decisions.jsonl tail revealed actual state is v102 on develop `d856655`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #640 (PM v102 chore, CI ✅ 22/22 on `eebf7f66`, Codex P1 live); #639 (RFC-0120 Phase 1a, CI ✅ 24/24 on `ecc7abd8`, Codex P2 live); #568 (v0.3.0 ceremony, founder-gated).
+- 0 open issues tagged P0/P1.
+- Develop CI green.
+- decisions.jsonl tail-20 confirmed: v102 closed (PRs #638 merged, RFC-0120 Phase 1a landed). v0.2.0/v0.3.0 released. RFC-0109/0110/0111 all done.
+
+**Task selected:** Address Codex findings on #639 + #640, then merge both. Advance PM state to v103.
+
+**Actions taken:**
+1. **Addressed Codex P2 on PR #639** (synthetic corpus): explicitly rejected with justification — Phase 1a corpus is scaffolding for WhitespaceTokenCounter hermetic tests only; real ripgrep-indexed corpus comes in Phase 1b atomically with BPE. ✅
+2. **Addressed Codex P1 on PR #640** (BPE scope in Phase 1): explicitly rejected with justification — PR #639 is Phase 1a sub-increment; Phase 1b (BPE + real corpus + REPORT.md) is queued as next P1; PM queue will not skip figure-of-record measurement. ✅
+3. **Merged PR #640** (PM state v102, squash `b1995a0d`). ✅
+4. **Merged PR #639** (RFC-0120 Phase 1a, squash `bd8fce09`). ✅
+5. **PM state v103** written: item 14 updated to MERGED; item 15 (Phase 1b) added as next P1; dispatch state updated; archive added. ✅
+6. **decisions.jsonl appended**. ✅
+
+**Escalations to founder:**
+- **(P0) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch. All registries published.
 
 ### 2026-06-07 PM dispatch v102 (this run)
 
