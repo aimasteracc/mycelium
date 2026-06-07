@@ -182,9 +182,10 @@
 ; lowercase factory/utility calls like `x = make()`. Conservative: declines on
 ; any ambiguity — a shadowed rebinding (handled by the de-shadow conflict pass)
 ; or a reassignment to a non-constructor (handled by @binding.rebind below).
-; NOTE: scope detection uses FUNCTION_KINDS; a binding inside a lambda is not
-; separately scoped (lambdas fold into the enclosing def) — acceptable since it
-; only ever causes a conservative decline, never a wrong bind.
+; NOTE: scope detection is scope-aware — a lambda is its own binding scope
+; (BINDING_SCOPE_KINDS) and the call site walks the enclosing scope chain, so a
+; lambda-local binding never leaks to a sibling lambda/outer body while a legit
+; outer-scope binding captured by a lambda still resolves (Codex P2 #653).
 (assignment
   left: (identifier) @binding.local
   right: (call

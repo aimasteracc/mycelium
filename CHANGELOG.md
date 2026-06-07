@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Receiver inference no longer leaks bindings across nested closures (no false
+  callers).** Arrow functions (JS/TS), Python lambdas, and Rust closures are now
+  their own binding scope (`BINDING_SCOPE_KINDS`), and the call site walks the
+  enclosing lexical scope chain. Previously a binding inside one closure folded
+  into the enclosing named function and could bind a same-named receiver used in a
+  *sibling* closure or the outer body — manufacturing a false caller edge (Codex
+  P2 #653, acute for arrow-heavy JS). The chain walk preserves the legitimate
+  case (an outer-scope binding captured by a nested closure still resolves), so
+  precision improves with no recall loss. Caller-path naming is unchanged (still
+  keyed on named functions).
+
+### Added
+
+- **RFC-0118 Part B now covers JavaScript: `get-callers` on a multi-class method
+  returns real callers.** JavaScript previously captured `@call.receiver` but had
+  no local constructor-binding captures, so receiver disambiguation never fired —
+  `get-callers` on a method shared across classes (e.g. `save` on both `Store` and
+  `Cache`) returned 0. Ported the four-pattern Part B block to `packs/javascript/`
+  (`const x = new Ctor()` / `x = new Ctor()` bindings + `@binding.rebind`
+  invalidation on every assignment target). Pack-only (the core Pass-1c wiring is
+  language-agnostic; `FUNCTION_KINDS` already covers JS). Conservative: only
+  Title-case ctors bind, conflicting/rebind-to-non-ctor declines (never mis-binds).
+
+### Fixed
+
 - **Go/C/C++/C# definitions were minted kind-less (now correctly kinded).** The
   extractor's `cap_suffix_to_kind` had no mapping for five `@definition.<suffix>`
   captures used in shipping packs — `type` (Go/C/TS), `namespace` (C++/C#),

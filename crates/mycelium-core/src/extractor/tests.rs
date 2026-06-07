@@ -1740,6 +1740,152 @@ fn js_extractor() -> Extractor {
 }
 
 #[test]
+fn extractor_javascript_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (JavaScript): `save` is a method on TWO classes (multi-match),
+    // so a bare `s.save()` declines and get-callers would be 0. The local binding
+    // `const s = new Store()` must bind the call to Store>save, not Cache>save.
+    let source = "\
+class Store { save() {} }
+class Cache { save() {} }
+function run() {
+    const s = new Store();
+    s.save();
+}
+";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.js>run").expect("run exists");
+    let store_m = store
+        .lookup("test.js>Store>save")
+        .expect("Store.save exists");
+    let cache_m = store
+        .lookup("test.js>Cache>save")
+        .expect("Cache.save exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>save after receiver inference"
+    );
+    assert!(
+        !store.incoming(cache_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Cache>save"
+    );
+}
+
+#[test]
+fn extractor_javascript_shadowed_binding_declines_no_misbind() {
+    // Same name `s` bound to two types via `new` → must DECLINE (no block-scope
+    // tracking), never guess. Symmetric with the Rust/TS guards.
+    let source = "\
+class Store { save() {} }
+class Cache { save() {} }
+function run() {
+    let s = new Store();
+    s = new Cache();
+    s.save();
+}
+";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.js>run").expect("run exists");
+    let store_m = store.lookup("test.js>Store>save").expect("exists");
+    let cache_m = store.lookup("test.js>Cache>save").expect("exists");
+    assert!(!store.incoming(store_m, EdgeKind::Calls).contains(&run));
+    assert!(!store.incoming(cache_m, EdgeKind::Calls).contains(&run));
+}
+
+#[test]
+fn extractor_javascript_rebind_to_non_ctor_declines_no_misbind() {
+    // `const s = new Store(); s = factory();` — the factory reassignment is a
+    // call_expression (not new_expression), so the declared type is stale. Must
+    // DECLINE under JS dynamic typing (Codex P1 #647 rebind-invalidation).
+    let source = "\
+class Store { save() {} }
+class Cache { save() {} }
+function factory() { return new Cache(); }
+function run() {
+    let s = new Store();
+    s = factory();
+    s.save();
+}
+";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.js>run").expect("run exists");
+    let store_m = store.lookup("test.js>Store>save").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must DECLINE: `s` was reassigned via a non-constructor call"
+    );
+}
+
+#[test]
+fn extractor_javascript_sibling_arrow_binding_no_leak() {
+    // Codex P2 #653: a binding inside one arrow must NOT leak to a call in the
+    // enclosing body / a sibling arrow where the receiver is a free variable.
+    // arrow_function must be its own binding scope (never mis-bind). `save` is
+    // multi-match so only a leaked binding could (wrongly) bind it.
+    let source = "\
+class Store { save() {} }
+class Cache { save() {} }
+function outer() {
+    const make = () => { const s = new Store(); return s; };
+    s.save();
+}
+";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let outer = store.lookup("test.js>outer").expect("outer exists");
+    let store_m = store.lookup("test.js>Store>save").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&outer),
+        "binding inside `make` arrow must NOT leak to `s.save()` in outer body"
+    );
+}
+
+#[test]
+fn extractor_javascript_outer_binding_used_in_arrow_binds() {
+    // Recall: a binding in the enclosing function IS visible to a call inside a
+    // nested arrow (lexical closure capture) — the scope-chain walk must find it.
+    // `save` is multi-match so this only resolves via receiver inference.
+    let source = "\
+class Store { save() {} }
+class Cache { save() {} }
+function outer() {
+    const s = new Store();
+    const run = () => { s.save(); };
+}
+";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let outer = store.lookup("test.js>outer").expect("outer exists");
+    let store_m = store.lookup("test.js>Store>save").expect("exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&outer),
+        "outer-scope binding must be visible to a call inside a nested arrow"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_js_named_import_alias_resolves_direct_call() {
     let ext = js_extractor();

@@ -130,3 +130,37 @@
   function: (member_expression
     object: (identifier) @call.receiver
     property: (property_identifier) @name)) @reference.call
+
+; ── RFC-0118 Part B: local constructor bindings (const x = new Ctor()) ──
+; Captures a local name and the constructor TYPE so the post-merge receiver
+; disambiguation pass can bind `x.method()` to `…>Ctor>method`. Matches the
+; idiomatic `new Ctor()` RHS; the core keeps only Title-case ctor names and
+; declines on any ambiguity (a shadowed rebinding, or a reassignment to a
+; non-constructor — see @binding.rebind below) rather than guessing.
+; Scope-aware: arrow functions are their own binding scope (BINDING_SCOPE_KINDS)
+; and the call site walks the enclosing scope chain — an arrow-local binding never
+; leaks to a sibling arrow or the outer body (no false caller), while a legit
+; outer-scope binding captured by a nested arrow still resolves (Codex P2 #653).
+(variable_declarator
+  name: (identifier) @binding.local
+  value: (new_expression
+    constructor: (identifier) @binding.ctor)) @reference.binding
+
+; Reassignment to a constructor (`x = new Ctor()`) — JavaScript's dynamic typing
+; lets a variable be reassigned to a different class, so a declared type can
+; change at the call site. Capturing the reassignment makes a type-conflicting
+; rebinding DECLINE (never mis-bind) instead of trusting the original declarator.
+(assignment_expression
+  left: (identifier) @binding.local
+  right: (new_expression
+    constructor: (identifier) @binding.ctor)) @reference.binding
+
+; Rebind invalidation (RFC-0118 Part B, Codex P1 #647): capture ANY local
+; declaration or reassignment target. The core compares the rebind count per
+; name against the recognized-constructor-binding count; a name reassigned to a
+; non-constructor (e.g. `s = factory()`) DECLINES rather than trusting the stale
+; declared type — preserving "never mis-bind" under JavaScript dynamic typing.
+(variable_declarator
+  name: (identifier) @binding.rebind)
+(assignment_expression
+  left: (identifier) @binding.rebind)
