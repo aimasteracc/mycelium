@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v105 — PRs #642+#643 merged; PR #645 opened (script fix); issue #614 updated) — PR #641 merged (`41199e0` PM state v103, Codex P2 fixed); RFC-0120 Phase 1b implemented: `BpeTokenCounter` + tiktoken-rs feature + 6 BPE tests + REPORT.md + ADR-0011 + capture script → PR #642 CI running; nightly main mutation kill-rate failure diagnosed; Charter §2 token claim honesty finding documented) |
+| Last updated | 2026-06-07 (PM dispatch v105 — PRs #642+#643 merged; PR #645 opened (capture script fix — dedicated tree CLI commands); issue #614 Item 3 updated; RFC-0120 Phase 1c unblocked) |
 | Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Phase 1c PR #645 CI running** (P1). RFC-0115/0116/0117/0118 Phase 1 ✅. RFC-0119 Phase 1+2 ✅. RFC-0120 Phase 1a+1b ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
