@@ -13,7 +13,8 @@
 | Phase 2 (v0.1.3, **complete**) | ✅ All 9 category Skills shipped. 73/89 capabilities covered. |
 | Phase 2.3 (v0.1.5, **complete**) | ✅ **89/89 (100%) Three-Surface compliant.** CLI batches 1–10 landed. All 16 remaining capabilities triaged into existing Skills or `index-management`. 4 MCP-only exceptions filed per RFC-0090 §Exceptions. RFC-0091 jQuery selectors landed. RFC-0090 status → Implemented. |
 | Phase 3 (v0.1.14, **complete**) | ✅ `skill-parity` job promoted into `ci.yml` Quality Gate — parity is now a **required** check on every PR (was informational-only). Skill bundle marketplace submission queued for v0.2.0. |
-| Phase 3.1 (v0.1.18 scope, **in develop**) | ✅ RFC-0107 SUBSCRIBE added 3 tools (`mycelium_subscribe`, `mycelium_unsubscribe`, `mycelium_subscription_status`) + RFC-0108 `Interest::Query` variant. **93/93 compliant.** CLI surface for subscribe is `mycelium watch --subscribe` (EXCEPTION: RFC-0105 extended). Parity CI success on develop HEAD. |
+| Phase 3.1 (v0.1.18 scope, **complete**) | ✅ RFC-0107 SUBSCRIBE added 3 tools (`mycelium_subscribe`, `mycelium_unsubscribe`, `mycelium_subscription_status`) + RFC-0108 `Interest::Query` variant. **93/93 compliant.** CLI surface for subscribe is `mycelium watch --subscribe` (EXCEPTION: RFC-0105 extended). Parity CI success on develop HEAD. |
+| Phase 3.2 (v0.4.0 scope, **in develop**) | ✅ RFC-0114 `project_health` added (1 new Three-Surface pair). **94/94 compliant.** `graph-structure` Skill covers the new pair. |
 
 ## Proposed Skill categories for v0.2
 
@@ -134,6 +135,7 @@ authored in Phase 2 PRs, one PR per category.
 | `subscribe` | `mycelium watch --subscribe '<spec>'` | `mycelium_subscribe` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: RFC-0105` — CLI surface is `watch --subscribe` flag (byte-identical NDJSON wire); v0.1.18 RFC-0107 |
 | `unsubscribe` | _(EXCEPTION: RFC-0105)_ | `mycelium_unsubscribe` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: RFC-0105` — idempotent; CLI unsubscribes implicitly on watch exit; v0.1.18 RFC-0107 |
 | `subscription_status` | _(MCP-only)_ | `mycelium_subscription_status` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — server-side subscription introspection; v0.1.18 RFC-0107 |
+| `project_health` | `mycelium project-health` | `mycelium_project_health` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0114 Phase 2 — Store adapter + CLI + MCP + Skill) |
 
 **Status legend:** ✅ Three-Surface = all three surfaces shipped, parity-CI green. `EXCEPTION: MCP-only` = server-process state with no human-visible CLI verb, filed per RFC-0090 §Exceptions, BDFL sign-off on file. ⚠️ #153 = perf issue *fixed in v0.1.4*; annotation retained for history.
 
