@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-06 (PM dispatch v95 — PR #626 CI fix pushed (`da552d8`, rustdoc broken intra-doc link); Codex findings on #626+#627 handled; PR #627 admin-merged `2f8857d`; #568 v0.3.0 ceremony P0 unchanged) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0119/0120/0115/0116/0117 Phase implementations** (P1 — autonomous). RFC-0119 Phase 1 PR#623 ✅ merged. RFC-0119 Phase 2 PR#626 CI fix pushed (`da552d8`) → CI re-running, merge pending. |
+| Last updated | 2026-06-07 (PM dispatch v97 — PR #626 MERGED (`ee22f7e`); PR #629 rustfmt fix pushed (`011fe58`, CI re-running); PR #630 closed superseded; Codex P2 on #629 rejected (Phase 2 scope); Codex P2 on #630 acknowledged + fixed in v97) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) **+ RFC-0115/0116 Phase 1 AC-2 merge** (P1 — PR #629 CI re-running). RFC-0119 Phase 1+2 ✅ MERGED. RFC-0115/0116/0117 Phase 1 core on develop; AC-2 (health/test_gap escalation) pending PR #629 merge. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -124,7 +124,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **chore(pm): PM state v89** — PR #619 ✅ MERGED (squash `63900329`). Codex P1 rejected (stale SHA, DCO CI ✅); Codex P2 fixed (removed Issue #601 from P2 queue, commit `297f687`).
 - [x] **feat(classify): RFC-0113 Phase 3 — import-context gate** — PR #620 ✅ MERGED (squash `12cf4252`). Module-specific gate (STDLIB_FUNCTION_MODULES map). Issue #598 closed.
 - [x] **feat(context): RFC-0119 Phase 1 — pure entry-point ranking core** — PR #623, squash `5c8e9b9` ✅ MERGED. `classify_test_path` + `rank_entry_points`, 15 tests (AC-1–AC-9 + AC-7 first-seen addendum). Codex P2 fixed (`b2a456e`).
-- [ ] **feat(context): RFC-0119 Phase 2 — importance-weighted entry-point adapter** — PR #626. `seed_entry_points` rewritten: BTreeMap dedup + `rank_entry_points`; `real_in_degree` helper (stub-robust); test demotion (AC-10); merge semantics AC-4b; AC-11 stub-caller exclusion. CI fix pushed (`da552d8` — fully-qualified `crate::types::NodeKind::Unresolved` intra-doc links); Codex P2 rejected (window-completeness out of Phase 2 scope). → admin-merge once CI green.
+- [x] **feat(context): RFC-0119 Phase 2 — importance-weighted entry-point adapter** — PR #626, squash `ee22f7e` ✅ MERGED 2026-06-06 (founder). `seed_entry_points` BTreeMap dedup + `rank_entry_points`; `real_in_degree` helper (stub-robust); test demotion (AC-10); merge semantics AC-4b; AC-11 stub-caller exclusion. Codex P2 rejected (window-completeness out of Phase 2 scope).
+- [ ] **feat(verdict): RFC-0116 Phase 1 AC-2 — health/test_gap monotonic escalation** — PR #629, CI re-running (rustfmt fix `011fe58` pushed by PM v97). `EditMetrics` gains `health` + `test_gap_uncovered` optional fields; `step_up` const fn; 6 new TDD tests. RFC-0115/0116/0117 Phase 1 ACs all marked `[x]`. Codex P2 rejected (Phase 2 scope — unresolved-filter guard belongs in Phase 2 Store adapter). → admin-merge once CI green.
 
 ---
 
@@ -138,11 +139,13 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 3. **RFC-0118 Parts B+C** (Issue #612): ✅ **MERGED** — PR #618 (squash `5b09145b`). Pure `resolver::receiver` core (Part B Phase 1, 14 tests) + resolver kind_map hygiene (Part C, 2 regression tests).
 4. **RFC-0113 Phase 3** (Issue #598): ✅ **MERGED** — PR #620 (squash `12cf4252`). Module-specific stdlib gate. Issue #598 closed.
 5. **RFC-0119 Phase 1** (Issue #613): ✅ **MERGED** — PR #623 (squash `5c8e9b9`). Pure ranking core.
-6. **RFC-0119 Phase 2** (Issue #613): **PR #626** — `seed_entry_points` BTreeMap adapter + `real_in_degree` + test demotion (AC-4b, AC-10, AC-11). CI running. **← admin-merge once CI green.**
+6. **RFC-0119 Phase 2** (Issue #613): ✅ **MERGED** — PR #626 (squash `ee22f7e`). `seed_entry_points` BTreeMap adapter + `real_in_degree` + test demotion (AC-4b, AC-10, AC-11).
+7. **RFC-0116 Phase 1 AC-2** (health/test_gap escalation): **PR #629** CI re-running (rustfmt fix `011fe58`). → admin-merge once green.
 8. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`).
-9. **RFC-0115 Phase 1**: Pure `is_covered` + `rank` core over plain structs — TDD RED→GREEN.
-10. **RFC-0116 Phase 1**: Pure `edit_verdict(metrics) → EditVerdict` — no Store/I/O. TDD.
-11. **RFC-0117 Phase 1**: Pure `evaluate(rules, edges) → Vec<Violation>` — immutable frozen types. TDD.
+9. **RFC-0115 Phase 1**: ✅ **DONE** — `test_gap.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
+10. **RFC-0116 Phase 1**: ✅ **AC-1 DONE** — `verdict.rs` on develop. **AC-2 (health/test_gap)** → PR #629.
+11. **RFC-0117 Phase 1**: ✅ **DONE** — `constraints.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
+12. **RFC-0119 Phase 3** (Three-Surface wiring): `rank_entry_points` / `seed_entry_points` exposed via CLI+MCP+Skill. Follows PR #629 merge.
 
 **P1 — Founder review (post-v0.3.0 ship):**
 12. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
@@ -156,17 +159,17 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-06 v95)
+## Dispatch state (2026-06-07 v97)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #626 (RFC-0119 Phase 2) once CI green — fix commit `da552d8` addresses rustdoc broken intra-doc link + Codex P2 rejected. |
-| PM | **DONE ✅** | v95: PR #626 CI fix pushed (`da552d8`, rustdoc NodeKind path); Codex P2/#626 rejected; PR #627 Codex P1 rejected + admin-merged (`2f8857d`). |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #629 (RFC-0116 Phase 1 AC-2 + AC close) once CI green (rustfmt fix `011fe58` in flight). |
+| PM | **DONE ✅** | v97: PR #626 MERGED confirmed; PR #629 rustfmt fix pushed; PR #630 closed (Codex P2 fixed); Codex P2 on #629 rejected (Phase 2 scope); PM state v97 written. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | PR #626 CI fix pushed ✅ (RFC-0119 Phase 2, CI re-running). Next: RFC-0119 Phase 3 or RFC-0120 Phase 1. |
-| e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (after #626 merges). |
+| rust-implementer | **P1** | After PR #629 merges: RFC-0119 Phase 3 (Three-Surface wiring for entry-point ranking) OR RFC-0120 Phase 1 (token-accounting `measure_corpus`). |
+| e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (after #629 merges). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
 
@@ -199,7 +202,29 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ## Archive
 
-### 2026-06-06 PM dispatch v95 (this run)
+### 2026-06-07 PM dispatch v97 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/git-workflow domains), PM state v95 (develop HEAD — v96 was on closed PR #630), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (v0.3.0 release ceremony, founder-gated, all registries ✅), #629 (RFC-0116 Phase 1 AC-2, CI RED — rustfmt failure on `verdict.rs`), #630 (PM state v96 chore, CI ✅, Codex P2 — stale PR #626 entry).
+- 0 open P0/P1 issues.
+- Develop CI: GREEN (last merge: PM state v95 squash `2f8857d`).
+- PR #626 (RFC-0119 Phase 2): MERGED — confirmed via decisions.jsonl and v96 PM state branch. Develop HEAD has `ee22f7e`. PM state on develop (v95) still had PR #626 as `[ ]` (Codex P2 on PR #630 was correct).
+
+**Actions taken:**
+1. **Fixed PR #629 rustfmt failure**: 3 long-line wraps in `verdict.rs` (if-let pattern, push call, iterator chain). `cargo fmt` applied. Commit `011fe58` pushed to feature branch. CI re-triggered. ✅
+2. **Replied to Codex P2 on PR #629** (rejected): RFC-0117 Phase 1 AC scope is pure evaluator with frozen types; `is_resolved` heuristic is correct for Phase 1; unresolved-filter guard is Phase 2 scope. Spinning off tracking issue. ✅
+3. **Replied to Codex P2 on PR #630** (acknowledged): Valid finding (PR #626 stale `[ ]`) — closing PR #630 as superseded; v97 fixes the stale entry. ✅
+4. **Closed PR #630** as superseded by v97 (retitled to indicate superseded status). ✅
+5. **Updated PM state to v97**: PR #626 → `[x] MERGED`; PR #629 added as `[ ]` pending; priorities and dispatch state corrected. ✅
+6. **Appended decisions.jsonl** (v97 entry). ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch. All registries published. **Do NOT re-publish.**
+- **(2) PR #629**: Admin-merge once CI green (rustfmt fix `011fe58` in flight). RFC-0116 Phase 1 AC-2 + RFC-0115/0116/0117 ACs.
+
+### 2026-06-06 PM dispatch v95 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v94 (2f8857d develop HEAD), v0.2 PRD.
 
