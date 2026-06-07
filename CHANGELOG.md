@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`search-symbol` no longer returns unnavigable junk.** On a kind-annotated
+  index (built by the extractor), `Store::search_symbol` now drops nodes an agent
+  can't jump to — `NodeKind::Unresolved` resolver phantoms and the kind-less
+  import-target stubs the extractor mints via bare `upsert_node`
+  (`anyhow::Context`, `std::collections::HashMap`, …) — which were 24–48% of raw
+  results on the dogfood corpus. Adds a `Store::is_searchable_symbol` predicate
+  (stricter than `is_real_symbol`: requires a recorded, non-`Unresolved` kind),
+  applied behind the same presence-gate as `get-files` so legacy programmatic
+  stores that never set kinds keep their historical contract. Lands identically
+  on the CLI (`search-symbol`) and MCP (`mycelium_search_symbol`) surfaces — both
+  call the same core method (Three-Surface 1:1 preserved).
+
 ### Added
 
 - **RFC-0118 Part B now covers Python and TypeScript: `get-callers` on a

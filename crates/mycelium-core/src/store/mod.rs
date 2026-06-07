@@ -679,6 +679,21 @@ impl Store {
         self.kind_of(id) != Some(NodeKind::Unresolved)
     }
 
+    /// Whether `id` is a navigable symbol an agent can jump to.
+    ///
+    /// Stricter than [`is_real_symbol`]: a node is *searchable* only if it has a
+    /// recorded definition kind that is not the resolver's `Unresolved` phantom
+    /// marker. This additionally excludes KIND-LESS nodes — the import-target
+    /// stubs the extractor mints via a bare `upsert_node` (e.g. `anyhow::Context`,
+    /// `std::collections::HashMap`), which carry no span and point nowhere — that
+    /// `is_real_symbol` (a pure negative gate) lets through. Callers should apply
+    /// this only when the store is kind-annotated (see [`Store::search_symbol`]),
+    /// so legacy programmatic stores that never set kinds keep their contract.
+    #[must_use]
+    pub fn is_searchable_symbol(&self, id: NodeId) -> bool {
+        self.kind_of(id).is_some_and(|k| k != NodeKind::Unresolved)
+    }
+
     /// Record the [`SourceSpan`] for an already-upserted node.
     ///
     /// Overwrites any previous value for the same `id`.
@@ -1047,6 +1062,13 @@ impl Store {
     #[must_use]
     pub fn search_symbol(&self, query: &str, limit: usize) -> Vec<String> {
         let q = query.to_lowercase();
+        // De-noise (dogfood-new): when the store is kind-annotated (built by the
+        // extractor — has ≥1 `File` node), drop unnavigable nodes so every result
+        // is a real, jump-to-able symbol: `is_searchable_symbol` excludes both
+        // `NodeKind::Unresolved` phantoms and the kind-less import-target stubs the
+        // extractor mints (24–48% of raw results on the dogfood corpus). A purely
+        // programmatic store that never set kinds keeps the historical contract.
+        let kind_annotated = self.kind_map.values().any(|k| *k == NodeKind::File);
         let mut results: Vec<String> = self
             .trunk
             .all_paths()
@@ -1054,6 +1076,13 @@ impl Store {
                 p.split('>')
                     .next_back()
                     .is_some_and(|seg| seg.to_lowercase().contains(&q))
+            })
+            .filter(|p| {
+                !kind_annotated
+                    || self
+                        .trunk
+                        .lookup_path(p)
+                        .is_some_and(|id| self.is_searchable_symbol(id))
             })
             .map(str::to_owned)
             .collect();

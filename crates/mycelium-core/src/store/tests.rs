@@ -202,6 +202,53 @@ fn store_search_symbol_returns_matching_name_segment() {
 }
 
 #[test]
+fn store_search_symbol_drops_unnavigable_nodes_when_kind_annotated() {
+    // dogfood-new: search-symbol must not return nodes an agent can't navigate to.
+    // In a kind-annotated store (built by the extractor — has ≥1 File node), drop
+    // (a) kind-less import-target stubs the extractor mints via bare upsert_node
+    // and (b) NodeKind::Unresolved resolver phantoms. Keep real definitions.
+    let mut store = Store::new();
+    let f = store.upsert_node(path("a.rs"));
+    store.set_kind(f, NodeKind::File);
+    let real = store.upsert_node(path("a.rs>fooContext"));
+    store.set_kind(real, NodeKind::Function);
+    // Kind-less import-target stub (no kind, no span — unnavigable).
+    store.upsert_node(path("anyhow::Context"));
+    // Unresolved resolver phantom.
+    store.upsert_node_with_kind(path("Db>context"), NodeKind::Unresolved);
+
+    let results = store.search_symbol("context", 20);
+    assert!(
+        results.contains(&"a.rs>fooContext".to_string()),
+        "real Function symbol must be returned, got: {results:?}"
+    );
+    assert!(
+        !results.contains(&"anyhow::Context".to_string()),
+        "kind-less import stub must be dropped, got: {results:?}"
+    );
+    assert!(
+        !results.contains(&"Db>context".to_string()),
+        "Unresolved phantom must be dropped, got: {results:?}"
+    );
+}
+
+#[test]
+fn store_search_symbol_legacy_unannotated_store_is_unfiltered() {
+    // Back-compat (RFC-0018): a purely programmatic store that never sets kinds
+    // is NOT kind-annotated, so search keeps the historical contract and returns
+    // all name matches (no silent emptying).
+    let mut store = Store::new();
+    store.upsert_node(path("a.rs>fooContext"));
+    store.upsert_node(path("anyhow::Context"));
+    let results = store.search_symbol("context", 20);
+    assert!(results.contains(&"a.rs>fooContext".to_string()));
+    assert!(
+        results.contains(&"anyhow::Context".to_string()),
+        "legacy unannotated store must keep historical (unfiltered) behavior"
+    );
+}
+
+#[test]
 fn store_search_symbol_is_case_insensitive() {
     let mut store = Store::new();
     store.upsert_node(path("src/lib.rs>MyStruct"));
