@@ -165,7 +165,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 13. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript — validates ranking on actual Mycelium self-index. RFC-0119 Phase 3 is optional future PageRank swap (single-line, RFC says "not required").
 14. **RFC-0120 Phase 1a** (Issue #614 Items 1+2): ✅ **MERGED** — PR #639 (squash `bd8fce09`). `token_bench` module (`TokenCounter` trait, `WhitespaceTokenCounter`, `measure_case`/`measure_corpus`/`CorpusReport`), 8 corpus fixture JSON files, `token_corpus.rs` (5 integration tests), 9 unit tests. Codex P2 explicitly rejected (synthetic corpus is Phase 1a scaffolding; BPE + real corpus come in Phase 1b atomically). Issue #614 Items 1+2 partially resolved (module visibility ✅ + corpus path ✅; full Phase 1 = Phase 1b).
 15. **RFC-0120 Phase 1b** (Issue #614 full completion): ✅ **MERGED** (PR #642 squash `3d1bdbc`, PR #643 squash `0609a68`) — `BpeTokenCounter` (tiktoken-rs `cl100k_base`, `tiktoken` feature) + 6 BPE tests + `tests/corpus/REPORT.md` (synthetic ratio 0.773, informational) + `scripts/capture_token_corpus.sh` + ADR-0011. Codex P2 (script flags) spun off to issue #614 Item 3 and fixed in PR #645.
-16. **RFC-0120 Phase 1c** (real corpus capture): ✅ **Script MERGED** — PR #645 (`1e2c3c9`). **Next step**: build release binary (`cargo build --release`), run `scripts/capture_token_corpus.sh tests/e2e/fixtures/ripgrep/`, commit corpus + REPORT.md, run `MYCELIUM_REAL_CORPUS=1 cargo test … bpe_charter_sla_binding`. If ratio > 0.30: escalate to founder (governance event).
+16. **RFC-0120 Phase 1c** (real corpus capture): ✅ **DONE — PR #649 opened (`feat/rfc-0120-phase1c-real-corpus`)**. Built release binary + ran capture script against BurntSushi/ripgrep (101 files, ~850 nodes). Real cl100k_base BPE ratio: **0.753** (24.7% reduction). `bpe_charter_sla_binding` **FAILS** (threshold ≤ 0.30). Charter §2 claim requires founder decision — see REPORT.md §Decision and decision gates below. Also fixed `fetch-e2e-fixtures.sh` multi-`local` bash bug (PR #649).
 
 **P1 — Founder review (post-v0.3.0 ship):**
 15. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
@@ -175,20 +175,20 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 17. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
 18. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
 19. **Skills marketplace submission**: metadata sign-off (founder).
-20. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
+20. ~~**Issue #555**~~: ✅ **CLOSED** — `resolve_import_aware_extends_stubs` on develop implements the full per-edge rewrite. No new primitives needed.
 21. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference (spun off from Codex P2 on PR #635).
 ---
 
-## Dispatch state (2026-06-07 v106)
+## Dispatch state (2026-06-07 v107)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Nightly `main` mutation kill-rate failure (job #79936500054 — see Escalations). **(3)** RFC-0120 charter §2 honesty — potential governance event (see Escalations). |
-| PM | **DONE ✅** | v106: PR #647 merged (RFC-0118 Part B Python+TypeScript); PRs #645+#646 conflict-resolved + merged; RFC-0120 Phase 1c script on develop; decisions.jsonl appended. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** **RFC-0120 Charter §2 governance event**: `bpe_charter_sla_binding` fails (ratio 0.753 > 0.30). Review PR #649 + REPORT.md §Decision; choose Option A/B/C and authorize amendment. **(3)** Nightly `main` mutation kill-rate failure (job #79936500054). |
+| PM | **DONE ✅** | v107: PR #648 merged (PM state v106); issues #555+#614 closed (already implemented on develop); issue #612 Item 2 noted resolved; PR #649 opened (RFC-0120 Phase 1c real corpus, ratio 0.753); decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | **RFC-0120 Phase 1c** — script merged (PR #645). **Next**: build release binary, populate `tests/e2e/fixtures/ripgrep/`, run `capture_token_corpus.sh`, commit corpus + REPORT.md, run `bpe_charter_sla_binding`. If ratio > 0.30: governance escalation. |
+| rust-implementer | **DONE ✅** | RFC-0120 Phase 1c: PR #649 opened with real corpus (ratio 0.753, CI green, binding test skips in CI). Next task TBD — awaiting founder decision on RFC-0120 Option A/B/C. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (unblocked — #635+#647 merged). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). **Also**: investigate `main` mutation kill-rate failure (nightly job #79936500054). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -203,7 +203,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - Storage-format break.
 - **Skill marketplace listing metadata sign-off** (P2, pending).
 - **RFC-0104 cold SLA measurement**: Charter §2 table amendment requires measured nightly data.
-- **RFC-0120 §2 charter amendment (potential)**: if real ripgrep corpus `bpe_charter_sla_binding` fails (ratio > 0.30), RFC-0120 §Decision requires retracting/amending the "≤30% of JSON token count" claim in Charter §2 + README. This is a governance event requiring founder sign-off. Current synthetic corpus: ratio 0.773 (22.7% reduction) — NOT the binding measurement.
+- **RFC-0120 §2 charter amendment (ACTIVE — P0)**: Real ripgrep corpus measured (PM v107, PR #649). `bpe_charter_sla_binding` **FAILS** — ratio **0.753** (24.7% reduction) vs ≤0.30 threshold. Per RFC-0120 §Decision: founder must choose Option A (retract claim, amend Charter §2 + README), Option B (redesign TextFormatter for ≥70% reduction), or Option C (reframe to Hyphae query syntax comparison). See `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`. Charter §2 amendment requires BDFL approval (Charter §9).
 - ~~**RFC-0112 IDE plugin design sign-off**~~: ✅ RESOLVED — PR #587 (VS Code MVP Phase 1) merged 2026-06-06T03:31Z by founder. RFC-0112 ratified. Phase 1.5 (marketplace + `vsce publish`) = P1 founder action post-v0.3.0.
 - ~~**RFC-0111 Charter §3 amendment**~~: ✅ RATIFIED — PR #559 MERGED (`19fb6f1`) + PR #565 MERGED (`64e865f`). Charter §3 bindings row updated to thin CLI-wrapper SDK; native FFI reserved for future perf RFC.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED 2026-06-03T12:30Z.
@@ -222,6 +222,33 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v107 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: ci/testing, release-governance, git-workflow), PM state v106 (develop HEAD `00f3db6`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #648 (PM state v106, CI 22/22 ✅, 0 Codex findings); #568 (v0.3.0 ceremony, 28/28 ✅, registries published, finalize = founder workflow_dispatch).
+- 4 open issues: #636 (RFC-0118 Part B Phase 3, P2), #614 (RFC-0120 Phase 1 notes, P2), #612 (RFC-0118 Phase 1 notes, P1+P2), #555 (RFC-0103 per-edge, P2).
+- Develop CI green (SHA `00f3db6` = PR #648 pre-merge HEAD).
+- Confirmed issues #555 + #614 + #612 Item 2 already implemented on develop — closed #555 + #614, commented #612.
+- RFC-0120 Phase 1c: built release binary (cargo build --release), cloned ripgrep fixture, ran capture_token_corpus.sh. Real BPE ratio: **0.753** (FAILS Charter §2 ≤0.30 threshold).
+
+**Actions taken:**
+1. **Merged PR #648** (PM state v106, squash `00f3db6`) — 0 Codex findings, CI 22/22 ✅. ✅
+2. **Closed Issue #555** with implementation note (resolve_import_aware_extends_stubs already does per-edge rewrite). ✅
+3. **Closed Issue #614** (both items implemented: corpus path ✅ + pub mod token_bench ✅). ✅
+4. **Commented Issue #612** (Item 2 resolved: is_real_symbol gates both ranking fns; Item 1 still open for Phase 2b). ✅
+5. **Fixed `scripts/fetch-e2e-fixtures.sh`** multi-local bash bug (set -u failure under inline local declaration). ✅
+6. **RFC-0120 Phase 1c corpus capture**: built binary, cloned ripgrep, ran capture script, ran BPE tests. ✅
+7. **PR #649 opened** (`feat/rfc-0120-phase1c-real-corpus`) — real corpus v2-ripgrep + REPORT.md §Decision + fetch-fixtures fix. Charter §2 binding FAILS. CI green (binding test skips without MYCELIUM_REAL_CORPUS). ✅
+8. **PM state v107 written** (dispatch state + live priorities + decision gates updated). ✅
+9. **decisions.jsonl appended**. ✅
+
+**Escalations to founder:**
+- **(1)** PR #568: admin-merge finalize once CI confirmed (all checks green, registries published).
+- **(2) NEW P0**: RFC-0120 Charter §2 governance event — `bpe_charter_sla_binding` fails (ratio 0.753 > 0.30). Review PR #649 REPORT.md §Decision and choose Option A/B/C.
+- **(3)** Nightly `main` mutation kill-rate failure (job #79936500054).
 
 ### 2026-06-07 PM dispatch v105 (this run)
 
