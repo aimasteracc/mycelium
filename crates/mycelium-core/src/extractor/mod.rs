@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator as _};
 
 use crate::{
+    resolver::receiver::{LocalBinding, ReceiverContext},
     store::Store,
     trunk::TrunkPath,
     types::{EdgeKind, NodeKind, SourceSpan},
@@ -262,6 +263,78 @@ impl Extractor {
             }
         }
 
+        // ─── Pass 1c: per-function local constructor bindings (RFC-0118 B) ──
+        // `let x = Type::new()` → record (x → Type) under the enclosing function,
+        // so Pass 2's method-call handler can attach a ReceiverContext and the
+        // post-merge pass can bind `x.method()` to `…>Type>method`. Pure
+        // capture-driven (pack data), language-agnostic core.
+        //
+        // Keyed by the enclosing function NODE's start byte (a unique scope id),
+        // NOT its name — two distinct functions that happen to share a name (e.g.
+        // nested `fn inner` in different outer fns) must NOT share a binding scope,
+        // or a binding could leak across functions and mis-bind (independent
+        // reviewer finding). The matching Pass-2 call uses the same node key.
+        let mut local_bindings: HashMap<usize, Vec<LocalBinding>> = HashMap::new();
+        {
+            let mut cursor = QueryCursor::new();
+            let mut matches = cursor.matches(&self.query, root, source);
+            while let Some(m) = matches.next() {
+                let local = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "binding.local")
+                        .then(|| (c.node, c.node.utf8_text(source).ok()))
+                });
+                let Some((local_node, Some(local_name))) = local else {
+                    continue;
+                };
+                let ctor = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "binding.ctor")
+                        .then(|| c.node.utf8_text(source).ok())
+                        .flatten()
+                });
+                let Some(ctor_type) = ctor else { continue };
+                // Only treat title-case RHS paths as constructor TYPES. This drops
+                // utility-module calls like `mem::take` / `io::stdin` (lowercase
+                // module → not a type), preventing a wrong-bind if a struct ever
+                // shared that name (reviewer finding). Cross-language: types are
+                // title-case in Rust/Python/TS/Go-exported/Java/C#.
+                if !ctor_type.chars().next().is_some_and(char::is_uppercase) {
+                    continue;
+                }
+                // Scope to the enclosing function node (file-level lets are skipped).
+                if let Some(scope) = enclosing_function_node(local_node) {
+                    local_bindings
+                        .entry(scope.start_byte())
+                        .or_default()
+                        .push(LocalBinding {
+                            name: local_name.to_owned(),
+                            ctor_type: Some(ctor_type.to_owned()),
+                        });
+                }
+            }
+        }
+
+        // De-shadow: a name bound to DIFFERENT constructor types within one
+        // function (Rust block shadowing, e.g. `let s = Store::new(); { let s =
+        // Trunk::new(); s.m(); }`) is ambiguous — we don't track block scopes, so
+        // we must not guess which binding is visible. Drop every entry for a
+        // name that has conflicting types so inference declines rather than
+        // mis-binds (Codex P2 #635). Same-name same-type repeats are harmless.
+        for bindings in local_bindings.values_mut() {
+            let mut seen: HashMap<String, String> = HashMap::new();
+            let mut conflicting: Vec<String> = Vec::new();
+            for b in bindings.iter() {
+                let ty = b.ctor_type.clone().unwrap_or_default();
+                if let Some(prev) = seen.insert(b.name.clone(), ty.clone()) {
+                    if prev != ty {
+                        conflicting.push(b.name.clone());
+                    }
+                }
+            }
+            if !conflicting.is_empty() {
+                bindings.retain(|b| !conflicting.contains(&b.name));
+            }
+        }
+
         // ─── Pass 2: references ──────────────────────────────────────────
         // All definitions are now in the store; intra-file callee lookup
         // will succeed for both backward and forward references.
@@ -330,11 +403,14 @@ impl Extractor {
                                 None
                             }
                         });
-                        let caller_path =
-                            enclosing_function_path(anchor, source).and_then(|suffix| {
-                                TrunkPath::parse(&format!("{file_path}>{suffix}")).ok()
-                            });
-                        let caller_id = caller_path.map_or(file_id, |p| store.upsert_node(p));
+                        // Full enclosing-function path string (RFC-0118 B: keys the
+                        // local-binding table for receiver-type inference).
+                        let caller_full = enclosing_function_path(anchor, source)
+                            .map(|s| format!("{file_path}>{s}"));
+                        let caller_id = caller_full
+                            .as_deref()
+                            .and_then(|p| TrunkPath::parse(p).ok())
+                            .map_or(file_id, |p| store.upsert_node(p));
 
                         // Issue #220: self.method() / cls.method() inside a
                         // class must resolve to the sibling method in the same
@@ -393,25 +469,67 @@ impl Extractor {
                         // `lookup == None` branch, so it never overwrites an existing real
                         // node; and if the real definition is indexed later, its own
                         // definition-extraction `set_kind` corrects this node's kind.
-                        let callee_id = if let Some(qualified) = resolved_target {
+                        // `resolved` tracks whether we bound to an existing
+                        // definition (true) or minted an Unresolved stub (false).
+                        let (callee_id, resolved) = if let Some(qualified) = resolved_target {
                             if let Some(id) = store.lookup(&qualified) {
-                                id
+                                (id, true)
                             } else if let Ok(path) = TrunkPath::parse(&qualified) {
-                                store.upsert_node_with_kind(path, NodeKind::Unresolved)
+                                (
+                                    store.upsert_node_with_kind(path, NodeKind::Unresolved),
+                                    false,
+                                )
                             } else {
                                 continue;
                             }
                         } else {
                             let intra = format!("{file_path}>{callee_name}");
                             if let Some(id) = store.lookup(&intra) {
-                                id
+                                (id, true)
                             } else if let Ok(bare) = TrunkPath::parse(callee_name) {
-                                store.upsert_node_with_kind(bare, NodeKind::Unresolved)
+                                (
+                                    store.upsert_node_with_kind(bare, NodeKind::Unresolved),
+                                    false,
+                                )
                             } else {
                                 continue;
                             }
                         };
                         store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
+
+                        // RFC-0118 Part B: for an UNRESOLVED method call with a
+                        // plain-identifier receiver (not self/cls/this), capture a
+                        // ReceiverContext so the post-merge pass can infer the
+                        // receiver's type and bind the precise `…>Type>method` edge.
+                        // The `resolved` flag only distinguishes "new stub" from
+                        // "existing node in the store"; a prior call to the same
+                        // method name may have already created an Unresolved stub
+                        // (resolved=true), so we check the node's actual kind.
+                        let callee_is_unresolved = !resolved
+                            || matches!(store.kind_of(callee_id), Some(NodeKind::Unresolved));
+                        if callee_is_unresolved {
+                            if let Some(recv) = receiver {
+                                if !matches!(recv, "self" | "cls" | "this") {
+                                    let locals = enclosing_function_node(anchor)
+                                        .and_then(|scope| local_bindings.get(&scope.start_byte()))
+                                        .cloned()
+                                        .unwrap_or_default();
+                                    store.record_call_site(
+                                        caller_id,
+                                        callee_id,
+                                        ReceiverContext {
+                                            receiver: recv.to_owned(),
+                                            method: callee_name.to_owned(),
+                                            imports: Vec::new(),
+                                            locals,
+                                            self_type: None,
+                                            params: Vec::new(),
+                                            fields: Vec::new(),
+                                        },
+                                    );
+                                }
+                            }
+                        }
                     }
                     "reference.arg_callback" => {
                         // Issue #247: identifier passed as a function argument
@@ -763,15 +881,34 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
 /// that can be appended to `file_path>` to build the full caller path.
 ///
 /// Returns `None` if the call is at module level (no enclosing function).
-fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
-    const FUNCTION_KINDS: &[&str] = &[
-        "function_definition",  // Python
-        "function_declaration", // TS/JS
-        "function_expression",  // JS/TS
-        "method_definition",    // TS/JS
-        "function_item",        // Rust
-    ];
+/// Function/method node kinds across the supported grammars. A single source of
+/// truth for "what counts as an enclosing function scope".
+const FUNCTION_KINDS: &[&str] = &[
+    "function_definition",  // Python
+    "function_declaration", // TS/JS
+    "function_expression",  // JS/TS
+    "method_definition",    // TS/JS
+    "function_item",        // Rust
+];
 
+/// Return the nearest enclosing function/method NODE, or `None` at file scope.
+///
+/// Its `start_byte()` is a stable, collision-free scope identifier — unlike the
+/// function *name*, two distinct same-named functions (e.g. nested `fn inner` in
+/// different outer fns) get different start bytes, so per-function binding scopes
+/// never leak into each other (RFC-0118 Part B, reviewer finding).
+fn enclosing_function_node(node: tree_sitter::Node<'_>) -> Option<tree_sitter::Node<'_>> {
+    let mut cur = node;
+    while let Some(parent) = cur.parent() {
+        if FUNCTION_KINDS.contains(&parent.kind()) {
+            return Some(parent);
+        }
+        cur = parent;
+    }
+    None
+}
+
+fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
     let mut cur = node;
     while let Some(parent) = cur.parent() {
         if FUNCTION_KINDS.contains(&parent.kind()) {

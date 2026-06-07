@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **RFC-0118 Part B (Rust): `get-callers` on a multi-type method now returns real
+  callers (the F5 fix).** The extractor captures the receiver of a method call
+  plus local `let x = T::new()` constructor bindings (new Rust pack captures
+  `@call.receiver`, `@binding.local`, `@binding.ctor`) and records a per-call-site
+  `ReceiverContext`; the post-merge pass infers the receiver type and binds
+  `x.method()` to `…>T>method`. On the Mycelium self-index, `get-callers` on
+  `Store>upsert_node` went from **0 → 60 real callers**. Conservative: only binds
+  when inference is unambiguous, never mis-binds. Params/self/fields and other
+  languages are follow-ups.
+
 ### Added
 
 - **RFC-0116 Phase 1 AC complete: `EditMetrics` now accepts optional `health` /

@@ -822,6 +822,169 @@ fn extract_rs(source: &str) -> Store {
 }
 
 #[test]
+fn extractor_rust_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B end-to-end (the F5 fix): `upsert_node` is a method on TWO
+    // types. A bare `s.upsert_node()` is multi-match, so the single-match passes
+    // decline and get-callers would be 0. The local binding `let s = Store::new()`
+    // must let the post-merge pass bind the call to Store>upsert_node — and NOT
+    // Trunk>upsert_node.
+    let source = "\
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn run() {
+    let s = Store::new();
+    s.upsert_node();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store
+        .lookup("test.rs>Store>upsert_node")
+        .expect("Store::upsert_node exists");
+    let trunk_m = store
+        .lookup("test.rs>Trunk>upsert_node")
+        .expect("Trunk::upsert_node exists");
+
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>upsert_node after receiver inference"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Trunk>upsert_node"
+    );
+}
+
+#[test]
+fn extractor_rust_receiver_context_recorded_for_second_call_site() {
+    // Regression: after the first `a.upsert_node()` creates a bare stub, the
+    // second `b.upsert_node()` finds the same stub (resolved=true).  Without
+    // the kind_of() guard the second caller's ReceiverContext would not be
+    // recorded, so get-callers would be 1 instead of 2.
+    let source = "\
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn caller_a() { let s = Store::new(); s.upsert_node(); }
+fn caller_b() { let s = Store::new(); s.upsert_node(); }
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let ca = store.lookup("test.rs>caller_a").expect("caller_a exists");
+    let cb = store.lookup("test.rs>caller_b").expect("caller_b exists");
+    let store_m = store
+        .lookup("test.rs>Store>upsert_node")
+        .expect("Store::upsert_node exists");
+
+    let callers = store.incoming(store_m, EdgeKind::Calls);
+    assert!(
+        callers.contains(&ca),
+        "caller_a must be a caller of Store>upsert_node"
+    );
+    assert!(
+        callers.contains(&cb),
+        "caller_b must also be a caller of Store>upsert_node (second call-site fix)"
+    );
+}
+
+#[test]
+fn extractor_rust_receiver_inference_no_cross_function_leak() {
+    // Two functions, the SAME local name `h`, DIFFERENT constructor types, and a
+    // method `run` defined on both types. Each call must bind to ITS OWN type —
+    // a binding from one function must never leak into the other (the "never
+    // mis-bind" invariant, independent-reviewer finding). Also covers `let mut`.
+    let source = "\
+struct Store;
+impl Store { fn run(&self) {} }
+struct Trunk;
+impl Trunk { fn run(&self) {} }
+fn alpha() {
+    let h = Trunk::new();
+    h.run();
+}
+fn beta() {
+    let mut h = Store::new();
+    h.run();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let alpha = store.lookup("test.rs>alpha").expect("alpha exists");
+    let beta = store.lookup("test.rs>beta").expect("beta exists");
+    let store_run = store
+        .lookup("test.rs>Store>run")
+        .expect("Store::run exists");
+    let trunk_run = store
+        .lookup("test.rs>Trunk>run")
+        .expect("Trunk::run exists");
+
+    // alpha's `h: Trunk` → Trunk>run only.
+    assert!(store.incoming(trunk_run, EdgeKind::Calls).contains(&alpha));
+    assert!(
+        !store.incoming(store_run, EdgeKind::Calls).contains(&alpha),
+        "alpha must NOT leak to Store>run"
+    );
+    // beta's `let mut h: Store` → Store>run only (also proves `let mut` is captured).
+    assert!(store.incoming(store_run, EdgeKind::Calls).contains(&beta));
+    assert!(
+        !store.incoming(trunk_run, EdgeKind::Calls).contains(&beta),
+        "beta must NOT leak to Trunk>run"
+    );
+}
+
+#[test]
+fn extractor_rust_shadowed_binding_declines_no_misbind() {
+    // Block shadowing: the same name `s` is bound to two different types in one
+    // function. We don't track block scopes, so inference must DECLINE (leave the
+    // conservative stub) rather than guess — never mis-bind (Codex P2 #635).
+    let source = "\
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn run() {
+    let s = Store::new();
+    let s = Trunk::new();
+    s.upsert_node();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store.lookup("test.rs>Store>upsert_node").expect("exists");
+    let trunk_m = store.lookup("test.rs>Trunk>upsert_node").expect("exists");
+    // Conflicting shadowed bindings → neither precise edge is added (declined).
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must not guess Store on a shadowed binding"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "must not guess Trunk on a shadowed binding"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_python_call_inside_function_creates_calls_edge() {
     // foo calls bar; bar is defined in the same file.
