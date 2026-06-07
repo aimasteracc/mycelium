@@ -1435,6 +1435,66 @@ async fn rank_symbols_empty_when_no_call_edges() {
     );
 }
 
+// ── RFC-0118 AC-20: rank_symbols de-noised — Unresolved phantoms excluded ──
+
+#[tokio::test]
+async fn rank_symbols_excludes_unresolved_phantom() {
+    // Fixture: one real function + one Unresolved phantom, both with 1 caller.
+    // AC-20 (RFC-0118): the phantom must NOT appear in mycelium_rank_symbols output.
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        let _file = store.upsert_node_with_kind(
+            TrunkPath::parse("src/lib.rs").unwrap(),
+            mycelium_core::types::NodeKind::File,
+        );
+        let real_fn = store.upsert_node_with_kind(
+            TrunkPath::parse("src/lib.rs>real_fn").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
+        let caller = store.upsert_node_with_kind(
+            TrunkPath::parse("src/lib.rs>caller").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
+        // Unresolved phantom (RFC-0118 resolver stub) — has a Calls edge so it
+        // would be ranked if is_real_symbol() were not applied.
+        let phantom = store.upsert_node_with_kind(
+            TrunkPath::parse("Db>upsert_node").unwrap(),
+            mycelium_core::types::NodeKind::Unresolved,
+        );
+        store.upsert_edge(EdgeKind::Calls, caller, real_fn);
+        store.upsert_edge(EdgeKind::Calls, caller, phantom);
+    }
+    let raw = server
+        .mycelium_rank_symbols(Parameters(RankSymbolsRequest {
+            limit: None,
+            edge_kind: None,
+            output_format: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    let symbols = val["symbols"].as_array().expect("symbols must be an array");
+    // Real function must appear (1 caller).
+    assert!(
+        symbols
+            .iter()
+            .any(|s| s["path"].as_str() == Some("src/lib.rs>real_fn")),
+        "real_fn must appear in rank_symbols output"
+    );
+    // Unresolved phantom must NOT appear.
+    assert!(
+        !symbols
+            .iter()
+            .any(|s| s["path"].as_str() == Some("Db>upsert_node")),
+        "Unresolved phantom must be excluded from rank_symbols output (RFC-0118 AC-20)"
+    );
+    // Every entry must have the MCP-contract fields: path (string) + caller_count (number).
+    for s in symbols {
+        assert!(s["path"].is_string(), "each symbol needs a string 'path'");
+        assert!(s["caller_count"].is_number(), "each symbol needs a numeric 'caller_count'");
+    }
+}
+
 // ── RFC-0018: mycelium_get_files ─────────────────────────────────────
 
 #[tokio::test]

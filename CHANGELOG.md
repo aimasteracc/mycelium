@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0118 AC-20: `rank_symbols` de-noising tests (Issue #612).** Added
+  `rank_symbols_excludes_unresolved_phantom` (MCP integration test) and
+  `rank_symbols_json_shape_matches_mcp_contract` (CLI integration test) to
+  verify that `NodeKind::Unresolved` phantoms never appear in `mycelium
+  rank-symbols` / `mycelium_rank_symbols` output, and that CLI ↔ MCP JSON
+  shapes are byte-identical per §5.13. RFC-0118 AC-20 ticked.
+
 - **RFC-0118 Part B now covers C++: `get-callers` on a multi-type method returns
   real callers.** Added `@call.receiver` on identifier-receiver `obj.m()`/`ptr->m()`
   calls + a declared-type local binding (`Store s;` / `Store s = …` binds `s →
