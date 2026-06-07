@@ -1172,6 +1172,3 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ### Earlier dispatches (v1–v27)
 
 *(archived in git history)*
-"
-  }
-]
