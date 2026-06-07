@@ -2671,6 +2671,20 @@ fn extractor_cpp_method_path_is_class_method() {
         store.lookup("test.cpp>Foo>bar").is_some(),
         "C++ method must be at Foo>bar"
     );
+    // struct + union methods also nest under their type (no coverage regression
+    // from the class-only re-anchor; PR #661 review).
+    let mut s2 = Store::new();
+    ext.extract(
+        "u.cpp",
+        b"struct S { void m() {} };\nunion U { int i; void reset() {} };",
+        &mut s2,
+    )
+    .expect("extraction should succeed");
+    assert!(s2.lookup("u.cpp>S>m").is_some(), "struct method at S>m");
+    assert!(
+        s2.lookup("u.cpp>U>reset").is_some(),
+        "union method at U>reset"
+    );
 }
 
 #[test]

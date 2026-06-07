@@ -927,7 +927,7 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
 /// Function/method node kinds across the supported grammars. A single source of
 /// truth for "what counts as an enclosing function scope".
 const FUNCTION_KINDS: &[&str] = &[
-    "function_definition",     // Python
+    "function_definition",     // Python / C / C++
     "function_declaration",    // TS/JS
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
@@ -946,7 +946,7 @@ const FUNCTION_KINDS: &[&str] = &[
 /// the call-site lookup walks the scope CHAIN so legitimate outer-scope closure
 /// captures still resolve (no recall loss).
 const BINDING_SCOPE_KINDS: &[&str] = &[
-    "function_definition",     // Python
+    "function_definition",     // Python / C / C++
     "function_declaration",    // TS/JS
     "function_expression",     // JS/TS
     "method_definition",       // TS/JS
@@ -1146,6 +1146,7 @@ fn is_type_container(kind: &str) -> bool {
             | "struct_declaration" // C# (also Rust struct_item is handled via impl_item)
             | "class_specifier" // C++
             | "struct_specifier" // C++
+            | "union_specifier" // C++
     )
 }
 

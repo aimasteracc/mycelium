@@ -65,6 +65,12 @@
       declarator: (function_declarator
         declarator: (field_identifier) @name)))) @definition.method
 
+(union_specifier
+  body: (field_declaration_list
+    (function_definition
+      declarator: (function_declarator
+        declarator: (field_identifier) @name)))) @definition.method
+
 ; ── Template declarations ─────────────────────────────────────────────
 
 (template_declaration
