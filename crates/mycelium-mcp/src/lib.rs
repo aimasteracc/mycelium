@@ -50,6 +50,7 @@ mod push;
 pub mod query_delta;
 mod query_eval;
 pub mod subscription;
+pub mod token_bench;
 
 /// Internal fan-out work-item produced inside `start_watch`'s `on_batch`
 /// closure (RFC-0107 + RFC-0108). Lifted to module scope so clippy's

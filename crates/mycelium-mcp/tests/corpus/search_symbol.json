@@ -1,0 +1,56 @@
+{
+  "matches": [
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store",
+      "kind": "Struct",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::new",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::open",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::remove_node",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::search_symbol",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::get_callees",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::get_callers",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::replace_file",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::index_directory",
+      "kind": "Function",
+      "file": "crates/mycelium-core/src/lib.rs"
+    }
+  ],
+  "count": 10,
+  "truncated": false
+}

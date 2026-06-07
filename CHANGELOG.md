@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0120 Phase 1: token-accounting module `token_bench`.** Pure
+  `crates/mycelium-mcp/src/token_bench.rs` module exposes `WhitespaceTokenCounter`,
+  `measure_case`, `measure_corpus`, and `CorpusReport` (with `token_reduction_pct` /
+  `text_to_json_token_ratio` / `byte_reduction_pct`). Committed 8 representative
+  corpus fixtures under `crates/mycelium-mcp/tests/corpus/`. Integration test
+  `token_corpus.rs` verifies corpus has ≥8 fixtures, `TextFormatter` reduces tokens
+  vs `JsonFormatter` over the aggregate, and per-fixture sums equal the aggregate.
+  Resolves Issue #614 Items 1+2 (module is `pub`, corpus fixtures committed).
+
 - **RFC-0116 Phase 1 AC complete: `EditMetrics` now accepts optional `health` /
   `test_gap_uncovered` escalation inputs.** `edit_verdict` applies monotonic
   one-step escalation when `health` is grade `D`/`F` (RFC-0114) or

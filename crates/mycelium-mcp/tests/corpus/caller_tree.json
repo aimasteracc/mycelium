@@ -1,0 +1,38 @@
+{
+  "root": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
+  "depth": 2,
+  "nodes": [
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
+      "depth": 0,
+      "callers": [
+        "crates/mycelium-mcp/src/lib.rs>MyceliumServer::index_file",
+        "crates/mycelium-cli/src/main.rs>cmd_index",
+        "crates/mycelium-core/src/lib.rs>Store::replace_file"
+      ]
+    },
+    {
+      "path": "crates/mycelium-mcp/src/lib.rs>MyceliumServer::index_file",
+      "depth": 1,
+      "callers": [
+        "crates/mycelium-mcp/src/lib.rs>MyceliumServer::mycelium_index"
+      ]
+    },
+    {
+      "path": "crates/mycelium-cli/src/main.rs>cmd_index",
+      "depth": 1,
+      "callers": [
+        "crates/mycelium-cli/src/main.rs>main"
+      ]
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store::replace_file",
+      "depth": 1,
+      "callers": [
+        "crates/mycelium-mcp/src/lib.rs>MyceliumServer::index_file",
+        "crates/mycelium-core/src/lib.rs>Store::index_directory"
+      ]
+    }
+  ],
+  "truncated": false
+}

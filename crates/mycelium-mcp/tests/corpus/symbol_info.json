@@ -1,0 +1,22 @@
+{
+  "path": "crates/mycelium-core/src/lib.rs>Store::upsert_node",
+  "kind": "Function",
+  "file": "crates/mycelium-core/src/lib.rs",
+  "span": {
+    "start_line": 142,
+    "end_line": 187,
+    "start_column": 4,
+    "end_column": 5
+  },
+  "callee_count": 3,
+  "caller_count": 5,
+  "is_dead": false,
+  "is_isolated": false,
+  "edge_kinds": ["Calls", "CalledBy"],
+  "doc": "Insert or update a node in the graph. Creates the node if it does not exist; updates metadata if it does. This is the primary write operation for adding symbols during indexing.",
+  "attributes": {
+    "visibility": "pub",
+    "is_async": false,
+    "receiver": "mut self"
+  }
+}

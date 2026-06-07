@@ -1,0 +1,38 @@
+{
+  "entry_points": [
+    "crates/mycelium-mcp/src/lib.rs>MyceliumServer",
+    "crates/mycelium-mcp/src/lib.rs>MyceliumServer::new",
+    "crates/mycelium-core/src/lib.rs>Store",
+    "crates/mycelium-core/src/lib.rs>Store::open"
+  ],
+  "callers": {
+    "crates/mycelium-mcp/src/lib.rs>MyceliumServer::new": [
+      "crates/mycelium-cli/src/main.rs>main"
+    ],
+    "crates/mycelium-core/src/lib.rs>Store::open": [
+      "crates/mycelium-mcp/src/lib.rs>MyceliumServer::new",
+      "crates/mycelium-cli/src/main.rs>open_store"
+    ]
+  },
+  "callees": {
+    "crates/mycelium-core/src/lib.rs>Store::open": [
+      "crates/mycelium-core/src/store/redb_backend.rs>RedbBackend::open",
+      "crates/mycelium-core/src/trunk.rs>Trunk::new",
+      "crates/mycelium-core/src/synapse.rs>Synapse::new"
+    ]
+  },
+  "symbols": [
+    {
+      "path": "crates/mycelium-mcp/src/lib.rs>MyceliumServer",
+      "kind": "Struct",
+      "file": "crates/mycelium-mcp/src/lib.rs"
+    },
+    {
+      "path": "crates/mycelium-core/src/lib.rs>Store",
+      "kind": "Struct",
+      "file": "crates/mycelium-core/src/lib.rs"
+    }
+  ],
+  "total_tokens": 512,
+  "truncated": false
+}
