@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v117 — PR #670 merged (PM v116); AC-20 tests PR #671 opened; Codex P2 on #670 rejected with justification; Issue #612 item 2 DONE) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b**. Three-Surface **94/94** ✅. AC-20 on develop pending #671 merge. Next P1 autonomous: Issue #636 (shadowed local bindings — RFC-0118 Part B Phase 3). |
+| Last updated | 2026-06-07 (PM dispatch v118 — CI red on #671+#672 diagnosed (clippy: doc_markdown × 3, map_unwrap_or × 1); fix commit `724dd27` pushed; chore branch rebased; both PRs CI pending green) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b**. Three-Surface **94/94** ✅. AC-20 pending PR #671+#672 green → merge. Next P1 autonomous: Issue #636 (shadowed local bindings — RFC-0118 Part B Phase 3). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -194,16 +194,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-07 v117)
+## Dispatch state (2026-06-07 v118)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop (PR #649): choose Option A/B/C. |
-| PM | **DONE ✅** | v117: PR #670 merged (v116 PM state); Codex P2 rejected with justification; PR #671 opened (AC-20 tests); decisions.jsonl appended. |
+| PM | **DONE ✅** | v118: CI red on #671+#672 (clippy); fix `724dd27` pushed; chore rebased; admin-merge #671+#672 when CI green + Codex clean. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | PR #671 (AC-20 tests) CI pending — admin-merge when green. Then Issue #636 (shadowed local bindings, Part B Phase 3). |
+| rust-implementer | **P1** | PR #671 CI pending (fix pushed) — admin-merge when green. Then PR #672 PM state — admin-merge. Then Issue #636 (shadowed local bindings, Part B Phase 3). |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -237,6 +237,28 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v118 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns (domain hits: ci/testing/merge-discipline), PM state v117 (chore/pm-state-v117 branch), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #672 (PM v117, CI ❌ red), #671 (AC-20 tests, CI ❌ red), #568 (release/v0.3.0, founder). 0 P0/P1 issues; 3 P2.
+- **Develop CI**: PR #671 and #672 both failing `clippy` job — identical errors in `crates/mycelium-cli/tests/cli_centrality.rs` and `crates/mycelium-mcp/src/tests.rs`.
+- Root cause: `chore/pm-state-v117` was stacked on top of `feature/RFC-0118-AC-20-rank-symbols-phantom-tests` (commit `8d2c09e`). Both branches share the same clippy-failing test code.
+
+**Actions taken:**
+1. **Diagnosed CI failures** (both PRs): 4 clippy errors — `doc_markdown` ×3 (missing backticks around `caller_count`, `run_rank_symbols`, `NodeKind::Unresolved` in doc comments) + `map_unwrap_or` ×1 (`.map(|o| o.len()).unwrap_or(0)` → `.map_or(0, serde_json::Map::len)`) + `redundant_closure` (same line). ✅
+2. **Fixed all 4 clippy errors** in `cli_centrality.rs` (lines 60, 61, 82) and `tests.rs` (line 1440). Verified `cargo clippy --all-targets --all-features -- -D warnings` clean locally. ✅
+3. **Pushed fix commit `724dd27`** to `feature/RFC-0118-AC-20-rank-symbols-phantom-tests` → PR #671 CI re-triggered. ✅
+4. **Rebased chore branch** `chore/pm-state-v117` (was `bf2c153`) onto `724dd27` → new tip `8fd4f15`; force-pushed → PR #672 CI re-triggered. ✅
+5. **PM state v118** written; decisions.jsonl appended. ✅
+
+**Escalations to founder (carried forward from v117):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`
+- **(P0-2)** RFC-0120 Charter §2 governance event: ratio 0.753 vs ≤0.30. Choose Option A/B/C from `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`
+
+---
 
 ### 2026-06-07 PM dispatch v117 (this run)
 
