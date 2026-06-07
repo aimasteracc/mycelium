@@ -21,6 +21,8 @@ on:
       - "packs/**"
       - "crates/mycelium-mcp/packs/**"
       - "crates/mycelium-cli/packs/**"
+      - "crates/mycelium-core/packs/**"
+      - "crates/mycelium-core/src/cortex.rs"
       - "scripts/check_pack_parity.sh"
   pull_request:
     paths:
@@ -31,6 +33,8 @@ on:
       - "packs/**"
       - "crates/mycelium-mcp/packs/**"
       - "crates/mycelium-cli/packs/**"
+      - "crates/mycelium-core/packs/**"
+      - "crates/mycelium-core/src/cortex.rs"
       - "scripts/check_pack_parity.sh"
 
 jobs:

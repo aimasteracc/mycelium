@@ -436,6 +436,51 @@ mod tests {
         );
     }
 
+    /// The binary parses with the pack queries it `include_str!`s from
+    /// `crates/mycelium-core/packs/` (the consts above). The rest of the test
+    /// suite loads the *canonical* root `packs/` copies. Those two sets silently
+    /// diverged once — the shipped binary ran stale python/ts/js queries while
+    /// CI and tests (on the root copies) stayed green. This test makes that
+    /// drift fail `cargo test`, complementing `scripts/check_pack_parity.sh`.
+    #[test]
+    fn embedded_core_pack_queries_match_canonical_root() {
+        let pairs: [(&str, &str, &str); 5] = [
+            (
+                "javascript",
+                JAVASCRIPT_QUERIES,
+                include_str!("../../../packs/javascript/queries.scm"),
+            ),
+            (
+                "python",
+                PYTHON_QUERIES,
+                include_str!("../../../packs/python/queries.scm"),
+            ),
+            (
+                "typescript",
+                TYPESCRIPT_QUERIES,
+                include_str!("../../../packs/typescript/queries.scm"),
+            ),
+            (
+                "rust",
+                RUST_QUERIES,
+                include_str!("../../../packs/rust/queries.scm"),
+            ),
+            (
+                "go",
+                GO_QUERIES,
+                include_str!("../../../packs/go/queries.scm"),
+            ),
+        ];
+        for (lang, embedded, canonical) in pairs {
+            assert_eq!(
+                embedded, canonical,
+                "core pack copy for `{lang}` (compiled into the binary) diverged from \
+                 canonical packs/{lang}/queries.scm — resync it; the binary would otherwise \
+                 parse with stale queries",
+            );
+        }
+    }
+
     #[test]
     fn index_file_unknown_extension_returns_empty_index() {
         let mut db = make_cortex();
