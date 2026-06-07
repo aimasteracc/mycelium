@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v101 — PR #637 merged (`4dab5742`); PR #635 merged (`bebcc638` — RFC-0118 Part B extractor F5: get-callers 0→60 on Rust self-index); Codex P2 on #637 rejected (option b); RFC-0120 Phase 1 = next P1 autonomous task) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0118 Part B extractor MERGED** (PR #635 `bebcc638` ✅) + **RFC-0120 Phase 1 next** (P1 — token-accounting `measure_corpus`). RFC-0115/0116/0117/0118 Phase 1 ✅. RFC-0119 Phase 1+2 ✅. |
+| Last updated | 2026-06-07 (PM dispatch v102 — PR #638 merged (`d856655` PM state v101); RFC-0120 Phase 1 implemented (PR #639 CI running: `token_bench` module + 8 corpus fixtures + `token_corpus.rs` 9+5 tests, TDD RED→GREEN); Issue #614 Items 1+2 resolved) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Phase 1 PR #639 CI running** (P1 — `token_bench` + corpus). RFC-0115/0116/0117/0118 Phase 1 ✅. RFC-0119 Phase 1+2 ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -133,12 +133,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Open issues inventory (as of v101)
+## Open issues inventory (as of v102)
 
 | # | Title | Priority | Status |
 |---|---|---|---|
 | #636 | RFC-0118 Part B Phase 3: shadowed binding scope analysis | P2 | Tracked — Phase 3 additive, post Part B |
-| #614 | RFC-0120 Phase 1 implementation notes (corpus fixture path + `token_bench` visibility) | P2 | Next autonomous P1 task |
+| #614 | RFC-0120 Phase 1 implementation notes (corpus fixture path + `token_bench` visibility) | P2 | **RESOLVED** — PR #639 implements Items 1+2 (`pub mod token_bench`, 8 corpus fixtures) |
 | #612 | RFC-0118 Phase 1 notes: cross-file ordering (Phase 2b prerequisite) + `rank_symbols` scope | P2 | Prerequisite for Part B cross-file; no unblocked next action |
 | #555 | RFC-0103 follow-up: per-edge rewrite for mixed-import Extends sites | P2 | Blocked on `Synapse::remove_edge` primitive; no RFC yet |
 
@@ -160,7 +160,7 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 11. **RFC-0116 Phase 1**: ✅ **AC-1 DONE** — `verdict.rs` on develop. **AC-2 (health/test_gap)** ✅ MERGED (PR #629).
 12. **RFC-0117 Phase 1**: ✅ **DONE** — `constraints.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
 13. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript — validates ranking on actual Mycelium self-index. RFC-0119 Phase 3 is optional future PageRank swap (single-line, RFC says "not required").
-14. **RFC-0120 Phase 1** (Issue #614): Token-accounting module `measure_corpus` + committed corpus. Design on develop (`33125d5c`). **← next P1 autonomous task (unblocked).**
+14. **RFC-0120 Phase 1** (Issue #614): ✅ **PR #639 CI running** — `token_bench` module (`WhitespaceTokenCounter` + `measure_case`/`measure_corpus`/`CorpusReport`), 8 corpus fixtures, `token_corpus.rs` (5 integration tests), 9 unit tests. TDD RED→GREEN confirmed. Issue #614 Items 1+2 resolved.
 
 **P1 — Founder review (post-v0.3.0 ship):**
 15. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
@@ -174,16 +174,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 21. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference (spun off from Codex P2 on PR #635).
 ---
 
-## Dispatch state (2026-06-07 v101)
+## Dispatch state (2026-06-07 v102)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. |
-| PM | **DONE ✅** | v101: PR #637 merged (`4dab5742`); PR #635 merged (`bebcc638` RFC-0118 Part B F5 fix); Codex P2 on #637 rejected (option b); decisions.jsonl appended. |
+| founder | **P0 action** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. crates.io ✅ npm ✅ PyPI ✅ already published. **(2)** Admin-merge PR #639 once CI green (RFC-0120 Phase 1 `token_bench`). |
+| PM | **DONE ✅** | v102: PR #638 merged (`d856655` PM v101); RFC-0120 Phase 1 implemented (PR #639 CI running). decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | RFC-0120 Phase 1 (Issue #614) — token-accounting `measure_corpus` + committed corpus. Design on develop (`33125d5c`). TDD RED-first. |
+| rust-implementer | **P1** | RFC-0120 Phase 2 (after #639 merges): `BpeTokenCounter` (tiktoken feature) + `mycelium_get_token_stats` rewrite + README/Charter §2 reconciliation. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood (unblocked — #635 merged). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -216,6 +216,34 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v102 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: ci/testing, git-workflow, governance/rfc), PM state v101 (develop HEAD `d856655`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #638 (PM v101 chore, CI ✅ `conclusion:success`, Codex 2 findings both addressed: P2 fixed `65bb521` + P2 rejected option b); #568 (v0.3.0 ceremony, founder-gated, all registries published).
+- 4 open issues: #636 (P2 shadowed bindings), #614 (P2 RFC-0120 Phase 1 impl notes), #612 (P2 RFC-0118 Phase 2b), #555 (P2 RFC-0103 per-edge).
+- CI: ✅ green. No P0/P1 blockers.
+
+**Task selected:** RFC-0120 Phase 1 (Issue #614) — highest-priority unblocked autonomous task.
+
+**Actions taken:**
+1. **Merged PR #638** (PM v101 — Codex P2 fixed + P2 rejected; CI ✅; squash `d856655`). ✅
+2. **Implemented RFC-0120 Phase 1 (TDD):**
+   - Wrote stub `token_bench.rs` with `todo!()` → 9 tests RED.
+   - Implemented `WhitespaceTokenCounter`, `measure_case`, `measure_corpus`, `CorpusReport` → 9 tests GREEN.
+   - Created 8 corpus fixture files (`tests/corpus/*.json`): context, callee_tree, caller_tree, subclasses_tree, search_symbol, symbol_info, query, importers_tree.
+   - Created `tests/token_corpus.rs` (5 integration tests: count ≥8, ratio < 1.0, reduction > 0, sums match aggregate).
+   - `cargo fmt --check` ✅, `cargo clippy --all-targets -D warnings` ✅, `cargo test -p mycelium-rcig-mcp` ✅ (9 unit + 5 integration = 14 new tests all pass).
+   - `pub mod token_bench` in lib.rs (Issue #614 Item 2). Corpus files committed (Issue #614 Item 1).
+   - CHANGELOG Unreleased updated.
+3. **Pushed PR #639** (`feat/RFC-0120-token-bench-phase1`, CI running). ✅
+4. **PM state v102** written + decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(P0) PR #568**: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch.
+- **(P1) PR #639**: Admin-merge once CI green (RFC-0120 Phase 1 `token_bench`).
 
 ### 2026-06-07 PM dispatch v101 (this run)
 
