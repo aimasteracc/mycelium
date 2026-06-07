@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **test(RFC-0118 AC-20): regression coverage for `rank_symbols` phantom exclusion** — added `rank_symbols_excludes_unresolved_phantom` (MCP) and `rank_symbols_json_shape_parity_with_mcp` (CLI) to lock the RFC-0118 Part A `is_real_symbol` filter against regression. Flipped AC-20 checkbox in `rfcs/0118-resolver-receiver-disambiguation.md`. (Issue #612 item 2)
+
 - **skills(graph-structure): `project_health` registered in coverage matrix (RFC-0114)** — `mycelium project-health` CLI + `mycelium_project_health` MCP were already implemented but the entry was missing from `skills/INDEX.md` and the `graph-structure` SKILL.md description lacked a `project_health` section. Fixes the Three-Surface Rule audit gap: INDEX now shows 94/94 compliant. The `graph-structure` Skill's `allowed-tools` already contained `mcp__mycelium__project_health`; this change adds the canonical INDEX row and the capability description.
 
 - **RFC-0118 Part B rule-b (Rust): receiver inference now handles function

@@ -56,6 +56,37 @@ fn rank_symbols_smoke() {
     assert!(v["symbols"].is_array());
 }
 
+/// AC-20 (CLI half): rank-symbols --format json output shape must be
+/// byte-identical to the MCP contract: `{"symbols": [{"path": str, "caller_count": int}, ...]}`.
+/// Removing or renaming the `caller_count` key in `run_rank_symbols` makes this fail.
+#[test]
+fn rank_symbols_json_shape_parity_with_mcp() {
+    let p = prepare_diamond();
+    let v = json_out(&["rank-symbols", "--format", "json"], p.path());
+    let syms = v["symbols"]
+        .as_array()
+        .expect("'symbols' key must be an array (AC-20 shape parity)");
+    assert!(
+        !syms.is_empty(),
+        "diamond has callee edges; rank-symbols must be non-empty"
+    );
+    for sym in syms {
+        assert!(
+            sym["path"].is_string(),
+            "each symbol entry must have a string 'path' key (AC-20): {sym}"
+        );
+        assert!(
+            sym["caller_count"].is_number(),
+            "each symbol entry must have a numeric 'caller_count' key (AC-20): {sym}"
+        );
+        let key_count = sym.as_object().map_or(0, serde_json::Map::len);
+        assert_eq!(
+            key_count, 2,
+            "MCP parity: symbol entry must have exactly 2 keys {{path, caller_count}}, got {sym}"
+        );
+    }
+}
+
 #[test]
 fn get_top_files_smoke() {
     let p = prepare_diamond();
