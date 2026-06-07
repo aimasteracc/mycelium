@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v116 — PR #668 merged (Three-Surface 94/94 confirmed) + PR #669 merged (PM v115); Codex findings resolved; next: AC-20 tests fresh branch) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b**. Three-Surface **94/94** ✅ (`skills/INDEX.md` + `graph-structure` SKILL confirmed on develop). Next P1 autonomous: AC-20 tests (Issue #612 item 2, fresh branch). |
+| Last updated | 2026-06-07 (PM dispatch v117 — PR #670 merged (PM v116); AC-20 tests PR #671 opened; Codex P2 on #670 rejected with justification; Issue #612 item 2 DONE) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b**. Three-Surface **94/94** ✅. AC-20 on develop pending #671 merge. Next P1 autonomous: Issue #636 (shadowed local bindings — RFC-0118 Part B Phase 3). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -182,8 +182,8 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 **P1 — Next autonomous:**
 17. ~~**PR #668** (Three-Surface INDEX fix)~~: ✅ **MERGED** (squash `27cbe5ab`) — Three-Surface 94/94 confirmed on develop. Codex P2 fixed (JSON example `dead_code` + object shape).
-18. **AC-20 tests** (Issue #612 item 2): PR #663 closed stale (conflicts). Recreate on fresh branch from develop — `rank_symbols_excludes_unresolved_phantom` + CLI shape-parity test in `cli_centrality.rs`. Closes Issue #612 item 2.
-19. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference. P2 but scheduled next after AC-20.
+18. ~~**AC-20 tests** (Issue #612 item 2)~~: ✅ **PR #671 OPENED** — `rank_symbols_excludes_unresolved_phantom` (MCP) + `rank_symbols_json_shape_parity_with_mcp` (CLI). AC-20 checkbox flipped in RFC-0118. CI pending; admin-merge when green + Codex clean.
+19. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference. Next P1 autonomous after #671 merges.
 
 **P2 — Deferred:**
 20. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
@@ -194,16 +194,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 
 ---
 
-## Dispatch state (2026-06-07 v116)
+## Dispatch state (2026-06-07 v117)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop (PR #649): choose Option A/B/C. |
-| PM | **DONE ✅** | v116: PRs #668+#669 merged; Codex findings all resolved (fixed + rejected with justification); Three-Surface 94/94 live on develop; decisions.jsonl appended. |
+| PM | **DONE ✅** | v117: PR #670 merged (v116 PM state); Codex P2 rejected with justification; PR #671 opened (AC-20 tests); decisions.jsonl appended. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | Next: AC-20 tests on fresh branch from develop HEAD (Issue #612 item 2) — `rank_symbols_excludes_unresolved_phantom` + CLI centrality shape-parity test. Then Issue #636 Phase 3. |
+| rust-implementer | **P1** | PR #671 (AC-20 tests) CI pending — admin-merge when green. Then Issue #636 (shadowed local bindings, Part B Phase 3). |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -237,6 +237,33 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v117 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns, PM state v116 (develop `276807a` post-#670-merge), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #670 (PM v116, CI ✅ green, 1 Codex P2 finding), #568 (release/v0.3.0, founder). 0 P0/P1 issues; 3 P2.
+- Develop CI green on develop HEAD `276807a`. PR #670 CI conclusion: success.
+- Codex P2 on #670: references ephemeral pre-squash commit `4fe590c` instead of durable `27cbe5ab`. decisions.jsonl is append-only (Charter); both refs coexist in archive section.
+
+**Actions taken:**
+1. **Replied to Codex P2 thread on #670** (explicit rejection / option b): append-only decisions.jsonl + archive has durable squash SHA `27cbe5ab` in step 4 of same paragraph. ✅
+2. **Merged PR #670** (squash `276807af`) — PM v116 on develop. ✅
+3. **Fetched origin/develop** (`276807a`) + checked out files into local working tree. ✅
+4. **Created branch** `feature/RFC-0118-AC-20-rank-symbols-phantom-tests` from develop HEAD. ✅
+5. **Wrote AC-20 MCP test** `rank_symbols_excludes_unresolved_phantom` — NodeKind::Unresolved phantom with in-degree 1 must not appear in mycelium_rank_symbols (RFC-0118 Part A regression). ✅
+6. **Wrote AC-20 CLI test** `rank_symbols_json_shape_parity_with_mcp` — rank-symbols --format json shape must be `{"symbols":[{"path":str,"caller_count":int},...]}` (exactly 2 keys per entry, §5.13 parity). ✅
+7. **Verified GREEN**: both tests pass (`cargo test -p mycelium-rcig-mcp rank_symbols_excludes` ✅; `cargo test -p mycelium-rcig-cli rank_symbols_json_shape_parity` ✅). ✅
+8. **Flipped AC-20 checkbox** in `rfcs/0118-resolver-receiver-disambiguation.md`. ✅
+9. **Updated CHANGELOG** Unreleased Added entry. ✅
+10. **Committed** (`8d2c09e`, DCO signed) + **pushed** `feature/RFC-0118-AC-20-rank-symbols-phantom-tests`. ✅
+11. **Opened PR #671** targeting develop. CI running. ✅
+12. **PM state v117** written; decisions.jsonl appended. ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`
+- **(P0-2)** RFC-0120 Charter §2 governance event: ratio 0.753 vs ≤0.30. Choose Option A/B/C from REPORT.md §Decision.
 
 ### 2026-06-07 PM dispatch v116 (this run)
 
