@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator as _};
 
 use crate::{
-    resolver::receiver::{LocalBinding, ReceiverContext},
+    resolver::receiver::{LocalBinding, ParamBinding, ReceiverContext},
     store::Store,
     trunk::TrunkPath,
     types::{EdgeKind, NodeKind, SourceSpan},
@@ -385,6 +385,72 @@ impl Extractor {
             }
         }
 
+        // ─── Pass 1d: per-function parameter bindings (RFC-0118 B rule-b) ──
+        // `fn f(s: &mut Store)` → param `s : Store` so `s.method()` resolves. The
+        // type is normalized (strips &/mut/lifetime/generics, keeps Title-case
+        // base). Scoped to the enclosing function, like local bindings.
+        let mut param_bindings: HashMap<usize, Vec<ParamBinding>> = HashMap::new();
+        {
+            let mut cursor = QueryCursor::new();
+            let mut matches = cursor.matches(&self.query, root, source);
+            while let Some(m) = matches.next() {
+                let pname = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "param.name")
+                        .then(|| (c.node, c.node.utf8_text(source).ok()))
+                });
+                let Some((pname_node, Some(pname_text))) = pname else {
+                    continue;
+                };
+                let ptype = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "param.type")
+                        .then(|| c.node.utf8_text(source).ok())
+                        .flatten()
+                });
+                let Some(normalized) = ptype.and_then(normalize_param_type) else {
+                    continue;
+                };
+                if let Some(scope) = enclosing_function_node(pname_node) {
+                    param_bindings
+                        .entry(scope.start_byte())
+                        .or_default()
+                        .push(ParamBinding {
+                            name: pname_text.to_owned(),
+                            declared_type: Some(normalized),
+                        });
+                }
+            }
+        }
+
+        // Cross param/local conflict: a name that is BOTH a param and a local of a
+        // DIFFERENT type is ambiguous (the local shadows the param, but we don't
+        // track which is visible at the call site) — drop it from BOTH tables so
+        // inference declines rather than guessing (never mis-bind).
+        let param_local_conflicts: HashMap<usize, Vec<String>> = param_bindings
+            .iter()
+            .filter_map(|(scope, params)| {
+                let locals = local_bindings.get(scope)?;
+                let names: Vec<String> = params
+                    .iter()
+                    .filter(|p| {
+                        let pt = p.declared_type.clone().unwrap_or_default();
+                        locals.iter().any(|l| {
+                            l.name == p.name && l.ctor_type.clone().unwrap_or_default() != pt
+                        })
+                    })
+                    .map(|p| p.name.clone())
+                    .collect();
+                (!names.is_empty()).then_some((*scope, names))
+            })
+            .collect();
+        for (scope, conflict) in &param_local_conflicts {
+            if let Some(p) = param_bindings.get_mut(scope) {
+                p.retain(|b| !conflict.contains(&b.name));
+            }
+            if let Some(l) = local_bindings.get_mut(scope) {
+                l.retain(|b| !conflict.contains(&b.name));
+            }
+        }
+
         // ─── Pass 2: references ──────────────────────────────────────────
         // All definitions are now in the store; intra-file callee lookup
         // will succeed for both backward and forward references.
@@ -561,6 +627,7 @@ impl Extractor {
                             if let Some(recv) = receiver {
                                 if !matches!(recv, "self" | "cls" | "this") {
                                     let locals = scope_chain_bindings(anchor, &local_bindings);
+                                    let params = scope_chain_params(anchor, &param_bindings);
                                     store.record_call_site(
                                         caller_id,
                                         callee_id,
@@ -570,7 +637,7 @@ impl Extractor {
                                             imports: Vec::new(),
                                             locals,
                                             self_type: None,
-                                            params: Vec::new(),
+                                            params,
                                             fields: Vec::new(),
                                         },
                                     );
@@ -1011,6 +1078,52 @@ fn scope_chain_bindings(
         scope = s.parent().and_then(enclosing_function_node);
     }
     out
+}
+
+/// Like [`scope_chain_bindings`] but for parameter bindings (RFC-0118 rule-b).
+fn scope_chain_params(
+    node: tree_sitter::Node<'_>,
+    param_bindings: &HashMap<usize, Vec<ParamBinding>>,
+) -> Vec<ParamBinding> {
+    let mut out: Vec<ParamBinding> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut scope = enclosing_function_node(node);
+    while let Some(s) = scope {
+        if let Some(params) = param_bindings.get(&s.start_byte()) {
+            for p in params {
+                if seen.insert(p.name.clone()) {
+                    out.push(p.clone());
+                }
+            }
+        }
+        scope = s.parent().and_then(enclosing_function_node);
+    }
+    out
+}
+
+/// Normalize a parameter's declared-type text to a base type name for receiver
+/// inference: strips leading references (`&`), a lifetime (`'a`), `mut`, generics
+/// (`<…>`), and a leading path (`crate::Store` → `Store`). Returns `None` unless
+/// the result is a Title-case base type (so primitives/`impl Trait`/`dyn …`
+/// decline). Smart pointers (`Arc<Store>` → `Arc`) are intentionally NOT
+/// unwrapped — they yield a non-matching type and decline (conservative).
+fn normalize_param_type(raw: &str) -> Option<String> {
+    let mut s = raw.trim();
+    s = s.trim_start_matches('&').trim_start();
+    if s.starts_with('\'') {
+        // Strip a leading lifetime token (`'a`), up to the next whitespace.
+        match s.find(char::is_whitespace) {
+            Some(pos) => s = s[pos..].trim_start(),
+            None => return None,
+        }
+    }
+    s = s.strip_prefix("mut ").unwrap_or(s).trim_start();
+    let base = s.split('<').next().unwrap_or(s).trim();
+    let base = base.rsplit("::").next().unwrap_or(base).trim();
+    if base.is_empty() || !base.chars().next().is_some_and(char::is_uppercase) {
+        return None;
+    }
+    Some(base.to_owned())
 }
 
 fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {

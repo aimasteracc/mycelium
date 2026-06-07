@@ -985,6 +985,72 @@ fn run() {
 }
 
 #[test]
+fn extractor_rust_param_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B rule-b (Rust): the receiver is a function PARAMETER with a
+    // declared type — the dominant idiomatic-Rust pattern. `fn run(s: &mut Store)`
+    // → s:Store → s.upsert_node() (multi-match) binds to Store>upsert_node, not
+    // Trunk>upsert_node. The ref/mut/lifetime are stripped to the base type.
+    let source = "\
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn run(s: &mut Store) {
+    s.upsert_node();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store.lookup("test.rs>Store>upsert_node").expect("exists");
+    let trunk_m = store.lookup("test.rs>Trunk>upsert_node").expect("exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "param `s: &mut Store` must bind s.upsert_node() to Store>upsert_node"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "must NOT mis-bind to Trunk>upsert_node"
+    );
+}
+
+#[test]
+fn extractor_rust_param_shadowed_by_local_declines() {
+    // A param `s: &Store` shadowed by a local `let s = Trunk::new()` of a
+    // different type → must DECLINE (never mis-bind): the local rebinds the name.
+    let source = "\
+struct Store;
+impl Store { fn m(&self) {} }
+struct Trunk;
+impl Trunk { fn m(&self) {} }
+fn run(s: &Store) {
+    let s = Trunk::new();
+    s.m();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store.lookup("test.rs>Store>m").expect("exists");
+    let trunk_m = store.lookup("test.rs>Trunk>m").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "param shadowed by a different-type local must decline (not Store)"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "param shadowed by a different-type local must decline (not Trunk)"
+    );
+}
+
+#[test]
 fn extractor_python_receiver_type_binds_multi_match_method_f5() {
     // RFC-0118 Part B (Python): `upsert_node` is a method on TWO classes. A bare
     // `s.upsert_node()` is multi-match → declines → get-callers 0. The local

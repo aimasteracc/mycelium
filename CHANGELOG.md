@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0118 Part B rule-b (Rust): receiver inference now handles function
+  PARAMETERS** — the dominant idiomatic-Rust pattern. `fn run(s: &mut Store) {
+  s.upsert_node() }` now binds `s` to `Store` (the declared param type, with
+  `&`/`mut`/lifetime/generics/path stripped to the Title-case base), so
+  `get-callers` on a multi-type method resolves through param receivers — not just
+  `let x = T::new()` locals. A param shadowed by a conflicting-type local declines
+  (never mis-binds). The pure rule-b core already existed; this wires the extractor
+  to capture `@param.name`/`@param.type` and populate the per-call `ReceiverContext`.
+
 - **RFC-0118 Part B now covers Ruby** — completing receiver inference for all 9
   method-bearing languages (Rust, Python, TypeScript, JavaScript, Go, Java, C#,
   C++, Ruby; C is function-only). Added `@call.receiver` on identifier-receiver
