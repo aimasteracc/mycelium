@@ -98,6 +98,9 @@ tempfile           = "3"
 # Storage backend
 redb               = "4"
 
+# Token counting (RFC-0120 — BPE figure-of-record, tiktoken feature in mycelium-mcp)
+tiktoken-rs        = "0.6"
+
 # Hashing / IDs
 blake3             = "1"
 uuid               = { version = "1", features = ["v4", "serde"] }

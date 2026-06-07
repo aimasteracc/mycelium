@@ -21,7 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **RFC-0120 Phase 1: token-accounting module `token_bench`.** Pure
+- **RFC-0120 Phase 1b: `BpeTokenCounter` (tiktoken `cl100k_base`) + Charter §2 binding
+  test + corpus `REPORT.md` + capture script.** Adds `tiktoken-rs` under the `tiktoken`
+  cargo feature on `mycelium-rcig-mcp`. `BpeTokenCounter` wraps `tiktoken_rs::cl100k_base()`
+  and implements `TokenCounter`. Five new `#[cfg(feature = "tiktoken")]` tests:
+  `bpe_text_to_json_ratio_informational` (always passes — prints current synthetic ratio
+  0.773), `bpe_charter_sla_binding` (gated by `MYCELIUM_REAL_CORPUS=1` env — activates
+  when real ripgrep corpus is captured), plus three sanity tests. Committed
+  `tests/corpus/REPORT.md` (Phase 1a synthetic corpus baseline). Added
+  `scripts/capture_token_corpus.sh` (Phase 1b deliverable: indexes
+  `tests/e2e/fixtures/ripgrep/` and re-captures corpus from real tool outputs).
+  ADR-0011 documents the tiktoken-rs choice. Current synthetic ratio 0.773 (22.7%
+  reduction) is **NOT** the Charter §2 figure-of-record — real measurement requires
+  Phase 1b capture script execution.
+
+- **RFC-0120 Phase 1a: token-accounting module `token_bench`.** Pure
   `crates/mycelium-mcp/src/token_bench.rs` module exposes `WhitespaceTokenCounter`,
   `measure_case`, `measure_corpus`, and `CorpusReport` (with `token_reduction_pct` /
   `text_to_json_token_ratio` / `byte_reduction_pct`). Committed 8 representative
