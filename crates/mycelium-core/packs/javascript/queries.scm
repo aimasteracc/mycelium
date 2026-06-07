@@ -137,12 +137,10 @@
 ; idiomatic `new Ctor()` RHS; the core keeps only Title-case ctor names and
 ; declines on any ambiguity (a shadowed rebinding, or a reassignment to a
 ; non-constructor — see @binding.rebind below) rather than guessing.
-; KNOWN LIMITATION: scope detection uses FUNCTION_KINDS, which does not include
-; `arrow_function`, so a binding inside an arrow folds into the enclosing named
-; function's scope. In the rare shape where one sibling arrow declares `x` and a
-; DIFFERENT sibling arrow calls `x.method()` (a free var there), this could
-; over-scope. Mitigated by the de-shadow + rebind passes for conflicting cases;
-; consistent with the pre-existing Rust closure handling. Tracked as a follow-up.
+; Scope-aware: arrow functions are their own binding scope (BINDING_SCOPE_KINDS)
+; and the call site walks the enclosing scope chain — an arrow-local binding never
+; leaks to a sibling arrow or the outer body (no false caller), while a legit
+; outer-scope binding captured by a nested arrow still resolves (Codex P2 #653).
 (variable_declarator
   name: (identifier) @binding.local
   value: (new_expression

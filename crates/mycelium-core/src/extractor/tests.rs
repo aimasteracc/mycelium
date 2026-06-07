@@ -1831,6 +1831,61 @@ function run() {
 }
 
 #[test]
+fn extractor_javascript_sibling_arrow_binding_no_leak() {
+    // Codex P2 #653: a binding inside one arrow must NOT leak to a call in the
+    // enclosing body / a sibling arrow where the receiver is a free variable.
+    // arrow_function must be its own binding scope (never mis-bind). `save` is
+    // multi-match so only a leaked binding could (wrongly) bind it.
+    let source = "\
+class Store { save() {} }
+class Cache { save() {} }
+function outer() {
+    const make = () => { const s = new Store(); return s; };
+    s.save();
+}
+";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let outer = store.lookup("test.js>outer").expect("outer exists");
+    let store_m = store.lookup("test.js>Store>save").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&outer),
+        "binding inside `make` arrow must NOT leak to `s.save()` in outer body"
+    );
+}
+
+#[test]
+fn extractor_javascript_outer_binding_used_in_arrow_binds() {
+    // Recall: a binding in the enclosing function IS visible to a call inside a
+    // nested arrow (lexical closure capture) — the scope-chain walk must find it.
+    // `save` is multi-match so this only resolves via receiver inference.
+    let source = "\
+class Store { save() {} }
+class Cache { save() {} }
+function outer() {
+    const s = new Store();
+    const run = () => { s.save(); };
+}
+";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let outer = store.lookup("test.js>outer").expect("outer exists");
+    let store_m = store.lookup("test.js>Store>save").expect("exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&outer),
+        "outer-scope binding must be visible to a call inside a nested arrow"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_js_named_import_alias_resolves_direct_call() {
     let ext = js_extractor();

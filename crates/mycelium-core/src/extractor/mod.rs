@@ -556,10 +556,7 @@ impl Extractor {
                         if callee_is_unresolved {
                             if let Some(recv) = receiver {
                                 if !matches!(recv, "self" | "cls" | "this") {
-                                    let locals = enclosing_function_node(anchor)
-                                        .and_then(|scope| local_bindings.get(&scope.start_byte()))
-                                        .cloned()
-                                        .unwrap_or_default();
+                                    let locals = scope_chain_bindings(anchor, &local_bindings);
                                     store.record_call_site(
                                         caller_id,
                                         callee_id,
@@ -937,21 +934,70 @@ const FUNCTION_KINDS: &[&str] = &[
     "function_item",        // Rust
 ];
 
-/// Return the nearest enclosing function/method NODE, or `None` at file scope.
+/// Node kinds that introduce a NESTED LEXICAL SCOPE for local bindings, in
+/// ADDITION to [`FUNCTION_KINDS`]. Used only for RFC-0118 Part B receiver-binding
+/// scoping (NOT for caller-path naming, which stays on named functions). Without
+/// these, a binding inside an arrow/lambda/closure folds into the enclosing named
+/// function and can leak to a sibling closure or the outer body where the receiver
+/// is actually a free variable — manufacturing a FALSE caller (Codex P2 #653).
+/// Treating them as their own binding scope keeps the "never mis-bind" invariant;
+/// the call-site lookup walks the scope CHAIN so legitimate outer-scope closure
+/// captures still resolve (no recall loss).
+const BINDING_SCOPE_KINDS: &[&str] = &[
+    "function_definition",  // Python
+    "function_declaration", // TS/JS
+    "function_expression",  // JS/TS
+    "method_definition",    // TS/JS
+    "function_item",        // Rust
+    "arrow_function",       // JS/TS
+    "lambda",               // Python
+    "closure_expression",   // Rust
+];
+
+/// Return the nearest enclosing binding SCOPE node (function/method/arrow/
+/// lambda/closure), or `None` at file scope.
 ///
 /// Its `start_byte()` is a stable, collision-free scope identifier — unlike the
-/// function *name*, two distinct same-named functions (e.g. nested `fn inner` in
-/// different outer fns) get different start bytes, so per-function binding scopes
-/// never leak into each other (RFC-0118 Part B, reviewer finding).
+/// scope *name*, two distinct same-named scopes (e.g. nested `fn inner` in
+/// different outer fns, or sibling arrows) get different start bytes, so
+/// per-scope binding tables never leak into each other (RFC-0118 Part B; Codex
+/// P2 #653 for the arrow/closure case). Lexical lookup across enclosing scopes is
+/// handled by walking the chain at the call site, see [`scope_chain_bindings`].
 fn enclosing_function_node(node: tree_sitter::Node<'_>) -> Option<tree_sitter::Node<'_>> {
     let mut cur = node;
     while let Some(parent) = cur.parent() {
-        if FUNCTION_KINDS.contains(&parent.kind()) {
+        if BINDING_SCOPE_KINDS.contains(&parent.kind()) {
             return Some(parent);
         }
         cur = parent;
     }
     None
+}
+
+/// Collect the local bindings visible at `node` by walking the enclosing binding
+/// scope CHAIN from innermost outward, so a call inside an arrow/closure sees its
+/// own scope AND all enclosing scopes (lexical closure capture). For a given
+/// name the INNERMOST binding wins (shadowing); a name bound only in a sibling
+/// scope is never visible (no leak). De-shadow/rebind invalidation already ran
+/// per scope, so a name dropped there simply doesn't appear.
+fn scope_chain_bindings(
+    node: tree_sitter::Node<'_>,
+    local_bindings: &HashMap<usize, Vec<LocalBinding>>,
+) -> Vec<LocalBinding> {
+    let mut out: Vec<LocalBinding> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut scope = enclosing_function_node(node);
+    while let Some(s) = scope {
+        if let Some(bindings) = local_bindings.get(&s.start_byte()) {
+            for b in bindings {
+                if seen.insert(b.name.clone()) {
+                    out.push(b.clone());
+                }
+            }
+        }
+        scope = s.parent().and_then(enclosing_function_node);
+    }
+    out
 }
 
 fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {

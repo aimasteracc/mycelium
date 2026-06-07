@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Receiver inference no longer leaks bindings across nested closures (no false
+  callers).** Arrow functions (JS/TS), Python lambdas, and Rust closures are now
+  their own binding scope (`BINDING_SCOPE_KINDS`), and the call site walks the
+  enclosing lexical scope chain. Previously a binding inside one closure folded
+  into the enclosing named function and could bind a same-named receiver used in a
+  *sibling* closure or the outer body — manufacturing a false caller edge (Codex
+  P2 #653, acute for arrow-heavy JS). The chain walk preserves the legitimate
+  case (an outer-scope binding captured by a nested closure still resolves), so
+  precision improves with no recall loss. Caller-path naming is unchanged (still
+  keyed on named functions).
+
 ### Added
 
 - **RFC-0118 Part B now covers JavaScript: `get-callers` on a multi-class method
