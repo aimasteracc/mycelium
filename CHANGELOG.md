@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Shipped binary ran stale Tree-sitter queries (pack-parity gap).** The engine
+  embeds its pack queries via `cortex.rs` `include_str!` from
+  `crates/mycelium-core/packs/<lang>/queries.scm`, but `scripts/check_pack_parity.sh`
+  only checked the `mcp` and `cli` copies — never the `core` copy. As a result the
+  `python`, `typescript`, and `javascript` core copies had silently diverged from
+  canonical `packs/` (missing the RFC-0092 alias-binding section), so the **shipped
+  binary parsed with old queries while CI and the test suite — which load the
+  canonical root copies — stayed green**. Resynced the three core copies to canonical
+  and extended the parity check to verify the core subset (the 5 cortex-embedded
+  langs), with a negative test proving a stale core copy now fails CI.
 - **RFC-0118 Part B (Rust): `get-callers` on a multi-type method now returns real
   callers (the F5 fix).** The extractor captures the receiver of a method call
   plus local `let x = T::new()` constructor bindings (new Rust pack captures
