@@ -927,11 +927,13 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
 /// Function/method node kinds across the supported grammars. A single source of
 /// truth for "what counts as an enclosing function scope".
 const FUNCTION_KINDS: &[&str] = &[
-    "function_definition",  // Python
-    "function_declaration", // TS/JS
-    "function_expression",  // JS/TS
-    "method_definition",    // TS/JS
-    "function_item",        // Rust
+    "function_definition",     // Python
+    "function_declaration",    // TS/JS
+    "function_expression",     // JS/TS
+    "method_definition",       // TS/JS
+    "function_item",           // Rust
+    "method_declaration",      // Java/C#
+    "constructor_declaration", // Java/C#
 ];
 
 /// Node kinds that introduce a NESTED LEXICAL SCOPE for local bindings, in
@@ -944,14 +946,17 @@ const FUNCTION_KINDS: &[&str] = &[
 /// the call-site lookup walks the scope CHAIN so legitimate outer-scope closure
 /// captures still resolve (no recall loss).
 const BINDING_SCOPE_KINDS: &[&str] = &[
-    "function_definition",  // Python
-    "function_declaration", // TS/JS
-    "function_expression",  // JS/TS
-    "method_definition",    // TS/JS
-    "function_item",        // Rust
-    "arrow_function",       // JS/TS
-    "lambda",               // Python
-    "closure_expression",   // Rust
+    "function_definition",     // Python
+    "function_declaration",    // TS/JS
+    "function_expression",     // JS/TS
+    "method_definition",       // TS/JS
+    "function_item",           // Rust
+    "method_declaration",      // Java/C#
+    "constructor_declaration", // Java/C#
+    "arrow_function",          // JS/TS
+    "lambda",                  // Python
+    "lambda_expression",       // Java/C#
+    "closure_expression",      // Rust
 ];
 
 /// Return the nearest enclosing binding SCOPE node (function/method/arrow/

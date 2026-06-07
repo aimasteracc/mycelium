@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0118 Part B now covers Java: `get-callers` on a multi-class method
+  returns real callers.** Added `@call.receiver` on identifier-receiver method
+  invocations plus a DECLARED-TYPE local binding (`Store s = …` binds `s` to
+  `Store` regardless of the RHS — Java is statically typed, so the declared type
+  is authoritative and reassignment can't change it, giving high recall with no
+  `@binding.rebind` needed). Core: `method_declaration`/`constructor_declaration`
+  added to `FUNCTION_KINDS` (caller attribution) and the binding-scope set;
+  `lambda_expression` added to the binding-scope set.
+
 ### Fixed
+
+- **Java methods were mis-pathed as `Class>method>method`.** The Java pack's
+  `@definition.method` capture anchored on the `method_declaration` node, but the
+  extractor's `build_class_chain` appends the anchor's own name — so every Java
+  method landed at `Class>method>method` (with `Class>method` left as a kindless
+  auto-created intermediate), corrupting `get-symbols`, `get-callers`, and
+  by-kind queries for all Java code. Re-anchored the method/constructor patterns
+  on the enclosing `class_declaration`/`interface_declaration` body (mirroring the
+  Python/TypeScript patterns) so methods are correctly at `Class>method`.
 
 - **Receiver inference no longer leaks bindings across nested closures (no false
   callers).** Arrow functions (JS/TS), Python lambdas, and Rust closures are now
