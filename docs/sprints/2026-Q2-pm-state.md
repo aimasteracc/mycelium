@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v108 — PR #649 CI fixed (corpus threshold 8→6); Codex P1 on #649 fixed + Codex P2 on #650 rejected; merge plan: #649→#650→#651; RFC-0120 Charter §2 governance event ACTIVE) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 NEW — ratio 0.753 vs ≤0.30 claim; PR #649 brings REPORT.md §Decision to develop once merged). RFC-0118 Part B complete. RFC-0120 Phase 1c DONE (real corpus on develop pending PR #649 merge). |
+| Last updated | 2026-06-07 (PM dispatch v109 — PRs #649+#652 merged to develop; PR #651 (search-symbol denoise) discovered on develop; RFC-0120 Phase 1c COMPLETE on develop; Charter §2 governance event escalated to founder) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim; REPORT.md §Decision now on develop via PR #649). RFC-0118 Part B complete. RFC-0120 Phase 1c ✅ DONE on develop. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -180,18 +180,18 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 21. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference (spun off from Codex P2 on PR #635).
 ---
 
-## Dispatch state (2026-06-07 v108)
+## Dispatch state (2026-06-07 v109)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — PR #649 REPORT.md §Decision: choose Option A/B/C. **(3)** Nightly `main` mutation kill-rate failure (job #79936500054). |
-| PM | **DONE ✅** | v108: PR #649 CI fixed (corpus threshold 8→6, commit `f044761`, pushed); Codex P1 on #649 fixed + Codex P2 on #650 rejected; PM state v108 (this PR). Merge plan: #649 → #650 → #651. |
+| founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision now on develop (PR #649 merged): choose Option A/B/C. **(3)** Nightly `main` mutation kill-rate: job #79936500054 returned 404 (expired) — re-run nightly mutation suite to get current status. |
+| PM | **DONE ✅** | v109: PRs #649 (RFC-0120 corpus) + #652 (PM v108) merged; PR #651 (search-symbol denoise) discovered already on develop; PR #650 closed as superseded; Codex P1 on #652 rejected; PM state v109. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | RFC-0120 Phase 1c real corpus DONE (PR #649 pending CI + merge). After merge: Issue #636 Phase 3 (shadowed binding scope analysis) or RFC-0114 Phase 2 CLI+MCP+Skill wiring. |
+| rust-implementer | **P1** | RFC-0120 Phase 1c ✅ DONE on develop (PR #649 `716856e`). Next: Issue #636 Phase 3 (shadowed binding scope analysis) or RFC-0114 Phase 2 CLI+MCP+Skill wiring. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood. |
-| bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). Investigate `main` mutation kill-rate failure (nightly job #79936500054). |
+| bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). Re-run nightly mutation suite (job #79936500054 expired/404). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
 
 ---
@@ -223,6 +223,29 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v109 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v108 (on PR #652 branch), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs at session start: #649 (RFC-0120 real corpus, CI re-running after v108 fix), #650 (PM v107, CI ✅), #652 (PM v108, CI ✅), #568 (v0.3.0 ceremony, founder-gated).
+- 0 open issues labeled P0/P1.
+- develop HEAD `d304eb9f` = PR #651 (search-symbol denoise) already merged before this dispatch.
+- Nightly mutation kill-rate job #79936500054 returned 404 (logs expired).
+
+**Actions taken:**
+1. **Discovered PR #651** (search-symbol denoise, `is_searchable_symbol` predicate + Go/C/C++/C# kind mapping) already merged to develop by prior session. CHANGELOG entries for #651 present. ✅
+2. **Replied Codex P1 on PR #652** (DCO finding on `4d158ff`) — Rejected: CI DCO gate ✅ passed; SHA `4d158ff` doesn't match PR head `9121fdf`; CI is authoritative. ✅
+3. **Closed PR #650** as superseded by #652: both touch pm-state.md from same base `00f3db6`; v108 is a superset of v107. ✅
+4. **Rebased PR #649** onto develop (CHANGELOG conflict with #651 — both added entries; merged both; force-pushed `fb98fd5`). Merged PR #649 (squash `716856e`). ✅
+5. **Rebased PR #652** onto develop (decisions.jsonl conflict: interleaved 3 entries chronologically by timestamp: 11:00 search_symbol, 11:15 PM v108, 11:58 docs-only; force-pushed `2c3fc33`). Merged PR #652 (squash `e6757fa`). ✅
+6. **PM state v109** written (this PR). decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(1) P0**: PR #568 v0.3.0 ceremony — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(2) P0**: RFC-0120 Charter §2 governance event — REPORT.md §Decision now on develop; choose Option A (retract ≤30% claim, amend Charter §2)/B (redesign TextFormatter)/C (reframe comparison).
+- **(3) P1**: Nightly `main` mutation kill-rate — job #79936500054 returned 404 (expired). Re-run `cargo-mutants` nightly suite to get current kill-rate baseline.
 
 ### 2026-06-07 PM dispatch v108 (this run)
 
