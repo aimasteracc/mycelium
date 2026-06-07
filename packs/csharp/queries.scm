@@ -41,15 +41,33 @@
 (enum_declaration
   name: (identifier) @name) @definition.enum
 
-; ── Method declarations ──────────────────────────────────────────────
+; ── Method / constructor declarations ────────────────────────────────
+; Anchor on the ENCLOSING type body so build_class_chain yields `Type>member`
+; (anchoring on the member node yields the wrong `Type>member>member`, and a
+; bare constructor anchored flat collided with the class node). Mirrors Java.
 
-(method_declaration
-  name: (identifier) @name) @definition.method
+(class_declaration
+  body: (declaration_list
+    (method_declaration name: (identifier) @name))) @definition.method
+(struct_declaration
+  body: (declaration_list
+    (method_declaration name: (identifier) @name))) @definition.method
+(interface_declaration
+  body: (declaration_list
+    (method_declaration name: (identifier) @name))) @definition.method
+(record_declaration
+  body: (declaration_list
+    (method_declaration name: (identifier) @name))) @definition.method
 
-; ── Constructor declarations ─────────────────────────────────────────
-
-(constructor_declaration
-  name: (identifier) @name) @definition.constructor
+(class_declaration
+  body: (declaration_list
+    (constructor_declaration name: (identifier) @name))) @definition.method
+(struct_declaration
+  body: (declaration_list
+    (constructor_declaration name: (identifier) @name))) @definition.method
+(record_declaration
+  body: (declaration_list
+    (constructor_declaration name: (identifier) @name))) @definition.method
 
 ; ── Using directives (Synapse Imports edges) ─────────────────────────
 
@@ -71,3 +89,18 @@
 (invocation_expression
   function: (member_access_expression
     name: (identifier) @name)) @reference.call
+
+; ── RFC-0118 Part B: receiver capture + declared-type local bindings ──────
+; Method call on a plain-identifier receiver: capture it for type inference.
+(invocation_expression
+  function: (member_access_expression
+    expression: (identifier) @call.receiver
+    name: (identifier) @name)) @reference.call
+
+; Local with an explicit DECLARED type (`Store s = …`). C# is statically typed,
+; so the declared type is authoritative regardless of RHS (no @binding.rebind);
+; the core keeps only Title-case types so `var`/primitives decline.
+(variable_declaration
+  type: (identifier) @binding.ctor
+  (variable_declarator
+    name: (identifier) @binding.local)) @reference.binding
