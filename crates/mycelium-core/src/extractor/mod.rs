@@ -938,6 +938,8 @@ const FUNCTION_KINDS: &[&str] = &[
     "function_item",           // Rust
     "method_declaration",      // Java/C#/Go
     "constructor_declaration", // Java/C#
+    "method",                  // Ruby
+    "singleton_method",        // Ruby (def self.x)
 ];
 
 /// Node kinds that introduce a NESTED LEXICAL SCOPE for local bindings, in
@@ -957,6 +959,8 @@ const BINDING_SCOPE_KINDS: &[&str] = &[
     "function_item",           // Rust
     "method_declaration",      // Java/C#/Go
     "constructor_declaration", // Java/C#
+    "method",                  // Ruby
+    "singleton_method",        // Ruby
     "arrow_function",          // JS/TS
     "lambda",                  // Python
     "lambda_expression",       // Java/C#
@@ -1195,6 +1199,14 @@ fn is_type_container(kind: &str) -> bool {
             | "class_specifier" // C++
             | "struct_specifier" // C++
             | "union_specifier" // C++
+                                // NOTE: Ruby's container kinds (`class`/`module`) are intentionally
+                                // NOT listed — `module` collides with Python's file-root node kind,
+                                // and `class` collides with JS/TS class-EXPRESSION nodes (`const C =
+                                // class {}`), which would manufacture orphan `_Unknown>method` caller
+                                // paths. Ruby method DEFINITIONS still path correctly (the
+                                // @definition.method anchor reads the class/module `name` field via
+                                // container_name); only caller attribution for a call made INSIDE a
+                                // Ruby method lands at the flat `method` path (a known limitation).
     )
 }
 
