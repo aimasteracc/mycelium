@@ -985,6 +985,282 @@ fn run() {
 }
 
 #[test]
+fn extractor_python_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (Python): `upsert_node` is a method on TWO classes. A bare
+    // `s.upsert_node()` is multi-match → declines → get-callers 0. The local
+    // binding `s = Store()` must let the post-merge pass bind the call to
+    // Store>upsert_node and NOT Trunk>upsert_node.
+    let source = "\
+class Store:
+    def upsert_node(self): pass
+class Trunk:
+    def upsert_node(self): pass
+def run():
+    s = Store()
+    s.upsert_node()
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.py>run").expect("run exists");
+    let store_m = store
+        .lookup("test.py>Store>upsert_node")
+        .expect("Store.upsert_node exists");
+    let trunk_m = store
+        .lookup("test.py>Trunk>upsert_node")
+        .expect("Trunk.upsert_node exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>upsert_node after receiver inference"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Trunk>upsert_node"
+    );
+}
+
+#[test]
+fn extractor_python_shadowed_binding_declines_no_misbind() {
+    // Same name `s` bound to two types in one function → must DECLINE (we don't
+    // track block scopes), never guess. Symmetric with the Rust guard.
+    let source = "\
+class Store:
+    def upsert_node(self): pass
+class Trunk:
+    def upsert_node(self): pass
+def run():
+    s = Store()
+    s = Trunk()
+    s.upsert_node()
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.py>run").expect("run exists");
+    let store_m = store.lookup("test.py>Store>upsert_node").expect("exists");
+    let trunk_m = store.lookup("test.py>Trunk>upsert_node").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must not guess Store on a shadowed binding"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "must not guess Trunk on a shadowed binding"
+    );
+}
+
+#[test]
+fn extractor_typescript_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (TypeScript): `const s = new Store()` must bind the
+    // multi-match `s.upsert_node()` to Store>upsert_node, not Trunk>upsert_node.
+    let source = "\
+class Store { upsert_node(): void {} }
+class Trunk { upsert_node(): void {} }
+function run(): void {
+    const s = new Store();
+    s.upsert_node();
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.ts>run").expect("run exists");
+    let store_m = store
+        .lookup("test.ts>Store>upsert_node")
+        .expect("Store.upsert_node exists");
+    let trunk_m = store
+        .lookup("test.ts>Trunk>upsert_node")
+        .expect("Trunk.upsert_node exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>upsert_node after receiver inference"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Trunk>upsert_node"
+    );
+}
+
+#[test]
+fn extractor_typescript_shadowed_binding_declines_no_misbind() {
+    // Same name `s` bound to two types via `new` → must DECLINE. Symmetric guard.
+    let source = "\
+class Store { upsert_node(): void {} }
+class Trunk { upsert_node(): void {} }
+function run(): void {
+    let s = new Store();
+    s = new Trunk();
+    s.upsert_node();
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.ts>run").expect("run exists");
+    let store_m = store.lookup("test.ts>Store>upsert_node").expect("exists");
+    let trunk_m = store.lookup("test.ts>Trunk>upsert_node").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must not guess Store on a shadowed binding"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "must not guess Trunk on a shadowed binding"
+    );
+}
+
+#[test]
+fn extractor_python_rebind_to_non_ctor_declines_no_misbind() {
+    // The "never mis-bind" invariant under dynamic typing (Codex P1 #647): a local
+    // first bound to a Title-case ctor, then REASSIGNED to a non-constructor RHS,
+    // must DECLINE — the original ctor type is stale at the call site. Pre-fix this
+    // mis-bound to Store because the lowercase rebind was dropped by the title-case
+    // filter before the conflict could be seen.
+    // Two types define `upsert_node` (multi-match), so binding to Store is only
+    // possible via receiver inference — the single-match fallback cannot bind it.
+    let source = "\
+class Store:
+    def upsert_node(self): pass
+class Trunk:
+    def upsert_node(self): pass
+def make_trunk(): return Trunk()
+def run():
+    s = Store()
+    s = make_trunk()
+    s.upsert_node()
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.py>run").expect("run exists");
+    let store_m = store.lookup("test.py>Store>upsert_node").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must DECLINE: `s` was reassigned to a non-constructor, so its type is unknown"
+    );
+}
+
+#[test]
+fn extractor_typescript_rebind_to_non_ctor_declines_no_misbind() {
+    // Same invariant for TypeScript: `const s = new Store(); s = factory();` —
+    // the factory reassignment is a call_expression (not new_expression), so the
+    // declared type is stale. Must DECLINE, not bind to Store.
+    // Two types define `upsert_node` (multi-match) so only receiver inference
+    // could bind Store — the single-match fallback cannot.
+    let source = "\
+class Store { upsert_node(): void {} }
+class Trunk { upsert_node(): void {} }
+function factory(): Trunk { return new Trunk(); }
+function run(): void {
+    let s = new Store();
+    s = factory();
+    s.upsert_node();
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.ts>run").expect("run exists");
+    let store_m = store.lookup("test.ts>Store>upsert_node").expect("exists");
+    assert!(
+        !store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "must DECLINE: `s` was reassigned via a non-constructor call"
+    );
+}
+
+#[test]
+fn extractor_python_receiver_inference_no_cross_function_leak() {
+    // A binding in `alpha` must never affect inference in `beta` (symmetric with
+    // the Rust no-cross-function-leak guard).
+    let source = "\
+class Store:
+    def run(self): pass
+class Trunk:
+    def run(self): pass
+def alpha():
+    h = Trunk()
+    h.run()
+def beta():
+    h = Store()
+    h.run()
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let alpha = store.lookup("test.py>alpha").expect("alpha exists");
+    let beta = store.lookup("test.py>beta").expect("beta exists");
+    let store_run = store.lookup("test.py>Store>run").expect("exists");
+    let trunk_run = store.lookup("test.py>Trunk>run").expect("exists");
+    assert!(store.incoming(trunk_run, EdgeKind::Calls).contains(&alpha));
+    assert!(
+        !store.incoming(store_run, EdgeKind::Calls).contains(&alpha),
+        "alpha must NOT leak to Store>run"
+    );
+    assert!(store.incoming(store_run, EdgeKind::Calls).contains(&beta));
+    assert!(
+        !store.incoming(trunk_run, EdgeKind::Calls).contains(&beta),
+        "beta must NOT leak to Trunk>run"
+    );
+}
+
+#[test]
+fn extractor_typescript_receiver_inference_no_cross_function_leak() {
+    let source = "\
+class Store { run(): void {} }
+class Trunk { run(): void {} }
+function alpha(): void {
+    const h = new Trunk();
+    h.run();
+}
+function beta(): void {
+    const h = new Store();
+    h.run();
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let alpha = store.lookup("test.ts>alpha").expect("alpha exists");
+    let beta = store.lookup("test.ts>beta").expect("beta exists");
+    let store_run = store.lookup("test.ts>Store>run").expect("exists");
+    let trunk_run = store.lookup("test.ts>Trunk>run").expect("exists");
+    assert!(store.incoming(trunk_run, EdgeKind::Calls).contains(&alpha));
+    assert!(
+        !store.incoming(store_run, EdgeKind::Calls).contains(&alpha),
+        "alpha must NOT leak to Store>run"
+    );
+    assert!(store.incoming(store_run, EdgeKind::Calls).contains(&beta));
+    assert!(
+        !store.incoming(trunk_run, EdgeKind::Calls).contains(&beta),
+        "beta must NOT leak to Trunk>run"
+    );
+}
+
+#[test]
 #[allow(clippy::similar_names)]
 fn extractor_python_call_inside_function_creates_calls_edge() {
     // foo calls bar; bar is defined in the same file.

@@ -168,6 +168,22 @@ The binding facts come from **new tree-sitter captures** added to each `packs/<l
 **Scope.** Add `@call.receiver` to the **Rust** method-call query (prerequisite, previously absent) plus `@binding.local`/`@binding.ctor`/`@param.type`/`@field.type` to `packs/rust|python|typescript/queries.scm` (1 file/pack, Charter §4). Extractor builds a per-call-site `ReceiverContext` at `extractor/mod.rs:~366`, calls `disambiguate`, and binds the `Calls` edge directly on `Unique`. The post-pass `resolve_bare_call_stubs_simple` stays the conservative fallback — **single-match path byte-identical to today**.
 **Collision note.** Receiver inference runs at **extraction time** (per call site), not in the post-pass, so it does **not** pre-empt or reorder `resolve_import_aware_stubs`/`resolve_import_aware_extends_stubs` — those still run unchanged over whatever stubs remain. A call site that inference binds never becomes a stub, so import-aware never sees it; a call site inference declines becomes a stub exactly as today and flows to the unchanged import-aware passes. AC-9/AC-10 assert no behavior change for stubs the import-aware passes resolve today.
 
+### Phase 2c — Python + TypeScript local-ctor bindings (Part B cross-language) — **landed**
+
+**Scope.** The Pass-1c binding/receiver wiring keys on capture *names*
+(`binding.local`/`binding.ctor`/`call.receiver`), not Rust syntax, and the
+post-merge `resolve_call_site_contexts()` pass is language-agnostic — so
+extending Part B to a new language is **pack-only** (Charter §4): add the
+local-constructor-binding captures to that pack's `queries.scm`. Python (`x = Ctor()`
+→ `assignment` with `right: (call function: (identifier))`) and TypeScript
+(`const x = new Ctor()` → `variable_declarator` with `value: (new_expression)`,
+plus the `assignment_expression` reassignment form so structural-typing rebinds
+**decline** rather than trust a stale declarator). `@call.receiver` already
+existed in both packs. `FUNCTION_KINDS` already covers `function_definition`
+(Python) and `function_declaration`/`function_expression`/`method_definition`
+(TS/JS), so scoping needs no core change. Conservative behavior (Title-case ctor
+filter, conflict-decline de-shadow) is inherited unchanged. Covered by AC-22.
+
 ### Phase 3 — Surface parity
 
 **Scope.** Parts A/B/C are correctness fixes to **existing** surfaces (`get-files`/`get-dead`/`get-isolated`/`get-callers`/PageRank) and add **no new CLI/MCP verb**, so the Three-Surface Rule is satisfied transitively (CLI↔MCP share the Store query). Because the **output** of these verbs changes, add a CLI↔MCP byte-identical golden/snapshot test on at least one affected verb (e.g. `get-callers`) so de-noising lands identically on both surfaces and neither layer post-filters divergently (AC-12). IF a future decision exposes `Unresolved`/`CalleeClass` as a filterable output, that addition must be CLI↔MCP 1:1 (byte-identical name/description/args/JSON) and covered by a `skills/<category>/SKILL.md` `allowed-tools` entry (Charter §5.13); file an `EXCEPTION:` line here if ever skipped.
@@ -197,6 +213,7 @@ The binding facts come from **new tree-sitter captures** added to each `packs/<l
 - [ ] **AC-19.** RFC acceptance-criteria checkboxes flipped `[ ]→[x]` as each lands; Status → Implemented when all green.
 - [ ] **AC-20 (rank_symbols de-noised — Codex P2 #609).** A multi-def fixture with a phantom unresolved callee asserts the phantom appears in neither `mycelium rank-symbols` nor `mycelium_rank_symbols` output after Part A, and that the CLI and MCP results are byte-identical (§5.13 1:1). RED today: the phantom currently ranks because it has an incoming `Calls` edge.
 - [ ] **AC-21 (order-independent F5 — Codex P1 #609).** A two-file fixture where the receiver type is defined in a file indexed *after* the call site (`let s = Store::new(); s.upsert_node();` with `Store` in a later chunk) asserts `get-callers` on `…>Store>upsert_node` includes the caller. RED with any extraction-time-inline binding; GREEN only with the post-merge `resolve_call_site_contexts()` pass.
+- [x] **AC-22 (Part B cross-language: Python + TypeScript — Phase 2c).** With local-ctor binding captures added to the Python and TypeScript packs, a multi-type method (`upsert_node` on two classes) bound via `s = Store()` (Python) / `const s = new Store()` (TypeScript) resolves `s.upsert_node()` to `…>Store>upsert_node` and **not** `…>Trunk>upsert_node` (`extractor_{python,typescript}_receiver_type_binds_multi_match_method_f5`); a same-name binding rebound to a conflicting type **declines** (`extractor_{python,typescript}_shadowed_binding_declines_no_misbind`, the TS case exercising the `assignment_expression` reassignment form); a binding **reassigned to a non-constructor declines** rather than trusting the stale type under dynamic/structural typing (`extractor_{python,typescript}_rebind_to_non_ctor_declines_no_misbind`, via the `@binding.rebind` count check — Codex P1 #647); and a binding in one function never leaks into another (`extractor_{python,typescript}_receiver_inference_no_cross_function_leak`). Packs gain the binding/rebind captures (Charter §4); the core adds one language-agnostic rebind-count drop pass (inert for packs that emit no `@binding.rebind`, e.g. Rust today).
 
 ---
 

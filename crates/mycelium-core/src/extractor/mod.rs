@@ -275,10 +275,31 @@ impl Extractor {
         // or a binding could leak across functions and mis-bind (independent
         // reviewer finding). The matching Pass-2 call uses the same node key.
         let mut local_bindings: HashMap<usize, Vec<LocalBinding>> = HashMap::new();
+        // Per-scope count of ALL assignment targets (`@binding.rebind`), used to
+        // invalidate a constructor binding whose name was later reassigned to a
+        // NON-constructor (Codex P1 #647). If a name's total assignment count
+        // exceeds its recognized constructor-binding count, the extra assignment
+        // was a non-ctor (or differently-shaped) RHS whose type we can't know, so
+        // inference must DECLINE — preserving "never mis-bind" under dynamic /
+        // structural typing. Languages whose pack emits no `@binding.rebind`
+        // (e.g. Rust today) leave this empty, so the drop pass is inert for them.
+        let mut assign_counts: HashMap<usize, HashMap<String, usize>> = HashMap::new();
         {
             let mut cursor = QueryCursor::new();
             let mut matches = cursor.matches(&self.query, root, source);
             while let Some(m) = matches.next() {
+                if let Some((rebind_node, Some(rebind_name))) = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "binding.rebind")
+                        .then(|| (c.node, c.node.utf8_text(source).ok()))
+                }) {
+                    if let Some(scope) = enclosing_function_node(rebind_node) {
+                        *assign_counts
+                            .entry(scope.start_byte())
+                            .or_default()
+                            .entry(rebind_name.to_owned())
+                            .or_insert(0) += 1;
+                    }
+                }
                 let local = m.captures.iter().find_map(|c| {
                     (names[c.index as usize] == "binding.local")
                         .then(|| (c.node, c.node.utf8_text(source).ok()))
@@ -332,6 +353,31 @@ impl Extractor {
             }
             if !conflicting.is_empty() {
                 bindings.retain(|b| !conflicting.contains(&b.name));
+            }
+        }
+
+        // Rebind invalidation (Codex P1 #647): drop any ctor binding whose name
+        // was assigned MORE times than it was bound to a recognized constructor —
+        // the surplus assignment was a non-ctor RHS, so the declared type is stale
+        // at the call site and inference must decline (never mis-bind). Inert for
+        // packs that emit no `@binding.rebind` (assign_counts is empty).
+        for (scope, bindings) in &mut local_bindings {
+            let Some(counts) = assign_counts.get(scope) else {
+                continue;
+            };
+            let drop_names: Vec<String> = {
+                let mut ctor_per_name: HashMap<&str, usize> = HashMap::new();
+                for b in bindings.iter() {
+                    *ctor_per_name.entry(b.name.as_str()).or_insert(0) += 1;
+                }
+                ctor_per_name
+                    .iter()
+                    .filter(|(name, ctor_n)| counts.get(**name).copied().unwrap_or(0) > **ctor_n)
+                    .map(|(name, _)| (*name).to_owned())
+                    .collect()
+            };
+            if !drop_names.is_empty() {
+                bindings.retain(|b| !drop_names.contains(&b.name));
             }
         }
 
