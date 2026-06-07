@@ -119,8 +119,7 @@ pub fn edit_verdict(m: &EditMetrics) -> EditVerdict {
     let mut reasons = Vec::new();
     let mut checklist = Vec::new();
 
-    if let Some(grade @ (crate::health::HealthGrade::D | crate::health::HealthGrade::F)) =
-        m.health
+    if let Some(grade @ (crate::health::HealthGrade::D | crate::health::HealthGrade::F)) = m.health
     {
         verdict = step_up(verdict);
         reasons.push(format!(
@@ -132,7 +131,9 @@ pub fn edit_verdict(m: &EditMetrics) -> EditVerdict {
 
     if m.test_gap_uncovered == Some(true) {
         verdict = step_up(verdict);
-        reasons.push("symbol has uncovered body lines — editing untested code increases risk".to_owned());
+        reasons.push(
+            "symbol has uncovered body lines — editing untested code increases risk".to_owned(),
+        );
         checklist.push("add tests covering this symbol before editing".to_owned());
     }
 
@@ -390,7 +391,8 @@ mod tests {
             "health escalation must name health: {v:?}"
         );
         assert!(
-            all.iter().any(|s| s.contains("uncovered") || s.contains("test")),
+            all.iter()
+                .any(|s| s.contains("uncovered") || s.contains("test")),
             "test_gap escalation must mention test/uncovered: {v:?}"
         );
     }
