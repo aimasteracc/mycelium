@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0118 Part B now covers Ruby** — completing receiver inference for all 9
+  method-bearing languages (Rust, Python, TypeScript, JavaScript, Go, Java, C#,
+  C++, Ruby; C is function-only). Added `@call.receiver` on identifier-receiver
+  `x.method` calls + a constant-constructor local binding (`x = Store.new` binds
+  `x → Store`). Ruby's `method`/`singleton_method` added to `FUNCTION_KINDS` +
+  the binding-scope set, and `class` to the type-container set, so Ruby method
+  callers and binding scopes resolve correctly. Best-effort under Ruby's dynamic
+  typing (a `Const.method` result is conventionally a `Const`; the conflict /
+  rebind passes keep mis-binds rare).
+
 - **RFC-0118 Part B now covers Go, and Go methods are pathed by receiver type.**
   Go methods were flat file-level nodes (`file>Run`); they are now correctly
   pathed under their receiver type (`func (s *Server) Run()` → `Server>Run`),

@@ -2790,3 +2790,42 @@ fn extractor_go_receiver_type_binds_multi_match_method_f5() {
         "caller() must NOT be mis-bound to Worker>Run"
     );
 }
+
+// ── Ruby (RFC-0118 Part B) ──────────────────────────────────────────────────
+
+fn ruby_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_ruby::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/ruby/queries.scm");
+    Extractor::new(language, query_src).expect("ruby extractor should build")
+}
+
+#[test]
+fn extractor_ruby_receiver_type_binds_multi_match_method_f5() {
+    // RFC-0118 Part B (Ruby): `save` defined on TWO classes (multi-match). The
+    // local `s = Store.new` binds s→Store → s.save resolves to Store>save.
+    let ext = ruby_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.rb",
+        b"class Store\n  def save; end\nend\nclass Cache\n  def save; end\nend\ndef run\n  s = Store.new\n  s.save\nend\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rb>run").expect("run exists");
+    let store_m = store
+        .lookup("test.rb>Store>save")
+        .expect("Store#save exists");
+    let cache_m = store
+        .lookup("test.rb>Cache>save")
+        .expect("Cache#save exists");
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run must be a caller of Store>save after receiver inference"
+    );
+    assert!(
+        !store.incoming(cache_m, EdgeKind::Calls).contains(&run),
+        "run must NOT be mis-bound to Cache>save"
+    );
+}
