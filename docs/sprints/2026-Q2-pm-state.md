@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v110 — PR #653 merged (RFC-0118 Part B JavaScript + closure-scope fix); develop CI green; 2 P0 escalations to founder carried forward) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: Rust ✅ Python ✅ TypeScript ✅ **JavaScript ✅ COMPLETE** (PR #653 `a0b1b46`). RFC-0120 Phase 1c ✅ DONE on develop. |
+| Last updated | 2026-06-07 (PM dispatch v115 — RFC-0118 Part B ALL 9 complete + rule-b (#667); Three-Surface gap fixed (#668); #663/#666 closed; 2 P0 escalations carried forward) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE** (Java #656, C# #659, C++ #661, Go #662, Ruby #665, rule-b #667). Three-Surface 94/94 (PR #668). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -161,7 +161,13 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 7. **RFC-0116 Phase 1 AC-2** (health/test_gap escalation): ✅ **MERGED** — PR #629 (squash `be7a330`). RFC-0116 Phase 1 complete.
 8. **RFC-0118 Part B (resolution engine)**: ✅ **MERGED** — PR #633 (squash `8a92555`). Wired receiver disambiguation pass (wired but inert until extractor provides context).
 9. **RFC-0118 Part B (extractor populate, F5 fix)**: ✅ **MERGED** — PR #635 (squash `bebcc638`). Rust extractor records receiver context; `get-callers Store>upsert_node` 0→60. Codex P1+P2 both resolved. Issue #636 tracks Phase 3 (shadowed bindings, scope-aware).
-9b. **RFC-0118 Part B (JavaScript)**: ✅ **MERGED** — PR #653 (squash `a0b1b46`). JS pack local-ctor bindings + arrow-closure scope fix (cross-language). RFC-0118 Part B **complete across all 4 packs** (Rust ✅ Python ✅ TypeScript ✅ JavaScript ✅).
+9b. **RFC-0118 Part B (JavaScript)**: ✅ **MERGED** — PR #653 (squash `a0b1b46`). JS pack local-ctor bindings + arrow-closure scope fix (cross-language).
+9c. **RFC-0118 Part B (Java)**: ✅ **MERGED** — PR #656. Java method-bearing pack.
+9d. **RFC-0118 Part B (C#)**: ✅ **MERGED** — PR #659. C# method/constructor mis-pathing fix.
+9e. **RFC-0118 Part B (C++)**: ✅ **MERGED** — PR #661. C/C++ caller + method mis-pathing fix.
+9f. **RFC-0118 Part B (Go)**: ✅ **MERGED** — PR #662. Go methods by receiver type.
+9g. **RFC-0118 Part B (Ruby)**: ✅ **MERGED** — PR #665 (squash `82da40d`). RFC-0118 Part B **ALL 9 COMPLETE** (Rust ✅ Python ✅ TypeScript ✅ JavaScript ✅ Java ✅ C# ✅ C++ ✅ Go ✅ Ruby ✅).
+9h. **RFC-0118 Part B rule-b (Rust param-type receiver)**: ✅ **MERGED** — PR #667 (squash `f7330ae`). Param-type inference: `fn run(s: &mut Store)` now binds `s → Store`. Develop HEAD.
 10. **RFC-0115 Phase 1**: ✅ **DONE** — `test_gap.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
 11. **RFC-0116 Phase 1**: ✅ **AC-1 DONE** — `verdict.rs` on develop. **AC-2 (health/test_gap)** ✅ MERGED (PR #629).
 12. **RFC-0117 Phase 1**: ✅ **DONE** — `constraints.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
@@ -174,26 +180,32 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 15. **VS Code Phase 1.5**: `vsce publish` wiring + marketplace metadata (after v0.3.0 ships; founder sign-off).
 16. **GitHub Action live run**: Test the action on the Mycelium repo itself with a real PR (after v0.3.0 ships).
 
+**P1 — Next autonomous:**
+17. **PR #668** (Three-Surface INDEX fix): CI running — admin-merge when green. Closes the 93→94 audit gap for `project_health`.
+18. **AC-20 tests** (Issue #612 item 2): PR #663 closed stale (conflicts). Recreate on fresh branch from develop — `rank_symbols_excludes_unresolved_phantom` + CLI shape-parity test in `cli_centrality.rs`. Closes Issue #612 item 2.
+19. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference. P2 but scheduled next after #668.
+
 **P2 — Deferred:**
-17. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
-18. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
-19. **Skills marketplace submission**: metadata sign-off (founder).
-20. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
-21. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference (spun off from Codex P2 on PR #635).
+20. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
+21. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
+22. **Skills marketplace submission**: metadata sign-off (founder).
+23. **Issue #555 auto-close**: Will close automatically when PR #568 merges to main.
+24. **Issue #657**: extractor method spans (P2 enhancement, fix in `src/extractor/mod.rs`).
+
 ---
 
-## Dispatch state (2026-06-07 v110)
+## Dispatch state (2026-06-07 v115)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision now on develop (PR #649 merged): choose Option A/B/C. **(3)** Nightly `main` mutation kill-rate: job #79936500054 returned 404 (expired) — re-run nightly mutation suite to get current status. |
-| PM | **DONE ✅** | v110: PR #653 (RFC-0118 Part B JavaScript + closure-scope fix, squash `a0b1b46`) merged; Codex P2 thread resolved; PM state v110; 2 P0 escalations carried forward to founder. |
-| release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
+| founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop (PR #649): choose Option A/B/C. |
+| PM | **DONE ✅** | v115: RFC-0118 Part B all 9 langs + rule-b confirmed on develop; Three-Surface INDEX gap fixed (PR #668 opened); #663/#666 closed; decisions.jsonl appended. |
+| release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | RFC-0120 Phase 1c ✅ DONE on develop (PR #649 `716856e`). Next: Issue #636 Phase 3 (shadowed binding scope analysis) or RFC-0114 Phase 2 CLI+MCP+Skill wiring. |
+| rust-implementer | **P1** | RFC-0114 Phase 2 DONE (CLI+MCP+Skill all on develop). Next: Recreate AC-20 tests (PR #663 stale → fresh branch) then Issue #636 Phase 3. |
 | e2e-runner | **P2** | v0.3.0 regression pass (after release ships). AC-12/AC-13 RFC-0119 dogfood. |
-| bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). Re-run nightly mutation suite (job #79936500054 expired/404). |
+| bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
 
 ---
@@ -225,6 +237,26 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v115 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions.jsonl tail-20, anti-patterns (ci/testing/three-surface domains), PM state v110 (origin/develop `f7330ae`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #666 (PM v114 — conflicts), #663 (AC-20 tests — conflicts, CI never fired on fmt-fix), #568 (release/v0.3.0 — founder ceremony). Develop HEAD `f7330ae` (RFC-0118 Part B rule-b, PR #667).
+- 0 open P0/P1 issues; 3 P2 issues (#657, #636, #612).
+- RFC-0118 Part B: ALL 9 method-bearing languages complete (Java/C#/C++/Go/Ruby PRs #656–#665 merged between v110 and v115; rule-b #667 also merged). Develop CI green.
+- Three-Surface audit gap found: 94 MCP tools vs 93 INDEX rows. `project_health` (CLI `mycelium project-health` + MCP `mycelium_project_health`) was implemented in RFC-0114 Phase 2 but INDEX.md was never updated. graph-structure SKILL.md already had it in `allowed-tools`.
+
+**Actions taken:**
+1. **Closed PR #666** (PM v114) — merge conflict with develop (develop moved 4 commits after #666 was opened). Superseded by v115. ✅
+2. **Closed PR #663** (AC-20 tests) — merge conflict (`update_pull_request_branch` returned 422). Needs fresh branch from develop HEAD. Issue #612 item 2 remains open; tracked in live priorities #18. ✅
+3. **Fixed Three-Surface Rule gap** — `project_health` missing from `skills/INDEX.md`. Added row (→ 94/94), Phase 3.2 status entry, capability section in graph-structure/SKILL.md (tool count 14→15, marketplace example). **PR #668** opened (`fix/project-health-skill-coverage`, CI running). ✅
+4. **PM state v115** written + decisions.jsonl appended. ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — BPE ratio 0.753 vs ≤0.30. Choose Option A/B/C from `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`.
 
 ### 2026-06-07 PM dispatch v110 (this run)
 
