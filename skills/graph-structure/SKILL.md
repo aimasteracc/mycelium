@@ -1,6 +1,6 @@
 ---
 name: graph-structure
-description: Structural graph analysis — cycles, SCCs, topological order, articulation points, bridges, k-core, dependency layers.
+description: Structural graph analysis — cycles, SCCs, topological order, articulation points, bridges, k-core, dependency layers, and project health grade.
 allowed-tools:
   - mcp__mycelium__get_stats
   - mcp__mycelium__get_graph_metrics
@@ -26,11 +26,13 @@ marketplace_examples:
     tool: mcp__mycelium__get_scc_groups
   - query: "Topologically sort all modules by dependency order"
     tool: mcp__mycelium__topological_sort
+  - query: "What is the structural health grade of this project?"
+    tool: mcp__mycelium__project_health
 ---
 
 # `graph-structure` — what shape is this graph?
 
-This Skill bundles 14 structural-analysis tools. Where `centrality` ranks nodes by importance, `graph-structure` answers questions about the graph's overall shape: cycles, connected components, articulation points, layering.
+This Skill bundles 15 structural-analysis tools. Where `centrality` ranks nodes by importance, `graph-structure` answers questions about the graph's overall shape: cycles, connected components, articulation points, layering.
 
 Includes `detect_cycles` and `get_dependency_layers` — two of the top-10 most useful tools per the v0.1.1 external evaluation.
 
@@ -56,6 +58,7 @@ Do **NOT** use when:
 | "Topologically sort all modules by dependency order" | `mcp__mycelium__topological_sort` |
 | "Which nodes are articulation points — removing one breaks the graph?" | `mcp__mycelium__find_articulation_points` |
 | "Give me overall graph metrics for this codebase" | `mcp__mycelium__get_graph_metrics` |
+| "What is the structural health grade of this project?" | `mcp__mycelium__project_health` |
 
 ## Capabilities under this umbrella
 
@@ -124,6 +127,21 @@ Cheaper than `get_scc_groups` if you only need to know "which cycle does this sy
 ### `find_cycle_members` — which symbols are in cycles
 
 Given an edge kind, lists every symbol that's part of any cycle.
+
+### `project_health` ⭐ — one-call A–F health grade (RFC-0114)
+
+Returns a letter grade (A–F), overall score (0–100), and per-dimension sub-scores computed purely from the RCIG graph: dead-code ratio, isolation ratio, and connectivity. Cross-language by construction — no cyclomatic-complexity parser or coverage file needed.
+
+```
+mcp__mycelium__project_health({})
+→ { "grade": "B", "score": 83, "dimensions": [{"name":"dead_code","score":91},{"name":"isolation","score":88},{"name":"connectivity","score":71}] }
+```
+
+CLI:
+```bash
+mycelium project-health --format json
+mycelium project-health  # text output: Grade B (83/100)
+```
 
 ## Common chains
 
