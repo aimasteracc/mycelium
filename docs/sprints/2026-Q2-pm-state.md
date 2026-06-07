@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v110 — PR #653 merged (RFC-0118 Part B JavaScript + closure-scope fix); develop CI green; 2 P0 escalations to founder carried forward) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: Rust ✅ Python ✅ TypeScript ✅ **JavaScript ✅ COMPLETE** (PR #653 `a0b1b46`). RFC-0120 Phase 1c ✅ DONE on develop. |
+| Last updated | 2026-06-07 (PM dispatch v112 — PRs #656 (Java Part B) + #659 (C# Part B) merged; PR #658 closed superseded; Codex finding on #658 rejected (Java entry verified); 2 P0 escalations to founder carried forward) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: Rust ✅ Python ✅ TypeScript ✅ JavaScript ✅ **Java ✅** (PR #656) **C# ✅** (PR #659). RFC-0120 Phase 1c ✅ DONE on develop. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -134,13 +134,16 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 - [x] **fix(scripts): RFC-0120 Phase 1c capture script** — PR #645, squash `1e2c3c9` ✅ MERGED 2026-06-07. `capture_token_corpus.sh` now uses correct CLI commands: `get-importers-tree src/main.rs` + `subclasses-tree $REF_SYM` (replacing incorrect reachability commands). All broken flags resolved in Phase 1b. Codex P2 fixed (dedicated tree tools). Phase 1c real corpus capture unblocked.
 - [x] **chore(pm): PM state v105** — PR #646, squash `73fe606` ✅ MERGED 2026-06-07. Codex P2 fixed (stale v104 tail removed from header).
 - [x] **feat(packs): RFC-0118 Part B (JavaScript) — local-ctor receiver bindings + closure scope fix** — PR #653, squash `a0b1b46` ✅ MERGED 2026-06-07. Ports TypeScript Part B block to JS (`variable_declarator`, `assignment_expression`, `new_expression`). Codex P2 (arrow-function scope leak) fixed in `11a6414`: `BINDING_SCOPE_KINDS` + `scope_chain_bindings()` — cross-language fix for Rust/Python/TypeScript/JS. RFC-0118 Part B now complete across all 4 packs. Pack-parity gate green.
+- [x] **feat(packs): RFC-0118 Part B (Java) + fix Java method mis-pathing** — PR #656, squash `3b6686a` ✅ MERGED 2026-06-07. Re-anchors method/constructor on enclosing type body (fixes `Class>method>method` phantom). Declared-type local binding (`Store s = …` → `s → Store`); `method_declaration`/`constructor_declaration` added to `FUNCTION_KINDS` + binding-scope set; `lambda_expression` to binding-scope. 2 TDD tests (`extractor_java_method_path_is_class_method_not_doubled`, `extractor_java_receiver_type_binds_multi_match_method_f5`). Issue #657 (spans use enclosing type extent) spun off to v0.3.1. No Codex findings on this squash commit.
+- [x] **feat(packs): RFC-0118 Part B (C#) + fix C# method/constructor mis-pathing** — PR #659, squash `ba77785` ✅ MERGED 2026-06-07. Re-anchors method/constructor on enclosing `class`/`struct`/`interface`/`record` `declaration_list`; fixes constructor aliasing the class node. Declared-type local binding (`var` + primitives declined via Title-case filter). `struct_declaration` added to `is_type_container`. 2 TDD tests. No Codex findings.
 
 ---
 
-## Open issues inventory (as of v110)
+## Open issues inventory (as of v112)
 
 | # | Title | Priority | Status |
 |---|---|---|---|
+| #657 | method spans use enclosing type extent (all type-anchored packs) | P2 | Spun off from Codex P2 on PR #656 (Java). Pre-existing in TS/Python. Target v0.3.1. |
 | #636 | RFC-0118 Part B Phase 3: shadowed binding scope analysis | P2 | Tracked — Phase 3 additive, post Part B |
 | #612 | RFC-0118 Phase 1 notes: cross-file ordering (Phase 2b prerequisite) | P2 | Item 2 (rank_symbols) resolved (PM v107 comment). Item 1: no unblocked action |
 | ~~#614~~ | RFC-0120 Phase 1 implementation notes | — | **CLOSED** (PM v107) — all 3 items resolved |
@@ -161,7 +164,9 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 7. **RFC-0116 Phase 1 AC-2** (health/test_gap escalation): ✅ **MERGED** — PR #629 (squash `be7a330`). RFC-0116 Phase 1 complete.
 8. **RFC-0118 Part B (resolution engine)**: ✅ **MERGED** — PR #633 (squash `8a92555`). Wired receiver disambiguation pass (wired but inert until extractor provides context).
 9. **RFC-0118 Part B (extractor populate, F5 fix)**: ✅ **MERGED** — PR #635 (squash `bebcc638`). Rust extractor records receiver context; `get-callers Store>upsert_node` 0→60. Codex P1+P2 both resolved. Issue #636 tracks Phase 3 (shadowed bindings, scope-aware).
-9b. **RFC-0118 Part B (JavaScript)**: ✅ **MERGED** — PR #653 (squash `a0b1b46`). JS pack local-ctor bindings + arrow-closure scope fix (cross-language). RFC-0118 Part B **complete across all 4 packs** (Rust ✅ Python ✅ TypeScript ✅ JavaScript ✅).
+9b. **RFC-0118 Part B (JavaScript)**: ✅ **MERGED** — PR #653 (squash `a0b1b46`). JS pack local-ctor bindings + arrow-closure scope fix (cross-language). RFC-0118 Part B **complete across all 4 Tier-1 packs** (Rust ✅ Python ✅ TypeScript ✅ JavaScript ✅).
+9c. **RFC-0118 Part B (Java)**: ✅ **MERGED** — PR #656 (squash `3b6686a`). Declared-type binding + method/constructor mis-path fix. 2 TDD tests. Issue #657 (spans) → v0.3.1.
+9d. **RFC-0118 Part B (C#)**: ✅ **MERGED** — PR #659 (squash `ba77785`). Declared-type binding + method/constructor mis-path fix + constructor alias fix. `struct_declaration` → `is_type_container`. 2 TDD tests. No Codex findings.
 10. **RFC-0115 Phase 1**: ✅ **DONE** — `test_gap.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
 11. **RFC-0116 Phase 1**: ✅ **AC-1 DONE** — `verdict.rs` on develop. **AC-2 (health/test_gap)** ✅ MERGED (PR #629).
 12. **RFC-0117 Phase 1**: ✅ **DONE** — `constraints.rs` pure core on develop (landed PM v87). ACs marked `[x]` via PR #629.
@@ -182,12 +187,12 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 21. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference (spun off from Codex P2 on PR #635).
 ---
 
-## Dispatch state (2026-06-07 v110)
+## Dispatch state (2026-06-07 v112)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision now on develop (PR #649 merged): choose Option A/B/C. **(3)** Nightly `main` mutation kill-rate: job #79936500054 returned 404 (expired) — re-run nightly mutation suite to get current status. |
-| PM | **DONE ✅** | v110: PR #653 (RFC-0118 Part B JavaScript + closure-scope fix, squash `a0b1b46`) merged; Codex P2 thread resolved; PM state v110; 2 P0 escalations carried forward to founder. |
+| PM | **DONE ✅** | v112: PRs #656 (Java Part B) + #659 (C# Part B) merged; PR #658 closed superseded; Codex finding on #658 rejected; issue #657 tracked; PM state v112; 2 P0 escalations carried forward. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize` workflow_dispatch. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -225,6 +230,28 @@ Note: crates.io v0.3.0 ✅ and npm v0.3.0 ✅ are **already published** — do n
 ---
 
 ## Archive
+
+### 2026-06-07 PM dispatch v112 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (CI/TDD/release-governance domains), PM state v110 (develop HEAD `ba77785`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0 → main, all CI ✅, registries published, awaiting founder finalize) + #658 (chore/pm-state-v111, CI 22/22 ✅, merge conflict — superseded by Java+C# landing on develop).
+- 0 open issues labeled P0/P1. Develop HEAD `ba77785` = C# Part B (#659) merged at 15:04; `3b6686a` = Java Part B (#656) merged at 14:32.
+- Develop CI: E2E + CI in_progress (triggered by #659 squash merge). Feature/partB-csharp branch runs all green (verified).
+- PR #658 Codex: 1 P2 finding ("Java-team entry at 13:27 missing"). Investigated `develop` decisions.jsonl (SHA `ba777852`): entry `{"ts":"2026-06-07T13:27:22Z","agent":"java-team",...}` IS present at byte ~217857 — finding is stale.
+- 2 P0 escalations carried forward: PR #568 finalize + RFC-0120 governance event.
+
+**Actions taken:**
+1. **Replied to Codex P2 on PR #658**: finding stale — Java-team entry at 13:27 verified in decisions.jsonl on develop. Rejected per Charter option (b). ✅
+2. **Attempted admin-merge of PR #658**: failed with 405 merge conflict (develop moved: Java #656 + C# #659 merged after PR #658 was opened). ✅ (expected — need to close as superseded)
+3. **Closed PR #658** as superseded (develop moved; v112 covers the same content). ✅
+4. **PM state v112** written (this file): header updated, Java+C# entries added to Post-v0.3.0 section, items 9c+9d to live priorities, issue #657 to inventory, dispatch state v112. ✅
+5. **decisions.jsonl** appended (v112 entry). ✅
+
+**Escalations to founder:**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — all registries published. Trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event: ratio = **0.753** vs ≤0.30. See `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`. Choose: **A** (retract claim), **B** (redesign TextFormatter), or **C** (reframe vs Hyphae query syntax).
 
 ### 2026-06-07 PM dispatch v110 (this run)
 
