@@ -1491,7 +1491,10 @@ async fn rank_symbols_excludes_unresolved_phantom() {
     // Every entry must have the MCP-contract fields: path (string) + caller_count (number).
     for s in symbols {
         assert!(s["path"].is_string(), "each symbol needs a string 'path'");
-        assert!(s["caller_count"].is_number(), "each symbol needs a numeric 'caller_count'");
+        assert!(
+            s["caller_count"].is_number(),
+            "each symbol needs a numeric 'caller_count'"
+        );
     }
 }
 

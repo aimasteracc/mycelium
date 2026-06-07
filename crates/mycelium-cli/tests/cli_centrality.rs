@@ -61,13 +61,15 @@ fn rank_symbols_smoke() {
 #[test]
 fn rank_symbols_json_shape_matches_mcp_contract() {
     let p = prepare_diamond();
-    let v = json_out(
-        &["rank-symbols", "--format", "json"],
-        p.path(),
-    );
-    let symbols = v["symbols"].as_array().expect("rank-symbols must emit {symbols:[...]}");
+    let v = json_out(&["rank-symbols", "--format", "json"], p.path());
+    let symbols = v["symbols"]
+        .as_array()
+        .expect("rank-symbols must emit {symbols:[...]}");
     for s in symbols {
-        assert!(s["path"].is_string(), "each entry must have string 'path', got: {s}");
+        assert!(
+            s["path"].is_string(),
+            "each entry must have string 'path', got: {s}"
+        );
         assert!(
             s["caller_count"].is_number(),
             "each entry must have numeric 'caller_count', got: {s}"
