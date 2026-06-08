@@ -200,18 +200,22 @@ pub fn is_supported_source_rel(path: &str) -> bool {
 
 // ── ignore-aware watch registration ────────────────────────────────────────────
 
-/// `true` when the first repository-relative component of `rel` is a
-/// hard-excluded directory (`target/` or `.mycelium/`). Mirrors the
-/// always-skip rule the indexer applies in `collect_source_files` and the
-/// event-time filter in [`WatchEngine::drive`], so watch and index agree on
-/// scope.
+/// `true` when the basename of `name` is a hard-excluded directory name
+/// (`target` or `.mycelium`). Mirrors the indexer's `collect_source_files`
+/// `filter_entry`, which inspects each entry's `file_name()` — so a `target/`
+/// or `.mycelium/` nested at ANY depth (e.g. `crates/foo/target/` in a Cargo
+/// workspace / monorepo) is excluded, not just a top-level one.
+fn is_hard_excluded_name(name: &std::ffi::OsStr) -> bool {
+    matches!(name.to_string_lossy().as_ref(), "target" | ".mycelium")
+}
+
+/// `true` when any repository-relative component of `rel` is a hard-excluded
+/// directory (`target/` or `.mycelium/`) at ANY depth. Mirrors the indexer's
+/// per-entry `file_name()` check in `collect_source_files` and the event-time
+/// filter in [`WatchEngine::drive`], so watch and index agree on scope.
 fn is_hard_excluded(rel: &Path) -> bool {
-    rel.components().next().is_some_and(|first_comp| {
-        matches!(
-            first_comp.as_os_str().to_string_lossy().as_ref(),
-            "target" | ".mycelium"
-        )
-    })
+    rel.components()
+        .any(|comp| is_hard_excluded_name(comp.as_os_str()))
 }
 
 /// Enumerate the directories that [`WatchEngine::attach`] should register a
@@ -238,18 +242,67 @@ pub fn watch_dirs(root: &Path) -> Vec<PathBuf> {
             wb.add_ignore(&p);
         }
     }
-    let root_owned = root.to_path_buf();
-    wb.filter_entry(move |e| {
-        // Never descend into target/ or .mycelium/ (matches the indexer).
-        e.path()
-            .strip_prefix(&root_owned)
-            .map_or(true, |rel| !is_hard_excluded(rel))
+    wb.filter_entry(|e| {
+        // Never descend into target/ or .mycelium/ at ANY depth — byte-for-byte
+        // the indexer's `collect_source_files` filter (checks `file_name()`).
+        !is_hard_excluded_name(e.file_name())
     })
     .build()
     .filter_map(Result::ok)
     .filter(|e| e.file_type().is_some_and(|ft| ft.is_dir()))
     .map(|e| e.path().to_path_buf())
     .collect()
+}
+
+/// Classify a `notify` watch error as a benign race vs a persistent failure.
+///
+/// A *benign* error is one where the directory simply vanished between the
+/// `watch_dirs` walk and the `watcher.watch()` call (a normal race on a live
+/// tree): `PathNotFound`, or an `Io` error whose kind is `NotFound`. These
+/// are logged and skipped — they do not indicate a broken watcher.
+///
+/// Everything else is *persistent* and must surface (FIX 2 / Codex P2):
+/// `MaxFilesWatch` (the EMFILE/inotify-limit class that the old recursive
+/// registration would have failed on at startup), permission errors, generic
+/// backend failures, etc. Swallowing those yields a server that reports
+/// "running" while silently watching nothing.
+fn is_benign_watch_error(e: &notify::Error) -> bool {
+    match &e.kind {
+        notify::ErrorKind::PathNotFound => true,
+        notify::ErrorKind::Io(io) => io.kind() == std::io::ErrorKind::NotFound,
+        _ => false,
+    }
+}
+
+/// Enumerate the supported **source files** under `dir`, honouring the same
+/// ignore rules as [`watch_dirs`] (`.gitignore` + `.myceliumignore` loaded
+/// relative to `root`, plus the hard-coded `target/` / `.mycelium/` pruning at
+/// any depth).
+///
+/// Used by [`WatchEngine::drive`]'s pre-pass (FIX 1 / Codex P1): when a
+/// populated directory appears in a single batch (an atomic `git checkout`,
+/// `unzip`, `cp -r`, `mv` …) the OS surfaces a `Create` for the directory but
+/// **no** per-file `Create` events for the files already inside it. Without a
+/// rescan those pre-existing files are silently missed — a recall regression
+/// versus the old recursive watcher. We load ignores relative to `root` (not
+/// `dir`) so a top-level `.gitignore` still governs files deep in `dir`.
+fn source_files_under(root: &Path, dir: &Path) -> Vec<PathBuf> {
+    let mut wb = ignore::WalkBuilder::new(dir);
+    wb.follow_links(false)
+        .add_custom_ignore_filename(".myceliumignore");
+    for name in [".gitignore", ".myceliumignore"] {
+        let p = root.join(name);
+        if p.exists() {
+            wb.add_ignore(&p);
+        }
+    }
+    wb.filter_entry(|e| !is_hard_excluded_name(e.file_name()))
+        .build()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_some_and(|ft| ft.is_file()))
+        .map(|e| e.path().to_path_buf())
+        .filter(|p| source_extension(p).is_some())
+        .collect()
 }
 
 // ── engine ───────────────────────────────────────────────────────────────────
@@ -293,9 +346,15 @@ impl WatchEngine {
     /// sees a `Create` event for).
     ///
     /// # Errors
-    /// Returns an error only if the watcher itself cannot be created. A failure
-    /// to watch an individual directory (e.g. a transient race where a dir
-    /// vanished) is logged via `tracing::warn` and skipped, never fatal.
+    /// Returns an error if the watcher itself cannot be created, if the root
+    /// directory cannot be watched (fatal — the loop would be blind), if any
+    /// *persistent* per-directory watch error occurs (e.g. `EMFILE` /
+    /// inotify-limit, permission denied — FIX 2 / Codex P2: the old recursive
+    /// registration surfaced these, so we must too rather than report a
+    /// "running" server that watches nothing), or if zero directories end up
+    /// watched. A *benign* race (a directory that vanished between the walk and
+    /// the watch — `PathNotFound`/`NotFound`) is logged via `tracing::warn` and
+    /// skipped, never fatal.
     pub fn attach(cfg: &WatchConfig) -> anyhow::Result<WatchSession> {
         use anyhow::Context as _;
 
@@ -311,17 +370,37 @@ impl WatchEngine {
         )
         .context("creating file system watcher")?;
 
-        // Ignore-aware per-directory NonRecursive registration (see fn docs).
-        let mut watched_count = 0usize;
+        // Always attempt to watch the root first; if even the root fails that
+        // is fatal regardless of error kind — the loop would be blind.
+        watcher
+            .watch(&cfg.root, RecursiveMode::NonRecursive)
+            .with_context(|| format!("watching root directory {}", cfg.root.display()))?;
+        let mut watched_count = 1usize;
+
+        // Ignore-aware per-directory NonRecursive registration for the rest
+        // (see fn docs). Benign races are skipped; persistent failures surface.
         for dir in watch_dirs(&cfg.root) {
+            if dir == cfg.root {
+                continue; // already watched above
+            }
             match watcher.watch(&dir, RecursiveMode::NonRecursive) {
                 Ok(()) => watched_count += 1,
-                Err(e) => tracing::warn!(
-                    "watch: skipping directory {} (could not watch: {e})",
+                Err(e) if is_benign_watch_error(&e) => tracing::warn!(
+                    "watch: skipping directory {} (vanished before watch: {e})",
                     dir.display()
                 ),
+                Err(e) => {
+                    return Err(anyhow::Error::new(e).context(format!(
+                        "watching directory {} (persistent error — refusing to start a watcher that silently covers nothing)",
+                        dir.display()
+                    )));
+                }
             }
         }
+        // Invariant: `watched_count >= 1` here because the root watch above is
+        // fatal-on-failure, so we never reach a "running watcher observing
+        // nothing" state — the persistent-error and root-failure paths already
+        // returned `Err`.
         tracing::debug!(
             "watch: registered {watched_count} non-recursive directory watches under {}",
             cfg.root.display()
@@ -417,56 +496,81 @@ impl WatchEngine {
             batch.sort_unstable();
             batch.dedup();
 
+            // ── Pre-pass: filter the batch and expand directory entries ──────
+            //
+            // Each batch entry is classified once here (no store lock needed):
+            //   * target/ & .mycelium/ at ANY depth → dropped (matches indexer);
+            //   * .gitignore / .myceliumignore matches → dropped;
+            //   * a non-ignored DIRECTORY → register NonRecursive watches on it
+            //     and every non-ignored descendant (recall fix for new dirs),
+            //     AND collect every pre-existing source file under it so an
+            //     atomically-populated tree is indexed in THIS batch (FIX 1);
+            //   * a supported source FILE → queued directly.
+            //
+            // The result is a flat, deduped `Vec<PathBuf>` of source files that
+            // the single reindex body below processes — so the lock discipline
+            // (OLD set captured INSIDE the write-lock BEFORE remove_file) is not
+            // duplicated.
+            //
+            // macOS caveat (notify v8 kqueue backend): `mkdir -p a/b/c` may not
+            // surface a separate `Create` for each deeply-nested subdir, so the
+            // per-dir NonRecursive registration alone can miss watches for them.
+            // The rescan here covers the common atomic-tree case (rename/cp -r
+            // of a fully-populated directory) by indexing the contained files
+            // immediately even when their per-file events never arrive.
+            let mut files_to_index: Vec<PathBuf> = Vec::new();
+            for abs_path in &batch {
+                // 1. Skip target/ and .mycelium/ at any depth (matches indexer).
+                if abs_path
+                    .strip_prefix(&cfg.root)
+                    .map(is_hard_excluded)
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
+                // 2. Honour .gitignore / .myceliumignore.
+                if gitignore.matched(abs_path, abs_path.is_dir()).is_ignore() {
+                    continue;
+                }
+                // 3. A directory that appeared this batch: watch it + its
+                //    non-ignored descendants, and rescan pre-existing files.
+                if abs_path.is_dir() {
+                    for dir in watch_dirs(abs_path) {
+                        match watcher.watch(&dir, RecursiveMode::NonRecursive) {
+                            Ok(()) => tracing::debug!(
+                                "watch: dynamically watching new directory {}",
+                                dir.display()
+                            ),
+                            Err(e) => tracing::warn!(
+                                "watch: could not watch new directory {}: {e}",
+                                dir.display()
+                            ),
+                        }
+                    }
+                    files_to_index.extend(source_files_under(&cfg.root, abs_path));
+                    continue;
+                }
+                // 4. A supported source file: queue it directly.
+                if source_extension(abs_path).is_some() {
+                    files_to_index.push(abs_path.clone());
+                }
+            }
+            files_to_index.sort_unstable();
+            files_to_index.dedup();
+
             let mut changed_files: Vec<String> = Vec::new();
             let mut batch_delta = BatchDelta::default();
             {
                 let mut store_w = store.write().await;
 
-                for abs_path in &batch {
-                    // 1. Skip target/ and .mycelium/ unconditionally.
-                    let always_skip = abs_path
-                        .strip_prefix(&cfg.root)
-                        .ok()
-                        .and_then(|rel| rel.components().next())
-                        .is_some_and(|first_comp| {
-                            matches!(
-                                first_comp.as_os_str().to_string_lossy().as_ref(),
-                                "target" | ".mycelium"
-                            )
-                        });
-                    if always_skip {
-                        continue;
-                    }
-                    // 2. Honour .gitignore / .myceliumignore.
-                    if gitignore.matched(abs_path, abs_path.is_dir()).is_ignore() {
-                        continue;
-                    }
-
-                    // 3. Dynamic recall: a directory created after startup is
-                    // not covered by the per-dir NonRecursive watches set up in
-                    // `attach`, so files created inside it would be missed.
-                    // Register a NonRecursive watch on any non-ignored new dir.
-                    // (The skip + gitignore checks above already excluded
-                    // target/.mycelium/ and gitignored paths.)
-                    if abs_path.is_dir() {
-                        match watcher.watch(abs_path, RecursiveMode::NonRecursive) {
-                            Ok(()) => tracing::debug!(
-                                "watch: dynamically watching new directory {}",
-                                abs_path.display()
-                            ),
-                            Err(e) => tracing::warn!(
-                                "watch: could not watch new directory {}: {e}",
-                                abs_path.display()
-                            ),
-                        }
-                        continue;
-                    }
-
+                for abs_path in &files_to_index {
                     let rel = abs_path
                         .strip_prefix(&cfg.root)
                         .unwrap_or(abs_path)
                         .to_string_lossy()
                         .replace('\\', "/");
+                    // Files in `files_to_index` are pre-filtered to supported
+                    // extensions; re-derive `ext` for the reindexer call.
                     let Some(ext) = source_extension(abs_path) else {
                         continue;
                     };

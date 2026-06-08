@@ -298,6 +298,58 @@ fn watch_dirs_excludes_target_git_and_gitignored() {
     );
 }
 
+/// RED→GREEN (FIX 3): a NESTED `crates/foo/target/` (target at depth > 1, as
+/// in a Cargo workspace / monorepo) must be excluded too. The indexer's
+/// `collect_source_files` prunes any entry whose basename is `target` or
+/// `.mycelium` at ANY depth; `watch_dirs` must match that exactly, otherwise
+/// it wastes file descriptors on build artifacts deep in a workspace.
+#[test]
+fn watch_dirs_excludes_nested_target() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("crates").join("foo").join("src")).unwrap();
+    std::fs::write(
+        root.join("crates").join("foo").join("src").join("lib.rs"),
+        b"fn f() {}\n",
+    )
+    .unwrap();
+    std::fs::create_dir_all(root.join("crates").join("foo").join("target").join("debug")).unwrap();
+    std::fs::write(
+        root.join("crates")
+            .join("foo")
+            .join("target")
+            .join("debug")
+            .join("x.o"),
+        b"\0\0",
+    )
+    .unwrap();
+    std::fs::create_dir_all(root.join("crates").join("bar").join(".mycelium")).unwrap();
+    std::fs::write(
+        root.join("crates").join("bar").join(".mycelium").join("db"),
+        b"\0",
+    )
+    .unwrap();
+
+    let dirs = watch_dirs(root);
+    assert!(
+        dirs.iter()
+            .any(|d| d == &root.join("crates").join("foo").join("src")),
+        "nested src/ must be watched: {dirs:?}"
+    );
+    assert!(
+        !dirs
+            .iter()
+            .any(|d| d.starts_with(root.join("crates").join("foo").join("target"))),
+        "no dir under NESTED crates/foo/target/ may be watched: {dirs:?}"
+    );
+    assert!(
+        !dirs
+            .iter()
+            .any(|d| d.starts_with(root.join("crates").join("bar").join(".mycelium"))),
+        "no dir under NESTED crates/bar/.mycelium/ may be watched: {dirs:?}"
+    );
+}
+
 /// `attach` on a realistic tree (with a `target/` full of artifacts) must
 /// succeed — the per-dir `NonRecursive` registration never descends into
 /// `target/`, so it cannot exhaust file descriptors the way the old
@@ -369,6 +421,103 @@ async fn engine_picks_up_file_in_newly_created_dir() {
     assert!(
         saw,
         "file created in a newly-created subdir must be re-indexed"
+    );
+}
+
+/// FIX 2 (Codex P2): `attach` must distinguish a benign race (a directory that
+/// vanished between the walk and the watch — `PathNotFound`/`NotFound`) from a
+/// persistent failure (EMFILE / inotify-limit, permission denied). Benign
+/// errors are skipped; persistent errors surface so a server never reports
+/// "running" while silently watching nothing. Simulating a real EMFILE in a
+/// unit test is unreliable, so we assert the classifier directly — it is the
+/// single decision point `attach` uses.
+#[test]
+fn attach_classifies_watch_errors_benign_vs_persistent() {
+    use notify::ErrorKind;
+
+    // Benign: directory vanished between walk and watch.
+    assert!(super::is_benign_watch_error(&notify::Error::new(
+        ErrorKind::PathNotFound
+    )));
+    assert!(super::is_benign_watch_error(&notify::Error::new(
+        ErrorKind::Io(std::io::Error::from(std::io::ErrorKind::NotFound))
+    )));
+
+    // Persistent: must surface.
+    assert!(!super::is_benign_watch_error(&notify::Error::new(
+        ErrorKind::MaxFilesWatch
+    )));
+    assert!(!super::is_benign_watch_error(&notify::Error::new(
+        ErrorKind::Io(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+    )));
+    assert!(!super::is_benign_watch_error(&notify::Error::generic(
+        "backend exploded"
+    )));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_rescans_atomically_populated_new_dir() {
+    // RED→GREEN (FIX 1): an atomically-created populated tree (git checkout,
+    // unzip, cp -r, mv) surfaces a single Create(dir) event for the directory
+    // but NO per-file Create events for the source files already inside it.
+    // The engine must scan the new dir and re-index its pre-existing files,
+    // matching the old recursive watcher's auto-coverage of new subtrees.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let store = Arc::new(RwLock::new(Store::new()));
+    let reindexer = Arc::new(RecordingReindexer::default());
+    let cancel = CancelToken::new();
+
+    let store_h = Arc::clone(&store);
+    let reindexer_h = Arc::clone(&reindexer);
+    let cancel_h = cancel.clone();
+    let root_h = root.clone();
+    let task = tokio::spawn(async move {
+        let cfg = WatchConfig::new(root_h);
+        let reindexer_ref: &dyn FileReindexer = reindexer_h.as_ref();
+        WatchEngine::run(
+            cfg,
+            store_h,
+            reindexer_ref,
+            None,
+            move |_ev, _delta, _store| {},
+            cancel_h,
+        )
+        .await
+        .unwrap();
+    });
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    // Build a dir that ALREADY contains source files in a staging location
+    // OUTSIDE the watched root (a separate tempdir), then atomically rename it
+    // in. The watcher sees only the destination directory appear, never the
+    // per-file Creates. Staging on the same filesystem keeps rename atomic.
+    // Stage in a sibling tempdir (same parent as the watched root, hence the
+    // same filesystem so rename is atomic) but OUTSIDE the watched root.
+    let staging_root =
+        tempfile::TempDir::new_in(dir.path().parent().unwrap_or_else(|| Path::new("."))).unwrap();
+    let staging = staging_root.path().join("pkg_src");
+    std::fs::create_dir_all(staging.join("nested")).unwrap();
+    std::fs::write(staging.join("top.rs"), b"fn top() {}\n").unwrap();
+    std::fs::write(staging.join("nested").join("deep.rs"), b"fn deep() {}\n").unwrap();
+    let dest = root.join("pkg");
+    std::fs::rename(&staging, &dest).unwrap();
+
+    let saw = wait_until(Duration::from_secs(4), || {
+        let calls = reindexer.calls.lock().unwrap();
+        calls.iter().any(|(rel, _)| rel == "pkg/top.rs")
+            && calls.iter().any(|(rel, _)| rel == "pkg/nested/deep.rs")
+    })
+    .await;
+
+    cancel.cancel();
+    let _ = tokio::time::timeout(Duration::from_secs(2), task).await;
+
+    assert!(
+        saw,
+        "pre-existing files inside an atomically-renamed-in dir must be re-indexed: {:?}",
+        reindexer.calls.lock().unwrap()
     );
 }
 
