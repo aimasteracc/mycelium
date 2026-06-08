@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v141 — PR #713 (docs RFC-0118 + PM state v140, squash 644f008e) merged; 3 P0s still founder-gated) |
+| Last updated | 2026-06-08 (PM dispatch v143 — PR #715 closed (broken branch); 3 P0s unchanged ×8 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -90,12 +90,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v141)
+## Dispatch state (2026-06-08 v143)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
-| PM | **DONE ✅** | v141 complete: PR #713 merged (squash `644f008e`); RFC-0118 Status Implemented confirmed on develop; PM state v141 pushed. |
+| PM | **DONE ✅** | v143 complete: PR #715 closed (broken branch); v143 PM state written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | idle | RFC-0121 analysis complete — see [rfcs/0121-charter-hyphae-token-sla-amendment.md](rfcs/0121-charter-hyphae-token-sla-amendment.md). RFC-0118 → Implemented (no further architect work needed). |
@@ -132,6 +132,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v143 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (177 entries, tail = v141 2026-06-08T19:30Z), anti-patterns (no domain hits), PM state v141 (from origin/develop `79afcd54`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs at session start: #715 (chore/pm-state-v142, `mergeable_state: dirty`, Codex billing-only), #568 (release/v0.3.0, 28/28 CI ✅, founder-gated).
+- 1 open issue: #612 (P2 — Item 1 Phase 2b design RFC; Item 2 resolved PR #684).
+- Develop CI GREEN (HEAD `79afcd54`).
+- v142 dispatch (PR #715): branch was created from orphaned/empty git root — single commit added ALL repo files as new additions (~2609 lines, 35 files); `mergeable_state: dirty` is the conflict with every existing file on develop. v142 decisions.jsonl entry was never merged.
+
+**Actions taken:**
+1. **Diagnosed and closed PR #715** (broken branch from wrong root) — posted comment with root cause analysis. ✅
+2. **Created `chore/pm-state-v143`** from `origin/develop` (`79afcd54`). ✅
+3. **PM state v143 written** + decisions.jsonl appended (v142 gap-note + v143 entry). ✅
+
+**Escalations to founder (P0, unchanged × 8 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4). CI 28/28 ✅; registries published 2026-06-05.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A** — per-class targets, no engineering work). RFC at [rfcs/0121-charter-hyphae-token-sla-amendment.md](../../rfcs/0121-charter-hyphae-token-sla-amendment.md).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Hard Rule unenforceable — upgrade account or explicitly suspend. See https://chatgpt.com/codex/cloud/settings/usage
+
+### 2026-06-08 PM dispatch v142 (ABORTED — branch created from wrong root; PR #715 never merged)
+
+No decisions.jsonl entry was appended (branch broken; PR closed in v143 pre-flight).
 
 ### 2026-06-08 PM dispatch v141 (this run)
 
