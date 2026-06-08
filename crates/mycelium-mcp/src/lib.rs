@@ -1267,9 +1267,8 @@ impl MyceliumServer {
         };
         let store_guard = self.store.read().await;
         let Some(id) = store_guard.lookup(&req.path) else {
-            return application_error(
-                &serde_json::json!({ "error": format!("path not found: {}", req.path) }),
-            );
+            drop(store_guard);
+            return not_found(&req.path);
         };
         // Shared core builder → byte-identical with the CLI twin (RFC-0109).
         let mut value = mycelium_core::queries::callers_payload(
@@ -1428,7 +1427,11 @@ impl MyceliumServer {
         description = "Return a depth-limited tree of all transitive callers that can reach a \
                        given symbol, walking incoming Calls edges up to max_depth hops. Each \
                        node contains its path and a list of caller subtrees. Cycles are \
-                       represented as leaf nodes. max_depth defaults to 4, capped at 10."
+                       represented as leaf nodes. max_depth defaults to 4, capped at 10. \
+                       When to use vs alternatives: returns a NESTED TREE preserving each caller's \
+                       path back to the symbol (Calls edges only). For a FLAT set of all callers \
+                       (the blast radius, any edge kind) use mycelium_get_reachable_to; for a \
+                       single hop use mycelium_get_cross_refs."
     )]
     async fn mycelium_get_caller_tree(
         &self,
@@ -1647,18 +1650,41 @@ impl MyceliumServer {
         description = "Return all indexed symbols (non-file nodes) that have zero incoming Calls \
                        edges. These are either genuine entry points (main, test functions, public \
                        API handlers) or potentially dead code. Optional path_prefix restricts \
-                       results to a subdirectory. Results are sorted lexicographically."
+                       results to a subdirectory. Results are sorted lexicographically. \
+                       Paginate with limit/offset and cap the page with budget to avoid dumping \
+                       a large repo in one call. Returns { entry_points: [...], count: N, \
+                       total_count: M }."
     )]
     async fn mycelium_get_entry_points(
         &self,
         Parameters(req): Parameters<GetEntryPointsRequest>,
     ) -> CallToolResult {
-        let eps = self
-            .store
-            .read()
-            .await
-            .entry_points(req.path_prefix.as_deref());
-        let value = serde_json::json!({ "entry_points": eps });
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
+        let store = self.store.read().await;
+        let eps = store.entry_points(req.path_prefix.as_deref());
+        let node_count = store.node_count();
+        drop(store);
+        let total_count = eps.len();
+        let offset = req.offset.unwrap_or(0);
+        let limit = req.limit.unwrap_or(0);
+        let page: Vec<String> = eps
+            .into_iter()
+            .skip(offset)
+            .take(if limit == 0 { usize::MAX } else { limit })
+            .collect();
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::entry_points_payload(&page, total_count);
+        // Budget caps the paginated page (RFC-0109 decision).
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(self.render(req.output_format, &value))
     }
 
@@ -1774,7 +1800,11 @@ impl MyceliumServer {
                        callers (Calls), importers (Imports), extended_by (Extends), \
                        implemented_by (Implements). This is the unified 'who references this?' \
                        primitive for impact analysis. All lists are sorted lexicographically. \
-                       Empty lists are included. Unknown path returns { error }."
+                       Empty lists are included. Unknown path returns { error }. \
+                       When to use vs alternatives: SINGLE-HOP (direct references only). For the \
+                       transitive blast radius of changing this symbol use \
+                       mycelium_get_reachable_to; for the full unbounded closure use \
+                       mycelium_get_reaches_into."
     )]
     async fn mycelium_get_cross_refs(
         &self,
@@ -1919,7 +1949,12 @@ impl MyceliumServer {
                        given kind, up to max_depth BFS hops (default 10, cap 20). \
                        edge_kind must be 'calls', 'imports', 'extends', or 'implements'. \
                        Starting node excluded. Cycle-safe. Answers: 'who depends on this symbol?' \
-                       Returns { reachable: [...], count: N } or { error } for unknown path or edge_kind."
+                       Returns { reachable: [...], count: N } or { error } for unknown path or edge_kind. \
+                       When to use vs alternatives: TRANSITIVE incoming, DEPTH-BOUNDED by max_depth — \
+                       the primary 'full blast radius of changing this symbol' tool. For just one \
+                       hop use mycelium_get_cross_refs. For an UNBOUNDED closure (no depth cap, file \
+                       nodes excluded, result keyed `callers`) use mycelium_get_reaches_into. For \
+                       many targets at once use mycelium_batch_reachable_to."
     )]
     async fn mycelium_get_reachable_to(
         &self,
@@ -2271,7 +2306,10 @@ impl MyceliumServer {
                        given target paths via incoming EdgeKind edges. Answers: 'if I change these \
                        symbols, what is the total blast radius?' Accepts up to 20 paths; union is \
                        deduplicated; input paths excluded from result. Returns { reachable, count } \
-                       or { error } for unknown edge_kind. max_depth defaults to 10, capped at 20."
+                       or { error } for unknown edge_kind. max_depth defaults to 10, capped at 20. \
+                       When to use vs alternatives: the MULTI-TARGET form of \
+                       mycelium_get_reachable_to (same depth-bounded transitive-incoming semantics, \
+                       unioned over many paths). For a single target use mycelium_get_reachable_to."
     )]
     async fn mycelium_batch_reachable_to(
         &self,
@@ -2785,7 +2823,13 @@ impl MyceliumServer {
                        given EdgeKind (reverse BFS transitive closure). Answers 'what symbols \
                        transitively call/import/extend this one?'. The target node itself is \
                        excluded. Results sorted alphabetically. File nodes excluded. O(V+E). \
-                       Returns { callers, count } or { error }."
+                       Returns { callers, count } or { error }. \
+                       When to use vs alternatives: TRANSITIVE incoming, UNBOUNDED depth (full \
+                       closure, no max_depth cap) and FILE NODES EXCLUDED — differs from \
+                       mycelium_get_reachable_to, which is depth-bounded (max_depth), keeps file \
+                       nodes, and keys its result `reachable`. Use this for the complete symbol-only \
+                       blast radius; use mycelium_get_reachable_to to cap depth; use \
+                       mycelium_get_cross_refs for a single hop."
     )]
     async fn mycelium_get_reaches_into(
         &self,
@@ -2797,9 +2841,8 @@ impl MyceliumServer {
         };
         let store = self.store.read().await;
         let Some(id) = store.lookup(&req.path) else {
-            return application_error(
-                &serde_json::json!({ "error": format!("unknown path: {}", req.path) }),
-            );
+            drop(store);
+            return not_found(&req.path);
         };
         let callers = store.reaches_into(id, kind);
         drop(store);
