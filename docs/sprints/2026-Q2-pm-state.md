@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v128 — PRs #691 (download-artifact bump) + #694 (ignore bump) + #692 (salsa bump) squash-merged; PRs #693 (tiktoken bump) + #690 (codecov bump) branches updated to retrigger CI; 5 Dependabot PRs processed) |
+| Last updated | 2026-06-08 (PM dispatch v129 — PRs #690 (codecov 6→7) + #693 (tiktoken 0.6→0.12) + #696 (PM v128 chore) squash-merged; all Codex findings addressed; Dependabot queue clear; develop GREEN) |
 | Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118: ALL PARTS COMPLETE. Three-Surface **94/94** ✅. MCP agent UX: entry-points paginates ✅, path-not-found teaches format ✅, reachability tools disambiguated ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
@@ -100,7 +100,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **fix(watch): ignore-aware WatchEngine NonRecursive directory watches** — PR #686, squash `bf2d246` ✅ MERGED 2026-06-08. WatchEngine::attach now registers per-directory NonRecursive watches honouring `.gitignore`/`.myceliumignore`/`target/`/`.mycelium/` exclusions. Fixes serve --mcp EMFILE crash on large repos. Follow-up commit: drive() pre-pass rescans newly created dirs + atomic dir expansion.
 - [x] **test(cli): AC-20 defense-in-depth — rank_symbols_excludes_unresolved_phantom with positive control** — PR #684 ✅ MERGED 2026-06-08. Fixture extended with `entry()→caller()` giving `caller` a real incoming edge; positive control (`src/lib.rs>caller` present) + negative control (`unknown_extern_fn` absent). Closes Issue #673. Codex P2 fixed (`be73ba9`).
 - [x] **fix(docs): Hyphae kind-selector examples corrected + parse-verified query examples added** — PR #688 ✅ MERGED 2026-06-08. All documented Hyphae examples (README, Node/Python SDK snippets, architecture-context skill) used dot-less `function:calls(#X)` — invalid Hyphae (kind selectors require leading `.`). Corrected to `.function:calls(#AuthService)` / `#Foo>.method`. Both `mycelium_query` MCP description and CLI `query` help now carry copy-pasteable parse-verified examples (`#Foo`, `*:calls(#Foo)`, `.function:calls(#Foo)`, `.class:has(.method)`, `#Foo>.method`) in lockstep. Regression test `documented_examples_parse.rs` added. Codex P2 (CLI↔MCP drift) fixed. Refs: RFC-0003, RFC-0090.
-- [x] **fix(mcp): MCP agent-experience — entry-points pagination + actionable path-not-found + reachability disambiguation** — PR #689 ✅ MERGED 2026-06-08. (A) `mycelium_get_entry_points` now accepts `limit`/`offset`/`budget` + returns `{entry_points,count,total_count}` via shared core builder; CLI `get-entry-points` gains byte-identical flags (was bare JSON dump ~37K tokens). (B) shared `not_found()` MCP helper + CLI `path_not_found()` now emit `path not found: {p} — symbol paths are file>Type>member; run mycelium_search_symbol`. (C) `get_cross_refs`/`get_reachable_to`/`get_reaches_into`/`batch_reachable_to`/`get_caller_tree` descriptions carry verified "When to use vs alternatives" table. Codex P2 (`entry_points` key missing from `apply_budget`) fixed in commit 2 (`68b9051`). 1635 tests pass.
+- [x] **fix(mcp): MCP agent-experience — entry-points pagination + actionable path-not-found + reachability disambiguation** — PR #689 ✅ MERGED 2026-06-08.
+- [x] **ci: bump codecov/codecov-action from 6 to 7** — PR #690, squash `3506a93` ✅ MERGED 2026-06-08.
+- [x] **chore(deps): bump tiktoken-rs from 0.6.0 to 0.12.0** — PR #693, squash `d4610c6` ✅ MERGED 2026-06-08. CI green (all 4 platforms + coverage); breaking `CoreBPE::encode` API not used directly.
+- [x] **chore(pm): PM state v128** — PR #696, squash `2582088` ✅ MERGED 2026-06-08. Codex P1 (DCO) rejected — CI DCO gate shows success. (A) `mycelium_get_entry_points` now accepts `limit`/`offset`/`budget` + returns `{entry_points,count,total_count}` via shared core builder; CLI `get-entry-points` gains byte-identical flags (was bare JSON dump ~37K tokens). (B) shared `not_found()` MCP helper + CLI `path_not_found()` now emit `path not found: {p} — symbol paths are file>Type>member; run mycelium_search_symbol`. (C) `get_cross_refs`/`get_reachable_to`/`get_reaches_into`/`batch_reachable_to`/`get_caller_tree` descriptions carry verified "When to use vs alternatives" table. Codex P2 (`entry_points` key missing from `apply_budget`) fixed in commit 2 (`68b9051`). 1635 tests pass.
 - [x] **ci: bump actions/download-artifact from 7 to 8** — PR #691 ✅ MERGED 2026-06-08 (squash `4f1e329`). CI 22/22; no Codex findings.
 - [x] **chore(deps): bump ignore from 0.4.25 to 0.4.26** — PR #694 ✅ MERGED 2026-06-08 (squash `f642040`). CI 22/22; no Codex findings.
 - [x] **chore(deps): bump salsa from 0.26.2 to 0.27.0** — PR #692 ✅ MERGED 2026-06-08 (squash `8bf8ecd`). CI 22/22; no Codex findings.
@@ -132,12 +135,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v128)
+## Dispatch state (2026-06-08 v129)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v128: PRs #691+#694+#692 (dependabot: download-artifact / ignore / salsa) squash-merged; PRs #693+#690 (tiktoken / codecov) branches updated for fresh CI; PM state v128 chore pushed. |
+| PM | **DONE ✅** | v129: PRs #690 (codecov 6→7) + #693 (tiktoken 0.6→0.12) + #696 (PM v128 chore) merged; Codex P1 on #696 rejected (CI DCO ✅); develop GREEN. Dependabot queue clear. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -173,6 +176,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v129 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions.jsonl tail-20 (168 lines; last entries = PM v128 `07:00` + MCP-agent-experience `07:30`), anti-patterns (domains: ci/release-governance/merge-discipline/tdd/git-workflow), PM state v128 (develop HEAD = `2582088` after v128 chore merge), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #568 (release/v0.3.0, founder P0); #696 (PM v128 chore, QG 22/22 ✅, Codex P1); #693 (tiktoken 0.6→0.12, QG 20/20 ✅, no Codex); #690 (codecov 6→7, QG 20/20 ✅, no Codex).
+- 0 open P0/P1 issues.
+- Develop GREEN (HEAD `2582088` after v128 squash).
+- RFC-0119 PRs #623/#626 MERGED; AC-12/AC-13 (real-corpus dogfood transcript) still P1 backlog.
+
+**Actions taken:**
+1. **Replied to Codex P1 on PR #696** (DCO): rejected with option-b justification — CI DCO job `80040592116` shows `conclusion: success`; CI is the authoritative gate. ✅
+2. **Merged PR #690** (codecov 6→7) — no Codex, QG ✅ — squash `3506a93`. ✅
+3. **Merged PR #693** (tiktoken 0.6→0.12) — no Codex, QG ✅ — squash `d4610c6`. (Breaking `CoreBPE::encode` → `Result` API not used directly; all 20 CI checks pass including Windows + coverage.) ✅
+4. **Merged PR #696** (PM v128 chore) — Codex P1 addressed, QG ✅ — squash `2582088`. ✅
+5. **Dependabot queue now clear.** Develop HEAD `2582088` is clean. ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — choose Option A/B/C (ratio 0.753 vs ≤0.30).
 
 ### 2026-06-08 PM dispatch v128 (this run)
 
