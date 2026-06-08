@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **RFC-0118 marked Implemented** — all 24 acceptance criteria now tracked and confirmed
+  (`NodeKind::Unresolved` de-noising, receiver-type inference, Part C kind-map hygiene,
+  cross-language Part B for Python/TypeScript/Java/C#/C++/Go/Ruby, graph-theory
+  real-symbol induced subgraph, redb codec tag 19). RFC status updated from Draft.
+
 ### Fixed
 
 - **Method/function definition spans now point to the declaration, not the enclosing class (Issue #657).**
