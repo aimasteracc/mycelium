@@ -535,6 +535,76 @@ async fn redb_watch_batch_persists_one_changed_file() {
     );
 }
 
+/// End-to-end regression (#mcp-serve-stale-snapshot): a stale `index.redb`
+/// (old symbol) sits next to a NEWER `index.rmp` (new symbols), exactly as
+/// after `mycelium index .` runs while serve is down. `serve --mcp` must load
+/// the fresh rmp, not the stale redb. Before the fix, `with_root_and_allowed_
+/// roots` loaded redb blindly and served stale data.
+#[cfg(feature = "redb-backend")]
+#[tokio::test]
+async fn serve_loads_newer_rmp_over_stale_redb() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mycelium_dir = tmp.path().join(".mycelium");
+    std::fs::create_dir_all(&mycelium_dir).unwrap();
+
+    // 1. Stale redb: only the OLD symbol.
+    let mut stale = Store::new();
+    reindex_file("a.py", b"def stale_only(): pass", "py", &mut stale);
+    stale.resolve_bare_call_stubs();
+    persist_full_redb_index(tmp.path(), &stale).expect("persist stale redb");
+
+    // 2. Fresh rmp: the NEW symbol set (what `mycelium index .` would write).
+    let mut fresh = Store::new();
+    reindex_file("a.py", b"def fresh_only(): pass", "py", &mut fresh);
+    reindex_file("b.py", b"def also_fresh(): pass", "py", &mut fresh);
+    fresh.resolve_bare_call_stubs();
+    let rmp = mycelium_dir.join("index.rmp");
+    let redb = mycelium_dir.join("index.redb");
+    let redb_mtime = std::fs::metadata(&redb).unwrap().modified().unwrap();
+    // Ensure the rmp lands STRICTLY newer than the redb (CLI re-index gap).
+    loop {
+        fresh.save(&rmp).expect("save fresh rmp");
+        let rmp_mtime = std::fs::metadata(&rmp).unwrap().modified().unwrap();
+        if rmp_mtime > redb_mtime {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(
+        std::fs::metadata(&rmp).unwrap().modified().unwrap()
+            > std::fs::metadata(&redb).unwrap().modified().unwrap(),
+        "test precondition: rmp must be newer than redb"
+    );
+
+    // 3. Serve-load path picks the snapshot. Must reflect the FRESH rmp.
+    let server = MyceliumServer::with_root_and_allowed_roots(
+        tmp.path().to_path_buf(),
+        vec![tmp.path().to_path_buf()],
+    )
+    .await
+    .expect("serve load");
+    let (has_also_fresh, has_fresh_only, has_stale_only) = {
+        let store = server.store.read().await;
+        (
+            store.lookup("b.py>also_fresh").is_some(),
+            store.lookup("a.py>fresh_only").is_some(),
+            store.lookup("a.py>stale_only").is_some(),
+        )
+    };
+    assert!(
+        has_also_fresh,
+        "serve must load the NEWER rmp's new file (b.py>also_fresh)"
+    );
+    assert!(
+        has_fresh_only,
+        "serve must load the NEWER rmp's replaced symbol (a.py>fresh_only)"
+    );
+    assert!(
+        !has_stale_only,
+        "serve must NOT serve the stale redb's symbol (a.py>stale_only)"
+    );
+}
+
 #[tokio::test]
 async fn server_status_returns_node_and_edge_count() {
     let server = server_with_fixture().await;
@@ -6874,6 +6944,117 @@ fn existing_index_path_finds_legacy_snapshot() {
     std::fs::write(&snap, b"x").unwrap();
     let result = existing_index_path(dir.path()).expect("found");
     assert_eq!(result, snap, "found legacy index.rmp");
+}
+
+/// Regression (#mcp-serve-stale-snapshot): when both an `index.redb` and an
+/// `index.rmp` exist, serve must load whichever is *newer* by mtime. The user
+/// running `mycelium index .` while serve was down rewrites only the rmp, so
+/// the rmp becomes newer and must win — previously `existing_index_path`
+/// blindly preferred redb if present, silently serving stale data.
+#[cfg(feature = "redb-backend")]
+#[test]
+fn pick_index_path_prefers_newer_rmp_over_stale_redb() {
+    use std::path::PathBuf;
+    use std::time::{Duration, SystemTime};
+    let redb = PathBuf::from("/r/.mycelium/index.redb");
+    let rmp = PathBuf::from("/r/.mycelium/index.rmp");
+    let now = SystemTime::now();
+    let old = now - Duration::from_secs(120);
+    // redb older (stale), rmp newer (fresh CLI re-index) -> rmp wins.
+    let got = pick_index_path(Some((redb, old)), Some((rmp.clone(), now)));
+    assert_eq!(got, Some(rmp), "newer rmp must win over stale redb");
+}
+
+/// When redb is the newer artifact (the in-session reactive watch keeps it
+/// current), serve must keep loading redb — guards against regressing
+/// RFC-0107 reactive-watch behavior.
+#[cfg(feature = "redb-backend")]
+#[test]
+fn pick_index_path_prefers_newer_redb_over_stale_rmp() {
+    use std::path::PathBuf;
+    use std::time::{Duration, SystemTime};
+    let redb = PathBuf::from("/r/.mycelium/index.redb");
+    let rmp = PathBuf::from("/r/.mycelium/index.rmp");
+    let now = SystemTime::now();
+    let old = now - Duration::from_secs(120);
+    let got = pick_index_path(Some((redb.clone(), now)), Some((rmp, old)));
+    assert_eq!(got, Some(redb), "newer redb must win over stale rmp");
+}
+
+/// On an exact mtime tie, redb wins (it is the richer reactive backend and is
+/// re-persisted from rmp on load anyway — this keeps behavior deterministic).
+#[cfg(feature = "redb-backend")]
+#[test]
+fn pick_index_path_tie_prefers_redb() {
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+    let redb = PathBuf::from("/r/.mycelium/index.redb");
+    let rmp = PathBuf::from("/r/.mycelium/index.rmp");
+    let t = SystemTime::now();
+    let got = pick_index_path(Some((redb.clone(), t)), Some((rmp, t)));
+    assert_eq!(got, Some(redb), "tie -> redb");
+}
+
+/// Only one present -> that one wins regardless of the other being absent.
+#[cfg(feature = "redb-backend")]
+#[test]
+fn pick_index_path_single_present_wins() {
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+    let rmp = PathBuf::from("/r/.mycelium/index.rmp");
+    let t = SystemTime::now();
+    assert_eq!(
+        pick_index_path(None, Some((rmp.clone(), t))),
+        Some(rmp),
+        "rmp-only wins"
+    );
+    let redb = PathBuf::from("/r/.mycelium/index.redb");
+    assert_eq!(
+        pick_index_path(Some((redb.clone(), t)), None),
+        Some(redb),
+        "redb-only wins"
+    );
+    assert_eq!(pick_index_path(None, None), None, "neither -> None");
+}
+
+/// Regression (#mcp-serve-stale-snapshot, second bug): when `--root R` is
+/// supplied but `--allowed-roots` is NOT, the default allowed-roots set must
+/// include R — not the process CWD. Otherwise `mycelium_subscribe` for paths
+/// under R fails with `root_not_allowed` whenever serve is launched from a
+/// different CWD (the common case).
+#[test]
+fn resolve_allowed_roots_uses_root_when_no_explicit_roots() {
+    use std::path::PathBuf;
+    let root = PathBuf::from("/repo");
+    let got = resolve_allowed_roots(Some(&root), Vec::new());
+    assert_eq!(
+        got,
+        vec![PathBuf::from("/repo")],
+        "with --root and no --allowed-roots, default must be [root]"
+    );
+}
+
+/// Explicit `--allowed-roots` must be honored verbatim even when `--root` is
+/// also given (no silent root injection over an explicit allow-list).
+#[test]
+fn resolve_allowed_roots_honors_explicit_even_with_root() {
+    use std::path::PathBuf;
+    let root = PathBuf::from("/repo");
+    let explicit = vec![PathBuf::from("/a"), PathBuf::from("/b")];
+    let got = resolve_allowed_roots(Some(&root), explicit.clone());
+    assert_eq!(
+        got, explicit,
+        "explicit allowed-roots win over root default"
+    );
+}
+
+/// With no `--root` and no `--allowed-roots`, fall back to CWD (RFC-0097
+/// minimum safe default preserved).
+#[test]
+fn resolve_allowed_roots_falls_back_to_cwd_when_no_root() {
+    let got = resolve_allowed_roots(None, Vec::new());
+    let cwd = std::env::current_dir().unwrap();
+    assert_eq!(got, vec![cwd], "no root, no explicit -> [CWD]");
 }
 
 #[cfg(test)]

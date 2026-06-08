@@ -119,17 +119,57 @@ fn redb_index_path(root: &Path) -> PathBuf {
     root.join(".mycelium").join("index.redb")
 }
 
+/// Read a file's modification time, returning `None` if it does not exist or
+/// the mtime is unavailable.
+#[cfg(feature = "redb-backend")]
+fn mtime_of(path: &Path) -> Option<std::time::SystemTime> {
+    std::fs::metadata(path).and_then(|m| m.modified()).ok()
+}
+
+/// Pure freshness arbiter: given the optional `(path, mtime)` of the redb and
+/// rmp snapshots, return the path of whichever is **newer** by mtime.
+///
+/// On an exact tie, redb wins (it is the richer reactive backend and is
+/// re-persisted from rmp on load anyway). Either side may be absent.
+///
+/// Root cause this guards against (#mcp-serve-stale-snapshot): `mycelium index`
+/// rewrites only `index.rmp`, never `index.redb`. The previous logic preferred
+/// redb whenever it merely *existed*, so a stale leftover redb shadowed a fresh
+/// rmp and the MCP server silently served stale data versus the CLI.
+#[cfg(feature = "redb-backend")]
+fn pick_index_path(
+    redb: Option<(PathBuf, std::time::SystemTime)>,
+    rmp: Option<(PathBuf, std::time::SystemTime)>,
+) -> Option<PathBuf> {
+    match (redb, rmp) {
+        (Some((rp, rt)), Some((mp, mt))) => {
+            if rt >= mt {
+                Some(rp) // tie or redb-newer -> redb
+            } else {
+                Some(mp) // rmp strictly newer -> rmp (fresh CLI re-index)
+            }
+        }
+        (Some((rp, _)), None) => Some(rp),
+        (None, Some((mp, _))) => Some(mp),
+        (None, None) => None,
+    }
+}
+
 fn existing_index_path(root: &Path) -> Option<PathBuf> {
     #[cfg(feature = "redb-backend")]
     {
         let redb = redb_index_path(root);
-        if redb.exists() {
-            return Some(redb);
-        }
+        let rmp = legacy_index_path(root);
+        let redb_entry = mtime_of(&redb).map(|t| (redb, t));
+        let rmp_entry = mtime_of(&rmp).map(|t| (rmp, t));
+        pick_index_path(redb_entry, rmp_entry)
     }
 
-    let legacy = legacy_index_path(root);
-    legacy.exists().then_some(legacy)
+    #[cfg(not(feature = "redb-backend"))]
+    {
+        let legacy = legacy_index_path(root);
+        legacy.exists().then_some(legacy)
+    }
 }
 
 fn source_extension(path: &Path) -> Option<&str> {
@@ -488,8 +528,11 @@ impl MyceliumServer {
 
     /// Create a server pre-loaded from `root`.
     ///
-    /// If `<root>/.mycelium/index.rmp` exists, loads the snapshot.
-    /// Otherwise runs a full live index and saves the snapshot.
+    /// If a snapshot exists under `<root>/.mycelium/` (`index.redb` and/or
+    /// `index.rmp`), loads whichever is **newer** by mtime
+    /// (see [`pick_index_path`]) so a CLI re-index that rewrote only
+    /// `index.rmp` while serve was down is not shadowed by a stale
+    /// `index.redb`. Otherwise runs a full live index and saves the snapshot.
     /// Sets `root` as the sole allowed root (RFC-0097).
     ///
     /// # Errors
@@ -4488,6 +4531,30 @@ fn encode_msgpack_hex(value: &serde_json::Value) -> String {
 
 // ── stdio entry point ─────────────────────────────────────────────────────────
 
+/// Resolve the effective RFC-0097 allowed-roots set for `serve --mcp`.
+///
+/// Precedence:
+/// 1. If the user passed explicit `--allowed-roots`, honor them verbatim.
+/// 2. Else if `--root R` was given, default to `[R]` — NOT the process CWD.
+/// 3. Else (no root, no explicit roots) default to the CWD as the minimum
+///    safe sandbox.
+///
+/// Root cause this fixes (#mcp-serve-stale-snapshot, second bug): the CLI used
+/// to default allowed-roots to the process CWD whenever the flag was absent,
+/// which *overrode* `--root`. Launching `serve --mcp --root /repo` from `/tmp`
+/// then made `mycelium_subscribe` for paths under `/repo` fail with
+/// `root_not_allowed` (allowed = `[/tmp]`), silently disabling the reactive
+/// layer in the common cross-CWD launch case.
+fn resolve_allowed_roots(root: Option<&PathBuf>, explicit: Vec<PathBuf>) -> Vec<PathBuf> {
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    root.map_or_else(
+        || vec![std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))],
+        |r| vec![r.clone()],
+    )
+}
+
 /// Start the MCP server on stdin/stdout and block until the client disconnects.
 ///
 /// When `root` is `Some(path)`, calls [`MyceliumServer::with_root`] to
@@ -4505,22 +4572,14 @@ fn encode_msgpack_hex(value: &serde_json::Value) -> String {
 /// permitted — **do not pass an empty vec from production CLI code**; use
 /// `[CWD]` as the minimum safe default.
 pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> anyhow::Result<()> {
+    let allowed = resolve_allowed_roots(root.as_ref(), allowed_roots);
     let server = match root {
-        Some(r) => {
-            MyceliumServer::with_root_and_allowed_roots(r.clone(), {
-                let mut roots = allowed_roots;
-                if roots.is_empty() {
-                    roots.push(r);
-                }
-                roots
-            })
-            .await?
-        }
+        Some(r) => MyceliumServer::with_root_and_allowed_roots(r, allowed).await?,
         None => {
-            if allowed_roots.is_empty() {
+            if allowed.is_empty() {
                 MyceliumServer::new()
             } else {
-                MyceliumServer::new_with_allowed_roots(allowed_roots)
+                MyceliumServer::new_with_allowed_roots(allowed)
             }
         }
     }
