@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v139 — PRs #710 (PM state v138, squash b758835) + #711 (RFC-0120 → RFC-0121 rename, squash 0575492) merged; RFC-0121 is now the canonical SLA amendment RFC; 3 P0s still founder-gated) |
+| Last updated | 2026-06-08 (PM dispatch v140 — PR #712 (PM state v139, squash 6b73f563) merged; RFC-0118 acceptance criteria synced + Status → Implemented; 3 P0s still founder-gated) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -90,19 +90,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v139)
+## Dispatch state (2026-06-08 v140)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
-| PM | **DONE ✅** | v139 complete: PRs #710 (PM state v138, squash `b758835`) + #711 (RFC-0121 rename, squash `0575492`) merged; RFC-0120/0121 split documented; PM state v139 pushed. |
+| PM | **DONE ✅** | v140 complete: PR #712 merged (squash `6b73f563`); RFC-0118 all 24 ACs ticked + Status → Implemented; PM state v140 pushed. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
-| architect | idle | RFC-0121 analysis complete — see [rfcs/0121-charter-hyphae-token-sla-amendment.md](rfcs/0121-charter-hyphae-token-sla-amendment.md). |
+| architect | idle | RFC-0121 analysis complete — see [rfcs/0121-charter-hyphae-token-sla-amendment.md](rfcs/0121-charter-hyphae-token-sla-amendment.md). RFC-0118 → Implemented (no further architect work needed). |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | idle | Awaiting RFC-0120 direction + post-v0.3.0 backlog triage for next P1 feature. Issue #612 Item 1 (Phase 2b cross-file extraction) needs a design RFC before implementation. |
+| rust-implementer | idle | RFC-0118 Implemented — no new feature work until #568 back-merge + RFC-0120 measurement lands. Issue #612 Item 1 (Phase 2b cross-file extraction context table) needs design RFC when unblocked. |
 
 ---
 
@@ -133,7 +133,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-08 PM dispatch v139 (this run)
+### 2026-06-08 PM dispatch v140 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/async/ci-portability/git-workflow/dco-check), PM state v139 (from origin/develop post-#712-merge), v0.2 PRD. Confirmed: v0.3.0 registries published; git ceremony awaiting founder; develop CI GREEN (HEAD `6b73f563`).
+
+**Assessment:**
+- 2 open PRs: #712 (chore/pm-state-v139, CI 22/22 ✅, Codex billing-only) + #568 (release/v0.3.0, founder-gated, CI 28/28 ✅).
+- 1 open issue: #612 (P2 — Item 1 Phase 2b design RFC; Item 2 resolved by PR #684).
+- 3 P0 escalations unchanged (PR #568 finalize + RFC-0121 + Codex limits).
+- RFC-0118 Status: Draft — all implementation landed (AC-20/22/23/24 confirmed checked previously) but AC-1 to AC-19/21 unchecked despite the code being complete.
+
+**Actions taken:**
+1. **Merged PR #712** (chore/pm-state-v139, squash `6b73f563`) — CI 22/22 ✅; Codex billing notice only (no code findings). ✅
+2. **Updated RFC-0118 acceptance criteria**: ticked AC-1 through AC-21 (all 24 ACs now `[x]`); changed Status from "Draft" to "Implemented". This closes the documentation gap where the code was fully implemented but the RFC governance record was stale. ✅
+3. **PM state v140 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged × 5 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4). CI 28/28 ✅; registries published 2026-06-05.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA. PM recommends **A** (per-class targets).
+- **(3) Codex limits**: Upgrade or explicitly suspend Hard Rule. See https://chatgpt.com/codex/cloud/settings/usage
+
+### 2026-06-08 PM dispatch v139 (previous run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: release-governance, tdd, async, ci-portability, git-workflow), PM state v138 (fetched from origin/develop), v0.2 PRD.
 
