@@ -642,6 +642,46 @@ impl Extractor {
                                         },
                                     );
                                 }
+                            } else {
+                                // RFC-0118 Part B: a BARE implicit-receiver call
+                                // (`speak()` with no `this.`/explicit receiver) inside
+                                // a class/type body is an intra-type method call. When
+                                // `speak` is defined on more than one type the bare
+                                // stub stays Ambiguous and get-callers returns a
+                                // confident-but-wrong EMPTY set. Record a synthetic
+                                // `self` context whose `self_type` is the innermost
+                                // enclosing type, so `infer_receiver_type` rule (a)
+                                // returns that type and `disambiguate` matches the
+                                // unique `…>{EnclosingType}>{method}` candidate.
+                                //
+                                // CONSERVATISM: only fire inside a class/type body
+                                // (enclosing_class_chain non-empty). A bare call at
+                                // file scope (a free function) records no self-context
+                                // and resolves exactly as before. If the enclosing
+                                // type does not define the method, the candidate set
+                                // omits `…>{EnclosingType}>{method}` → disambiguate
+                                // returns Ambiguous → the stub stays (no mis-bind).
+                                //
+                                // The enclosing type is found lexically for languages
+                                // that nest methods in a class body (Java/C#/C++/Ruby),
+                                // and via the receiver parameter for Go, whose methods
+                                // are top-level `method_declaration`s pathed by their
+                                // receiver type (`func (a Animal) run()` → Animal>run).
+                                if let Some(enclosing_type) = enclosing_self_type(anchor, source) {
+                                    store.record_call_site(
+                                        caller_id,
+                                        callee_id,
+                                        ReceiverContext {
+                                            receiver: "self".to_owned(),
+                                            method: callee_name.to_owned(),
+                                            imports: Vec::new(),
+                                            locals: Vec::new(),
+                                            self_type: Some(enclosing_type),
+                                            params: Vec::new(),
+                                            fields: Vec::new(),
+                                        },
+                                    );
+                                }
                             }
                         }
                     }
@@ -839,6 +879,47 @@ fn enclosing_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<Stri
     }
     chain.reverse();
     chain
+}
+
+/// The enclosing type that a bare implicit-receiver call belongs to, i.e. the
+/// type a synthetic `self` receiver would resolve to (RFC-0118 Part B).
+///
+/// Two shapes are handled:
+/// - **Lexical nesting** (Java/C#/C++/Ruby): the innermost enclosing class/type
+///   body, from [`enclosing_class_chain`]. Returns `Some("Animal")` for a call
+///   inside `class Animal { void run() { speak(); } }`.
+/// - **Go receiver methods**: methods are top-level `method_declaration`s whose
+///   owning type is the receiver parameter, not a lexical ancestor. Walk up to
+///   the enclosing `method_declaration` and read its receiver type
+///   (`func (a Animal) run() { speak() }` → `Some("Animal")`).
+///
+/// Returns `None` at file scope (a free function) so a bare free-function call
+/// records no self-context and resolves exactly as before.
+fn enclosing_self_type(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
+    if let Some(t) = enclosing_class_chain(node, source).into_iter().next_back() {
+        return Some(t);
+    }
+    // Go: the receiver type lives on the enclosing method_declaration.
+    // Ruby: `class`/`module` are intentionally excluded from `is_type_container`
+    // (their kind names collide with JS class-expressions and Python's module
+    // root, which would manufacture orphan caller paths). We read the enclosing
+    // Ruby `class`/`module` `name` field here directly, scoped to this bare-call
+    // path only, so it never pollutes the shared lexical chain.
+    let mut cur = node;
+    while let Some(parent) = cur.parent() {
+        match parent.kind() {
+            "method_declaration" => return go_receiver_type(parent, source),
+            "class" | "module" => {
+                let name = container_name(parent, source);
+                if name != "_Unknown" {
+                    return Some(name.to_owned());
+                }
+            }
+            _ => {}
+        }
+        cur = parent;
+    }
+    None
 }
 
 /// Build the resolved target path that an alias binding points to
@@ -1149,11 +1230,20 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
                 .unwrap_or_else(|| "_unknown".to_owned());
 
             // Collect enclosing class/impl containers (outermost first).
+            // Ruby's `class`/`module` are excluded from the shared
+            // `is_type_container` (their kind names collide with JS
+            // class-EXPRESSIONS and Python's module root). But when the enclosing
+            // FUNCTION is itself a Ruby `method`/`singleton_method`, the
+            // `class`/`module` ancestors are unambiguously Ruby type containers,
+            // so a call inside a Ruby method is attributed to `Class>method`
+            // (matching the method's `@definition.method` path) instead of the
+            // flat `method` path (RFC-0118 Part B: previously a known limitation).
+            let ruby_method = matches!(parent.kind(), "method" | "singleton_method");
             let mut containers: Vec<String> = Vec::new();
             let mut scan = parent;
             while let Some(ancestor) = scan.parent() {
                 let kind = ancestor.kind();
-                if is_type_container(kind) {
+                if is_type_container(kind) || (ruby_method && matches!(kind, "class" | "module")) {
                     containers.push(container_name(ancestor, source).to_owned());
                 }
                 scan = ancestor;
@@ -1313,13 +1403,17 @@ fn is_type_container(kind: &str) -> bool {
             | "struct_specifier" // C++
             | "union_specifier" // C++
                                 // NOTE: Ruby's container kinds (`class`/`module`) are intentionally
-                                // NOT listed — `module` collides with Python's file-root node kind,
-                                // and `class` collides with JS/TS class-EXPRESSION nodes (`const C =
-                                // class {}`), which would manufacture orphan `_Unknown>method` caller
-                                // paths. Ruby method DEFINITIONS still path correctly (the
-                                // @definition.method anchor reads the class/module `name` field via
-                                // container_name); only caller attribution for a call made INSIDE a
-                                // Ruby method lands at the flat `method` path (a known limitation).
+                                // NOT listed here — `module` collides with Python's file-root node
+                                // kind, and `class` collides with JS/TS class-EXPRESSION nodes
+                                // (`const C = class {}`), which would manufacture orphan
+                                // `_Unknown>method` caller paths if matched unconditionally. Ruby
+                                // method DEFINITIONS path correctly via the @definition.method anchor
+                                // (which reads the class/module `name` field). Ruby CALLER attribution
+                                // and bare implicit-self resolution are handled with a Ruby-scoped
+                                // `class`/`module` walk in `enclosing_function_path` and
+                                // `enclosing_self_type` (gated on a Ruby `method`/`singleton_method`
+                                // ancestor), so the collision concern never applies there
+                                // (RFC-0118 Part B).
     )
 }
 
