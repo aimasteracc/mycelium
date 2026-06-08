@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the precise method/function declaration line. Affected packs: Python, TypeScript,
   JavaScript, Java, C#, C++, Ruby (`method_definition`, `function_definition`,
   `method_declaration`, `constructor_declaration`, `method`, `singleton_method`).
+  Ruby's `class`/`module` anchor kinds are explicitly handled alongside
+  `is_type_container()` nodes since they are intentionally excluded from that
+  function to avoid cross-language kind collisions.
 
 ### Changed
 

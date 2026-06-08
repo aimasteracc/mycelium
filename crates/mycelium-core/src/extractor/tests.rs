@@ -3339,3 +3339,28 @@ fn method_span_is_method_not_class_typescript() {
         "method span must start at the method_definition line (2), not the class_declaration line (1)"
     );
 }
+
+#[test]
+fn method_span_is_method_not_class_ruby() {
+    // Ruby `class`/`module` anchor @definition.method (packs/ruby/queries.scm).
+    // Ruby's container kinds are excluded from is_type_container() to avoid
+    // collisions with Python `module` and JS/TS `class` expression nodes;
+    // the span-selection branch must cover them explicitly.
+    // Line 1: `class Foo` — class span (wrong without fix)
+    // Line 2: `  def bar; end` — method span (correct)
+    let source = "class Foo\n  def bar; end\nend\n";
+    let ext = ruby_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rb", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    let method_id = store
+        .lookup("test.rb>Foo>bar")
+        .expect("Foo>bar method node must exist");
+    let span = store
+        .span_of(method_id)
+        .expect("Foo>bar must have a source span");
+    assert_eq!(
+        span.start_line, 2,
+        "method span must start at the method declaration line (2), not the class line (1)"
+    );
+}

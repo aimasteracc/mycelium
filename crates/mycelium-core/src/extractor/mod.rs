@@ -175,7 +175,12 @@ impl Extractor {
                             // covers the whole class — wrong for jump-to-definition. Walk up
                             // from the @name identifier to find the precise method-declaration
                             // node (Issue #657).
-                            let span_node = if is_type_container(anchor.kind()) {
+                            // Ruby's `class`/`module` are excluded from
+                            // is_type_container() to avoid cross-language kind
+                            // collisions, so they must be matched explicitly here.
+                            let span_node = if is_type_container(anchor.kind())
+                                || matches!(anchor.kind(), "class" | "module")
+                            {
                                 m.captures
                                     .iter()
                                     .find(|c| names[c.index as usize] == "name")
