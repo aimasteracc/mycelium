@@ -310,7 +310,7 @@ pub struct BetweennessEntry {
 }
 
 /// One strongly connected component from [`Store::strongly_connected_components`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SccEntry {
     /// Materialized paths of symbol nodes in this component, sorted alphabetically.
     pub members: Vec<String>,
@@ -2110,11 +2110,12 @@ impl Store {
     pub fn nodes_in_cycles(&self, edge_kind: EdgeKind, prefix: Option<&str>) -> Vec<String> {
         use std::collections::HashSet;
 
-        let all_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: operate on the real-symbol induced subgraph — both
+        // the DFS roots and every traversed edge are restricted to real symbols,
+        // so a phantom can neither be a cycle member nor close a cycle through a
+        // real node.
+        let real: HashSet<NodeId> = self.symbol_universe().into_iter().collect();
+        let all_ids: Vec<NodeId> = real.iter().copied().collect();
 
         let mut visited: HashSet<NodeId> = HashSet::new();
         let mut cycle_members: HashSet<NodeId> = HashSet::new();
@@ -2144,6 +2145,10 @@ impl Store {
                 if *idx < neighbors.len() {
                     let neighbor = neighbors[*idx];
                     *idx += 1;
+                    // Induced subgraph: ignore edges to non-real (phantom/file) nodes.
+                    if !real.contains(&neighbor) {
+                        continue;
+                    }
                     if in_stack.contains(&neighbor) {
                         // Back-edge found: mark cycle members from neighbor to node
                         let cycle_start =
@@ -2185,13 +2190,10 @@ impl Store {
     /// the algorithm accesses them).
     #[must_use]
     pub fn scc_groups(&self, kind: EdgeKind) -> Vec<Vec<String>> {
-        // Collect symbol node IDs only.
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing `sym_ids.contains(&w)` edge guard excludes phantom
+        // edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
 
         // Tarjan's iterative SCC.
         let mut index_counter: u32 = 0;
@@ -2897,12 +2899,10 @@ impl Store {
     /// Results sorted ascending.
     #[must_use]
     pub fn articulation_points(&self, kind: EdgeKind) -> Vec<String> {
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing sym_set undirected-adjacency guard excludes phantom
+        // edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
 
         let n = sym_ids.len();
         if n == 0 {
@@ -3028,12 +3028,10 @@ impl Store {
     /// ```
     #[must_use]
     pub fn bridge_edges(&self, kind: EdgeKind) -> Vec<(String, String)> {
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing sym_set undirected-adjacency guard excludes phantom
+        // edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
         let n = sym_ids.len();
         if n == 0 {
             return Vec::new();
@@ -3138,12 +3136,10 @@ impl Store {
     /// Groups sorted by size descending, ties broken by first element ascending.
     #[must_use]
     pub fn biconnected_components(&self, kind: EdgeKind) -> Vec<Vec<String>> {
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing sym_set undirected-adjacency guard excludes phantom
+        // edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
         let n = sym_ids.len();
         if n == 0 {
             return Vec::new();
@@ -3251,13 +3247,9 @@ impl Store {
     /// File nodes excluded.
     #[must_use]
     pub fn topological_sort(&self, kind: EdgeKind) -> TopologicalOrder {
-        // Collect symbol ids and build adjacency + in-degree structures.
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing sym_set successor guard excludes phantom edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
 
         if sym_ids.is_empty() {
             return TopologicalOrder::default();
@@ -3342,9 +3334,12 @@ impl Store {
     /// File nodes excluded.
     #[must_use]
     pub fn weakly_connected_components(&self, kind: EdgeKind) -> Vec<Vec<String>> {
-        // Collect (id, path) in one pass — no trie navigation.
+        // RFC-0118 Part A.2: real-symbol induced subgraph — exclude phantoms from
+        // the node set; the existing sym_set union-find guard excludes phantom
+        // edges.
         let sym_nodes: Vec<(NodeId, String)> = self
             .symbol_nodes()
+            .filter(|(id, _)| self.is_real_symbol(*id))
             .map(|(id, p)| (id, p.to_owned()))
             .collect();
 
@@ -3397,13 +3392,9 @@ impl Store {
     /// is a cycle member.  File nodes are excluded.  Results sorted ascending.
     #[must_use]
     pub fn cycle_members(&self, kind: EdgeKind) -> Vec<String> {
-        // Collect symbol node ids and build forward/reverse adjacency lists.
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing sym_set adjacency guard excludes phantom edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
 
         let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
 
@@ -4449,12 +4440,9 @@ impl Store {
     /// protected by Tarjan's invariant that the SCC stack is non-empty when popping a root.
     #[must_use]
     pub fn strongly_connected_components(&self, kind: EdgeKind) -> Vec<SccEntry> {
-        let symbols: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing idx-restricted adjacency excludes phantom edges.
+        let symbols: Vec<NodeId> = self.symbol_universe();
         let n = symbols.len();
         if n == 0 {
             return Vec::new();

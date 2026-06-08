@@ -1352,6 +1352,207 @@ fn dependency_layers_excludes_phantoms() {
     );
 }
 
+/// Build a store with a genuine real 2-cycle (`x ⇄ y`) PLUS a would-be cycle
+/// through a phantom (`a → p → a`, where `p` is `NodeKind::Unresolved`).
+/// Returns the store. The phantom-free oracle (same minus `p` and its edges)
+/// is [`scc_phantom_free_twin`].
+fn store_with_phantom_cycle() -> Store {
+    let mut store = Store::new();
+    let x = store.upsert_node_with_kind(path("m.rs>x"), NodeKind::Function);
+    let y = store.upsert_node_with_kind(path("m.rs>y"), NodeKind::Function);
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let p = store.upsert_node_with_kind(path("Phantom>p"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, x, y);
+    store.upsert_edge(EdgeKind::Calls, y, x); // real SCC {x, y}
+    store.upsert_edge(EdgeKind::Calls, a, p);
+    store.upsert_edge(EdgeKind::Calls, p, a); // phantom SCC {a, p} — must vanish
+    store
+}
+
+/// Phantom-free oracle for [`store_with_phantom_cycle`].
+fn scc_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let x = store.upsert_node_with_kind(path("m.rs>x"), NodeKind::Function);
+    let y = store.upsert_node_with_kind(path("m.rs>y"), NodeKind::Function);
+    let _a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, x, y);
+    store.upsert_edge(EdgeKind::Calls, y, x);
+    store
+}
+
+#[test]
+fn nodes_in_cycles_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let cyc = store.nodes_in_cycles(EdgeKind::Calls, None);
+    assert!(
+        !cyc.contains(&"Phantom>p".to_string()),
+        "phantom must not be a cycle member: {cyc:?}"
+    );
+    assert!(
+        !cyc.contains(&"m.rs>a".to_string()),
+        "a real node only in a phantom-cycle must not be reported: {cyc:?}"
+    );
+    assert_eq!(
+        cyc,
+        scc_phantom_free_twin().nodes_in_cycles(EdgeKind::Calls, None),
+        "cycle members must match the phantom-free twin (only the real {{x,y}})"
+    );
+}
+
+#[test]
+fn cycle_members_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let cyc = store.cycle_members(EdgeKind::Calls);
+    assert!(
+        !cyc.contains(&"Phantom>p".to_string()) && !cyc.contains(&"m.rs>a".to_string()),
+        "phantom and its phantom-only-cycle partner excluded: {cyc:?}"
+    );
+    assert_eq!(
+        cyc,
+        scc_phantom_free_twin().cycle_members(EdgeKind::Calls),
+        "cycle_members must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn scc_groups_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let groups = store.scc_groups(EdgeKind::Calls);
+    assert!(
+        !groups
+            .iter()
+            .any(|g| g.iter().any(|p| p == "Phantom>p" || p == "m.rs>a")),
+        "no SCC may contain the phantom or its phantom-only partner: {groups:?}"
+    );
+    assert_eq!(
+        groups,
+        scc_phantom_free_twin().scc_groups(EdgeKind::Calls),
+        "scc_groups must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn strongly_connected_components_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let entries = store.strongly_connected_components(EdgeKind::Calls);
+    assert!(
+        !entries
+            .iter()
+            .any(|e| e.members.iter().any(|p| p == "Phantom>p")),
+        "phantom must not be in any SCC: {entries:?}"
+    );
+    assert_eq!(
+        entries,
+        scc_phantom_free_twin().strongly_connected_components(EdgeKind::Calls),
+        "strongly_connected_components must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn weakly_connected_components_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let wcc = store.weakly_connected_components(EdgeKind::Calls);
+    assert!(
+        !wcc.iter().any(|c| c.iter().any(|p| p == "Phantom>p")),
+        "phantom must not be in any weakly-connected component: {wcc:?}"
+    );
+    assert_eq!(
+        wcc,
+        scc_phantom_free_twin().weakly_connected_components(EdgeKind::Calls),
+        "weakly_connected_components must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn topological_sort_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let topo = store.topological_sort(EdgeKind::Calls);
+    assert!(
+        !topo.order.contains(&"Phantom>p".to_string())
+            && !topo.cycle_members.contains(&"Phantom>p".to_string()),
+        "phantom must appear in neither order nor cycle_members: {topo:?}"
+    );
+    let twin = scc_phantom_free_twin().topological_sort(EdgeKind::Calls);
+    assert_eq!(topo.order, twin.order, "topo order must match twin");
+    assert_eq!(
+        topo.cycle_members, twin.cycle_members,
+        "topo cycle_members must match twin"
+    );
+}
+
+/// Linear chain `a → b → p → c` where `p` is a `NodeKind::Unresolved` phantom
+/// sitting *between* two real nodes. Un-gated, `p` is an articulation point and
+/// `b–p` / `p–c` are bridges. Gated, `p` and its edges vanish, leaving the real
+/// edge `a–b` (a bridge) and a disconnected real `c`.
+fn store_with_phantom_chain() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let p = store.upsert_node_with_kind(path("Phantom>p"), NodeKind::Unresolved);
+    let c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, p);
+    store.upsert_edge(EdgeKind::Calls, p, c);
+    store
+}
+
+/// Phantom-free oracle for [`store_with_phantom_chain`].
+fn chain_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let _c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store
+}
+
+#[test]
+fn articulation_points_excludes_phantoms() {
+    let store = store_with_phantom_chain();
+    let aps = store.articulation_points(EdgeKind::Calls);
+    assert!(
+        !aps.contains(&"Phantom>p".to_string()),
+        "phantom must not be an articulation point: {aps:?}"
+    );
+    assert_eq!(
+        aps,
+        chain_phantom_free_twin().articulation_points(EdgeKind::Calls),
+        "articulation_points must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn bridge_edges_excludes_phantoms() {
+    let store = store_with_phantom_chain();
+    let bridges = store.bridge_edges(EdgeKind::Calls);
+    assert!(
+        !bridges
+            .iter()
+            .any(|(f, t)| f == "Phantom>p" || t == "Phantom>p"),
+        "no bridge may touch the phantom: {bridges:?}"
+    );
+    assert_eq!(
+        bridges,
+        chain_phantom_free_twin().bridge_edges(EdgeKind::Calls),
+        "bridge_edges must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn biconnected_components_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let bcc = store.biconnected_components(EdgeKind::Calls);
+    assert!(
+        !bcc.iter().any(|c| c.iter().any(|p| p == "Phantom>p")),
+        "phantom must not be in any biconnected component: {bcc:?}"
+    );
+    assert_eq!(
+        bcc,
+        scc_phantom_free_twin().biconnected_components(EdgeKind::Calls),
+        "biconnected_components must match the phantom-free twin"
+    );
+}
+
 #[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();
