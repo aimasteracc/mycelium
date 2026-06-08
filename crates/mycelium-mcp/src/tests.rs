@@ -1118,7 +1118,10 @@ async fn get_entry_points_returns_zero_caller_symbols() {
     let raw = server
         .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
             path_prefix: None,
+            limit: None,
+            offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1141,7 +1144,10 @@ async fn get_entry_points_excludes_file_nodes() {
     let raw = server
         .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
             path_prefix: None,
+            limit: None,
+            offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1163,7 +1169,10 @@ async fn get_entry_points_prefix_filter() {
     let raw = server
         .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
             path_prefix: Some("src/".to_string()),
+            limit: None,
+            offset: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1171,6 +1180,61 @@ async fn get_entry_points_prefix_filter() {
     let ep_paths: Vec<&str> = eps.iter().map(|v| v.as_str().unwrap()).collect();
     assert!(ep_paths.contains(&"src/a.rs>fn_a"));
     assert!(!ep_paths.contains(&"tests/t.rs>test_foo"));
+}
+
+#[tokio::test]
+async fn get_entry_points_limit_caps_result_count() {
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        // Five zero-caller symbols → all entry points.
+        store.upsert_node(TrunkPath::parse("src/x.rs>a").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>b").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>c").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>d").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>e").unwrap());
+    }
+    let raw = server
+        .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
+            path_prefix: None,
+            limit: Some(3),
+            offset: None,
+            output_format: None,
+            budget: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(val["entry_points"].as_array().unwrap().len(), 3);
+    assert_eq!(val["count"].as_u64().unwrap(), 3);
+    assert_eq!(val["total_count"].as_u64().unwrap(), 5);
+}
+
+#[tokio::test]
+async fn get_entry_points_offset_skips_results() {
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        store.upsert_node(TrunkPath::parse("src/x.rs>a").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>b").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>c").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>d").unwrap());
+        store.upsert_node(TrunkPath::parse("src/x.rs>e").unwrap());
+    }
+    let raw = server
+        .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
+            path_prefix: None,
+            limit: None,
+            offset: Some(2),
+            output_format: None,
+            budget: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    // 5 entry points sorted: a, b, c, d, e → skip 2 → c, d, e
+    let eps = val["entry_points"].as_array().unwrap();
+    assert_eq!(eps.len(), 3);
+    assert_eq!(eps[0].as_str().unwrap(), "src/x.rs>c");
+    assert_eq!(val["total_count"].as_u64().unwrap(), 5);
 }
 
 // ── RFC-0023: mycelium_get_imports ───────────────────────────────────
@@ -4315,7 +4379,10 @@ async fn reaches_into_unknown_path_returns_error() {
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-    assert!(val["error"].as_str().unwrap().contains("unknown path"));
+    // Now routed through the canonical not_found() helper (FIX B): the message
+    // teaches the path format and names the recovery tool.
+    assert!(val["error"].as_str().unwrap().contains("path not found"));
+    assert!(val["error"].as_str().unwrap().contains("search_symbol"));
 }
 
 #[tokio::test]
@@ -6414,7 +6481,10 @@ async fn test_get_entry_points_text_format() {
     let result = server
         .mycelium_get_entry_points(Parameters(GetEntryPointsRequest {
             path_prefix: None,
+            limit: None,
+            offset: None,
             output_format: Some(OutputFormat::Text),
+            budget: None,
         }))
         .await;
     assert!(

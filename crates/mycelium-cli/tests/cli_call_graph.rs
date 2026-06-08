@@ -285,12 +285,33 @@ fn get_entry_points_includes_chain_root() {
         .output()
         .unwrap();
     assert!(out.status.success());
-    let parsed: Vec<String> =
+    let parsed: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let eps = parsed["entry_points"]
+        .as_array()
+        .expect("entry_points array");
     assert!(
-        parsed.iter().any(|p| p.contains("entry")),
+        eps.iter()
+            .any(|p| p.as_str().is_some_and(|s| s.contains("entry"))),
         "expected 'entry' in entry-points, got {parsed:?}"
     );
+}
+
+#[test]
+fn get_entry_points_limit_caps_results() {
+    let project = prepare_chain_project();
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-entry-points", "--limit", "1", "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let parsed: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let eps = parsed["entry_points"]
+        .as_array()
+        .expect("entry_points array");
+    assert!(eps.len() <= 1, "limit=1 must cap the page, got {parsed:?}");
 }
 
 #[test]

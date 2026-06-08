@@ -31,6 +31,18 @@ fn truncates_edges_at_edge_cap() {
 }
 
 #[test]
+fn truncates_entry_points_at_node_cap() {
+    // Codex P2 on PR #689: `entry_points` (emitted by mycelium_get_entry_points)
+    // must be a budgeted node-shaped key, else a no-limit / default-auto call on
+    // a large repo still returns the full multi-10K-token array.
+    let mut v = json!({ "entry_points": (0..40).collect::<Vec<_>>() });
+    apply_budget(&mut v, &OutputBudget::for_project(100)); // max_nodes = 15
+    assert_eq!(v["entry_points"].as_array().unwrap().len(), 15);
+    assert_eq!(v["truncated"], true);
+    assert_eq!(v["total_available"], 40);
+}
+
+#[test]
 fn no_truncation_when_under_limit() {
     let mut v = json!({ "nodes": [1, 2, 3], "edges": [1, 2] });
     apply_budget(&mut v, &OutputBudget::for_project(100));
