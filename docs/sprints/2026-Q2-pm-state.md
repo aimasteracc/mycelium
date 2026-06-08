@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-07 (PM dispatch v120 — PR #674 Codex P2 fixed (line 94 incorrect v117-v118/PR#670 attribution → v116); #674 merged; next: Issue #636 (RFC-0118 Part B Phase 3 shadowed bindings)) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b + AC-20 ✅**. Three-Surface **94/94** ✅. Next P1 autonomous: Issue #636 (shadowed local bindings, RFC-0118 Part B Phase 3). |
+| Last updated | 2026-06-08 (PM dispatch v121 — PR #675 opened: fix #636 shadowed local bindings decline to bind (RFC-0118 Part B Phase 3); CI running) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b + AC-20 ✅ + Phase 3 shadowed-binding fix (PR #675) ✅**. Three-Surface **94/94** ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -93,6 +93,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **chore(pm): PM states v115–v116** — PRs #669 ✅ MERGED.
 - [x] **chore(pm): PM state v116** — PR #670 ✅ MERGED (squash `276807a`). PM dispatches v117–v118 had no separate develop chore commits (v117: dispatch-only; v118: feature-branch CI fix).
 - [x] **test(RFC-0118): AC-20 regression tests — rank_symbols excludes Unresolved phantoms** — PR #671, squash `40ffbc6f` ✅ MERGED 2026-06-07. `rank_symbols_excludes_unresolved_phantom` (MCP, `tests.rs:1445`) + `rank_symbols_json_shape_parity_with_mcp` (CLI, `cli_centrality.rs:63`). RFC-0118 AC-20 ✅. Codex P2 → Issue #673 (CLI phantom integration test, P2 defense-in-depth).
+- [x] **chore(pm): PM state v120** — PR #674, squash `bc13809` ✅ MERGED 2026-06-07. Codex P2 (line 94 v117-v118 attribution) fixed.
+- [ ] **fix(resolver): RFC-0118 Part B Phase 3 — shadowed local bindings decline to bind** — PR #675, CI running. Closes Issue #636.
 
 ---
 
@@ -103,7 +105,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 2. **RFC-0120 Charter §2 governance event** (PR #649): ratio = **0.753** vs ≤0.30 claim. `bpe_charter_sla_binding` fails. See `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`. Choose: **A** (retract claim, amend Charter §2 + README), **B** (redesign TextFormatter for ≥70% reduction), or **C** (reframe comparison to Hyphae query syntax). Charter §9 amendment requires BDFL approval.
 
 **P1 — Next autonomous:**
-3. **Issue #636** (RFC-0118 Part B Phase 3): Shadowed local bindings — scope-aware receiver inference. Next P1 autonomous now that AC-20 is done.
+3. **PR #675** (RFC-0118 Part B Phase 3): CI running — monitor, address Codex findings, merge when green. Closes Issue #636.
 4. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
 
 **P2 — Deferred:**
@@ -117,16 +119,16 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-07 v120)
+## Dispatch state (2026-06-08 v121)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v120: PR #674 Codex P2 fixed (line 94 v117-v118 attribution corrected to v116) + merged; decisions.jsonl appended. |
+| PM | **DONE ✅** | v121: PR #675 opened (fix #636 shadowed local bindings, RFC-0118 Part B Phase 3, CI running); PM state + decisions.jsonl updated. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | Issue #636 (RFC-0118 Part B Phase 3: shadowed local bindings, scope-aware receiver inference). |
+| rust-implementer | **P1** | PR #675 CI monitoring → merge when green → then RFC-0119 AC-12/AC-13. |
 | e2e-runner | **P2** | v0.3.0 regression pass. AC-12/AC-13 RFC-0119 dogfood. |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -159,7 +161,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-07 PM dispatch v120 (this run)
+### 2026-06-08 PM dispatch v121 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns (domains: ci/testing/release/storage/async), PM state v120 (origin/develop `bc13809`), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #568 (release/v0.3.0, all registries published ✅, awaiting founder finalize).
+- 4 open issues: #673 (P2), #657 (P2), #636 (P1), #612 (P2).
+- Develop CI GREEN (CI + E2E + Three-Surface Parity all success on `bc13809`, 2026-06-07T23:23).
+- PR #568 Codex: 1 thread (P1 npm-token soft exit) — resolved ✅ (founder replied with justification + Issue #560 tracked; #560 closed completed).
+- PM state was at v120; since last dispatch (2026-06-04 v29 on old context) much has shipped: v0.2.0 ceremony ✅, v0.3.0 primed (RFC-0111 SDKs, RFC-0103, RFC-0094 Ph4), RFC-0118 Part B ALL 9 + rule-b + AC-20 done.
+- No P0 autonomous tasks (both P0s require founder). P1 task: Issue #636 (shadowed bindings).
+
+**Actions taken:**
+1. **Verified PR #568**: Release CI all 28 jobs ✅ (quality-recheck, 5 platform builds, crates.io+npm+PyPI publish all SUCCESS; `finalize` SKIPPED = workflow_dispatch-only). Single Codex thread resolved. Ceremony is ready for founder. ✅
+2. **Implemented Issue #636** (RFC-0118 Part B Phase 3): TDD RED→GREEN on `crates/mycelium-core/src/resolver/receiver.rs`. New test `infer_shadowed_local_returns_none` confirmed FAIL (RED) before fix, PASS (GREEN) after. `cargo test --all` + `cargo clippy -- -D warnings` + `cargo fmt --check` all pass. ✅
+3. **Opened PR #675** (`fix/rfc-0118-part-b-phase3-shadowed-bindings`, targeting develop). CI running. ✅
+4. **Updated PM state to v121** (this file). ✅
+5. **Appended decisions.jsonl**. ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — choose Option A/B/C.
+
+### 2026-06-07 PM dispatch v120 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns, PM state v119 (PR #674 branch), v0.2 PRD.
 
