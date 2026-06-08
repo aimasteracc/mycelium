@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v140 — PR #712 (PM state v139, squash 6b73f563) merged; RFC-0118 acceptance criteria synced + Status → Implemented; 3 P0s still founder-gated) |
+| Last updated | 2026-06-08 (PM dispatch v141 — PR #713 (docs RFC-0118 + PM state v140, squash 644f008e) merged; 3 P0s still founder-gated) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -90,12 +90,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v140)
+## Dispatch state (2026-06-08 v141)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
-| PM | **DONE ✅** | v140 complete: PR #712 merged (squash `6b73f563`); RFC-0118 all 24 ACs ticked + Status → Implemented; PM state v140 pushed. |
+| PM | **DONE ✅** | v141 complete: PR #713 merged (squash `644f008e`); RFC-0118 Status Implemented confirmed on develop; PM state v141 pushed. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | idle | RFC-0121 analysis complete — see [rfcs/0121-charter-hyphae-token-sla-amendment.md](rfcs/0121-charter-hyphae-token-sla-amendment.md). RFC-0118 → Implemented (no further architect work needed). |
@@ -133,7 +133,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-08 PM dispatch v140 (this run)
+### 2026-06-08 PM dispatch v141 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/async/ci-portability/git-workflow/dco-check), PM state v139 (initial read) → rehydrated from origin/develop as v140 post-fetch, v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #713 (docs/RFC-0118 + PM state v140, CI 22/22 ✅, Codex billing notice only), #568 (release/v0.3.0, founder-gated, CI 28/28 ✅).
+- 0 open P0/P1 issues (#612 is P2).
+- Develop CI GREEN (HEAD `6b73f563` = PM state v139).
+- All 3 P0 escalations unchanged (×6 consecutive runs).
+
+**Actions taken:**
+1. **Merged PR #713** (docs/RFC-0118 Status → Implemented + PM state v140, squash `644f008e`) — CI 22/22 ✅; Codex comment is billing notice only (no P1/P2/P3 code findings); Hard Rule satisfied per v134+ precedent. ✅
+2. **PM state v141 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged × 6 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4). CI 28/28 ✅; registries published 2026-06-05.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA. PM recommends **A** (per-class targets, no engineering work required).
+- **(3) Codex limits**: Upgrade account or explicitly suspend Hard Rule. See https://chatgpt.com/codex/cloud/settings/usage
+
+### 2026-06-08 PM dispatch v140 (PR #713 authored; RFC-0118 ACs synced)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/async/ci-portability/git-workflow/dco-check), PM state v139 (from origin/develop post-#712-merge), v0.2 PRD. Confirmed: v0.3.0 registries published; git ceremony awaiting founder; develop CI GREEN (HEAD `6b73f563`).
 
