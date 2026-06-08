@@ -860,6 +860,32 @@ impl Store {
         self.trunk.symbol_nodes()
     }
 
+    /// The canonical **real-symbol node universe** for graph-theory queries
+    /// (RFC-0118 Part A.2).
+    ///
+    /// Returns every `>`-qualified symbol node whose [`Store::is_real_symbol`]
+    /// holds — i.e. all materialized symbols **except** the resolver's
+    /// [`NodeKind::Unresolved`] phantoms (the synthetic callee/receiver stubs
+    /// minted for calls that cannot be statically resolved, e.g. `unwrap`,
+    /// `Db>upsert_node`). File-level nodes (no `>`) are excluded, as are
+    /// phantoms.
+    ///
+    /// This is the *single source of truth* for the node set fed to the
+    /// centrality / cycle / connectivity / k-core / layering queries. Those
+    /// algorithms additionally restrict edge traversal to this set (the
+    /// real-symbol *induced subgraph*), so a phantom can neither appear in a
+    /// result nor inflate a real node's degree or sit on a shortest path.
+    ///
+    /// Back-compatible: a store that never recorded kinds has no `Unresolved`
+    /// nodes, so this is exactly its `>`-qualified symbol set.
+    #[must_use]
+    pub fn symbol_universe(&self) -> Vec<NodeId> {
+        self.symbol_nodes()
+            .filter(|(id, _)| self.is_real_symbol(*id))
+            .map(|(id, _)| id)
+            .collect()
+    }
+
     /// Return the top `limit` symbols ranked by incoming `Calls` edge count,
     /// sorted by caller count descending (ties broken by path ascending).
     ///

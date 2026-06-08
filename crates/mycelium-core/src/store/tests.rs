@@ -1131,6 +1131,66 @@ fn is_real_symbol_only_excludes_unresolved() {
     );
 }
 
+// ── RFC-0118 Part A.2: symbol_universe() — real-symbol node universe ──────
+
+#[test]
+fn symbol_universe_empty_store_is_empty() {
+    let store = Store::new();
+    assert!(
+        store.symbol_universe().is_empty(),
+        "an empty store has no symbol universe"
+    );
+}
+
+#[test]
+fn symbol_universe_single_real_symbol() {
+    let mut store = Store::new();
+    // A file node (no `>`) and one real symbol; only the symbol is in the universe.
+    store.upsert_node_with_kind(path("a.rs"), NodeKind::File);
+    let real = store.upsert_node_with_kind(path("a.rs>f"), NodeKind::Function);
+    assert_eq!(
+        store.symbol_universe(),
+        vec![real],
+        "only the `>`-qualified real symbol is in the universe (file node excluded)"
+    );
+}
+
+#[test]
+fn symbol_universe_excludes_unresolved_phantoms() {
+    let mut store = Store::new();
+    let real_a = store.upsert_node_with_kind(path("a.rs>caller"), NodeKind::Function);
+    let real_b = store.upsert_node_with_kind(path("a.rs>callee"), NodeKind::Function);
+    // Qualified + bare resolver phantoms (each a Calls target — how the extractor mints them).
+    let phantom_q = store.upsert_node_with_kind(path("Db>upsert_node"), NodeKind::Unresolved);
+    let phantom_bare = store.upsert_node_with_kind(path("unwrap"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, real_a, real_b);
+    store.upsert_edge(EdgeKind::Calls, real_a, phantom_q);
+    store.upsert_edge(EdgeKind::Calls, real_a, phantom_bare);
+
+    let universe = store.symbol_universe();
+    assert!(
+        universe.contains(&real_a),
+        "real caller present: {universe:?}"
+    );
+    assert!(
+        universe.contains(&real_b),
+        "real callee present: {universe:?}"
+    );
+    assert!(
+        !universe.contains(&phantom_q),
+        "qualified phantom excluded: {universe:?}"
+    );
+    assert!(
+        !universe.contains(&phantom_bare),
+        "bare phantom excluded: {universe:?}"
+    );
+    assert_eq!(
+        universe.len(),
+        2,
+        "exactly the two real symbols: {universe:?}"
+    );
+}
+
 #[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();
