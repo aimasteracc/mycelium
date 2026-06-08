@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v137 — PR #708 merged (PM state v136); RFC-0120 drafted with Options A/B/C analysis; 3 P0s still founder-gated) |
+| Last updated | 2026-06-08 (PM dispatch v138 — PR #709 merged (RFC-0120 draft + PM state v137, squash 8c05fb8); deferred v137 decisions.jsonl entry appended; 3 P0s still founder-gated) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -152,6 +152,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
 - **(2) RFC-0120**: [RFC now written](rfcs/0120-hyphae-token-ratio-sla.md) — choose Option A/B/C (PM recommends A: per-class targets, immediately satisfies Charter §2 without engineering work).
 - **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade or explicitly suspend the requirement.
+
+### 2026-06-08 PM dispatch v138 (PR #709 merged; deferred v137 decisions entry appended)
+
+**Actions taken:**
+1. Fetched origin/develop; confirmed PR #709 CI 22/22 ✅; Codex billing notice only (limits exhausted since v134). Hard Rule satisfied. ✅
+2. Merged PR #709 (squash `8c05fb8`) — RFC-0120 draft + PM state v137. ✅
+3. Appended deferred v137 decisions.jsonl entry (could not push via MCP last run due to file size). ✅
+4. Appended v138 decisions.jsonl entry. ✅
+5. PM state v138 written. ✅
+
+**Escalations to founder (P0, unchanged):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
+- **(2) RFC-0120**: RFC written at `rfcs/0120-hyphae-token-ratio-sla.md` — choose Option A/B/C (PM recommends A).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — Hard Rule unenforceable. Upgrade at https://chatgpt.com/codex/cloud/settings/usage.
+
+### 2026-06-08 PM dispatch v137 (RFC-0120 drafted; PR #708 merged)
+
+**Actions taken:**
+1. Merged PR #708 (squash `fdea9b3`) — CI 22/22 ✅; Codex billing notice only. ✅
+2. Wrote RFC-0120 (`rfcs/0120-hyphae-token-ratio-sla.md`) — full root-cause analysis, Options A/B/C, PM recommends A. ✅
+3. PM state v137 pushed. ✅ (decisions.jsonl deferred — file too large for push_files; appended in v138.)
 
 ### 2026-06-08 PM dispatch v136 (PR #707 merged; Issue #612 clarified; 3 P0s founder-gated)
 
