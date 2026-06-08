@@ -99,7 +99,7 @@ tempfile           = "3"
 redb               = "4"
 
 # Token counting (RFC-0120 — BPE figure-of-record, tiktoken feature in mycelium-mcp)
-tiktoken-rs        = "0.6"
+tiktoken-rs        = "0.12"
 
 # Hashing / IDs
 blake3             = "1"
