@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v124 — PR #681 (chore/pm-state-v123) merged `ca90d98`; PR #682 (RFC-0118 Part A call-resolution) Codex P2 fixed (Go TypeAlias narrowing, commit `d55129f`), CI running) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118: Part B ALL ✅ + Part A.2 AC-23 ✅ (19 queries) + Part A Codex P2 fixed (Go TypeAlias, commit `d55129f`, PR #682 CI pending). Three-Surface **94/94** ✅. |
+| Last updated | 2026-06-08 (PM dispatch v126 — PRs #682+#686 merged post-v124; PR #685 (PM v125) closed superseded (decisions.jsonl conflict); PR #684 Codex P2 fixed (`be73ba9`) + merged (Issue #673 ✅)) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118: ALL PARTS COMPLETE — Part A TypeAlias guard ✅ + Part A.2 AC-23 ✅ (19 queries) + Part B all 9 language packs ✅. Three-Surface **94/94** ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -96,6 +96,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **chore(pm): PM state v120** — PR #674, squash `bc13809` ✅ MERGED 2026-06-07. Codex P2 (line 94 v117-v118/PR#670 attribution) fixed.
 - [x] **fix(resolver): RFC-0118 Part B Phase 3 — shadowed local bindings decline to bind** — PR #675, squash `95b75e4` ✅ MERGED 2026-06-08. Closes Issue #636. New test `infer_shadowed_local_returns_none` (RED→GREEN). `cargo test --all` + clippy -D warnings + fmt ✅.
 - [x] **feat(core): RFC-0118 Part A.2 — gate graph-theory queries on real-symbol induced subgraph** — PR #677, squash `2b3654d` ✅ MERGED 2026-06-08. New `Store::symbol_universe()` single source of truth; 19 graph-theory queries gated (phantoms excluded as nodes + edge endpoints); centrality normalization over `|real symbols|`; ~22 new twin-oracle tests; ADR-0012. AC-23 ✅ (19 listed queries). `degree_centrality` deferred → Issue #678 (P2).
+- [x] **fix(resolver): RFC-0118 Part A — narrow TypeAlias/Go named-type guard in call-resolution** — PR #682, squash `b474618` ✅ MERGED 2026-06-08. Go `type Status int` named types are callable as type conversions — blanket TypeAlias guard was wrong. Narrowed `is_uncallable_target_for_call_stub` + `resolve_call_site_contexts` to spare `.go>` defs. RED-first test `store_resolve_go_named_type_call_still_resolves`. Issue #678 CLOSED (degree_centrality verified via PR #682 `degree_centrality_excludes_phantoms_and_induces_degree`, `store/tests.rs:1510`). RFC-0118 AC-23 fully satisfied.
+- [x] **fix(watch): ignore-aware WatchEngine NonRecursive directory watches** — PR #686, squash `bf2d246` ✅ MERGED 2026-06-08. WatchEngine::attach now registers per-directory NonRecursive watches honouring `.gitignore`/`.myceliumignore`/`target/`/`.mycelium/` exclusions. Fixes serve --mcp EMFILE crash on large repos. Follow-up commit: drive() pre-pass rescans newly created dirs + atomic dir expansion.
+- [x] **test(cli): AC-20 defense-in-depth — rank_symbols_excludes_unresolved_phantom with positive control** — PR #684 ✅ MERGED 2026-06-08. Fixture extended with `entry()→caller()` giving `caller` a real incoming edge; positive control (`src/lib.rs>caller` present) + negative control (`unknown_extern_fn` absent). Closes Issue #673. Codex P2 fixed (`be73ba9`).
 
 ---
 
@@ -106,13 +109,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 2. **RFC-0120 Charter §2 governance event** (PR #649): ratio = **0.753** vs ≤0.30 claim. `bpe_charter_sla_binding` fails. See `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`. Choose: **A** (retract claim, amend Charter §2 + README), **B** (redesign TextFormatter for ≥70% reduction), or **C** (reframe comparison to Hyphae query syntax). Charter §9 amendment requires BDFL approval.
 
 **P1 — Next autonomous:**
-3. **Issue #678** (RFC-0118 Part A.2 follow-up): Gate `degree_centrality` through `symbol_universe()` + twin-oracle test. (rust-implementer; mirrors the 19-query pattern from PR #677.)
-4. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
-5. **RFC-0118 Part B dogfood #2+**: Additional dogfood QA passes on the release CLI (get-callers precision, phantom-free graph queries, multi-language edge cases) using the indexed Mycelium codebase.
+3. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
+4. **RFC-0118 Part B dogfood #2+**: Additional dogfood QA passes on the release CLI (get-callers precision, phantom-free graph queries, multi-language edge cases) using the indexed Mycelium codebase.
 
 **P2 — Deferred:**
-5. **Issue #673**: Add CLI integration test for rank-symbols phantom exclusion (AC-20 defense-in-depth). Requires understanding packs/rust extractor `NodeKind::Unresolved` creation path.
-6. **Issue #657**: Method/function definition spans use enclosing type extent (jump-to-definition precision, P2 enhancement).
+5. **Issue #657**: Method/function definition spans use enclosing type extent (jump-to-definition precision, P2 enhancement).
 7. **Issue #612**: RFC-0118 Phase 1 implementation notes (Phase 2b prerequisite: cross-file extraction ordering).
 8. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
 9. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
@@ -123,16 +124,16 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v124)
+## Dispatch state (2026-06-08 v126)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v124: PR #681 (pm-state-v123) merged `ca90d98`; PR #682 Codex P2 Go TypeAlias fixed (commit `d55129f`), Codex reply posted, CI running → admin-merge when green. |
+| PM | **DONE ✅** | v126: PR #685 closed superseded (decisions.jsonl conflict); PR #684 Codex P2 fixed (`be73ba9`) + merged (Issue #673 ✅); chore/pm-state-v126 pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1 (next)** | Issue #678 (RFC-0118 Part A.2 follow-up: gate `degree_centrality` through `symbol_universe()` + twin-oracle test). After PR #682 merges. |
+| rust-implementer | **P1 (next)** | RFC-0119 AC-12/AC-13 real-corpus dogfood (after v0.3.0 ceremony); RFC-0118 Part B dogfood #2. |
 | e2e-runner | **P1** | AC-12/AC-13 RFC-0119 real-corpus dogfood. v0.4.0 regression pass (after v0.3.0 ceremony). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -164,6 +165,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v126 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions.jsonl tail-20 (158 lines; last entry = PR #686 follow-ups `06:00`), anti-patterns (domains: ci/release-governance/storage/async/git-workflow/tdd), PM state develop (v124 — PRs #682+#686 merged post-v124 dispatch), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #685 (PM v125 chore — dirty/conflict, superseded by v126; decisions.jsonl conflict caused by #682+#686 merging after branch creation from `afaf634`), #684 (test/Issue #673 CLI phantom test, 1 Codex P2 unresolved, CI 22/22 ✅ on original commit then CI in-progress after fix), #568 (release/v0.3.0, founder-gated).
+- 0 open P0/P1 issues (Issue #678 confirmed CLOSED by PM v125: degree_centrality verified in PR #682; Issue #673 resolved by PR #684).
+- Develop GREEN (HEAD `bf2d246` — PR #686 ignore-aware watch fix).
+
+**Actions taken:**
+1. **Diagnosed Codex P2 on PR #684** (thread `3370804817`): negative-only assertion — `prepare_with_unresolved_call()` had only `caller()` with 0 callers; an empty result would still pass. Fix: add `entry()` calling `caller()` → `caller` gets 1 incoming edge → appears in `rank-symbols` output. ✅
+2. **Pushed fix commit `be73ba9`** to branch `fix/issue-673-rank-symbols-phantom-cli-test`. CI re-triggered. ✅
+3. **Replied to Codex P2 thread** on PR #684 (comment `3370954353`): explains positive + negative controls. ✅
+4. **Closed PR #685** (PM v125 chore, superseded — decisions.jsonl conflict after #682+#686 merged post-branch creation). v126 supersedes it. ✅
+5. **Merged PR #684** (test/Issue #673, CI 22/22 ✅, Codex P2 fixed `be73ba9`) once Windows CI green → Issue #673 CLOSED. ✅
+6. **PM state v126 written + decisions.jsonl appended** (this entry). ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — choose Option A/B/C.
+
+### 2026-06-08 PM dispatch v125 (superseded — PR #685 closed due to decisions.jsonl conflict)
+
+PM v125: Merged PR #683 (PM v124 chore, squash `afaf634`). Closed Issue #678 (degree_centrality confirmed via PR #682 twin-oracle test). Opened PR #684 (test/Issue #673 CLI phantom test). PM v125 chore PR #685 had decisions.jsonl conflict (develop advanced via #682+#686 merging after branch creation from `afaf634`). Superseded by v126.
 
 ### 2026-06-08 PM dispatch v124 (this run)
 
