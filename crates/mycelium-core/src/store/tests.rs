@@ -1553,6 +1553,113 @@ fn biconnected_components_excludes_phantoms() {
     );
 }
 
+/// Real chain `a → b → c` PLUS a phantom callee `b → p` (`NodeKind::Unresolved`).
+/// `b` lies on the only real shortest path `a → c`, so it has nonzero
+/// betweenness/closeness; the phantom must change neither `b`'s score nor the
+/// normalization denominator (which must be `|real symbols| = 3`, not 4).
+fn store_with_phantom_for_centrality() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    let p = store.upsert_node_with_kind(path("Phantom>p"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, b, p);
+    store
+}
+
+/// Phantom-free oracle for [`store_with_phantom_for_centrality`].
+fn centrality_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store
+}
+
+#[test]
+fn betweenness_centrality_excludes_phantoms_and_normalizes_over_real_n() {
+    let store = store_with_phantom_for_centrality();
+    let got = store.betweenness_centrality(EdgeKind::Calls);
+    assert!(
+        !got.iter().any(|e| e.path == "Phantom>p"),
+        "phantom must not appear in betweenness: {got:?}"
+    );
+    let twin = centrality_phantom_free_twin().betweenness_centrality(EdgeKind::Calls);
+    // Same path set, same per-path scores (denominator must be real n = 3, not 4).
+    // Compare by path key — equal-score entries have no stable order across stores.
+    assert_eq!(got.len(), twin.len(), "same node count as twin");
+    for t in &twin {
+        let g = got.iter().find(|e| e.path == t.path);
+        assert!(
+            g.is_some_and(|e| (e.score - t.score).abs() < 1e-12),
+            "score for {} must match twin (got {:?}, twin {})",
+            t.path,
+            g.map(|e| e.score),
+            t.score
+        );
+    }
+    // Concretely: b's betweenness over real n=3 is 1/((3-1)(3-2)) = 0.5.
+    let b_score = got.iter().find(|e| e.path == "m.rs>b").map(|e| e.score);
+    assert!(
+        b_score.is_some_and(|s| (s - 0.5).abs() < 1e-12),
+        "b betweenness must be 0.5 (real-n normalization): {b_score:?}"
+    );
+}
+
+#[test]
+fn closeness_centrality_excludes_phantoms_and_normalizes_over_real_n() {
+    let store = store_with_phantom_for_centrality();
+    let got = store.closeness_centrality(EdgeKind::Calls);
+    assert!(
+        !got.iter().any(|e| e.path == "Phantom>p"),
+        "phantom must not appear in closeness: {got:?}"
+    );
+    let twin = centrality_phantom_free_twin().closeness_centrality(EdgeKind::Calls);
+    assert_eq!(got.len(), twin.len(), "same node count as twin");
+    for t in &twin {
+        let g = got.iter().find(|e| e.path == t.path);
+        assert!(
+            g.is_some_and(|e| (e.score - t.score).abs() < 1e-12),
+            "closeness for {} must match twin (got {:?}, twin {})",
+            t.path,
+            g.map(|e| e.score),
+            t.score
+        );
+    }
+}
+
+#[test]
+fn harmonic_centrality_stats_excludes_phantoms_and_uses_real_n() {
+    let store = store_with_phantom_for_centrality();
+    let a = store.lookup("m.rs>a").unwrap();
+    let (cent, reach, sym_count) = store.harmonic_centrality_stats(a, EdgeKind::Calls);
+
+    let twin = centrality_phantom_free_twin();
+    let a_twin = twin.lookup("m.rs>a").unwrap();
+    let (cent_t, reach_t, sym_count_t) = twin.harmonic_centrality_stats(a_twin, EdgeKind::Calls);
+
+    assert_eq!(
+        sym_count, 3,
+        "symbol_count denominator must count real symbols only (3, not 4)"
+    );
+    assert_eq!(
+        reach, reach_t,
+        "reachable count must exclude the phantom and match the twin"
+    );
+    assert_eq!(
+        sym_count, sym_count_t,
+        "symbol_count must match the phantom-free twin"
+    );
+    assert!(
+        (cent - cent_t).abs() < 1e-12,
+        "harmonic centrality must match the phantom-free twin ({cent} vs {cent_t})"
+    );
+}
+
 #[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();

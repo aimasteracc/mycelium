@@ -4016,10 +4016,14 @@ impl Store {
     /// File nodes excluded from BFS and from n.
     #[must_use]
     pub fn harmonic_centrality_stats(&self, id: NodeId, kind: EdgeKind) -> (f64, usize, usize) {
-        let is_symbol =
-            |nid: NodeId| -> bool { self.trunk.path_of(nid).is_some_and(|p| p.contains('>')) };
-        // Count total symbols (file nodes excluded).
-        let symbol_count = self.trunk.all_paths().filter(|p| p.contains('>')).count();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — only *real* symbol
+        // endpoints are counted/traversed (phantoms treated like file nodes), and
+        // the symbol_count denominator counts |real symbols|.
+        let is_symbol = |nid: NodeId| -> bool {
+            self.trunk.path_of(nid).is_some_and(|p| p.contains('>')) && self.is_real_symbol(nid)
+        };
+        // Count total real symbols (file nodes and phantoms excluded).
+        let symbol_count = self.symbol_universe().len();
         if symbol_count < 2 {
             return (0.0, 0, symbol_count);
         }
@@ -4339,13 +4343,10 @@ impl Store {
     /// File nodes excluded.  Returns entries sorted descending by score.
     #[must_use]
     pub fn betweenness_centrality(&self, kind: EdgeKind) -> Vec<BetweennessEntry> {
-        // Collect symbol nodes in stable order.
-        let symbols: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the idx-restricted BFS excludes phantom edges; and the (n-1)(n-2)
+        // normalization denominator below is therefore over |real symbols|.
+        let symbols: Vec<NodeId> = self.symbol_universe();
         let n = symbols.len();
         if n < 2 {
             return Vec::new();
@@ -4724,12 +4725,10 @@ impl Store {
     /// Does not panic under normal operation.
     #[must_use]
     pub fn closeness_centrality(&self, kind: EdgeKind) -> Vec<ClosenessCentralityEntry> {
-        let symbols: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the idx-restricted BFS excludes phantom edges; and the (n-1)
+        // Wasserman-Faust normalization below is therefore over |real symbols|.
+        let symbols: Vec<NodeId> = self.symbol_universe();
         let n = symbols.len();
         if n == 0 {
             return Vec::new();
