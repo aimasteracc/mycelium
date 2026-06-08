@@ -1,4 +1,4 @@
-# RFC-0120: Charter §2 Hyphae Token Efficiency SLA — Amend, Compress, or Retire
+# RFC-0121: Charter §2 Hyphae Token Efficiency SLA — Amend, Compress, or Retire
 
 - **Status**: Draft — **FOUNDER DECISION REQUIRED** (Option A / B / C)
 - **Author(s)**: orchestrator (PM dispatch v137)
@@ -192,7 +192,7 @@ If **Option A** is approved, the change to `CHARTER.md §2` is:
 
 Additionally, a brief note is added to the table header:
 
-> **Response-class definitions (RFC-0120).** *Tree*: response contains
+> **Response-class definitions (RFC-0121).** *Tree*: response contains
 > nested `callees`, `nodes`, `reachable_set`, or similar hierarchical
 > structure. *List*: response is a flat or single-depth list of
 > symbol paths / counts. *Scalar*: response is a single value,
