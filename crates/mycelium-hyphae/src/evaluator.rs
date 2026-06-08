@@ -26,6 +26,57 @@ fn file_of(path: &str) -> &str {
     path.find('>').map_or(path, |i| &path[..i])
 }
 
+/// Attribute names the evaluator implements (RFC-0003 / RFC-0091).
+///
+/// Kept in sync with the `match` arms in [`Evaluator::apply_attribute`].
+const SUPPORTED_ATTRIBUTES: &[&str] = &["language", "kind", "file"];
+
+/// Pseudo-class names the evaluator implements (RFC-0003 / RFC-0091).
+///
+/// Kept in sync with the `match` arms in [`Evaluator::apply_pseudo`].
+const SUPPORTED_PSEUDOS: &[&str] = &[
+    "calls",
+    "callers",
+    "imports",
+    "extends",
+    "implements",
+    "not",
+    "has",
+    "in",
+    "first-child",
+    "last-child",
+    "only-child",
+    "nth-child",
+];
+
+/// Error returned when a query parses but names a selector the evaluator does
+/// not implement.
+///
+/// The Hyphae grammar (a public API; see RFC-0003) accepts the *shape*
+/// `[attr=value]` and `:pseudo(arg)` for any identifier, but the evaluator
+/// only implements a fixed set of attribute and pseudo-class names. Names
+/// outside that set used to evaluate to an *empty* result — silently
+/// indistinguishable from "no symbols match". `EvalError` makes the failure
+/// explicit and actionable instead.
+#[derive(thiserror::Error, Clone, Debug, PartialEq, Eq)]
+pub enum EvalError {
+    /// `[attr=value]` named an attribute the evaluator does not implement.
+    #[error(
+        "unsupported selector: attribute filter `[{0}=...]` is not implemented (RFC-0003).\n  \
+         Supported attributes: [language=...], [kind=...], [file=...].\n  \
+         (Did you mean `[language=...]`? — the language filter is `language`, not `lang`.)"
+    )]
+    UnsupportedAttribute(String),
+
+    /// `:pseudo(arg)` named a pseudo-class the evaluator does not implement.
+    #[error(
+        "unsupported selector: pseudo-class `:{0}` is not implemented (RFC-0003).\n  \
+         Supported pseudo-classes: :calls, :callers, :imports, :extends, :implements, \
+         :not, :has, :in, :first-child, :last-child, :only-child, :nth-child."
+    )]
+    UnsupportedPseudo(String),
+}
+
 /// Map a file extension to a language wire string (`rust`, `python`, ...).
 fn language_of_path(path: &str) -> Option<&'static str> {
     let file = file_of(path);
@@ -68,6 +119,26 @@ impl<'s> Evaluator<'s> {
         result.sort();
         result.dedup();
         result
+    }
+
+    /// Validate `ast`, then evaluate it.
+    ///
+    /// Identical to [`eval`](Self::eval) on success, but returns an
+    /// [`EvalError`] when the query names an attribute or pseudo-class the
+    /// evaluator does not implement — instead of [`eval`](Self::eval)'s silent
+    /// empty result. Entry points that surface results to a user (the CLI
+    /// `query` command and its MCP twin `mycelium_query`) route through this
+    /// method so an unsupported selector is reported as an error, never as
+    /// "no matches".
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EvalError::UnsupportedAttribute`] or
+    /// [`EvalError::UnsupportedPseudo`] if any (possibly nested) selector names
+    /// a filter the evaluator cannot apply.
+    pub fn eval_checked(&self, ast: &Ast) -> Result<Vec<String>, EvalError> {
+        validate(ast)?;
+        Ok(self.eval(ast))
     }
 
     fn eval_selector(&self, sel: &Selector) -> Vec<String> {
@@ -361,6 +432,55 @@ impl<'s> Evaluator<'s> {
     }
 }
 
+// ── AST validation (silent-empty guard) ─────────────────────────────────────
+
+/// Walk `ast` and reject any attribute or pseudo-class name the evaluator does
+/// not implement.
+///
+/// Recurses through combinators and into nested pseudo-class selector
+/// arguments (`:not(...)`, `:has(...)`, `:calls(...)`, ...), so an unsupported
+/// name buried inside an argument is still caught.
+///
+/// # Errors
+///
+/// Returns the first [`EvalError`] encountered, or `Ok(())` if every selector
+/// names only supported filters.
+fn validate(ast: &Ast) -> Result<(), EvalError> {
+    let Ast::SelectorList(selectors) = ast;
+    for sel in selectors {
+        validate_selector(sel)?;
+    }
+    Ok(())
+}
+
+fn validate_selector(sel: &Selector) -> Result<(), EvalError> {
+    match sel {
+        Selector::Simple(simple) => validate_simple(simple),
+        Selector::Combined { left, right, .. } => {
+            validate_selector(left)?;
+            validate_selector(right)
+        }
+    }
+}
+
+fn validate_simple(simple: &SimpleSelector) -> Result<(), EvalError> {
+    for attr in &simple.attributes {
+        if !SUPPORTED_ATTRIBUTES.contains(&attr.name.as_str()) {
+            return Err(EvalError::UnsupportedAttribute(attr.name.clone()));
+        }
+    }
+    for pseudo in &simple.pseudo_classes {
+        if !SUPPORTED_PSEUDOS.contains(&pseudo.name.as_str()) {
+            return Err(EvalError::UnsupportedPseudo(pseudo.name.clone()));
+        }
+        // Recurse into nested selector arguments (`:not(...)`, `:has(...)`, ...).
+        if let Some(PseudoArg::Selector(inner)) = pseudo.argument.as_ref() {
+            validate(inner)?;
+        }
+    }
+    Ok(())
+}
+
 fn node_kind_from_str(s: &str) -> Option<NodeKind> {
     match s {
         "function" => Some(NodeKind::Function),
@@ -447,5 +567,95 @@ mod tests {
         let result = ev(&store, "*:in(src/auth)");
         assert!(result.iter().any(|p| p.contains("session.rs")));
         assert!(!result.iter().any(|p| p.contains("db.rs")));
+    }
+
+    // ── Silent-empty → explicit error guard (RFC-0003) ──────────────────────
+    //
+    // An unsupported attribute name (`[lang=rust]` instead of the supported
+    // `[language=rust]`) or an unsupported pseudo-class (`:frobnicate()`)
+    // previously evaluated to an *empty* result set — indistinguishable, to an
+    // AI agent, from "no symbols match". `eval_checked` must instead return an
+    // explicit, actionable error so the query is reported as unsupported.
+
+    use super::EvalError;
+
+    fn ev_checked(store: &Store, query: &str) -> Result<Vec<String>, EvalError> {
+        let ast = parse(query).expect("parse error");
+        Evaluator::new(store).eval_checked(&ast)
+    }
+
+    #[test]
+    fn eval_checked_rejects_unsupported_attribute_name() {
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        // `lang` is NOT a supported attribute name — `language` is.
+        let err = ev_checked(&store, ".function[lang=rust]").expect_err("must be an error");
+        let msg = err.to_string();
+        assert!(msg.contains("lang"), "names the offending attribute: {msg}");
+        assert!(
+            msg.contains("language"),
+            "suggests the supported `language` name: {msg}"
+        );
+        assert!(
+            msg.to_lowercase().contains("rfc") || msg.contains("attribute"),
+            "describes the failure and points at the grammar: {msg}"
+        );
+    }
+
+    #[test]
+    fn eval_checked_rejects_unsupported_pseudo_class() {
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        let err = ev_checked(&store, "*:frobnicate()").expect_err("must be an error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("frobnicate"),
+            "names the offending pseudo: {msg}"
+        );
+        assert!(
+            msg.contains("calls") || msg.contains(":has") || msg.contains("supported"),
+            "lists supported pseudo-classes: {msg}"
+        );
+    }
+
+    #[test]
+    fn eval_checked_accepts_supported_attribute_and_returns_matches() {
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        // `language` is supported; `.rs` → rust → should keep the match.
+        let result = ev_checked(&store, "*[language=rust]").expect("supported, must be Ok");
+        assert_eq!(result, vec!["src/a.rs>foo"]);
+    }
+
+    #[test]
+    fn eval_checked_accepts_supported_pseudo() {
+        let mut store = Store::new();
+        let a = store.upsert_node(TrunkPath::parse("src/a.rs>caller").unwrap());
+        let b = store.upsert_node(TrunkPath::parse("src/b.rs>callee").unwrap());
+        store.upsert_edge(EdgeKind::Calls, a, b);
+        let result = ev_checked(&store, "*:calls(#callee)").expect("supported, must be Ok");
+        assert_eq!(result, vec!["src/a.rs>caller"]);
+    }
+
+    #[test]
+    fn eval_checked_validates_nested_pseudo_argument() {
+        // The unsupported pseudo lives INSIDE a `:not(...)` argument — the
+        // validator must recurse into nested selector arguments, not just the
+        // top level.
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        let err = ev_checked(&store, "*:not(*:frobnicate())").expect_err("must be an error");
+        assert!(err.to_string().contains("frobnicate"), "{err}");
+    }
+
+    #[test]
+    fn eval_checked_passes_working_combinators() {
+        // No-regression: child + descendant combinators must validate cleanly.
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>Outer").unwrap());
+        store.upsert_node(TrunkPath::parse("src/a.rs>Outer>inner").unwrap());
+        assert!(ev_checked(&store, ".class>.method").is_ok());
+        assert!(ev_checked(&store, ".class .method").is_ok());
+        assert!(ev_checked(&store, "#Outer .inner").is_ok());
     }
 }
