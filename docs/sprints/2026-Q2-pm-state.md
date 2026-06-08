@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v123 — PR #679 (chore/pm-state-v122, decisions.jsonl Codex P1 fix: restored 148→149 lines) merged `e6966194`; PR #680 (RFC-0118 Part B dogfood #1 — bare implicit-self disambiguation + IMPLICIT_SELF_SCOPES TS/JS language gate, Codex P2 fixed) merged; PR #676 closed (stale, superseded)) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b + AC-20 ✅ + Phase 3 shadowed-binding fix ✅ + dogfood #1 bare-self ✅**. RFC-0118 Part A.2: **AC-23 ✅ (19 graph-theory queries; degree_centrality → Issue #678 P2)**. Three-Surface **94/94** ✅. |
+| Last updated | 2026-06-08 (PM dispatch v124 — PR #681 (chore/pm-state-v123) merged `ca90d98`; PR #682 (RFC-0118 Part A call-resolution) Codex P2 fixed (Go TypeAlias narrowing, commit `d55129f`), CI running) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118: Part B ALL ✅ + Part A.2 AC-23 ✅ (19 queries) + Part A Codex P2 fixed (Go TypeAlias, commit `d55129f`, PR #682 CI pending). Three-Surface **94/94** ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -123,16 +123,16 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v123)
+## Dispatch state (2026-06-08 v124)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v123: PR #679 (decisions.jsonl Codex P1 fix) merged `e6966194`; PR #680 (RFC-0118 Part B bare-self + IMPLICIT_SELF_SCOPES gate) merged; PR #676 closed (stale, superseded). |
+| PM | **DONE ✅** | v124: PR #681 (pm-state-v123) merged `ca90d98`; PR #682 Codex P2 Go TypeAlias fixed (commit `d55129f`), Codex reply posted, CI running → admin-merge when green. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1** | Issue #678 (RFC-0118 Part A.2 follow-up: gate degree_centrality through symbol_universe() + twin-oracle test). |
+| rust-implementer | **P1 (next)** | Issue #678 (RFC-0118 Part A.2 follow-up: gate `degree_centrality` through `symbol_universe()` + twin-oracle test). After PR #682 merges. |
 | e2e-runner | **P1** | AC-12/AC-13 RFC-0119 real-corpus dogfood. v0.4.0 regression pass (after v0.3.0 ceremony). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -164,6 +164,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v124 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions.jsonl tail-20 (153 lines; last entry = v123 dispatch), anti-patterns (domains: ci/release-governance/storage/async/git-workflow/tdd), PM state v123 (develop HEAD = `b329eca`... + v123 PM merge `ca90d98`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #682 (RFC-0118 Part A call-resolution, CI in-progress — 1 Codex P2 unresolved), #681 (PM state v123, CI 20/20 ✅, Codex P2 resolved), #568 (release/v0.3.0, founder finalize).
+- 0 open P0/P1 issues (Issue #678 is P2 waiting on PR #682 to land).
+- Develop CI: GREEN (HEAD `ca90d98` after PM v123 merge).
+
+**Actions taken:**
+1. Admin-merged PR #681 (chore/pm-state-v123, CI 20/20 ✅, Codex P2 `is_resolved:true`) → squash `ca90d98`. ✅
+2. Diagnosed Codex P2 on PR #682: Go named types (`type Status int`) stored as `NodeKind::TypeAlias` but ARE callable as type conversions (`Status(1)`) — blanket TypeAlias guard incorrectly blocked them. Fix: narrow `is_uncallable_target_for_call_stub` + inline guard in `resolve_call_site_contexts` to spare `.go>` definitions. ✅
+3. Added RED-first test `store_resolve_go_named_type_call_still_resolves` → confirmed FAIL before fix. ✅
+4. Applied fix (commit `d55129f`), ran 836 core tests (all green), fmt + clippy -D warnings clean. ✅
+5. Pushed fix to PR #682 branch. CI triggered. ✅
+6. Posted Codex P2 reply on PR #682 (option a — fixed, `d55129f`). ✅
+7. PM state v124 written + decisions.jsonl appended (this entry). ✅
+
+**Escalations to founder:**
+- PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch.
+- RFC-0120: Charter §2 ratio claim — Option A/B/C decision.
 
 ### 2026-06-08 PM dispatch v123 (this run)
 
