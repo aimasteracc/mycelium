@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **fix(resolver): shadowed local bindings now return `None` (RFC-0118 Part B Phase 3)** — when a local name is bound more than once in `locals` (e.g. `let s = Store::new(); { let s = Trunk::new(); s.method() }`), `infer_receiver_type` now returns `None` (ambiguous) instead of the first match, preventing mis-binding to the wrong type. Closes Issue #636.
+
 - **docs(skills): corrected `project_health` JSON example** — dimensions are `{"name": "dead_code", "score": N}` objects, not `["dead", N]` tuples; first dimension key is `dead_code`, not `dead`. Aligns with `project_health_payload()` in `crates/mycelium-core/src/health.rs`.
 
 ### Added

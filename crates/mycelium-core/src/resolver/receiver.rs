@@ -117,13 +117,17 @@ pub fn infer_receiver_type(ctx: &ReceiverContext) -> Option<TypeName> {
         }
     }
 
-    // c. local with ctor_type
-    for l in &ctx.locals {
-        if l.name == rcv {
+    // c. local with ctor_type — if the name is shadowed (appears more than once)
+    //    the binding is ambiguous; decline rather than risk a mis-bind.
+    let local_matches: Vec<_> = ctx.locals.iter().filter(|l| l.name == rcv).collect();
+    match local_matches.as_slice() {
+        [] => {}
+        [l] => {
             if let Some(t) = &l.ctor_type {
                 return Some(TypeName::Simple(t.clone()));
             }
         }
+        _ => return None,
     }
 
     // d. field with declared_type
@@ -402,5 +406,26 @@ mod tests {
             infer_receiver_type(&ctx),
             Some(TypeName::Simple("ParamType".to_owned()))
         );
+    }
+
+    // AC-shadowed: when the same local name is bound twice (shadowing), decline — ambiguous.
+    #[test]
+    fn infer_shadowed_local_returns_none() {
+        let ctx = ReceiverContext {
+            receiver: "s".to_owned(),
+            locals: vec![
+                LocalBinding {
+                    name: "s".to_owned(),
+                    ctor_type: Some("Store".to_owned()),
+                },
+                LocalBinding {
+                    name: "s".to_owned(),
+                    ctor_type: Some("Trunk".to_owned()),
+                },
+            ],
+            ..ctx_default()
+        };
+        // Both `s → Store` and `s → Trunk` in the table — ambiguous → None.
+        assert_eq!(infer_receiver_type(&ctx), None);
     }
 }
