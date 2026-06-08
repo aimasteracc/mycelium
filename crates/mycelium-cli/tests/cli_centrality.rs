@@ -295,6 +295,65 @@ fn harmonic_centrality_smoke() {
     assert!(v["harmonic_centrality"].is_number());
 }
 
+/// Fixture: two Rust functions where `entry` calls `caller` (a real defined callee)
+/// and `caller` calls `unknown_extern_fn` (not defined anywhere in the indexed files).
+/// After indexing, `unknown_extern_fn` becomes a `NodeKind::Unresolved` phantom
+/// (`resolve_bare_call_stubs` cannot find a definition for it).
+/// `caller` gains a real incoming edge from `entry`, so it ranks in `rank-symbols`.
+fn prepare_with_unresolved_call() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("src/lib.rs"),
+        "pub fn entry() { caller(); }\n\
+         pub fn caller() { unknown_extern_fn(); }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let status = Command::new(mycelium_bin())
+        .args(["index", root.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    dir
+}
+
+/// AC-20 defense-in-depth (CLI surface): `rank-symbols --format json` must not
+/// surface `NodeKind::Unresolved` phantom callee stubs.
+///
+/// The `is_real_symbol` guard in `mycelium-core` covers both CLI and MCP via the shared builder.
+/// This CLI integration test catches any regression where a CLI handler bypasses the shared
+/// builder and exposes the raw `all_paths()` iterator instead.
+///
+/// Resolves Issue #673.
+#[test]
+fn rank_symbols_excludes_unresolved_phantom() {
+    let p = prepare_with_unresolved_call();
+    let v = json_out(&["rank-symbols", "--format", "json"], p.path());
+    let syms = v["symbols"].as_array().expect("'symbols' must be an array");
+    // Positive control: `caller` has one real incoming edge (from `entry`), so it must rank.
+    // If the index is empty or the extractor is broken, this assertion catches the regression.
+    assert!(
+        syms.iter()
+            .any(|s| s["path"].as_str() == Some("src/lib.rs>caller")),
+        "real symbol 'src/lib.rs>caller' must appear in rank-symbols output \
+         (positive control — index must be live): {syms:?}"
+    );
+    // Negative control: the unresolved phantom must be absent.
+    assert!(
+        !syms
+            .iter()
+            .any(|s| s["path"].as_str() == Some("unknown_extern_fn")),
+        "NodeKind::Unresolved phantom 'unknown_extern_fn' must not appear in \
+         rank-symbols output (AC-20 CLI defense-in-depth): {syms:?}"
+    );
+}
+
 #[test]
 fn neighbor_similarity_smoke() {
     let p = prepare_diamond();
