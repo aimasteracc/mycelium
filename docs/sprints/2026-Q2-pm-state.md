@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v129 — PRs #690 (codecov 6→7) + #693 (tiktoken 0.6→0.12) + #696 (PM v128 chore) squash-merged; all Codex findings addressed; Dependabot queue clear; develop GREEN) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118: ALL PARTS COMPLETE. Three-Surface **94/94** ✅. MCP agent UX: entry-points paginates ✅, path-not-found teaches format ✅, reachability tools disambiguated ✅. |
+| Last updated | 2026-06-08 (PM dispatch v131 — PR #698 Codex P2 fixed (decisions.jsonl appended); PR #699 opened (fix/issue-657-method-span-precision); issues #636+#673 closed; develop GREEN) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118: ALL PARTS COMPLETE. Three-Surface **94/94** ✅. Post-v0.3.0: Issue #657 method span fix in CI (PR #699). |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -107,8 +107,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **ci: bump actions/download-artifact from 7 to 8** — PR #691 ✅ MERGED 2026-06-08 (squash `4f1e329`). CI 22/22; no Codex findings.
 - [x] **chore(deps): bump ignore from 0.4.25 to 0.4.26** — PR #694 ✅ MERGED 2026-06-08 (squash `f642040`). CI 22/22; no Codex findings.
 - [x] **chore(deps): bump salsa from 0.26.2 to 0.27.0** — PR #692 ✅ MERGED 2026-06-08 (squash `8bf8ecd`). CI 22/22; no Codex findings.
-- [ ] **chore(deps): bump tiktoken-rs from 0.6.0 to 0.12.0** — PR #693 open; docs job failed with transient HTTP 504 on mdbook binary download (unrelated to dep). Branch updated → fresh CI running.
-- [ ] **ci: bump codecov/codecov-action from 6 to 7** — PR #690 open; same transient HTTP 504. Branch updated → fresh CI running.
+- [x] **chore(deps): bump tiktoken-rs from 0.6.0 to 0.12.0** — PR #693, squash `d4610c6` ✅ MERGED 2026-06-08 (PM v129).
+- [x] **ci: bump codecov/codecov-action from 6 to 7** — PR #690, squash `3506a93` ✅ MERGED 2026-06-08 (PM v129).
+- [ ] **chore(pm): PM state v130** — PR #698 open, CI 18/19 green (windows in progress); Codex P2 fixed (decisions.jsonl append, commit `9077ad9`). Pending merge.
+- [ ] **fix(extractor): method span precision — Issue #657** — PR #699 open, CI running. Two RED-first tests (`method_span_is_method_not_class_python`, `method_span_is_method_not_class_typescript`). Affects TS/JS/Python/Java/C#/C++/Ruby. No call-graph impact, only SourceSpan.
 
 ---
 
@@ -119,12 +121,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 2. **RFC-0120 Charter §2 governance event** (PR #649): ratio = **0.753** vs ≤0.30 claim. `bpe_charter_sla_binding` fails. See `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`. Choose: **A** (retract claim, amend Charter §2 + README), **B** (redesign TextFormatter for ≥70% reduction), or **C** (reframe comparison to Hyphae query syntax). Charter §9 amendment requires BDFL approval.
 
 **P1 — Next autonomous:**
-3. **PR #693 / #690 — dependabot bumps** (tiktoken-rs 0.6→0.12 + codecov 6→7): branches updated; CI re-running after transient 504 flake cleared. Admin-merge once Quality Gate ✅ + no Codex P1.
-4. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
-5. **RFC-0118 Part B dogfood #2+**: Additional dogfood QA passes on the release CLI (get-callers precision, phantom-free graph queries, multi-language edge cases) using the indexed Mycelium codebase.
+3. **PR #698** (chore/pm-state-v130): CI 18/19 ✅ (windows in progress); Codex P2 fixed. Admin-merge once Quality Gate ✅.
+4. **PR #699** (fix/issue-657-method-span-precision): CI running. Admin-merge once Quality Gate ✅ + Codex addressed.
+5. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
+6. **RFC-0118 Part B dogfood #2+**: Additional dogfood QA passes.
 
 **P2 — Deferred:**
-6. **Issue #657**: Method/function definition spans use enclosing type extent (jump-to-definition precision, P2 enhancement).
 7. **Issue #612**: RFC-0118 Phase 1 implementation notes (Phase 2b prerequisite: cross-file extraction ordering).
 8. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
 9. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
@@ -135,16 +137,16 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v129)
+## Dispatch state (2026-06-08 v131)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v129: PRs #690 (codecov 6→7) + #693 (tiktoken 0.6→0.12) + #696 (PM v128 chore) merged; Codex P1 on #696 rejected (CI DCO ✅); develop GREEN. Dependabot queue clear. |
+| PM | **DONE ✅** | v131: PR #698 Codex P2 fixed (commit `9077ad9`, decisions.jsonl append); issues #636+#673 closed; PR #699 opened (fix/issue-657 method span); PM state v131 written. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
-| rust-implementer | **P1 (next)** | RFC-0119 AC-12/AC-13 real-corpus dogfood (after v0.3.0 ceremony); RFC-0118 Part B dogfood #2. |
+| rust-implementer | **P1 (next)** | PR #699 CI running; admin-merge once QG ✅. RFC-0119 AC-12/AC-13 real-corpus dogfood (after v0.3.0 ceremony). |
 | e2e-runner | **P1** | AC-12/AC-13 RFC-0119 real-corpus dogfood. v0.4.0 regression pass (after v0.3.0 ceremony). |
 | bench | **P2** | `sla_ancestors_100k` nightly (RFC-0104 cold SLA data). |
 | tech-writer | **P2** | Skills marketplace submission (founder sign-off). VS Code Phase 1.5 docs. |
@@ -176,6 +178,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v131 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions.jsonl tail-20 (165 lines; last = PM v130 `09:14`), anti-patterns (domains: ci/release-governance/merge-discipline/tdd/git-workflow), PM state v129 from origin/develop (develop HEAD `d0b3d5f` = PM v129 chore), v0.2 PRD. Local clone was at `main` (v0.2.0); fetched origin/develop to rehydrate.
+
+**Assessment:**
+- 2 open PRs: #698 (chore/pm-state-v130, 1 Codex P2 unresolved, 18/19 CI green — windows in progress), #568 (release/v0.3.0, founder P0).
+- 4 open issues: #673 (P2 — fixed by PR #684 but not auto-closed), #657 (P2 — method span), #636 (P2 — fixed by PR #675 but not auto-closed), #612 (P2).
+- Develop CI GREEN (develop HEAD `d0b3d5f`).
+- decisions.jsonl had 164 lines (v129 last); v130 entry missing (prior remote-MCP session limitation).
+
+**Actions taken:**
+1. **Fixed Codex P2 on PR #698** (decisions.jsonl missing v130 entry): appended entry `9077ad9`, pushed to branch, replied to Codex thread `3372012446`. ✅
+2. **Closed Issue #636** (fixed by PR #675, squash `95b75e4`) — auto-close did not fire; closed manually. ✅
+3. **Closed Issue #673** (fixed by PR #684, fix commit `be73ba9`) — auto-close did not fire; closed manually. ✅
+4. **Implemented fix for Issue #657** (method span precision): new `method_span_node()` helper + `METHOD_DECL_KINDS` const in `extractor/mod.rs`; `"definition.method"` branch now uses declaration-node span when anchor is a type container. Two RED-first tests added (`method_span_is_method_not_class_python`, `method_span_is_method_not_class_typescript`). CHANGELOG updated. **PR #699 opened** (CI running). ✅
+5. **PM state v131 written** + decisions.jsonl appended (this entry). ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — choose Option A/B/C (ratio 0.753 vs ≤0.30).
+
+### 2026-06-08 PM dispatch v130 (prior run — PR #698)
+
+Merged PR #697 (PM v129 chore, squash `d0b3d5f`); rejected Codex P2 ×2 on #697 with written justifications; wrote PM state v130. Note: decisions.jsonl append deferred due to remote-MCP session limitation (get_file_contents defaults to main SHA). Entry resolved by PM v131 (commit `9077ad9`).
 
 ### 2026-06-08 PM dispatch v129 (this run)
 
