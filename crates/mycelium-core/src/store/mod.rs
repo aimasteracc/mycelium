@@ -4195,13 +4195,11 @@ impl Store {
     pub fn page_rank(&self, kind: EdgeKind, damping: f64, iterations: usize) -> Vec<PageRankEntry> {
         let damping = damping.clamp(0.0, 1.0);
 
-        // Collect all symbol NodeIds in a stable order (no trie navigation).
-        // RFC-0118 Part A: exclude unresolved-callee phantoms from the rank universe.
-        let symbols: Vec<NodeId> = self
-            .symbol_nodes()
-            .filter(|(id, _)| self.is_real_symbol(*id))
-            .map(|(id, _)| id)
-            .collect();
+        // Collect all real-symbol NodeIds in a stable order.
+        // RFC-0118 Part A excluded unresolved-callee phantoms from the rank
+        // universe; Part A.2 routes that through the shared symbol_universe()
+        // (behaviour-preserving — same set, same order as symbol_nodes()).
+        let symbols: Vec<NodeId> = self.symbol_universe();
         let n = symbols.len();
         if n == 0 {
             return Vec::new();

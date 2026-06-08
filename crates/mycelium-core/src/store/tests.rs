@@ -1661,6 +1661,33 @@ fn harmonic_centrality_stats_excludes_phantoms_and_uses_real_n() {
 }
 
 #[test]
+fn page_rank_universe_equals_symbol_universe() {
+    // Part A.2 routes page_rank's node universe through symbol_universe(); assert
+    // the ranked paths are exactly the real-symbol universe (phantoms excluded).
+    let (store, ..) = store_with_phantom_callee();
+    let mut ranked: Vec<String> = store
+        .page_rank(EdgeKind::Calls, 0.85, 5)
+        .into_iter()
+        .map(|e| e.path)
+        .collect();
+    ranked.sort();
+    let mut universe: Vec<String> = store
+        .symbol_universe()
+        .into_iter()
+        .filter_map(|id| store.path_of(id).map(str::to_owned))
+        .collect();
+    universe.sort();
+    assert_eq!(
+        ranked, universe,
+        "page_rank universe must equal symbol_universe()"
+    );
+    assert!(
+        !ranked.contains(&"Db>upsert_node".to_string()),
+        "phantom excluded from page_rank: {ranked:?}"
+    );
+}
+
+#[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();
     // Insert only symbol-level nodes, no file-level nodes.
