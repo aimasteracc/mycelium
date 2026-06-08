@@ -319,7 +319,7 @@ pub struct SccEntry {
 }
 
 /// One entry in the result of [`Store::degree_centrality`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DegreeCentralityEntry {
     /// Materialized path of the symbol node.
     pub path: String,
@@ -2191,9 +2191,11 @@ impl Store {
     #[must_use]
     pub fn scc_groups(&self, kind: EdgeKind) -> Vec<Vec<String>> {
         // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
-        // nodes; the existing `sym_ids.contains(&w)` edge guard excludes phantom
-        // edges.
+        // nodes; the `sym_set` edge guard excludes phantom edges (O(1)).
         let sym_ids: Vec<NodeId> = self.symbol_universe();
+        // O(1) membership for the per-edge induced-subgraph guard (was O(V)
+        // `Vec::contains`, quadratic on dense graphs).
+        let sym_set: HashSet<NodeId> = sym_ids.iter().copied().collect();
 
         // Tarjan's iterative SCC.
         let mut index_counter: u32 = 0;
@@ -2224,8 +2226,8 @@ impl Store {
                 while *i < neighbors.len() {
                     let w = neighbors[*i];
                     *i += 1;
-                    // Only follow edges to symbol nodes.
-                    if !sym_ids.contains(&w) {
+                    // Only follow edges to real symbol nodes (induced subgraph).
+                    if !sym_set.contains(&w) {
                         continue;
                     }
                     if !index.contains_key(&w) {
@@ -4555,12 +4557,10 @@ impl Store {
     /// alphabetically by path.  File nodes excluded.  O(V + E).
     #[must_use]
     pub fn degree_centrality(&self, kind: EdgeKind) -> Vec<DegreeCentralityEntry> {
-        let symbols: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph (excludes Unresolved
+        // phantoms as nodes; the in/out-degree loop already guards on `idx`, so a
+        // phantom endpoint is skipped too). Same gating as the other 19 queries.
+        let symbols: Vec<NodeId> = self.symbol_universe();
         let n = symbols.len();
         if n == 0 {
             return Vec::new();

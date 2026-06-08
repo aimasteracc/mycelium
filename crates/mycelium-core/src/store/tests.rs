@@ -1313,6 +1313,33 @@ fn most_connected_excludes_phantoms_and_induces_degree() {
 }
 
 #[test]
+fn degree_centrality_excludes_phantoms_and_induces_degree() {
+    // PR #677 review: degree_centrality was the 20th graph query with the same
+    // phantom leak. Gating its universe to symbol_universe() excludes the phantom
+    // node AND (via the existing idx guard) the phantom edge.
+    let (store, ..) = store_with_phantom_callee();
+    let dc = store.degree_centrality(EdgeKind::Calls);
+    assert!(
+        !dc.iter().any(|e| e.path == "Db>upsert_node"),
+        "phantom must not appear in degree_centrality: {dc:?}"
+    );
+    let main_out = dc
+        .iter()
+        .find(|e| e.path == "app.rs>main")
+        .map(|e| e.out_degree);
+    assert_eq!(
+        main_out,
+        Some(1),
+        "main out_degree must exclude the phantom edge: {dc:?}"
+    );
+    assert_eq!(
+        dc,
+        store_phantom_free_twin().degree_centrality(EdgeKind::Calls),
+        "degree_centrality must match the phantom-free twin (induced subgraph)"
+    );
+}
+
+#[test]
 fn k_core_excludes_phantoms() {
     let (store, ..) = store_with_phantom_callee();
     // k == 0 returns the whole symbol universe — must not include the phantom.

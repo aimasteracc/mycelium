@@ -81,12 +81,13 @@ the edge-level induction is already implied or not applicable.
 | `singly_referenced` | GATE-FULL | universe via `symbol_universe`; incoming counted over real callers only |
 | `hub_symbols` | GATE-FULL | universe via `symbol_universe`; in/out degree over real endpoints only |
 | `most_connected` | GATE-FULL | universe via `symbol_universe`; total degree over real endpoints only |
+| `degree_centrality` | GATE-FULL | universe via `symbol_universe`; in/out degree `idx`-guarded over real endpoints; norm over real n |
 | `k_core` | GATE-FULL | universe via `symbol_universe`; subgraph degree already `sym_set`-restricted |
 | `dependency_layers` | GATE-FULL | universe via `symbol_universe`; Kahn edges already `sym_set`-restricted |
 | `topological_sort` | GATE-FULL | universe via `symbol_universe`; successors already `sym_set`-restricted |
 | `nodes_in_cycles` | GATE-FULL | universe via `symbol_universe`; DFS edges restricted to real symbols |
 | `cycle_members` | GATE-FULL | universe via `symbol_universe`; Kosaraju adjacency already `sym_set`-restricted |
-| `scc_groups` | GATE-FULL | universe via `symbol_universe`; Tarjan edges already `sym_ids`-restricted |
+| `scc_groups` | GATE-FULL | universe via `symbol_universe`; Tarjan edges `sym_set`-restricted (O(1)) |
 | `strongly_connected_components` | GATE-FULL | universe via `symbol_universe`; Tarjan adjacency already `idx`-restricted |
 | `weakly_connected_components` | GATE-FULL | universe via `symbol_universe`; union-find already `sym_set`-restricted |
 | `articulation_points` | GATE-FULL | universe via `symbol_universe`; undirected adjacency already `sym_set`-restricted |
@@ -96,7 +97,8 @@ the edge-level induction is already implied or not applicable.
 | `closeness_centrality` | GATE-FULL | universe via `symbol_universe`; BFS edges `idx`-restricted; norm = `n-1` over real n |
 | `harmonic_centrality_stats` | GATE-FULL | symbol_count = `|real symbols|`; BFS counts only real-symbol endpoints; norm = `n-1` over real n |
 
-All 19 land as **GATE-FULL**. No query shipped GATE-OUTPUT-ONLY or DEFERRED:
+All 20 land as **GATE-FULL** (`degree_centrality` added in PR #677 review — it
+was the same-class 20th query). No query shipped GATE-OUTPUT-ONLY or DEFERRED:
 the dominant pattern (universe + `sym_set`/`idx`-restricted traversal) made the
 induced subgraph fall out of the universe swap for the algorithmic queries, and
 the five raw-degree queries each had a single, local degree expression to
