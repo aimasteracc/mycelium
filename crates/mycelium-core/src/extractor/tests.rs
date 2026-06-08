@@ -3288,3 +3288,54 @@ class Dog {
         "TS bare call must not bind to Dog>speak either"
     );
 }
+
+// ── Issue #657: method span precision ────────────────────────────────────────
+//
+// When `@definition.method` anchors on the enclosing type container (class_definition,
+// class_declaration, etc.) to build the correct dotted path, the stored span must be
+// the method-declaration span — NOT the whole-class span. Jump-to-definition uses this
+// span; landing at the class opening brace is wrong.
+//
+// RED before fix: span.start_line == 1 (class_definition line)
+// GREEN after fix: span.start_line == 2 (function_definition line)
+
+#[test]
+fn method_span_is_method_not_class_python() {
+    // class_definition anchors @definition.method (packs/python/queries.scm).
+    // Line 1: `class Foo:` — class_definition span (wrong — current behaviour)
+    // Line 2: `    def bar(self):` — function_definition span (correct)
+    let source = "class Foo:\n    def bar(self):\n        pass\n";
+    let store = extract(source);
+    let method_id = store
+        .lookup("test.py>Foo>bar")
+        .expect("Foo>bar method node must exist");
+    let span = store
+        .span_of(method_id)
+        .expect("Foo>bar must have a source span");
+    assert_eq!(
+        span.start_line, 2,
+        "method span must start at the function_definition line (2), not the class_definition line (1)"
+    );
+}
+
+#[test]
+fn method_span_is_method_not_class_typescript() {
+    // class_declaration anchors @definition.method (packs/typescript/queries.scm).
+    // Line 1: `class Foo {` — class_declaration span (wrong — current behaviour)
+    // Line 2: `  bar() {}` — method_definition span (correct)
+    let source = "class Foo {\n  bar() {}\n}\n";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    let method_id = store
+        .lookup("test.ts>Foo>bar")
+        .expect("Foo>bar method node must exist");
+    let span = store
+        .span_of(method_id)
+        .expect("Foo>bar must have a source span");
+    assert_eq!(
+        span.start_line, 2,
+        "method span must start at the method_definition line (2), not the class_declaration line (1)"
+    );
+}

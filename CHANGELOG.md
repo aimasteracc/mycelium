@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Method/function definition spans now point to the declaration, not the enclosing class (Issue #657).**
+  When a `@definition.method` query anchors on the enclosing type container (e.g.
+  `class_definition` in Python, `class_declaration` in TypeScript/JS/Java/C#), the
+  previously stored span covered the entire class. Jump-to-definition now lands at
+  the precise method/function declaration line. Affected packs: Python, TypeScript,
+  JavaScript, Java, C#, C++, Ruby (`method_definition`, `function_definition`,
+  `method_declaration`, `constructor_declaration`, `method`, `singleton_method`).
+
 ### Changed
 
 - **RFC-0118 Part A.2: graph-theory queries now operate on the real-symbol
