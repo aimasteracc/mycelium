@@ -642,6 +642,44 @@ impl Extractor {
                                         },
                                     );
                                 }
+                            } else {
+                                // RFC-0118 Part B: a BARE implicit-receiver call
+                                // (`speak()` with no `this.`/explicit receiver) inside
+                                // a class/type body is an intra-type method call. When
+                                // `speak` is defined on more than one type the bare
+                                // stub stays Ambiguous and get-callers returns a
+                                // confident-but-wrong EMPTY set. Record a synthetic
+                                // `self` context whose `self_type` is the innermost
+                                // enclosing type, so `infer_receiver_type` rule (a)
+                                // returns that type and `disambiguate` matches the
+                                // unique `…>{EnclosingType}>{method}` candidate.
+                                //
+                                // CONSERVATISM: `enclosing_self_type` fires ONLY for
+                                // the four languages with implicit receiver dispatch
+                                // (Java/C#/C++/Ruby) — see IMPLICIT_SELF_SCOPES. In
+                                // Python, Rust, TS/JS, and Go a bare call is a
+                                // free/local identifier, so it records no self-context
+                                // and resolves exactly as before (Codex P2 on PR #680).
+                                // A bare call at file scope also returns None. If the
+                                // enclosing type does not define the method, the
+                                // candidate set omits `…>{EnclosingType}>{method}` →
+                                // disambiguate returns Ambiguous → the stub stays (no
+                                // mis-bind).
+                                if let Some(enclosing_type) = enclosing_self_type(anchor, source) {
+                                    store.record_call_site(
+                                        caller_id,
+                                        callee_id,
+                                        ReceiverContext {
+                                            receiver: "self".to_owned(),
+                                            method: callee_name.to_owned(),
+                                            imports: Vec::new(),
+                                            locals: Vec::new(),
+                                            self_type: Some(enclosing_type),
+                                            params: Vec::new(),
+                                            fields: Vec::new(),
+                                        },
+                                    );
+                                }
                             }
                         }
                     }
@@ -839,6 +877,101 @@ fn enclosing_class_chain(node: tree_sitter::Node<'_>, source: &[u8]) -> Vec<Stri
     }
     chain.reverse();
     chain
+}
+
+/// `(enclosing-method kind, enclosing-type-container kind)` pairs for the FOUR
+/// languages with IMPLICIT receiver dispatch, where a bare unqualified
+/// `speak()` inside a method body is sugar for `this.speak()` / `self.speak()`:
+///
+/// - **Java / C#**: `method_declaration` | `constructor_declaration` nested in a
+///   `class`/`interface`/`enum`/`record`/`struct` *declaration*.
+/// - **C++**: `function_definition` nested in a class/struct/union *specifier*.
+/// - **Ruby**: `method` | `singleton_method` nested in a `class`/`module`.
+///
+/// Every OTHER language requires an explicit qualifier (`self.`, `this.`,
+/// `Self::`, or a named receiver), so a bare call there is a free/local
+/// identifier lookup, NOT an intra-type method call — binding it to the
+/// enclosing type would manufacture a FALSE caller edge (Codex P2 on PR #680;
+/// e.g. TS `class A { speak(){} run(){ speak(); } }` must NOT bind
+/// `A>run -> A>speak`).
+///
+/// The pair is matched STRUCTURALLY because node kinds collide across languages
+/// and neither half alone disambiguates:
+/// - `class_declaration` is Java/C# (implicit `this`) AND TS/JS (no implicit).
+/// - `method_declaration` is Java/C# (nested in a type) AND top-level Go (no
+///   enclosing type container at all → no match → Go correctly excluded).
+/// - `function_definition` is C++ (in a `*_specifier`) AND Python (in a
+///   `class_definition` → not a pair here → Python correctly excluded).
+const IMPLICIT_SELF_SCOPES: &[(&str, &str)] = &[
+    // Java / C#
+    ("method_declaration", "class_declaration"),
+    ("method_declaration", "interface_declaration"),
+    ("method_declaration", "enum_declaration"),
+    ("method_declaration", "record_declaration"),
+    ("method_declaration", "struct_declaration"),
+    ("constructor_declaration", "class_declaration"),
+    ("constructor_declaration", "record_declaration"),
+    ("constructor_declaration", "struct_declaration"),
+    // C++
+    ("function_definition", "class_specifier"),
+    ("function_definition", "struct_specifier"),
+    ("function_definition", "union_specifier"),
+    // Ruby
+    ("method", "class"),
+    ("method", "module"),
+    ("singleton_method", "class"),
+    ("singleton_method", "module"),
+];
+
+/// The enclosing type that a bare implicit-receiver call belongs to, i.e. the
+/// type a synthetic `self` receiver would resolve to (RFC-0118 Part B).
+///
+/// Only the four languages with implicit receiver dispatch (Java, C#, C++,
+/// Ruby) participate. We identify the language family by the
+/// `(innermost enclosing method kind, innermost enclosing type-container kind)`
+/// pair and accept ONLY combinations in [`IMPLICIT_SELF_SCOPES`]. This excludes
+/// Python, Rust, and TypeScript/JavaScript (where a bare call is a free/local
+/// identifier lookup) and Go (whose receiver methods have no enclosing type
+/// container), so no false caller edge is manufactured (Codex P2 on PR #680).
+///
+/// Returns `None` at file scope, in a non-implicit language, or when the
+/// container name is unknown — a bare call there records no self-context and
+/// resolves exactly as before.
+fn enclosing_self_type(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<String> {
+    let mut cur = node;
+    let mut method_kind: Option<&str> = None;
+    let mut container: Option<tree_sitter::Node<'_>> = None;
+    while let Some(parent) = cur.parent() {
+        let kind = parent.kind();
+        if method_kind.is_none() && FUNCTION_KINDS.contains(&kind) {
+            method_kind = Some(kind);
+        }
+        // Ruby's `class`/`module` are excluded from `is_type_container` (their
+        // kinds collide with JS class-expressions / Python's module root), so
+        // accept them here too — the IMPLICIT_SELF_SCOPES pair gate keeps the
+        // collision harmless (a JS `class` expr would need a Ruby `method`
+        // ancestor to match, which never happens).
+        if container.is_none() && (is_type_container(kind) || kind == "class" || kind == "module") {
+            container = Some(parent);
+        }
+        if method_kind.is_some() && container.is_some() {
+            break;
+        }
+        cur = parent;
+    }
+    let method_kind = method_kind?;
+    let container = container?;
+    let is_implicit_self = IMPLICIT_SELF_SCOPES
+        .iter()
+        .any(|&(m, c)| m == method_kind && c == container.kind());
+    if !is_implicit_self {
+        return None;
+    }
+    let name = container_name(container, source);
+    if name != "_Unknown" {
+        return Some(name.to_owned());
+    }
+    None
 }
 
 /// Build the resolved target path that an alias binding points to
@@ -1149,11 +1282,20 @@ fn enclosing_function_path(node: tree_sitter::Node<'_>, source: &[u8]) -> Option
                 .unwrap_or_else(|| "_unknown".to_owned());
 
             // Collect enclosing class/impl containers (outermost first).
+            // Ruby's `class`/`module` are excluded from the shared
+            // `is_type_container` (their kind names collide with JS
+            // class-EXPRESSIONS and Python's module root). But when the enclosing
+            // FUNCTION is itself a Ruby `method`/`singleton_method`, the
+            // `class`/`module` ancestors are unambiguously Ruby type containers,
+            // so a call inside a Ruby method is attributed to `Class>method`
+            // (matching the method's `@definition.method` path) instead of the
+            // flat `method` path (RFC-0118 Part B: previously a known limitation).
+            let ruby_method = matches!(parent.kind(), "method" | "singleton_method");
             let mut containers: Vec<String> = Vec::new();
             let mut scan = parent;
             while let Some(ancestor) = scan.parent() {
                 let kind = ancestor.kind();
-                if is_type_container(kind) {
+                if is_type_container(kind) || (ruby_method && matches!(kind, "class" | "module")) {
                     containers.push(container_name(ancestor, source).to_owned());
                 }
                 scan = ancestor;
@@ -1313,13 +1455,17 @@ fn is_type_container(kind: &str) -> bool {
             | "struct_specifier" // C++
             | "union_specifier" // C++
                                 // NOTE: Ruby's container kinds (`class`/`module`) are intentionally
-                                // NOT listed — `module` collides with Python's file-root node kind,
-                                // and `class` collides with JS/TS class-EXPRESSION nodes (`const C =
-                                // class {}`), which would manufacture orphan `_Unknown>method` caller
-                                // paths. Ruby method DEFINITIONS still path correctly (the
-                                // @definition.method anchor reads the class/module `name` field via
-                                // container_name); only caller attribution for a call made INSIDE a
-                                // Ruby method lands at the flat `method` path (a known limitation).
+                                // NOT listed here — `module` collides with Python's file-root node
+                                // kind, and `class` collides with JS/TS class-EXPRESSION nodes
+                                // (`const C = class {}`), which would manufacture orphan
+                                // `_Unknown>method` caller paths if matched unconditionally. Ruby
+                                // method DEFINITIONS path correctly via the @definition.method anchor
+                                // (which reads the class/module `name` field). Ruby CALLER attribution
+                                // and bare implicit-self resolution are handled with a Ruby-scoped
+                                // `class`/`module` walk in `enclosing_function_path` and
+                                // `enclosing_self_type` (gated on a Ruby `method`/`singleton_method`
+                                // ancestor), so the collision concern never applies there
+                                // (RFC-0118 Part B).
     )
 }
 

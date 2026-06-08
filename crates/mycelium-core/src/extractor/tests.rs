@@ -2930,3 +2930,361 @@ fn extractor_ruby_receiver_type_binds_multi_match_method_f5() {
         "run must NOT be mis-bound to Cache>save"
     );
 }
+
+// ── RFC-0118 Part B: BARE implicit-self method disambiguation ───────────────
+//
+// A bare implicit-receiver self-method call — e.g. `void run() { speak(); }`
+// where `speak()` has no `this.`/explicit receiver — must resolve to the
+// ENCLOSING type's method when `speak` is defined on MORE THAN ONE type.
+// Before this fix, the bare call was left as an unresolved bare stub and
+// `get-callers Animal>speak` returned a confident-but-wrong EMPTY set.
+//
+// The fix records a `ReceiverContext { receiver: "self", self_type:
+// Some(<enclosing type>), .. }` for a bare unresolved METHOD call, so rule (a)
+// of `infer_receiver_type` returns the enclosing type and `disambiguate`
+// matches the unique `>{EnclosingType}>{method}` candidate.
+
+#[test]
+fn extractor_java_bare_self_method_binds_multi_match() {
+    // `speak` is a method on TWO classes (multi-match). The bare call
+    // `speak();` inside Animal.run() must bind to Animal>speak (the enclosing
+    // type), NOT to Dog>speak. Before the fix get-callers Animal>speak was EMPTY.
+    let source = "\
+class Animal {
+    void speak() {}
+    void run() { speak(); }
+}
+class Dog {
+    void speak() {}
+}
+";
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("test.java", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.java>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.java>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store
+        .lookup("test.java>Dog>speak")
+        .expect("Dog.speak exists");
+    assert!(
+        store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Animal>speak (bare implicit-self)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Dog>speak"
+    );
+}
+
+#[test]
+fn extractor_java_bare_free_function_still_resolves_no_self_context() {
+    // NEGATIVE: a bare call to a free/static method with a UNIQUE name must
+    // still resolve as before (single-match) — manufactured self-context must
+    // not break it.
+    let source = "\
+class Util {
+    static void helper() {}
+    void run() { helper(); }
+}
+";
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("test.java", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.java>Util>run").expect("run exists");
+    let helper = store
+        .lookup("test.java>Util>helper")
+        .expect("helper exists");
+    assert!(
+        store.incoming(helper, EdgeKind::Calls).contains(&run),
+        "unique-name bare call must still resolve (no regression)"
+    );
+}
+
+#[test]
+fn extractor_java_bare_self_method_not_on_enclosing_type_declines() {
+    // NEGATIVE / no-misbind: the enclosing type does NOT define `speak`, but two
+    // OTHER types do. The bare `speak()` must stay unresolved — never mis-bound.
+    let source = "\
+class Cat {
+    void speak() {}
+}
+class Dog {
+    void speak() {}
+}
+class Robot {
+    void run() { speak(); }
+}
+";
+    let ext = java_extractor();
+    let mut store = Store::new();
+    ext.extract("test.java", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.java>Robot>run").expect("run exists");
+    let cat_speak = store.lookup("test.java>Cat>speak").expect("Cat.speak");
+    let dog_speak = store.lookup("test.java>Dog>speak").expect("Dog.speak");
+    assert!(
+        !store.incoming(cat_speak, EdgeKind::Calls).contains(&run),
+        "must NOT mis-bind to Cat>speak (Robot does not define speak)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "must NOT mis-bind to Dog>speak (Robot does not define speak)"
+    );
+}
+
+#[test]
+fn extractor_csharp_bare_self_method_binds_multi_match() {
+    let source = "\
+class Animal {
+    void Speak() {}
+    void Run() { Speak(); }
+}
+class Dog {
+    void Speak() {}
+}
+";
+    let ext = csharp_extractor();
+    let mut store = Store::new();
+    ext.extract("test.cs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.cs>Animal>Run").expect("Run exists");
+    let animal_speak = store
+        .lookup("test.cs>Animal>Speak")
+        .expect("Animal.Speak exists");
+    let dog_speak = store.lookup("test.cs>Dog>Speak").expect("Dog.Speak exists");
+    assert!(
+        store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "Run() must be a caller of Animal>Speak (bare implicit-self)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "Run() must NOT be mis-bound to Dog>Speak"
+    );
+}
+
+#[test]
+fn extractor_cpp_bare_self_method_binds_multi_match() {
+    let source = "\
+class Animal {
+    void speak() {}
+    void run() { speak(); }
+};
+class Dog {
+    void speak() {}
+};
+";
+    let ext = cpp_extractor();
+    let mut store = Store::new();
+    ext.extract("test.cpp", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.cpp>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.cpp>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store
+        .lookup("test.cpp>Dog>speak")
+        .expect("Dog.speak exists");
+    assert!(
+        store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Animal>speak (bare implicit-self)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Dog>speak"
+    );
+}
+
+#[test]
+fn extractor_go_bare_call_is_not_self_method() {
+    // Go has NO implicit receiver: a bare `speak()` inside `func (a Animal) run()`
+    // is a PACKAGE-LEVEL function call, never an Animal-method call (you must
+    // write `a.speak()`). So the bare call must NOT be bound to Animal>speak (nor
+    // Dog>speak) — review correction: Go is excluded from the bare-self path.
+    let source = "\
+package main
+type Animal struct{}
+type Dog struct{}
+func (a Animal) speak() {}
+func (a Animal) run() { speak() }
+func (d Dog) speak() {}
+";
+    let ext = go_extractor();
+    let mut store = Store::new();
+    ext.extract("test.go", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.go>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.go>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store.lookup("test.go>Dog>speak").expect("Dog.speak exists");
+    assert!(
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "Go bare `speak()` is a package function, NOT Animal>speak (no implicit receiver)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "Go bare call must not bind to Dog>speak either"
+    );
+}
+
+#[test]
+fn extractor_ruby_bare_self_method_binds_multi_match() {
+    // Ruby bare implicit-self: `speak()` (with parens, a `call` node) inside
+    // Animal#run must bind to Animal>speak when `speak` is defined on two
+    // classes. (Parenthesised so the grammar emits a `call` rather than a bare
+    // `identifier`, which is indistinguishable from a local-variable read.)
+    let source = "\
+class Animal
+  def speak; end
+  def run
+    speak()
+  end
+end
+class Dog
+  def speak; end
+end
+";
+    let ext = ruby_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rb", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rb>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.rb>Animal>speak")
+        .expect("Animal#speak exists");
+    let dog_speak = store.lookup("test.rb>Dog>speak").expect("Dog#speak exists");
+    assert!(
+        store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "run must be a caller of Animal>speak (bare implicit-self)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "run must NOT be mis-bound to Dog>speak"
+    );
+}
+
+#[test]
+fn extractor_python_bare_call_in_method_is_not_self_method() {
+    // Python has NO implicit `self`: a bare `speak()` inside a method body is a
+    // free/global name lookup, NOT `self.speak()` (which is required to call the
+    // method). So with a duplicate method name the bare call must NOT bind to the
+    // enclosing class's method — that would be a false caller edge (Codex P2 on
+    // PR #680). `enclosing_self_type` must decline for Python.
+    let source = "\
+class Animal:
+    def speak(self): pass
+    def run(self): speak()
+class Dog:
+    def speak(self): pass
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.py>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.py>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store.lookup("test.py>Dog>speak").expect("Dog.speak exists");
+    assert!(
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "Python bare `speak()` is a free name, NOT Animal>speak (needs self.)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "Python bare call must not bind to Dog>speak either"
+    );
+}
+
+#[test]
+fn extractor_rust_bare_call_in_method_is_not_self_method() {
+    // Rust has NO implicit receiver: a bare `speak()` inside an `impl` method is a
+    // free-function path, NOT `self.speak()` / `Self::speak()`. So it must NOT
+    // bind to the enclosing impl's method (Codex P2 on PR #680).
+    let source = "\
+struct Animal;
+struct Dog;
+impl Animal {
+    fn speak(&self) {}
+    fn run(&self) { speak(); }
+}
+impl Dog {
+    fn speak(&self) {}
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.rs>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store.lookup("test.rs>Dog>speak").expect("Dog.speak exists");
+    assert!(
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "Rust bare `speak()` is a free path, NOT Animal>speak (needs self./Self::)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "Rust bare call must not bind to Dog>speak either"
+    );
+}
+
+#[test]
+fn extractor_ts_bare_call_in_method_is_not_self_method() {
+    // TypeScript/JavaScript have NO implicit `this`: a bare `speak()` inside a
+    // class method is a free/imported identifier, NOT `this.speak()`. So it must
+    // NOT bind to the enclosing class's method — this is the exact false-edge case
+    // Codex flagged on PR #680 (`A>run -> A>speak`).
+    let source = "\
+class Animal {
+    speak() {}
+    run() { speak(); }
+}
+class Dog {
+    speak() {}
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.ts>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.ts>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store.lookup("test.ts>Dog>speak").expect("Dog.speak exists");
+    assert!(
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "TS bare `speak()` is a free identifier, NOT Animal>speak (needs this.)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "TS bare call must not bind to Dog>speak either"
+    );
+}
