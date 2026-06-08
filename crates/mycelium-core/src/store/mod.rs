@@ -1371,19 +1371,24 @@ impl Store {
             let inferred = receiver::infer_receiver_type(&ctx.receiver_ctx);
             if let Resolution::Unique(path) = receiver::disambiguate(inferred, &candidates) {
                 if let Some(def_id) = self.trunk.lookup_path(&path) {
-                    // Kind-aware guard (independent-review SHOULD-FIX on PR #682):
-                    // a method call can NEVER resolve to a type alias. The
-                    // single-candidate fast-path in `disambiguate` returns Unique
-                    // without a kind check, so a lone `>method`-suffix TypeAlias
-                    // would otherwise gain a phantom Calls edge here — the same
-                    // mis-bind the simple/import-aware passes already guard. Every
-                    // stub reaching this loop IS a call stub (it has a recorded
-                    // call-site context), so a bare incoming-Calls check is
-                    // redundant; gate purely on the candidate kind.
+                    // Kind-aware guard (independent-review SHOULD-FIX on PR #682,
+                    // generalized): a method call can NEVER resolve to a
+                    // non-callable definition — a Module/File/Import/Export/
+                    // TypeAlias. The single-candidate fast-path in `disambiguate`
+                    // returns Unique without a kind check, so a lone
+                    // `>method`-suffix non-callable def would otherwise gain a
+                    // phantom Calls edge here — the same mis-bind the
+                    // simple/import-aware passes already guard. Every stub reaching
+                    // this loop IS a call stub (it has a recorded call-site
+                    // context), so a bare incoming-Calls check is redundant; gate
+                    // purely on the candidate kind.
                     // Exception: Go named types (TypeAlias from a .go file) ARE
                     // callable as type conversions; mirror the is_uncallable logic.
-                    let is_go_def = self.path_of(def_id).is_some_and(|p| p.contains(".go>"));
-                    if self.kind_of(def_id) == Some(NodeKind::TypeAlias) && !is_go_def {
+                    let kind = self.kind_of(def_id);
+                    let is_go_type_alias = kind == Some(NodeKind::TypeAlias)
+                        && self.path_of(def_id).is_some_and(|p| p.contains(".go>"));
+                    if kind.is_some_and(|k| !Self::is_callable_target_kind(k)) && !is_go_type_alias
+                    {
                         continue;
                     }
                     // Don't bind a call to itself. (A stub can't be a candidate:
@@ -1399,37 +1404,85 @@ impl Store {
         resolved
     }
 
+    /// RFC-0118: whether a definition of `kind` can NEVER be a function-call
+    /// target, so a call must not bind to it.
+    ///
+    /// Blocked (non-callable) kinds:
+    /// - [`NodeKind::Module`] / [`NodeKind::File`] — a call can never resolve to
+    ///   a module or file. The confirmed dogfood bug was `lib.rs>push`
+    ///   (`mod push;`) becoming page-rank's #1 phantom hub when 60 stdlib
+    ///   `Vec::push` / `String::push` call-stubs collapsed onto it by bare-name
+    ///   resolution.
+    /// - [`NodeKind::Import`] / [`NodeKind::Export`] — import/export statements
+    ///   are not callable definitions.
+    /// - [`NodeKind::TypeAlias`] — a `type X = …` alias is never callable
+    ///   (except Go named types; see the `.go>` exception in
+    ///   [`Self::is_uncallable_target_for_call_stub`]).
+    ///
+    /// Left CALLABLE (NOT blocked):
+    /// - [`NodeKind::Function`] / [`NodeKind::Method`] — the obvious cases.
+    /// - [`NodeKind::Struct`] / [`NodeKind::Class`] / [`NodeKind::EnumMember`] —
+    ///   tuple/variant constructors (`MyStruct(…)`, `Color::Red(…)`).
+    /// - [`NodeKind::Field`] / [`NodeKind::Property`] / [`NodeKind::Variable`] /
+    ///   [`NodeKind::Constant`] / [`NodeKind::Parameter`] — these can legitimately
+    ///   hold a closure / function pointer that is then called
+    ///   (`self.callback()`); blocking them would lose real call edges.
+    /// - [`NodeKind::Interface`] / [`NodeKind::Enum`] — directly non-callable in
+    ///   principle, but left callable by a CONSERVATIVE choice: the confirmed bug
+    ///   is `Module`, and no concrete `Interface`/`Enum` collision has been
+    ///   observed. Some packs may emit a call-shaped edge to an enum/interface
+    ///   name (e.g. an associated-function call recorded against the bare type
+    ///   name), so blocking them risks dropping real edges. Revisit only with a
+    ///   reproduced collision.
+    /// - [`NodeKind::Route`] / [`NodeKind::Component`] / [`NodeKind::Unresolved`]
+    ///   — left callable; not implicated and a stub can't be a candidate.
+    const fn is_callable_target_kind(kind: NodeKind) -> bool {
+        !matches!(
+            kind,
+            NodeKind::Module
+                | NodeKind::File
+                | NodeKind::Import
+                | NodeKind::Export
+                | NodeKind::TypeAlias
+        )
+    }
+
     /// RFC-0118: whether redirecting `stub_id` onto `def_id` would bind a
     /// function CALL onto a non-callable definition.
     ///
     /// Returns `true` (block the redirect) only when ALL of:
     /// 1. the stub has at least one incoming [`EdgeKind::Calls`] edge — i.e. it
     ///    is (also) a call site, and
-    /// 2. the candidate definition's kind is [`NodeKind::TypeAlias`], and
-    /// 3. the definition is NOT from a Go source file.
+    /// 2. the candidate definition's kind is non-callable per
+    ///    [`Self::is_callable_target_kind`]
+    ///    (`Module`/`File`/`Import`/`Export`/`TypeAlias`), and
+    /// 3. it is NOT a Go named type — `def_id` is a `TypeAlias` from a `.go`
+    ///    source file.
     ///
     /// Point 3 exists because Go named types (`type Status int`) are stored as
     /// `NodeKind::TypeAlias` but ARE valid call targets — `Status(1)` is a type
-    /// conversion expression, emitted by the Go pack as a `Calls` edge. For
-    /// every other indexed language (Rust, TypeScript, Python, …) a `TypeAlias`
-    /// is never callable, so the guard fires. Language is inferred from the `.go`
+    /// conversion expression, emitted by the Go pack as a `Calls` edge. The
+    /// exception is scoped to `TypeAlias` ONLY; `Module`/`File`/`Import`/`Export`
+    /// have no Go (or any) callable form. Language is inferred from the `.go`
     /// file-extension marker in the definition's trunk path.
     ///
-    /// Gating on incoming `Calls` (rather than blanket-blocking every
-    /// `TypeAlias` redirect) preserves the legitimate import-of-type-alias case
-    /// (`use foo::SomeAlias`), which carries only `Imports`/`References` edges.
-    /// Struct/Class/Enum/EnumMember candidates are left callable — those ARE
-    /// valid tuple/variant constructor targets (`MyStruct(...)`,
-    /// `MyEnum::Variant(...)`). Only `TypeAlias` is blocked (except Go).
+    /// Gating on incoming `Calls` (rather than blanket-blocking every redirect to
+    /// a non-callable kind) preserves the legitimate non-call cases — e.g. an
+    /// import of a type alias (`use foo::SomeAlias`) or a `mod foo;` reference —
+    /// which carry only `Imports`/`References` edges.
     fn is_uncallable_target_for_call_stub(&self, stub_id: NodeId, def_id: NodeId) -> bool {
-        if self.kind_of(def_id) != Some(NodeKind::TypeAlias) {
+        let Some(kind) = self.kind_of(def_id) else {
+            return false;
+        };
+        if Self::is_callable_target_kind(kind) {
             return false;
         }
         if self.synapse.incoming(stub_id, EdgeKind::Calls).is_empty() {
             return false;
         }
         // Go named types are TypeAlias but callable as type conversions — allow.
-        !self.path_of(def_id).is_some_and(|p| p.contains(".go>"))
+        // (Scoped to TypeAlias; other blocked kinds have no .go> exception.)
+        !(kind == NodeKind::TypeAlias && self.path_of(def_id).is_some_and(|p| p.contains(".go>")))
     }
 
     fn resolve_bare_call_stubs_simple(&mut self) -> usize {
