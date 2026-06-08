@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **RFC-0118 Part A.2: graph-theory queries now operate on the real-symbol
+  induced subgraph.** The 19 "what matters here" queries —
+  `leaf_symbols`, `isolated_symbols`, `singly_referenced`, `hub_symbols`,
+  `most_connected`, `k_core`, `dependency_layers`, `nodes_in_cycles`,
+  `cycle_members`, `scc_groups`, `strongly_connected_components`,
+  `weakly_connected_components`, `topological_sort`, `articulation_points`,
+  `bridge_edges`, `biconnected_components`, `betweenness_centrality`,
+  `closeness_centrality`, `harmonic_centrality_stats` — now exclude
+  `NodeKind::Unresolved` resolver phantoms from both the node universe AND
+  the edges incident to them, via the new single-source-of-truth
+  `Store::symbol_universe()`. A phantom can no longer appear in a result,
+  inflate a real node's degree, sit on a shortest path, join a cycle/SCC,
+  or skew a centrality normalization denominator (which now counts only
+  real symbols). Programmatic stores that never recorded kinds are
+  unchanged (back-compatible). See [ADR-0012](docs/adr/0012-graph-query-real-symbol-induced-subgraph.md).
+
 ### Fixed
 
 - **fix(resolver): shadowed local bindings now return `None` (RFC-0118 Part B Phase 3)** — when a local name is bound more than once in `locals` (e.g. `let s = Store::new(); { let s = Trunk::new(); s.method() }`), `infer_receiver_type` now returns `None` (ambiguous) instead of the first match, preventing mis-binding to the wrong type. Closes Issue #636.

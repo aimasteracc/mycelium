@@ -1131,6 +1131,589 @@ fn is_real_symbol_only_excludes_unresolved() {
     );
 }
 
+// ── RFC-0118 Part A.2: symbol_universe() — real-symbol node universe ──────
+
+#[test]
+fn symbol_universe_empty_store_is_empty() {
+    let store = Store::new();
+    assert!(
+        store.symbol_universe().is_empty(),
+        "an empty store has no symbol universe"
+    );
+}
+
+#[test]
+fn symbol_universe_single_real_symbol() {
+    let mut store = Store::new();
+    // A file node (no `>`) and one real symbol; only the symbol is in the universe.
+    store.upsert_node_with_kind(path("a.rs"), NodeKind::File);
+    let real = store.upsert_node_with_kind(path("a.rs>f"), NodeKind::Function);
+    assert_eq!(
+        store.symbol_universe(),
+        vec![real],
+        "only the `>`-qualified real symbol is in the universe (file node excluded)"
+    );
+}
+
+#[test]
+fn symbol_universe_excludes_unresolved_phantoms() {
+    let mut store = Store::new();
+    let real_a = store.upsert_node_with_kind(path("a.rs>caller"), NodeKind::Function);
+    let real_b = store.upsert_node_with_kind(path("a.rs>callee"), NodeKind::Function);
+    // Qualified + bare resolver phantoms (each a Calls target — how the extractor mints them).
+    let phantom_q = store.upsert_node_with_kind(path("Db>upsert_node"), NodeKind::Unresolved);
+    let phantom_bare = store.upsert_node_with_kind(path("unwrap"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, real_a, real_b);
+    store.upsert_edge(EdgeKind::Calls, real_a, phantom_q);
+    store.upsert_edge(EdgeKind::Calls, real_a, phantom_bare);
+
+    let universe = store.symbol_universe();
+    assert!(
+        universe.contains(&real_a),
+        "real caller present: {universe:?}"
+    );
+    assert!(
+        universe.contains(&real_b),
+        "real callee present: {universe:?}"
+    );
+    assert!(
+        !universe.contains(&phantom_q),
+        "qualified phantom excluded: {universe:?}"
+    );
+    assert!(
+        !universe.contains(&phantom_bare),
+        "bare phantom excluded: {universe:?}"
+    );
+    assert_eq!(
+        universe.len(),
+        2,
+        "exactly the two real symbols: {universe:?}"
+    );
+}
+
+// ── RFC-0118 Part A.2: graph-theory queries operate on the real-symbol ──
+// ── induced subgraph (phantoms excluded as nodes AND as edge endpoints) ──
+
+/// Build a store: real `app.rs>main` Calls real `db.rs>query`, and `main`
+/// additionally Calls a *qualified* `NodeKind::Unresolved` phantom
+/// `Db>upsert_node`. Returns `(store, main_id, query_id, phantom_id)`.
+fn store_with_phantom_callee() -> (Store, NodeId, NodeId, NodeId) {
+    let mut store = Store::new();
+    let main = store.upsert_node_with_kind(path("app.rs>main"), NodeKind::Function);
+    let query = store.upsert_node_with_kind(path("db.rs>query"), NodeKind::Method);
+    let phantom = store.upsert_node_with_kind(path("Db>upsert_node"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, main, query);
+    store.upsert_edge(EdgeKind::Calls, main, phantom);
+    (store, main, query, phantom)
+}
+
+/// Phantom-free twin of [`store_with_phantom_callee`] — the oracle.
+fn store_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let main = store.upsert_node_with_kind(path("app.rs>main"), NodeKind::Function);
+    let query = store.upsert_node_with_kind(path("db.rs>query"), NodeKind::Method);
+    store.upsert_edge(EdgeKind::Calls, main, query);
+    store
+}
+
+#[test]
+fn leaf_symbols_excludes_phantoms_and_induces_degree() {
+    let (store, ..) = store_with_phantom_callee();
+    let leaves = store.leaf_symbols(EdgeKind::Calls, 100);
+    assert!(
+        !leaves.contains(&"Db>upsert_node".to_string()),
+        "phantom must not be listed as a leaf: {leaves:?}"
+    );
+    // `main` calls a real symbol + a phantom; on the induced subgraph it still
+    // has a real out-edge, so it is NOT a leaf. Oracle: phantom-free twin.
+    assert_eq!(
+        leaves,
+        store_phantom_free_twin().leaf_symbols(EdgeKind::Calls, 100),
+        "leaf set must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn isolated_symbols_excludes_phantoms() {
+    // A real isolated symbol, plus an isolated phantom (no edges at all).
+    let mut store = Store::new();
+    let lonely = store.upsert_node_with_kind(path("a.rs>lonely"), NodeKind::Function);
+    let _phantom = store.upsert_node_with_kind(path("ghost"), NodeKind::Unresolved);
+    let _phantom_q = store.upsert_node_with_kind(path("Db>ghost"), NodeKind::Unresolved);
+    let iso = store.isolated_symbols(None);
+    assert_eq!(
+        iso,
+        vec!["a.rs>lonely".to_string()],
+        "only the real isolated symbol; phantoms excluded: {iso:?}"
+    );
+    let _ = lonely;
+}
+
+#[test]
+fn singly_referenced_excludes_phantoms_and_induces_callers() {
+    let (store, ..) = store_with_phantom_callee();
+    let singly = store.singly_referenced(EdgeKind::Calls, 100);
+    assert!(
+        !singly.iter().any(|(p, _)| p == "Db>upsert_node"),
+        "phantom must not be reported as singly-referenced: {singly:?}"
+    );
+    assert_eq!(
+        singly,
+        store_phantom_free_twin().singly_referenced(EdgeKind::Calls, 100),
+        "singly-referenced set must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn hub_symbols_excludes_phantoms_and_induces_degree() {
+    let (store, ..) = store_with_phantom_callee();
+    // min_in=0, min_out=0 lists every symbol with its degrees.
+    let hubs = store.hub_symbols(EdgeKind::Calls, 0, 0, 100);
+    assert!(
+        !hubs.iter().any(|(p, _, _)| p == "Db>upsert_node"),
+        "phantom must not be a hub: {hubs:?}"
+    );
+    // `main`'s out-degree must count only the real callee (1), not the phantom.
+    let main_out = hubs
+        .iter()
+        .find(|(p, _, _)| p == "app.rs>main")
+        .map(|(_, _, out)| *out);
+    assert_eq!(
+        main_out,
+        Some(1),
+        "main out-degree must exclude the phantom edge: {hubs:?}"
+    );
+    assert_eq!(
+        hubs,
+        store_phantom_free_twin().hub_symbols(EdgeKind::Calls, 0, 0, 100),
+        "hub set must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn most_connected_excludes_phantoms_and_induces_degree() {
+    let (store, ..) = store_with_phantom_callee();
+    let mc = store.most_connected(100, EdgeKind::Calls);
+    assert!(
+        !mc.iter().any(|(p, _)| p == "Db>upsert_node"),
+        "phantom must not appear in most_connected: {mc:?}"
+    );
+    // `main` degree = 1 real out-edge (phantom edge not counted).
+    let main_deg = mc.iter().find(|(p, _)| p == "app.rs>main").map(|(_, d)| *d);
+    assert_eq!(
+        main_deg,
+        Some(1),
+        "main degree must exclude the phantom edge: {mc:?}"
+    );
+    assert_eq!(
+        mc,
+        store_phantom_free_twin().most_connected(100, EdgeKind::Calls),
+        "most_connected must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn degree_centrality_excludes_phantoms_and_induces_degree() {
+    // PR #677 review: degree_centrality was the 20th graph query with the same
+    // phantom leak. Gating its universe to symbol_universe() excludes the phantom
+    // node AND (via the existing idx guard) the phantom edge.
+    let (store, ..) = store_with_phantom_callee();
+    let dc = store.degree_centrality(EdgeKind::Calls);
+    assert!(
+        !dc.iter().any(|e| e.path == "Db>upsert_node"),
+        "phantom must not appear in degree_centrality: {dc:?}"
+    );
+    let main_out = dc
+        .iter()
+        .find(|e| e.path == "app.rs>main")
+        .map(|e| e.out_degree);
+    assert_eq!(
+        main_out,
+        Some(1),
+        "main out_degree must exclude the phantom edge: {dc:?}"
+    );
+    assert_eq!(
+        dc,
+        store_phantom_free_twin().degree_centrality(EdgeKind::Calls),
+        "degree_centrality must match the phantom-free twin (induced subgraph)"
+    );
+}
+
+#[test]
+fn k_core_excludes_phantoms() {
+    let (store, ..) = store_with_phantom_callee();
+    // k == 0 returns the whole symbol universe — must not include the phantom.
+    let core0 = store.k_core(EdgeKind::Calls, 0);
+    assert!(
+        !core0.contains(&"Db>upsert_node".to_string()),
+        "phantom must not appear in k_core(0): {core0:?}"
+    );
+    assert_eq!(
+        core0,
+        store_phantom_free_twin().k_core(EdgeKind::Calls, 0),
+        "k_core(0) must match the phantom-free twin"
+    );
+    // k == 1: with the phantom edge induced out, `main` has subgraph degree 1
+    // and `query` degree 1, so both survive — same as the twin.
+    assert_eq!(
+        store.k_core(EdgeKind::Calls, 1),
+        store_phantom_free_twin().k_core(EdgeKind::Calls, 1),
+        "k_core(1) must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn dependency_layers_excludes_phantoms() {
+    let (store, ..) = store_with_phantom_callee();
+    let layers = store.dependency_layers(EdgeKind::Calls);
+    assert!(
+        !layers
+            .iter()
+            .any(|layer| layer.contains(&"Db>upsert_node".to_string())),
+        "phantom must not appear in any dependency layer: {layers:?}"
+    );
+    assert_eq!(
+        layers,
+        store_phantom_free_twin().dependency_layers(EdgeKind::Calls),
+        "dependency layering must match the phantom-free twin"
+    );
+}
+
+/// Build a store with a genuine real 2-cycle (`x ⇄ y`) PLUS a would-be cycle
+/// through a phantom (`a → p → a`, where `p` is `NodeKind::Unresolved`).
+/// Returns the store. The phantom-free oracle (same minus `p` and its edges)
+/// is [`scc_phantom_free_twin`].
+fn store_with_phantom_cycle() -> Store {
+    let mut store = Store::new();
+    let x = store.upsert_node_with_kind(path("m.rs>x"), NodeKind::Function);
+    let y = store.upsert_node_with_kind(path("m.rs>y"), NodeKind::Function);
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let p = store.upsert_node_with_kind(path("Phantom>p"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, x, y);
+    store.upsert_edge(EdgeKind::Calls, y, x); // real SCC {x, y}
+    store.upsert_edge(EdgeKind::Calls, a, p);
+    store.upsert_edge(EdgeKind::Calls, p, a); // phantom SCC {a, p} — must vanish
+    store
+}
+
+/// Phantom-free oracle for [`store_with_phantom_cycle`].
+fn scc_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let x = store.upsert_node_with_kind(path("m.rs>x"), NodeKind::Function);
+    let y = store.upsert_node_with_kind(path("m.rs>y"), NodeKind::Function);
+    let _a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, x, y);
+    store.upsert_edge(EdgeKind::Calls, y, x);
+    store
+}
+
+#[test]
+fn nodes_in_cycles_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let cyc = store.nodes_in_cycles(EdgeKind::Calls, None);
+    assert!(
+        !cyc.contains(&"Phantom>p".to_string()),
+        "phantom must not be a cycle member: {cyc:?}"
+    );
+    assert!(
+        !cyc.contains(&"m.rs>a".to_string()),
+        "a real node only in a phantom-cycle must not be reported: {cyc:?}"
+    );
+    assert_eq!(
+        cyc,
+        scc_phantom_free_twin().nodes_in_cycles(EdgeKind::Calls, None),
+        "cycle members must match the phantom-free twin (only the real {{x,y}})"
+    );
+}
+
+#[test]
+fn cycle_members_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let cyc = store.cycle_members(EdgeKind::Calls);
+    assert!(
+        !cyc.contains(&"Phantom>p".to_string()) && !cyc.contains(&"m.rs>a".to_string()),
+        "phantom and its phantom-only-cycle partner excluded: {cyc:?}"
+    );
+    assert_eq!(
+        cyc,
+        scc_phantom_free_twin().cycle_members(EdgeKind::Calls),
+        "cycle_members must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn scc_groups_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let groups = store.scc_groups(EdgeKind::Calls);
+    assert!(
+        !groups
+            .iter()
+            .any(|g| g.iter().any(|p| p == "Phantom>p" || p == "m.rs>a")),
+        "no SCC may contain the phantom or its phantom-only partner: {groups:?}"
+    );
+    assert_eq!(
+        groups,
+        scc_phantom_free_twin().scc_groups(EdgeKind::Calls),
+        "scc_groups must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn strongly_connected_components_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let entries = store.strongly_connected_components(EdgeKind::Calls);
+    assert!(
+        !entries
+            .iter()
+            .any(|e| e.members.iter().any(|p| p == "Phantom>p")),
+        "phantom must not be in any SCC: {entries:?}"
+    );
+    assert_eq!(
+        entries,
+        scc_phantom_free_twin().strongly_connected_components(EdgeKind::Calls),
+        "strongly_connected_components must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn weakly_connected_components_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let wcc = store.weakly_connected_components(EdgeKind::Calls);
+    assert!(
+        !wcc.iter().any(|c| c.iter().any(|p| p == "Phantom>p")),
+        "phantom must not be in any weakly-connected component: {wcc:?}"
+    );
+    assert_eq!(
+        wcc,
+        scc_phantom_free_twin().weakly_connected_components(EdgeKind::Calls),
+        "weakly_connected_components must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn topological_sort_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let topo = store.topological_sort(EdgeKind::Calls);
+    assert!(
+        !topo.order.contains(&"Phantom>p".to_string())
+            && !topo.cycle_members.contains(&"Phantom>p".to_string()),
+        "phantom must appear in neither order nor cycle_members: {topo:?}"
+    );
+    let twin = scc_phantom_free_twin().topological_sort(EdgeKind::Calls);
+    assert_eq!(topo.order, twin.order, "topo order must match twin");
+    assert_eq!(
+        topo.cycle_members, twin.cycle_members,
+        "topo cycle_members must match twin"
+    );
+}
+
+/// Linear chain `a → b → p → c` where `p` is a `NodeKind::Unresolved` phantom
+/// sitting *between* two real nodes. Un-gated, `p` is an articulation point and
+/// `b–p` / `p–c` are bridges. Gated, `p` and its edges vanish, leaving the real
+/// edge `a–b` (a bridge) and a disconnected real `c`.
+fn store_with_phantom_chain() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let p = store.upsert_node_with_kind(path("Phantom>p"), NodeKind::Unresolved);
+    let c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, p);
+    store.upsert_edge(EdgeKind::Calls, p, c);
+    store
+}
+
+/// Phantom-free oracle for [`store_with_phantom_chain`].
+fn chain_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let _c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store
+}
+
+#[test]
+fn articulation_points_excludes_phantoms() {
+    let store = store_with_phantom_chain();
+    let aps = store.articulation_points(EdgeKind::Calls);
+    assert!(
+        !aps.contains(&"Phantom>p".to_string()),
+        "phantom must not be an articulation point: {aps:?}"
+    );
+    assert_eq!(
+        aps,
+        chain_phantom_free_twin().articulation_points(EdgeKind::Calls),
+        "articulation_points must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn bridge_edges_excludes_phantoms() {
+    let store = store_with_phantom_chain();
+    let bridges = store.bridge_edges(EdgeKind::Calls);
+    assert!(
+        !bridges
+            .iter()
+            .any(|(f, t)| f == "Phantom>p" || t == "Phantom>p"),
+        "no bridge may touch the phantom: {bridges:?}"
+    );
+    assert_eq!(
+        bridges,
+        chain_phantom_free_twin().bridge_edges(EdgeKind::Calls),
+        "bridge_edges must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn biconnected_components_excludes_phantoms() {
+    let store = store_with_phantom_cycle();
+    let bcc = store.biconnected_components(EdgeKind::Calls);
+    assert!(
+        !bcc.iter().any(|c| c.iter().any(|p| p == "Phantom>p")),
+        "phantom must not be in any biconnected component: {bcc:?}"
+    );
+    assert_eq!(
+        bcc,
+        scc_phantom_free_twin().biconnected_components(EdgeKind::Calls),
+        "biconnected_components must match the phantom-free twin"
+    );
+}
+
+/// Real chain `a → b → c` PLUS a phantom callee `b → p` (`NodeKind::Unresolved`).
+/// `b` lies on the only real shortest path `a → c`, so it has nonzero
+/// betweenness/closeness; the phantom must change neither `b`'s score nor the
+/// normalization denominator (which must be `|real symbols| = 3`, not 4).
+fn store_with_phantom_for_centrality() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    let p = store.upsert_node_with_kind(path("Phantom>p"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store.upsert_edge(EdgeKind::Calls, b, p);
+    store
+}
+
+/// Phantom-free oracle for [`store_with_phantom_for_centrality`].
+fn centrality_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let a = store.upsert_node_with_kind(path("m.rs>a"), NodeKind::Function);
+    let b = store.upsert_node_with_kind(path("m.rs>b"), NodeKind::Function);
+    let c = store.upsert_node_with_kind(path("m.rs>c"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, a, b);
+    store.upsert_edge(EdgeKind::Calls, b, c);
+    store
+}
+
+#[test]
+fn betweenness_centrality_excludes_phantoms_and_normalizes_over_real_n() {
+    let store = store_with_phantom_for_centrality();
+    let got = store.betweenness_centrality(EdgeKind::Calls);
+    assert!(
+        !got.iter().any(|e| e.path == "Phantom>p"),
+        "phantom must not appear in betweenness: {got:?}"
+    );
+    let twin = centrality_phantom_free_twin().betweenness_centrality(EdgeKind::Calls);
+    // Same path set, same per-path scores (denominator must be real n = 3, not 4).
+    // Compare by path key — equal-score entries have no stable order across stores.
+    assert_eq!(got.len(), twin.len(), "same node count as twin");
+    for t in &twin {
+        let g = got.iter().find(|e| e.path == t.path);
+        assert!(
+            g.is_some_and(|e| (e.score - t.score).abs() < 1e-12),
+            "score for {} must match twin (got {:?}, twin {})",
+            t.path,
+            g.map(|e| e.score),
+            t.score
+        );
+    }
+    // Concretely: b's betweenness over real n=3 is 1/((3-1)(3-2)) = 0.5.
+    let b_score = got.iter().find(|e| e.path == "m.rs>b").map(|e| e.score);
+    assert!(
+        b_score.is_some_and(|s| (s - 0.5).abs() < 1e-12),
+        "b betweenness must be 0.5 (real-n normalization): {b_score:?}"
+    );
+}
+
+#[test]
+fn closeness_centrality_excludes_phantoms_and_normalizes_over_real_n() {
+    let store = store_with_phantom_for_centrality();
+    let got = store.closeness_centrality(EdgeKind::Calls);
+    assert!(
+        !got.iter().any(|e| e.path == "Phantom>p"),
+        "phantom must not appear in closeness: {got:?}"
+    );
+    let twin = centrality_phantom_free_twin().closeness_centrality(EdgeKind::Calls);
+    assert_eq!(got.len(), twin.len(), "same node count as twin");
+    for t in &twin {
+        let g = got.iter().find(|e| e.path == t.path);
+        assert!(
+            g.is_some_and(|e| (e.score - t.score).abs() < 1e-12),
+            "closeness for {} must match twin (got {:?}, twin {})",
+            t.path,
+            g.map(|e| e.score),
+            t.score
+        );
+    }
+}
+
+#[test]
+fn harmonic_centrality_stats_excludes_phantoms_and_uses_real_n() {
+    let store = store_with_phantom_for_centrality();
+    let a = store.lookup("m.rs>a").unwrap();
+    let (cent, reach, sym_count) = store.harmonic_centrality_stats(a, EdgeKind::Calls);
+
+    let twin = centrality_phantom_free_twin();
+    let a_twin = twin.lookup("m.rs>a").unwrap();
+    let (cent_t, reach_t, sym_count_t) = twin.harmonic_centrality_stats(a_twin, EdgeKind::Calls);
+
+    assert_eq!(
+        sym_count, 3,
+        "symbol_count denominator must count real symbols only (3, not 4)"
+    );
+    assert_eq!(
+        reach, reach_t,
+        "reachable count must exclude the phantom and match the twin"
+    );
+    assert_eq!(
+        sym_count, sym_count_t,
+        "symbol_count must match the phantom-free twin"
+    );
+    assert!(
+        (cent - cent_t).abs() < 1e-12,
+        "harmonic centrality must match the phantom-free twin ({cent} vs {cent_t})"
+    );
+}
+
+#[test]
+fn page_rank_universe_equals_symbol_universe() {
+    // Part A.2 routes page_rank's node universe through symbol_universe(); assert
+    // the ranked paths are exactly the real-symbol universe (phantoms excluded).
+    let (store, ..) = store_with_phantom_callee();
+    let mut ranked: Vec<String> = store
+        .page_rank(EdgeKind::Calls, 0.85, 5)
+        .into_iter()
+        .map(|e| e.path)
+        .collect();
+    ranked.sort();
+    let mut universe: Vec<String> = store
+        .symbol_universe()
+        .into_iter()
+        .filter_map(|id| store.path_of(id).map(str::to_owned))
+        .collect();
+    universe.sort();
+    assert_eq!(
+        ranked, universe,
+        "page_rank universe must equal symbol_universe()"
+    );
+    assert!(
+        !ranked.contains(&"Db>upsert_node".to_string()),
+        "phantom excluded from page_rank: {ranked:?}"
+    );
+}
+
 #[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();
