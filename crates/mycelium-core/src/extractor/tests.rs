@@ -3180,3 +3180,111 @@ end
         "run must NOT be mis-bound to Dog>speak"
     );
 }
+
+#[test]
+fn extractor_python_bare_call_in_method_is_not_self_method() {
+    // Python has NO implicit `self`: a bare `speak()` inside a method body is a
+    // free/global name lookup, NOT `self.speak()` (which is required to call the
+    // method). So with a duplicate method name the bare call must NOT bind to the
+    // enclosing class's method — that would be a false caller edge (Codex P2 on
+    // PR #680). `enclosing_self_type` must decline for Python.
+    let source = "\
+class Animal:
+    def speak(self): pass
+    def run(self): speak()
+class Dog:
+    def speak(self): pass
+";
+    let ext = python_extractor();
+    let mut store = Store::new();
+    ext.extract("test.py", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.py>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.py>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store.lookup("test.py>Dog>speak").expect("Dog.speak exists");
+    assert!(
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "Python bare `speak()` is a free name, NOT Animal>speak (needs self.)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "Python bare call must not bind to Dog>speak either"
+    );
+}
+
+#[test]
+fn extractor_rust_bare_call_in_method_is_not_self_method() {
+    // Rust has NO implicit receiver: a bare `speak()` inside an `impl` method is a
+    // free-function path, NOT `self.speak()` / `Self::speak()`. So it must NOT
+    // bind to the enclosing impl's method (Codex P2 on PR #680).
+    let source = "\
+struct Animal;
+struct Dog;
+impl Animal {
+    fn speak(&self) {}
+    fn run(&self) { speak(); }
+}
+impl Dog {
+    fn speak(&self) {}
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.rs>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.rs>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store.lookup("test.rs>Dog>speak").expect("Dog.speak exists");
+    assert!(
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "Rust bare `speak()` is a free path, NOT Animal>speak (needs self./Self::)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "Rust bare call must not bind to Dog>speak either"
+    );
+}
+
+#[test]
+fn extractor_ts_bare_call_in_method_is_not_self_method() {
+    // TypeScript/JavaScript have NO implicit `this`: a bare `speak()` inside a
+    // class method is a free/imported identifier, NOT `this.speak()`. So it must
+    // NOT bind to the enclosing class's method — this is the exact false-edge case
+    // Codex flagged on PR #680 (`A>run -> A>speak`).
+    let source = "\
+class Animal {
+    speak() {}
+    run() { speak(); }
+}
+class Dog {
+    speak() {}
+}
+";
+    let ext = ts_extractor();
+    let mut store = Store::new();
+    ext.extract("test.ts", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+
+    let run = store.lookup("test.ts>Animal>run").expect("run exists");
+    let animal_speak = store
+        .lookup("test.ts>Animal>speak")
+        .expect("Animal.speak exists");
+    let dog_speak = store.lookup("test.ts>Dog>speak").expect("Dog.speak exists");
+    assert!(
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "TS bare `speak()` is a free identifier, NOT Animal>speak (needs this.)"
+    );
+    assert!(
+        !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
+        "TS bare call must not bind to Dog>speak either"
+    );
+}
