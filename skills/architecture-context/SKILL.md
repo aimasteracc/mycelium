@@ -56,7 +56,7 @@ output_format   (string?) "json" (default), "text", or "msgpack".
 ```
 mycelium context --task "trace ServeHTTP to HandlerFunc"
 mycelium context --task "how does auth work" --format json
-mycelium context --task "function:calls(#AuthService)" --max-nodes 50
+mycelium context --task ".function:calls(#AuthService)" --max-nodes 50
 ```
 
 ```

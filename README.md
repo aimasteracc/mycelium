@@ -129,10 +129,10 @@ mycelium serve --mcp --root ./my-project
 ```bash
 # via mycelium_query MCP tool:
 # Find all functions that call AuthService
-{ "query": "function:calls(#AuthService)" }
+{ "query": ".function:calls(#AuthService)" }
 
 # Find all methods inside Foo class
-{ "query": "#Foo > method" }
+{ "query": "#Foo > .method" }
 
 # Find callers of login, up to depth 3
 { "query": "*:callers(#login)" }
@@ -150,7 +150,7 @@ typed wrappers over the prebuilt CLI — they inherit the CLI↔MCP parity for f
 const { Mycelium } = require("@aimasteracc/mycelium-sdk"); // npm i @aimasteracc/mycelium-sdk
 const m = new Mycelium({ root: "." });
 await m.index();
-const fns = await m.query("function:calls(#AuthService)"); // parsed JSON
+const fns = await m.query(".function:calls(#AuthService)"); // parsed JSON
 const ctx = await m.context("trace ServeHTTP to HandlerFunc", { maxNodes: 30 });
 ```
 
@@ -160,7 +160,7 @@ const ctx = await m.context("trace ServeHTTP to HandlerFunc", { maxNodes: 30 });
 from mycelium_rcig import Mycelium  # pip install mycelium-rcig
 m = Mycelium(root=".")
 m.index()
-fns = m.query("function:calls(#AuthService)")  # parsed JSON
+fns = m.query(".function:calls(#AuthService)")  # parsed JSON
 ctx = m.context("trace ServeHTTP to HandlerFunc", max_nodes=30)
 ```
 
