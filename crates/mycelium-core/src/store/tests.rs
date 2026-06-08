@@ -824,6 +824,130 @@ fn store_resolve_extends_stub_tie_left_unchanged() {
     assert!(store.lookup("Base").is_some(), "tied stub must remain");
 }
 
+// ── RFC-0118: kind-aware call resolution (calls never bind to TypeAlias) ──
+
+#[test]
+fn store_resolve_call_stub_does_not_bind_to_type_alias() {
+    // Reproduces the budget.rs>Err dogfood bug: a function CALL site emits a
+    // bare `Err` stub (the stdlib `Result::Err` variant constructor). The only
+    // matching definition is `budget.rs>Err`, an associated `type Err = String`
+    // recorded as NodeKind::TypeAlias. A call must NEVER resolve to a type
+    // alias — you cannot call a type alias — so the stub must be LEFT in place
+    // (Unresolved), not redirected onto the TypeAlias def.
+    let mut store = Store::new();
+    let caller = store.upsert_node_with_kind(path("caller.rs>do_work"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(TrunkPath::parse("Err").unwrap(), NodeKind::Unresolved);
+    let type_alias = store.upsert_node_with_kind(path("budget.rs>Err"), NodeKind::TypeAlias);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 0,
+        "a CALL stub must not resolve to a TypeAlias definition"
+    );
+    assert!(
+        store.lookup("Err").is_some(),
+        "the unresolved call stub must be left in place, not redirected"
+    );
+    assert!(
+        !store
+            .incoming(type_alias, EdgeKind::Calls)
+            .contains(&caller),
+        "the type alias must not gain a phantom incoming Calls edge"
+    );
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&stub),
+        "the caller's Calls edge must still point at the Unresolved stub"
+    );
+}
+
+#[test]
+fn store_resolve_import_stub_still_binds_to_type_alias() {
+    // No-regression: an IMPORT of a type alias (e.g. `use foo::SomeAlias`)
+    // legitimately resolves to a unique TypeAlias definition. The guard gates
+    // ONLY on incoming Calls edges, so an import-only stub must STILL resolve.
+    let mut store = Store::new();
+    let importer_file = store.upsert_node_with_kind(path("consumer.rs"), NodeKind::File);
+    let stub =
+        store.upsert_node_with_kind(TrunkPath::parse("SomeAlias").unwrap(), NodeKind::Unresolved);
+    let type_alias = store.upsert_node_with_kind(path("defs.rs>SomeAlias"), NodeKind::TypeAlias);
+    store.upsert_edge(EdgeKind::Imports, importer_file, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 1,
+        "an import-only stub to a unique TypeAlias must still resolve"
+    );
+    assert!(
+        store.lookup("SomeAlias").is_none(),
+        "import stub must be removed after resolution"
+    );
+    assert!(
+        store
+            .outgoing(importer_file, EdgeKind::Imports)
+            .contains(&type_alias),
+        "import edge must point at the resolved TypeAlias def"
+    );
+}
+
+#[test]
+fn store_resolve_call_stub_binds_to_struct_ctor() {
+    // No-regression: a tuple-struct constructor call `MyStruct(...)` emits a
+    // bare `MyStruct` call stub that legitimately resolves to a Struct def.
+    // The guard blocks ONLY TypeAlias, so Struct ctor calls still resolve.
+    let mut store = Store::new();
+    let caller = store.upsert_node_with_kind(path("caller.rs>build"), NodeKind::Function);
+    let stub =
+        store.upsert_node_with_kind(TrunkPath::parse("MyStruct").unwrap(), NodeKind::Unresolved);
+    let struct_def = store.upsert_node_with_kind(path("model.rs>MyStruct"), NodeKind::Struct);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 1, "a Struct ctor call stub must still resolve");
+    assert!(
+        store
+            .outgoing(caller, EdgeKind::Calls)
+            .contains(&struct_def),
+        "Calls edge must point at the Struct definition"
+    );
+}
+
+#[test]
+fn store_resolve_import_aware_call_stub_does_not_bind_to_type_alias() {
+    // Same guard must hold in the import-aware pass: an AMBIGUOUS call stub
+    // `Err` defined as TypeAlias in two files, where the caller's file imports
+    // one of them, must NOT be redirected onto a TypeAlias. (Mixed Calls+Import
+    // evidence with only a TypeAlias candidate → conservatively left unresolved.)
+    let mut store = Store::new();
+    let caller_file = store.upsert_node_with_kind(path("caller.rs"), NodeKind::File);
+    let caller = store.upsert_node_with_kind(path("caller.rs>do_work"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(TrunkPath::parse("Err").unwrap(), NodeKind::Unresolved);
+    let b_file = store.upsert_node_with_kind(path("b.rs"), NodeKind::File);
+    let b_err = store.upsert_node_with_kind(path("b.rs>Err"), NodeKind::TypeAlias);
+    let _c_file = store.upsert_node_with_kind(path("c.rs"), NodeKind::File);
+    let _c_err = store.upsert_node_with_kind(path("c.rs>Err"), NodeKind::TypeAlias);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+    store.upsert_edge(EdgeKind::Imports, caller_file, b_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 0,
+        "import-aware pass must not bind a call stub to a TypeAlias"
+    );
+    assert!(
+        store.lookup("Err").is_some(),
+        "call stub must remain unresolved (TypeAlias is not callable)"
+    );
+    assert!(
+        !store.incoming(b_err, EdgeKind::Calls).contains(&caller),
+        "the imported TypeAlias must not gain a phantom Calls caller"
+    );
+}
+
 #[test]
 fn store_resolve_extends_stub_mixed_import_sites_resolved_per_edge() {
     // Two subclasses extend the same bare `Base` but import DIFFERENT defs:

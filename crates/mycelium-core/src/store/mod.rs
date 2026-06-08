@@ -1384,6 +1384,26 @@ impl Store {
         resolved
     }
 
+    /// RFC-0118: whether redirecting `stub_id` onto `def_id` would bind a
+    /// function CALL onto a non-callable definition.
+    ///
+    /// Returns `true` (block the redirect) only when BOTH hold:
+    /// 1. the stub has at least one incoming [`EdgeKind::Calls`] edge — i.e. it
+    ///    is (also) a call site, and
+    /// 2. the candidate definition's kind is [`NodeKind::TypeAlias`] — a type
+    ///    alias is never a call target.
+    ///
+    /// Gating on incoming `Calls` (rather than blanket-blocking every
+    /// `TypeAlias` redirect) preserves the legitimate import-of-type-alias case
+    /// (`use foo::SomeAlias`), which carries only `Imports`/`References` edges.
+    /// Struct/Class/Enum/EnumMember candidates are left callable — those ARE
+    /// valid tuple/variant constructor targets (`MyStruct(...)`,
+    /// `MyEnum::Variant(...)`). Only `TypeAlias` is blocked.
+    fn is_uncallable_target_for_call_stub(&self, stub_id: NodeId, def_id: NodeId) -> bool {
+        self.kind_of(def_id) == Some(NodeKind::TypeAlias)
+            && !self.synapse.incoming(stub_id, EdgeKind::Calls).is_empty()
+    }
+
     fn resolve_bare_call_stubs_simple(&mut self) -> usize {
         let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
 
@@ -1404,6 +1424,18 @@ impl Store {
 
             if matches.len() == 1 {
                 let def_id = matches[0];
+                // RFC-0118: kind-aware call resolution. A function CALL site
+                // must never bind to a non-callable definition. A
+                // `NodeKind::TypeAlias` is NEVER a call target — you cannot
+                // call a type alias. The dogfood symptom was `budget.rs>Err`
+                // (an associated `type Err = String`) becoming page-rank's #1
+                // node because every stdlib `Err(...)` call-stub redirected
+                // onto it. Gate ONLY on the stub having incoming `Calls` edges:
+                // a non-call stub (e.g. `use foo::SomeAlias`) legitimately
+                // resolves to a TypeAlias and must not regress.
+                if self.is_uncallable_target_for_call_stub(stub_id, def_id) {
+                    continue;
+                }
                 self.synapse.redirect_node(stub_id, def_id);
                 // RFC-0118 Part C: route through remove_node so kind_map + span_map
                 // are cleaned alongside trunk. redirect_node already cleared synapse,
@@ -1500,6 +1532,16 @@ impl Store {
             }
 
             if let Some(def_id) = best_def {
+                // RFC-0118: kind-aware call resolution (same guard as the simple
+                // pass). This pass only ever fires for stubs with incoming Calls
+                // edges (see the `callers` early-continue above), so a TypeAlias
+                // candidate here is always a mis-bind. A stub with BOTH incoming
+                // Calls AND Imports whose only candidate is a TypeAlias is
+                // conservatively left unresolved — declining the call is correct;
+                // the import half can re-resolve in the simple pass.
+                if self.is_uncallable_target_for_call_stub(stub_id, def_id) {
+                    continue;
+                }
                 self.synapse.redirect_node(stub_id, def_id);
                 // RFC-0118 Part C: kind_map + span_map hygiene (same as simple pass).
                 self.remove_node(stub_id);
