@@ -170,7 +170,26 @@ impl Extractor {
                         if let Ok(path) = TrunkPath::parse(&path_str) {
                             let method_id = store.upsert_node(path);
                             store.set_kind(method_id, NodeKind::Method);
-                            store.set_span(method_id, node_to_span(anchor));
+                            // When the anchor IS a type-container node (e.g. class_definition
+                            // in Python, class_declaration in TS/JS/Java/C#), the anchor span
+                            // covers the whole class — wrong for jump-to-definition. Walk up
+                            // from the @name identifier to find the precise method-declaration
+                            // node (Issue #657).
+                            // Ruby's `class`/`module` are excluded from
+                            // is_type_container() to avoid cross-language kind
+                            // collisions, so they must be matched explicitly here.
+                            let span_node = if is_type_container(anchor.kind())
+                                || matches!(anchor.kind(), "class" | "module")
+                            {
+                                m.captures
+                                    .iter()
+                                    .find(|c| names[c.index as usize] == "name")
+                                    .and_then(|c| method_span_node(c.node, anchor))
+                                    .unwrap_or(anchor)
+                            } else {
+                                anchor
+                            };
+                            store.set_span(method_id, node_to_span(span_node));
                             let class_path_str = format!("{file_path}>{chain_str}");
                             if let Ok(cls_path) = TrunkPath::parse(&class_path_str) {
                                 let cls_id = store.upsert_node(cls_path);
@@ -1521,6 +1540,39 @@ fn is_inside_type_checking_block(node: tree_sitter::Node<'_>, source: &[u8]) -> 
         cur = parent;
     }
     false
+}
+
+/// Method-declaration node kinds, ordered from most- to least-specific so the
+/// first match against `parent.kind()` wins.
+const METHOD_DECL_KINDS: &[&str] = &[
+    "method_definition",       // TypeScript / JavaScript
+    "function_definition",     // Python / C++ (inside a specifier)
+    "method_declaration",      // Java / C# / Go
+    "constructor_declaration", // Java / C#
+    "method",                  // Ruby
+    "singleton_method",        // Ruby
+];
+
+/// Given the `@name` identifier node from a `@definition.method` capture whose
+/// anchor (`container`) is a type container, walk up the CST to find the
+/// nearest enclosing method/function declaration — which has the precise span
+/// we want to store. Returns `None` when no method-kind ancestor is found
+/// before reaching `container` itself (fall back to `container`).
+fn method_span_node<'a>(
+    name_node: tree_sitter::Node<'a>,
+    container: tree_sitter::Node<'a>,
+) -> Option<tree_sitter::Node<'a>> {
+    let mut cur = name_node;
+    while let Some(parent) = cur.parent() {
+        if parent.id() == container.id() {
+            return None;
+        }
+        if METHOD_DECL_KINDS.contains(&parent.kind()) {
+            return Some(parent);
+        }
+        cur = parent;
+    }
+    None
 }
 
 /// Convert a tree-sitter node's position to a [`SourceSpan`].
