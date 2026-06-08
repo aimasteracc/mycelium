@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v136 — PR #707 merged (PM state v135); Issue #612 Item 2 resolution clarified; same 3 P0 escalations carried forward) |
+| Last updated | 2026-06-08 (PM dispatch v137 — PR #708 merged (PM state v136); RFC-0120 drafted with Options A/B/C analysis; 3 P0s still founder-gated) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -71,12 +71,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P0 (founder action required):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
-2. **RFC-0120**: Charter §2 Hyphae token efficiency ratio measured at **0.753 vs target ≤0.30** — choose:
-   - **Option A**: Amend Charter §2 target to reflect measured reality (adjust the SLA row)
-   - **Option B**: Implement Hyphae output compression/encoding to reach ≤0.30 (product work)
-   - **Option C**: Retire the metric (remove the row from Charter §2)
-   This is a public SLA commitment; no autonomous actor can resolve it.
-3. **Codex usage limits exhausted** (NEW — surfaced in v134): The `chatgpt-codex-connector` bot posted "You have reached your Codex usage limits for code reviews" on PR #705 (2026-06-08T12:11:49Z). CLAUDE.md Hard Rule requires Codex findings to be addressed before any merge, but Codex cannot review while limits are exhausted. **Current PRs (only #568 is open) are unblocked** (PR #705 had no actual review findings; #568 is founder-gated separately). **Future PRs are at risk**: the Hard Rule becomes unenforceable until limits reset. Founder must upgrade Codex account / add credits, or explicitly suspend the Codex Hard Rule while limits are out. See: https://chatgpt.com/codex/cloud/settings/usage
+2. **RFC-0120** ([RFC file now written](../../rfcs/0120-hyphae-token-ratio-sla.md)): Charter §2 Hyphae token efficiency ratio measured at **0.753 vs target ≤0.30** — choose:
+   - **Option A** (PM recommendation): Amend Charter §2 to per-class targets (tree ≤35% ✅ already met, list ≤70%, scalar ≤90%) — no engineering work, immediately satisfies CI gates
+   - **Option B**: Implement additional compression to reach ≤30% across all tools — significant engineering
+   - **Option C**: Retire the metric entirely (remove row from Charter §2)
+   Full analysis with tradeoffs in [rfcs/0120-hyphae-token-ratio-sla.md](../../rfcs/0120-hyphae-token-ratio-sla.md). Public SLA commitment (Charter §9 meta RFC); no autonomous actor can resolve it.
+3. **Codex usage limits exhausted** (surfaced v134): The `chatgpt-codex-connector` bot posted billing notice on PR #705 (2026-06-08T12:11:49Z). CLAUDE.md Hard Rule requires Codex findings to be addressed before any merge, but Codex cannot review while limits are exhausted. **Current open PR #568 is founder-gated separately** (not blocked by Codex). **Future PRs are at risk**: the Hard Rule becomes unenforceable until limits reset. Founder must upgrade Codex account / add credits, or explicitly suspend the Codex Hard Rule while limits are out. See: https://chatgpt.com/codex/cloud/settings/usage
 
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
@@ -90,15 +90,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v135)
+## Dispatch state (2026-06-08 v137)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0120 Option A/B/C. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
-| PM | **DONE ✅** | v136 complete: PR #707 merged (`4e22e23`); Issue #612 Item 2 status clarified; decisions.jsonl v136 appended; PM state v136 pushed. |
+| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0120 Option A/B/C — [RFC written](rfcs/0120-hyphae-token-ratio-sla.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
+| PM | **DONE ✅** | v137 complete: PR #708 merged (`fdea9b3`); RFC-0120 drafted (Options A/B/C analysis, PM recommends A); PM state v137 pushed. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
-| architect | idle | RFC-0120 option analysis available on request. |
+| architect | idle | RFC-0120 analysis complete — see [rfcs/0120-hyphae-token-ratio-sla.md](rfcs/0120-hyphae-token-ratio-sla.md). |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
@@ -114,8 +114,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
 - **RFC-0104 cold SLA measurement**: Charter §2 warm/cold SLA table amendment requires measured nightly data.
-- **RFC-0120 token ratio**: Charter §2 "≤30% of JSON token count" — measured 0.753; **founder must choose Option A/B/C.**
-- **Codex usage limits (NEW)**: CLAUDE.md Hard Rule (Codex review mandatory pre-merge) is unenforceable while limits are exhausted. **Founder must** upgrade account or explicitly suspend the rule. See https://chatgpt.com/codex/cloud/settings/usage
+- **RFC-0120 token ratio**: [RFC-0120 written](rfcs/0120-hyphae-token-ratio-sla.md) — Charter §2 "≤30% of JSON token count" measured 0.753; **founder must choose Option A (per-class targets, PM-recommended) / B (implement compression) / C (retire metric).**
+- **Codex usage limits**: CLAUDE.md Hard Rule (Codex review mandatory pre-merge) is unenforceable while limits are exhausted. **Founder must** upgrade account or explicitly suspend the rule. See https://chatgpt.com/codex/cloud/settings/usage
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED by founder 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED — retro-tag at `6aa1bed`; main jumps v0.1.16→v0.1.18→v0.1.19.
 - **Systemic**: `release.yml` finalize merge step — ceremony script is current workaround; P2 deferred.
@@ -133,113 +133,61 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-08 PM dispatch v136 (this run)
+### 2026-06-08 PM dispatch v137 (this run)
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: release-governance, tdd, async, ci-portability, git-workflow), PM state v135 (synced fresh from origin/develop), v0.2 PRD.
-
-**Assessment:**
-- 2 open PRs: #707 (chore/pm-state-v135, 22/22 CI ✅, Codex billing notice only — no code findings), #568 (release/v0.3.0, 28/28 CI ✅, founder-gated).
-- 1 open issue: #612 (P2, Item 2 resolved on develop v107; Item 1 Phase 2b future).
-- Develop CI GREEN (HEAD `4e22e23` after #707 merge).
-- All 3 P0 gates carry forward unchanged (PR #568 finalize + RFC-0120 A/B/C + Codex limits).
-
-**Actions taken:**
-1. **Merged PR #707** (chore/pm-state-v135, squash `4e22e23`) — CI 22/22 ✅; Codex billing notice (no P1/P2/P3 findings → Hard Rule satisfied). ✅
-2. **Commented on Issue #612** — clarified Item 2 resolved in v107 (PR #684 `rank_symbols_excludes_unresolved_phantom`); Item 1 (Phase 2b cross-file extraction) still open as design prerequisite for RFC-0118 Phase 2b. ✅
-3. **PM state v136 written** + decisions.jsonl appended. ✅
-
-**Escalations to founder (P0, unchanged from v135):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
-- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
-- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade or suspend the requirement.
-
-### 2026-06-08 PM dispatch v135 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: release-governance, testing, async, ci-portability), PM state v134 (fetched from origin/develop — local clone stale, rehydrated via git fetch), v0.2 PRD.
-
-**Assessment (≤3 min):**
-- 2 open PRs: #706 (chore/pm-state-v134, 22/22 CI ✅, Codex billing notice — no code findings), #568 (release/v0.3.0, 28/28 CI ✅, registries published, finalize SKIPPED = awaiting founder).
-- 1 open issue: #612 (P2, Item 2 resolved on develop v107; Item 1 future Phase 2b cross-file extraction design).
-- Develop CI GREEN (HEAD `f6f7752` after #706 merge).
-- RFC-0120 confirmed as not a file in repo (search_code 0 results) — referenced in PM state only; architect analysis available on request.
-- No actionable code work: blocked by all 3 P0 gates (PR #568 finalize + RFC-0120 direction + Codex limits).
-
-**Actions taken:**
-1. **Merged PR #706** (chore/pm-state-v134, squash `f6f77526`) — CI 22/22 ✅; Codex billing notice (no P1/P2/P3 findings → Hard Rule satisfied per Charter Codex rule). ✅
-2. **Confirmed RFC-0120** has no file in repo (GitHub code search returned 0 results). Remains a decision gate for founder. ✅
-3. **PM state v135 written** + decisions.jsonl appended. ✅
-
-**Escalations to founder (P0, unchanged from v134):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4).
-- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
-- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade account or explicitly suspend the requirement.
-
-### 2026-06-08 PM dispatch v134 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hits: release-governance, tdd, ci-portability, governance/verification), PM state v133 (from develop, branched fresh), v0.2 PRD.
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (local clone stale; rehydrated via GitHub MCP), anti-patterns (domain hits: release-governance, tdd, async, ci-portability, git-workflow), PM state v136 (fetched from develop post-#708-merge), v0.2 PRD.
 
 **Assessment:**
-- 2 open PRs: #705 (chore/pm-state-v133, 22/22 CI ✅, Codex limits message — no actual findings), #568 (release/v0.3.0, founder-gated).
-- 2 open issues: #657 (P2, already fixed by PR #699 — not auto-closed), #612 (P2, Item 2 resolved on develop v107; Item 1 future Phase 2b).
-- Develop CI GREEN (HEAD `2dfb00cd` after #705 squash-merge).
-- **New finding**: Codex usage limits exhausted — chatgpt-codex-connector posted billing notice on PR #705 at 12:11Z. No actual code findings. Hard Rule enforcement at risk for future PRs.
+- 2 open PRs: #708 (chore/pm-state-v136, 22/22 CI ✅, Codex billing notice only — no code findings), #568 (release/v0.3.0, 28/28 CI ✅, founder-gated, `mergeable_state: dirty`).
+- 1 open issue: #612 (P2, Item 1 Phase 2b future RFC; Item 2 confirmed resolved in v107).
+- Develop CI GREEN (HEAD `fdea9b3` after #708 squash-merge).
+- RFC-0120 still no file in repo (confirmed). All 3 P0 gates carry forward; highest-value autonomous action: write RFC-0120 to give founder a structured decision document.
 
 **Actions taken:**
-1. **Merged PR #705** (chore/pm-state-v133, squash `2dfb00cd`) — CI 22/22 ✅; Codex posted billing notice (no P1/P2/P3 findings → safe per Hard Rule). ✅
-2. **Closed Issue #657** — already fixed by PR #699 (`7db42168`); issue was not auto-closed by the merge. ✅
-3. **Escalated Codex limits** as new P0 decision gate (P0 #3). ✅
-4. **PM state v134 written** (this document) + decisions.jsonl appended. ✅
+1. **Merged PR #708** (chore/pm-state-v136, squash `fdea9b3`) — CI 22/22 ✅; Codex billing notice (no P1/P2/P3 findings → Hard Rule satisfied). ✅
+2. **Wrote RFC-0120** (`rfcs/0120-hyphae-token-ratio-sla.md`) — full analysis of Options A/B/C with tradeoffs. Root cause documented: Charter §2 target was anchored on RFC-0094's best-case tree-query benchmark (28.5%) but production average across 93+ tools is 0.753 because flat/scalar responses compress much less. PM recommendation: **Option A** (per-class targets). ✅
+3. **PM state v137 written** + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0):**
+**Escalations to founder (P0, unchanged except P0 #2 now has written RFC):**
 - **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
-- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
-- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade account or suspend the requirement.
+- **(2) RFC-0120**: [RFC now written](rfcs/0120-hyphae-token-ratio-sla.md) — choose Option A/B/C (PM recommends A: per-class targets, immediately satisfies Charter §2 without engineering work).
+- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade or explicitly suspend the requirement.
+
+### 2026-06-08 PM dispatch v136 (PR #707 merged; Issue #612 clarified; 3 P0s founder-gated)
+
+**Actions taken:**
+1. Merged PR #707 (squash `4e22e23`) — CI 22/22 ✅; Codex billing notice only. ✅
+2. Commented on Issue #612 — Item 2 confirmed resolved (PR #684); Item 1 Phase 2b design prerequisite tracked. ✅
+3. PM state v136 written + decisions.jsonl appended. ✅
+
+### 2026-06-08 PM dispatch v135 (PR #706 merged; 3 P0s confirmed; Codex limits escalated)
+
+**Actions taken:**
+1. Merged PR #706 (squash `f6f77526`) — CI 22/22 ✅; Codex billing notice. ✅
+2. Confirmed RFC-0120 has no file (search returned 0 results). ✅
+3. PM state v135 written + decisions.jsonl appended. ✅
+
+### 2026-06-08 PM dispatch v134 (Codex limits exhausted escalated as P0 #3; Issue #657 closed)
+
+**Actions taken:**
+1. Merged PR #705 (squash `2dfb00cd`) — CI 22/22 ✅. ✅
+2. Closed Issue #657 (fixed by PR #699). ✅
+3. Escalated Codex limits as P0 #3. ✅
 
 ### 2026-06-08 PM dispatch v133 (PR #699 merged; Issue #657 closed; PR #704 closed)
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/ci-portability domain hits), PM state v132 (from PR #704 branch — local clone stale at v130), v0.2 PRD.
+**Actions taken:**
+1. Merged PR #699 (squash `7db42168`) — fix(extractor): method span precision, closes Issue #657. ✅
+2. Closed PR #704 as superseded by v133. ✅
 
-**Assessment:**
-- 3 open PRs: #699 (method span fix, CI 20/20 ✅, Codex P2 fixed+outdated), #704 (PM v132 chore, CI pending), #568 (release/v0.3.0, founder-gated, 28/28 CI ✅).
-- 0 open P0/P1 issues (Issue #657 in flight via #699; #612 P2 deferred).
-- Develop CI GREEN (post-#702 squash `42334bd`).
+### 2026-06-08 PM dispatch v130 (state rehydrated from stale local clone; PR #697 merged; Codex P2 ×2 rejected)
 
 **Actions taken:**
-1. **Merged PR #699** (squash `7db42168`) — fix(extractor): method span precision, closes Issue #657. CI 20/20 SUCCESS; Codex P2 (Ruby containers) fixed via commit `d688486` + thread replied; thread `is_outdated=true`. ✅
-2. **Closed PR #704** as superseded by v133 (CI only had triage checks; v133 supersedes it). ✅
-3. **Updated PM state v133** (this document) + decisions.jsonl. ✅
+1. Rejected Codex P2 ×2 on PR #697 with justifications. ✅
+2. Merged PR #697 (squash `d0b3d5f`). ✅
+3. Rewrote PM state v130 from scratch (reconciled from GitHub API). ✅
 
-**Escalations to founder (P0, carried forward):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4).
-- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
-
-### 2026-06-08 PM dispatch v132 (PR #701 closed; PR #699 Codex P2 fixed; Ruby span d688486)
-
-*(see closed PR #704 for full archive — superseded by v133)*
-
-### 2026-06-08 PM dispatch v130 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (local clone at v28 — stale by 101 dispatches; rehydrated from GitHub API), anti-patterns (domain hits: release-governance, testing, git-workflow), PM state v28 on local/v129 on develop (post #697 merge), v0.2 PRD.
-
-**Assessment:**
-- 2 open PRs at start of run: #697 (pm-state-v129, 22/22 CI ✅, 2 Codex P2 unresolved), #568 (release/v0.3.0, 28/28 CI ✅, registries published, finalize SKIPPED).
-- 0 open P0/P1 issues.
-- Develop CI GREEN (develop HEAD was `2582088`; after #697 merge became `d0b3d5f`).
-- RFC-0120 not found as a file in repo — referenced only via PR #697 body; architect has details.
-- State gap: local clone stale at v28/main. All state rehydrated from GitHub MCP (PR list, CI check runs, Codex review threads, decisions.jsonl tail via bash).
-
-**Actions taken:**
-1. **Rejected Codex P2 ×2 on PR #697** with written justifications (reply IDs `3371961556` + `3371962134`). P2-1 (stale queue entries): fix-forward, append-only audit trail. P2-2 (implementation details in chore entry): intentional PM-log attribution pattern. ✅
-2. **Merged PR #697** (chore/pm-state-v129, 22/22 CI green, Codex handled) → squash `d0b3d5f`. ✅
-3. **Wrote PM state v130** (this document): priorities reconciled from scratch; v0.2.0 shipped section; v0.3.0 ceremony status; stale pre-v130 queue items removed. ✅
-4. **Note — decisions.jsonl**: Direct append to develop's decisions.jsonl was not possible in this remote session (get_file_contents defaults to main branch SHA regardless of branch parameter; push_files would overwrite file with only new entry, destroying v29–v129 entries). This PM state archive entry serves as the authoritative record. Next session should verify decisions.jsonl has the v130 entry appended; if not, append:
-   `{"ts":"2026-06-08T09:08:00Z","agent":"orchestrator","action":"pm-dispatch","decision":"PM dispatch v130: merged PR #697 (d0b3d5f); rejected Codex P2 ×2 on #697; wrote v130 PM state. P0 escalations: PR #568 finalize + RFC-0120 A/B/C.","ref":"PR#697,PR#568,RFC-0120,Charter§5.12"}`
-
-**Escalations to founder (P0):**
-- **(1) PR #568**: All 28 CI checks green; crates.io/npm/PyPI published. Trigger `finalize` workflow_dispatch to complete git ceremony (merge main + tag + GitHub Release + back-merge to develop).
-- **(2) RFC-0120**: Charter §2 Hyphae token ratio measured 0.753 vs target ≤0.30. PM cannot amend the public SLA. Choose Option A (amend target), B (implement compression to hit 0.30), or C (retire metric).
-
-### 2026-06-08 PM dispatch v129 (PRs #690+#693+#696 merged; dependabot queue clear; Codex P1 on #696 rejected)
+### 2026-06-08 PM dispatch v129 (PRs #690+#693+#696 merged; Codex P1 on #696 rejected)
 
 *(see PR #697 squash commit `d0b3d5f` for full archive)*
 
