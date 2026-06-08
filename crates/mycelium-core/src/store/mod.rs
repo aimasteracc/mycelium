@@ -2356,16 +2356,26 @@ impl Store {
         limit: usize,
     ) -> Vec<(String, usize, usize)> {
         let limit = limit.min(100);
-        let mut entries: Vec<(String, usize, usize)> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| {
-                self.trunk.lookup_path(p).map(|id| {
-                    let in_deg = self.synapse.incoming(id, kind).len();
-                    let out_deg = self.synapse.outgoing(id, kind).len();
-                    (p.to_owned(), in_deg, out_deg)
-                })
+        // RFC-0118 Part A.2: operate on the real-symbol induced subgraph — count
+        // only edges whose other endpoint is a *real* symbol, and never report a
+        // phantom node.
+        let real: HashSet<NodeId> = self.symbol_universe().into_iter().collect();
+        let mut entries: Vec<(String, usize, usize)> = real
+            .iter()
+            .filter_map(|&id| {
+                let in_deg = self
+                    .synapse
+                    .incoming(id, kind)
+                    .iter()
+                    .filter(|n| real.contains(n))
+                    .count();
+                let out_deg = self
+                    .synapse
+                    .outgoing(id, kind)
+                    .iter()
+                    .filter(|n| real.contains(n))
+                    .count();
+                self.path_of(id).map(|p| (p.to_owned(), in_deg, out_deg))
             })
             .filter(|(_, in_deg, out_deg)| *in_deg >= min_in && *out_deg >= min_out)
             .collect();
@@ -2457,18 +2467,24 @@ impl Store {
     #[must_use]
     pub fn singly_referenced(&self, kind: EdgeKind, limit: usize) -> Vec<(String, String)> {
         let limit = limit.min(100);
-        let mut entries: Vec<(String, String)> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| {
-                let id = self.trunk.lookup_path(p)?;
-                let inc = self.synapse.incoming(id, kind);
-                if inc.len() != 1 {
+        // RFC-0118 Part A.2: operate on the real-symbol induced subgraph — count
+        // only *real* incoming references, and never report a phantom node.
+        let real: HashSet<NodeId> = self.symbol_universe().into_iter().collect();
+        let mut entries: Vec<(String, String)> = real
+            .iter()
+            .filter_map(|&id| {
+                let real_callers: Vec<NodeId> = self
+                    .synapse
+                    .incoming(id, kind)
+                    .iter()
+                    .copied()
+                    .filter(|n| real.contains(n))
+                    .collect();
+                if real_callers.len() != 1 {
                     return None;
                 }
-                let ref_path = self.path_of(inc[0])?.to_owned();
-                Some((p.to_owned(), ref_path))
+                let ref_path = self.path_of(real_callers[0])?.to_owned();
+                Some((self.path_of(id)?.to_owned(), ref_path))
             })
             .collect();
         entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
@@ -3488,25 +3504,36 @@ impl Store {
     /// File nodes excluded. Optional prefix filter. Results sorted alphabetically.
     #[must_use]
     pub fn isolated_symbols(&self, prefix: Option<&str>) -> Vec<String> {
-        let mut result: Vec<String> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
-            .filter(|p| {
-                self.trunk.lookup_path(p).is_some_and(|id| {
-                    let d = self.node_degree(id);
-                    d.in_calls == 0
-                        && d.out_calls == 0
-                        && d.in_imports == 0
-                        && d.out_imports == 0
-                        && d.in_extends == 0
-                        && d.out_extends == 0
-                        && d.in_implements == 0
-                        && d.out_implements == 0
-                })
+        // RFC-0118 Part A.2: operate on the real-symbol induced subgraph — a node
+        // is isolated iff it has no edge (any kind, either direction) to another
+        // *real* symbol. Edges to/from Unresolved phantoms do not count, and
+        // phantoms are never themselves reported.
+        let real: HashSet<NodeId> = self.symbol_universe().into_iter().collect();
+        let has_real_neighbor = |id: NodeId| -> bool {
+            [
+                EdgeKind::Calls,
+                EdgeKind::Imports,
+                EdgeKind::Extends,
+                EdgeKind::Implements,
+            ]
+            .iter()
+            .any(|&k| {
+                self.synapse
+                    .incoming(id, k)
+                    .iter()
+                    .any(|n| real.contains(n))
+                    || self
+                        .synapse
+                        .outgoing(id, k)
+                        .iter()
+                        .any(|n| real.contains(n))
             })
-            .map(str::to_owned)
+        };
+        let mut result: Vec<String> = real
+            .iter()
+            .filter(|&&id| !has_real_neighbor(id))
+            .filter_map(|&id| self.path_of(id).map(str::to_owned))
+            .filter(|p| prefix.is_none_or(|pfx| p.starts_with(pfx)))
             .collect();
         result.sort_unstable();
         result
@@ -3561,16 +3588,25 @@ impl Store {
     #[must_use]
     pub fn most_connected(&self, limit: usize, kind: EdgeKind) -> Vec<(String, usize)> {
         let limit = limit.min(100);
-        let mut entries: Vec<(String, usize)> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| {
-                self.trunk.lookup_path(p).map(|id| {
-                    let degree = self.synapse.incoming(id, kind).len()
-                        + self.synapse.outgoing(id, kind).len();
-                    (p.to_owned(), degree)
-                })
+        // RFC-0118 Part A.2: operate on the real-symbol induced subgraph — total
+        // degree counts only edges to/from *real* symbols, phantoms excluded.
+        let real: HashSet<NodeId> = self.symbol_universe().into_iter().collect();
+        let mut entries: Vec<(String, usize)> = real
+            .iter()
+            .filter_map(|&id| {
+                let degree = self
+                    .synapse
+                    .incoming(id, kind)
+                    .iter()
+                    .filter(|n| real.contains(n))
+                    .count()
+                    + self
+                        .synapse
+                        .outgoing(id, kind)
+                        .iter()
+                        .filter(|n| real.contains(n))
+                        .count();
+                self.path_of(id).map(|p| (p.to_owned(), degree))
             })
             .filter(|(_, degree)| *degree > 0)
             .collect();
@@ -3585,10 +3621,19 @@ impl Store {
     #[must_use]
     pub fn leaf_symbols(&self, kind: EdgeKind, limit: usize) -> Vec<String> {
         let limit = limit.min(100);
-        let mut result: Vec<String> = self
-            .symbol_nodes()
-            .filter(|(id, _)| self.synapse.outgoing(*id, kind).is_empty())
-            .map(|(_, p)| p.to_owned())
+        // RFC-0118 Part A.2: operate on the real-symbol induced subgraph — a node
+        // is a leaf iff it has no outgoing edge to a *real* symbol.
+        let real: HashSet<NodeId> = self.symbol_universe().into_iter().collect();
+        let mut result: Vec<String> = real
+            .iter()
+            .filter(|&&id| {
+                !self
+                    .synapse
+                    .outgoing(id, kind)
+                    .iter()
+                    .any(|n| real.contains(n))
+            })
+            .filter_map(|&id| self.path_of(id).map(str::to_owned))
             .collect();
         result.sort_unstable();
         result.truncate(limit);

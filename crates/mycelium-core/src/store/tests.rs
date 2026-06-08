@@ -1191,6 +1191,127 @@ fn symbol_universe_excludes_unresolved_phantoms() {
     );
 }
 
+// ── RFC-0118 Part A.2: graph-theory queries operate on the real-symbol ──
+// ── induced subgraph (phantoms excluded as nodes AND as edge endpoints) ──
+
+/// Build a store: real `app.rs>main` Calls real `db.rs>query`, and `main`
+/// additionally Calls a *qualified* `NodeKind::Unresolved` phantom
+/// `Db>upsert_node`. Returns `(store, main_id, query_id, phantom_id)`.
+fn store_with_phantom_callee() -> (Store, NodeId, NodeId, NodeId) {
+    let mut store = Store::new();
+    let main = store.upsert_node_with_kind(path("app.rs>main"), NodeKind::Function);
+    let query = store.upsert_node_with_kind(path("db.rs>query"), NodeKind::Method);
+    let phantom = store.upsert_node_with_kind(path("Db>upsert_node"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, main, query);
+    store.upsert_edge(EdgeKind::Calls, main, phantom);
+    (store, main, query, phantom)
+}
+
+/// Phantom-free twin of [`store_with_phantom_callee`] — the oracle.
+fn store_phantom_free_twin() -> Store {
+    let mut store = Store::new();
+    let main = store.upsert_node_with_kind(path("app.rs>main"), NodeKind::Function);
+    let query = store.upsert_node_with_kind(path("db.rs>query"), NodeKind::Method);
+    store.upsert_edge(EdgeKind::Calls, main, query);
+    store
+}
+
+#[test]
+fn leaf_symbols_excludes_phantoms_and_induces_degree() {
+    let (store, ..) = store_with_phantom_callee();
+    let leaves = store.leaf_symbols(EdgeKind::Calls, 100);
+    assert!(
+        !leaves.contains(&"Db>upsert_node".to_string()),
+        "phantom must not be listed as a leaf: {leaves:?}"
+    );
+    // `main` calls a real symbol + a phantom; on the induced subgraph it still
+    // has a real out-edge, so it is NOT a leaf. Oracle: phantom-free twin.
+    assert_eq!(
+        leaves,
+        store_phantom_free_twin().leaf_symbols(EdgeKind::Calls, 100),
+        "leaf set must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn isolated_symbols_excludes_phantoms() {
+    // A real isolated symbol, plus an isolated phantom (no edges at all).
+    let mut store = Store::new();
+    let lonely = store.upsert_node_with_kind(path("a.rs>lonely"), NodeKind::Function);
+    let _phantom = store.upsert_node_with_kind(path("ghost"), NodeKind::Unresolved);
+    let _phantom_q = store.upsert_node_with_kind(path("Db>ghost"), NodeKind::Unresolved);
+    let iso = store.isolated_symbols(None);
+    assert_eq!(
+        iso,
+        vec!["a.rs>lonely".to_string()],
+        "only the real isolated symbol; phantoms excluded: {iso:?}"
+    );
+    let _ = lonely;
+}
+
+#[test]
+fn singly_referenced_excludes_phantoms_and_induces_callers() {
+    let (store, ..) = store_with_phantom_callee();
+    let singly = store.singly_referenced(EdgeKind::Calls, 100);
+    assert!(
+        !singly.iter().any(|(p, _)| p == "Db>upsert_node"),
+        "phantom must not be reported as singly-referenced: {singly:?}"
+    );
+    assert_eq!(
+        singly,
+        store_phantom_free_twin().singly_referenced(EdgeKind::Calls, 100),
+        "singly-referenced set must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn hub_symbols_excludes_phantoms_and_induces_degree() {
+    let (store, ..) = store_with_phantom_callee();
+    // min_in=0, min_out=0 lists every symbol with its degrees.
+    let hubs = store.hub_symbols(EdgeKind::Calls, 0, 0, 100);
+    assert!(
+        !hubs.iter().any(|(p, _, _)| p == "Db>upsert_node"),
+        "phantom must not be a hub: {hubs:?}"
+    );
+    // `main`'s out-degree must count only the real callee (1), not the phantom.
+    let main_out = hubs
+        .iter()
+        .find(|(p, _, _)| p == "app.rs>main")
+        .map(|(_, _, out)| *out);
+    assert_eq!(
+        main_out,
+        Some(1),
+        "main out-degree must exclude the phantom edge: {hubs:?}"
+    );
+    assert_eq!(
+        hubs,
+        store_phantom_free_twin().hub_symbols(EdgeKind::Calls, 0, 0, 100),
+        "hub set must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn most_connected_excludes_phantoms_and_induces_degree() {
+    let (store, ..) = store_with_phantom_callee();
+    let mc = store.most_connected(100, EdgeKind::Calls);
+    assert!(
+        !mc.iter().any(|(p, _)| p == "Db>upsert_node"),
+        "phantom must not appear in most_connected: {mc:?}"
+    );
+    // `main` degree = 1 real out-edge (phantom edge not counted).
+    let main_deg = mc.iter().find(|(p, _)| p == "app.rs>main").map(|(_, d)| *d);
+    assert_eq!(
+        main_deg,
+        Some(1),
+        "main degree must exclude the phantom edge: {mc:?}"
+    );
+    assert_eq!(
+        mc,
+        store_phantom_free_twin().most_connected(100, EdgeKind::Calls),
+        "most_connected must match the phantom-free twin"
+    );
+}
+
 #[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();
