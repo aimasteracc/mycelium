@@ -128,7 +128,7 @@ jobs:
       - name: Generate coverage JSON (branch % for Codecov)
         run: cargo llvm-cov --workspace --all-features --json --output-path coverage.json --no-run
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: lcov.info
           fail_ci_if_error: false
