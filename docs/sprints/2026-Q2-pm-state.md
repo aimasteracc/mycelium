@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v134 — PR #705 merged (PM state v133); Issue #657 closed; Codex limits exhausted escalation) |
+| Last updated | 2026-06-08 (PM dispatch v135 — PR #706 merged (PM state v134); no new code work (Codex limits + #568 ceremony blocked); same 3 P0 escalations carried forward) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -90,12 +90,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v134)
+## Dispatch state (2026-06-08 v135)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0120 Option A/B/C. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
-| PM | **DONE ✅** | v134 complete: PR #705 merged (`2dfb00cd`); Issue #657 closed; Codex limits escalated; PM state v134 pushed. |
+| PM | **DONE ✅** | v135 complete: PR #706 merged (`f6f77526`); RFC-0120 confirmed no file in repo; decisions.jsonl v135 appended; PM state v135 pushed. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | idle | RFC-0120 option analysis available on request. |
@@ -132,6 +132,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v135 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: release-governance, testing, async, ci-portability), PM state v134 (fetched from origin/develop — local clone stale, rehydrated via git fetch), v0.2 PRD.
+
+**Assessment (≤3 min):**
+- 2 open PRs: #706 (chore/pm-state-v134, 22/22 CI ✅, Codex billing notice — no code findings), #568 (release/v0.3.0, 28/28 CI ✅, registries published, finalize SKIPPED = awaiting founder).
+- 1 open issue: #612 (P2, Item 2 resolved on develop v107; Item 1 future Phase 2b cross-file extraction design).
+- Develop CI GREEN (HEAD `f6f7752` after #706 merge).
+- RFC-0120 confirmed as not a file in repo (search_code 0 results) — referenced in PM state only; architect analysis available on request.
+- No actionable code work: blocked by all 3 P0 gates (PR #568 finalize + RFC-0120 direction + Codex limits).
+
+**Actions taken:**
+1. **Merged PR #706** (chore/pm-state-v134, squash `f6f77526`) — CI 22/22 ✅; Codex billing notice (no P1/P2/P3 findings → Hard Rule satisfied per Charter Codex rule). ✅
+2. **Confirmed RFC-0120** has no file in repo (GitHub code search returned 0 results). Remains a decision gate for founder. ✅
+3. **PM state v135 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged from v134):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4).
+- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
+- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade account or explicitly suspend the requirement.
 
 ### 2026-06-08 PM dispatch v134 (this run)
 
