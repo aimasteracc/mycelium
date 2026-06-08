@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v133 — PR #699 merged (method span fix, closes #657); PR #704 closed (superseded); develop HEAD `7db42168`) |
+| Last updated | 2026-06-08 (PM dispatch v134 — PR #705 merged (PM state v133); Issue #657 closed; Codex limits exhausted escalation) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -67,7 +67,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Both P0 items require founder action.** No autonomous feature work is unblocked until #568 finalizes and RFC-0120 direction is set.
+> ⚠️ **All three P0 items require founder action.** No autonomous feature work is unblocked until #568 finalizes and RFC-0120 direction is set. Additionally, Codex usage limits are exhausted — see P0 #3.
 
 **P0 (founder action required):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
@@ -76,6 +76,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
    - **Option B**: Implement Hyphae output compression/encoding to reach ≤0.30 (product work)
    - **Option C**: Retire the metric (remove the row from Charter §2)
    This is a public SLA commitment; no autonomous actor can resolve it.
+3. **Codex usage limits exhausted** (NEW — surfaced in v134): The `chatgpt-codex-connector` bot posted "You have reached your Codex usage limits for code reviews" on PR #705 (2026-06-08T12:11:49Z). CLAUDE.md Hard Rule requires Codex findings to be addressed before any merge, but Codex cannot review while limits are exhausted. **Current PRs (only #568 is open) are unblocked** (PR #705 had no actual review findings; #568 is founder-gated separately). **Future PRs are at risk**: the Hard Rule becomes unenforceable until limits reset. Founder must upgrade Codex account / add credits, or explicitly suspend the Codex Hard Rule while limits are out. See: https://chatgpt.com/codex/cloud/settings/usage
 
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
@@ -89,19 +90,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v133)
+## Dispatch state (2026-06-08 v134)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required (P0 ×2)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — completes v0.3.0 git ceremony (Steps 1–4). **(2)** Choose RFC-0120 Option A/B/C (Charter §2 token ratio 0.753 vs ≤0.30). |
-| PM | **DONE ✅** | v133 complete: PR #699 merged (`7db42168`, closes #657); PR #704 closed (superseded); PM state v133 pushed. |
+| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0120 Option A/B/C. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
+| PM | **DONE ✅** | v134 complete: PR #705 merged (`2dfb00cd`); Issue #657 closed; Codex limits escalated; PM state v134 pushed. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | idle | RFC-0120 option analysis available on request. |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **DONE ✅** | PR #699 merged — Issue #657 closed. Awaiting RFC-0120 direction + post-v0.3.0 backlog triage for next P1 feature. |
+| rust-implementer | idle | Awaiting RFC-0120 direction + post-v0.3.0 backlog triage for next P1 feature. Issue #612 Item 1 (Phase 2b cross-file extraction) needs a design RFC before implementation. |
 
 ---
 
@@ -114,6 +115,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Skill marketplace listing metadata sign-off.
 - **RFC-0104 cold SLA measurement**: Charter §2 warm/cold SLA table amendment requires measured nightly data.
 - **RFC-0120 token ratio**: Charter §2 "≤30% of JSON token count" — measured 0.753; **founder must choose Option A/B/C.**
+- **Codex usage limits (NEW)**: CLAUDE.md Hard Rule (Codex review mandatory pre-merge) is unenforceable while limits are exhausted. **Founder must** upgrade account or explicitly suspend the rule. See https://chatgpt.com/codex/cloud/settings/usage
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED by founder 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED — retro-tag at `6aa1bed`; main jumps v0.1.16→v0.1.18→v0.1.19.
 - **Systemic**: `release.yml` finalize merge step — ceremony script is current workaround; P2 deferred.
@@ -131,7 +133,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-08 PM dispatch v133 (this run)
+### 2026-06-08 PM dispatch v134 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (hits: release-governance, tdd, ci-portability, governance/verification), PM state v133 (from develop, branched fresh), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #705 (chore/pm-state-v133, 22/22 CI ✅, Codex limits message — no actual findings), #568 (release/v0.3.0, founder-gated).
+- 2 open issues: #657 (P2, already fixed by PR #699 — not auto-closed), #612 (P2, Item 2 resolved on develop v107; Item 1 future Phase 2b).
+- Develop CI GREEN (HEAD `2dfb00cd` after #705 squash-merge).
+- **New finding**: Codex usage limits exhausted — chatgpt-codex-connector posted billing notice on PR #705 at 12:11Z. No actual code findings. Hard Rule enforcement at risk for future PRs.
+
+**Actions taken:**
+1. **Merged PR #705** (chore/pm-state-v133, squash `2dfb00cd`) — CI 22/22 ✅; Codex posted billing notice (no P1/P2/P3 findings → safe per Hard Rule). ✅
+2. **Closed Issue #657** — already fixed by PR #699 (`7db42168`); issue was not auto-closed by the merge. ✅
+3. **Escalated Codex limits** as new P0 decision gate (P0 #3). ✅
+4. **PM state v134 written** (this document) + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
+- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
+- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade account or suspend the requirement.
+
+### 2026-06-08 PM dispatch v133 (PR #699 merged; Issue #657 closed; PR #704 closed)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/ci-portability domain hits), PM state v132 (from PR #704 branch — local clone stale at v130), v0.2 PRD.
 
