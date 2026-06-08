@@ -400,12 +400,23 @@ pub struct GetImplementsRequest {
 pub struct GetEntryPointsRequest {
     /// Optional path prefix to restrict results (e.g. `"src/handlers/"`).
     pub path_prefix: Option<String>,
+    /// Maximum number of symbols to return. `0` or omitted means no limit.
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Number of symbols to skip before returning results. Defaults to 0.
+    #[serde(default)]
+    pub offset: Option<usize>,
     /// Response format override. Omit to use the transport default — `"text"`
     /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
     /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
     /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Caps the paginated page.
+    /// Unknown values are rejected. The CLI `--budget` flag is the twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_rank_symbols`.

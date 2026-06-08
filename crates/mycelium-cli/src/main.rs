@@ -271,6 +271,8 @@ enum Cmd {
         format: QueryFormat,
     },
     /// Return the recursive caller tree rooted at a symbol.
+    /// Nested tree (Calls edges only); for a flat blast-radius set use
+    /// get-reachable-to, for a single hop use get-cross-refs.
     GetCallerTree {
         path: String,
         #[arg(long, default_value_t = 3)]
@@ -284,10 +286,20 @@ enum Cmd {
     GetEntryPoints {
         #[arg(long)]
         prefix: Option<String>,
+        /// Maximum number of symbols to return. 0 means no limit (default).
+        #[arg(long, default_value_t = 0)]
+        limit: usize,
+        /// Number of symbols to skip before returning results.
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Caps the paginated page. MCP `budget` twin.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return symbols with no incoming or outgoing `Calls` edges.
     GetDeadSymbols {
@@ -456,6 +468,8 @@ enum Cmd {
         budget: Option<String>,
     },
     /// Reverse reachability: symbols that can reach the given path.
+    /// Transitive, depth-bounded (--max-depth); the blast radius of changing
+    /// this symbol. One hop: get-cross-refs. Unbounded closure: get-reaches-into.
     GetReachableTo {
         path: String,
         #[arg(long)]
@@ -517,6 +531,8 @@ enum Cmd {
         format: QueryFormat,
     },
     /// Return ALL incoming references grouped by edge kind.
+    /// Single-hop; for transitive blast radius use get-reachable-to (depth-bounded)
+    /// or get-reaches-into (unbounded closure).
     GetCrossRefs {
         path: String,
         #[arg(long, default_value = ".")]
@@ -553,6 +569,8 @@ enum Cmd {
         format: QueryFormat,
     },
     /// Transitive reverse reachability (no max-depth bound).
+    /// Unbounded closure, file nodes excluded, result keyed `callers`; differs
+    /// from get-reachable-to (depth-bounded, keeps file nodes, keyed `reachable`).
     GetReachesInto {
         path: String,
         #[arg(long)]
@@ -902,6 +920,8 @@ enum Cmd {
         format: QueryFormat,
     },
     /// Batch reverse reachability into up to 20 targets.
+    /// Multi-target form of get-reachable-to (same depth-bounded semantics,
+    /// unioned). For a single target use get-reachable-to.
     BatchReachableTo {
         /// Target paths. Accepts repeated flags (--paths a --paths b) or comma-separated (--paths a,b).
         #[arg(long, value_delimiter = ',')]
@@ -1298,11 +1318,21 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         }
         Cmd::GetEntryPoints {
             prefix,
+            limit,
+            offset,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_entry_points(&canonical, prefix.as_deref(), format.into())?;
+            queries::run_get_entry_points(
+                &canonical,
+                prefix.as_deref(),
+                limit,
+                offset,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetDeadSymbols {
             prefix,

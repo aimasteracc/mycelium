@@ -22,6 +22,18 @@ pub(crate) enum Format {
     Json,
 }
 
+/// Build the canonical "path not found" CLI error. The message teaches the
+/// `file>Type>member` path format and points to `mycelium search-symbol` for
+/// recovery — the byte-equivalent guidance of the MCP `not_found()` helper
+/// (FIX B), so an agent that passed a bare name learns how to resolve it.
+fn path_not_found(path: &str) -> anyhow::Error {
+    anyhow!(
+        "path not found: {path} — symbol paths are `file>Type>member` \
+         (e.g. `src/store.rs>Store>upsert_node`); run `mycelium search-symbol` \
+         to resolve a name to its full path."
+    )
+}
+
 fn load_index(root: &Path) -> Result<Store> {
     let index_path = root.join(".mycelium").join("index.rmp");
     if !index_path.exists() {
@@ -84,9 +96,7 @@ pub(crate) fn run_get_symbol_info(root: &Path, path: &str, format: Format) -> Re
     reason = "callers/callees are the canonical field names matched by the MCP tool"
 )]
 fn symbol_info(store: &Store, path: &str) -> Result<serde_json::Value> {
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
 
     let ancestors: Vec<String> = store
         .ancestors(id)
@@ -130,7 +140,7 @@ pub(crate) fn run_get_ancestors(root: &Path, path: &str, format: Format) -> Resu
     let store = load_index(root)?;
     let ancestors = store
         .ancestors_of_path(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+        .ok_or_else(|| path_not_found(path))?;
     print_string_list(&ancestors, format)
 }
 
@@ -145,7 +155,7 @@ pub(crate) fn run_get_descendants(
     let store = load_index(root)?;
     let descendants = store
         .descendants_of_path(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+        .ok_or_else(|| path_not_found(path))?;
     if !include_inherited {
         return print_string_list(&descendants, format);
     }
@@ -181,9 +191,7 @@ pub(crate) fn run_get_descendants(
 
 pub(crate) fn run_get_node_kind(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let kind = store.kind_of(id).map(|k| k.as_str().to_owned());
     let value = serde_json::json!({ "path": path, "kind": kind });
     match format {
@@ -215,9 +223,7 @@ pub(crate) fn run_get_symbols_by_kind(
 
 pub(crate) fn run_get_source_span(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let value = store.span_of(id).map_or_else(
         || serde_json::json!({ "path": path, "span": serde_json::Value::Null }),
         |span| {
@@ -256,9 +262,7 @@ pub(crate) fn run_get_source_span(root: &Path, path: &str, format: Format) -> Re
 
 pub(crate) fn run_get_siblings(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let siblings = store.siblings(id);
     print_string_list(&siblings, format)
 }
@@ -355,9 +359,7 @@ pub(crate) fn run_get_callees(
         .transpose()
         .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
     let mut value = mycelium_core::queries::callees_payload(&store, id, kind);
     // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
@@ -437,9 +439,7 @@ pub(crate) fn run_get_callers(
         .transpose()
         .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
     let mut value =
         mycelium_core::queries::callers_payload(&store, id, path, kind, include_virtual);
@@ -484,9 +484,7 @@ pub(crate) fn run_get_callee_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.callee_tree(id, max_depth);
     let value = callee_node_to_json(&tree, &store);
     match format {
@@ -503,9 +501,7 @@ pub(crate) fn run_get_caller_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.caller_tree(id, max_depth);
     let value = caller_node_to_json(&tree, &store);
     match format {
@@ -520,11 +516,36 @@ pub(crate) fn run_get_caller_tree(
 pub(crate) fn run_get_entry_points(
     root: &Path,
     prefix: Option<&str>,
+    limit: usize,
+    offset: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let symbols = store.entry_points(prefix);
-    print_string_list(&symbols, format)
+    let total_count = symbols.len();
+    let page: Vec<String> = symbols
+        .into_iter()
+        .skip(offset)
+        .take(if limit == 0 { usize::MAX } else { limit })
+        .collect();
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
+    let mut value = mycelium_core::queries::entry_points_payload(&page, total_count);
+    // Budget caps the paginated page; JSON mode (MCP parity) or explicit --budget.
+    // Default text mode prints the full page (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
+    print_object_with_list(&value, "entry_points", format)
 }
 
 pub(crate) fn run_project_health(root: &Path, format: Format) -> Result<()> {
@@ -615,9 +636,7 @@ pub(crate) fn run_get_isolated_symbols(
 
 pub(crate) fn run_get_imports(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let imports = store.imports_of(id);
     let imported_by = store.imported_by(id);
     let value = serde_json::json!({ "imports": imports, "imported_by": imported_by });
@@ -664,9 +683,7 @@ pub(crate) fn run_get_import_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.import_tree(id, max_depth);
     let value = serde_json::json!({ "root": import_node_to_json(&tree, &store) });
     match format {
@@ -683,9 +700,7 @@ pub(crate) fn run_get_importers_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.importers_tree(id, max_depth);
     let value = serde_json::json!({ "root": importer_node_to_json(&tree, &store) });
     match format {
@@ -719,9 +734,7 @@ fn sorted_paths_for(
 
 pub(crate) fn run_get_extends(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let value = serde_json::json!({
         "extends":     sorted_paths_for(&store, id, EdgeKind::Extends, true),
         "extended_by": sorted_paths_for(&store, id, EdgeKind::Extends, false),
@@ -735,9 +748,7 @@ pub(crate) fn run_get_extends(root: &Path, path: &str, format: Format) -> Result
 
 pub(crate) fn run_get_implements(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let value = serde_json::json!({
         "implements":     sorted_paths_for(&store, id, EdgeKind::Implements, true),
         "implemented_by": sorted_paths_for(&store, id, EdgeKind::Implements, false),
@@ -802,9 +813,7 @@ pub(crate) fn run_extends_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.extends_tree(id, max_depth);
     let value = serde_json::json!({ "root": extends_node_to_json(&tree, &store) });
     print_tree_value(&value, format)
@@ -817,9 +826,7 @@ pub(crate) fn run_subclasses_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.subclasses_tree(id, max_depth);
     let value = serde_json::json!({ "root": subclass_node_to_json(&tree, &store) });
     print_tree_value(&value, format)
@@ -832,9 +839,7 @@ pub(crate) fn run_implements_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.implements_tree(id, max_depth);
     let value = serde_json::json!({ "root": implements_node_to_json(&tree, &store) });
     print_tree_value(&value, format)
@@ -847,9 +852,7 @@ pub(crate) fn run_implementors_tree(
     format: Format,
 ) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let tree = store.implementors_tree(id, max_depth);
     let value = serde_json::json!({ "root": implementor_node_to_json(&tree, &store) });
     print_tree_value(&value, format)
@@ -873,10 +876,10 @@ pub(crate) fn run_find_extends_path(
     let store = load_index(root)?;
     let from_id = store
         .lookup(from_path)
-        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+        .ok_or_else(|| path_not_found(from_path))?;
     let to_id = store
         .lookup(to_path)
-        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+        .ok_or_else(|| path_not_found(to_path))?;
     let maybe = store.find_extends_path(from_id, to_id, max_depth);
     let value = maybe.map_or_else(
         || {
@@ -908,10 +911,10 @@ pub(crate) fn run_find_implements_path(
     let store = load_index(root)?;
     let from_id = store
         .lookup(from_path)
-        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+        .ok_or_else(|| path_not_found(from_path))?;
     let to_id = store
         .lookup(to_path)
-        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+        .ok_or_else(|| path_not_found(to_path))?;
     let maybe = store.find_implements_path(from_id, to_id, max_depth);
     let value = maybe.map_or_else(
         || {
@@ -963,9 +966,7 @@ pub(crate) fn run_get_reachable(
         .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let reachable = store.reachable_from(id, kind, max_depth);
     // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
     let mut value = mycelium_core::queries::reachable_payload(&reachable);
@@ -996,9 +997,7 @@ pub(crate) fn run_get_reachable_to(
         .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let reachable = store.reachable_to(id, kind, max_depth);
     // Shared core builder → byte-identical with the MCP tool (RFC-0109 Option A).
     let mut value = mycelium_core::queries::reachable_payload(&reachable);
@@ -1022,9 +1021,7 @@ pub(crate) fn run_get_k_hop_neighbors(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let neighbors = store.k_hop_neighbors(id, kind, k);
     let count = neighbors.len();
     let value = serde_json::json!({ "neighbors": neighbors, "count": count, "k": k });
@@ -1039,9 +1036,7 @@ pub(crate) fn run_get_two_hop_neighbors(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let neighbors = store.two_hop_neighbors(id, kind);
     let count = neighbors.len();
     let value = serde_json::json!({ "neighbors": neighbors, "count": count });
@@ -1059,10 +1054,10 @@ pub(crate) fn run_get_shortest_path(
     let kind = parse_edge_kind(edge_kind)?;
     let from_id = store
         .lookup(from_path)
-        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+        .ok_or_else(|| path_not_found(from_path))?;
     let to_id = store
         .lookup(to_path)
-        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+        .ok_or_else(|| path_not_found(to_path))?;
     let value = store.shortest_path(from_id, to_id, kind).map_or_else(
         || serde_json::json!({ "path": serde_json::Value::Null, "length": serde_json::Value::Null }),
         |p| {
@@ -1100,9 +1095,7 @@ pub(crate) fn run_get_symbol_neighborhood(
 
 pub(crate) fn run_get_cross_refs(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let refs = store.cross_refs(id);
     let value = serde_json::json!({
         "callers": refs.callers,
@@ -1115,9 +1108,7 @@ pub(crate) fn run_get_cross_refs(root: &Path, path: &str, format: Format) -> Res
 
 pub(crate) fn run_get_outgoing_refs(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let refs = store.outgoing_refs(id);
     let value = serde_json::json!({
         "callees": refs.callees,
@@ -1136,9 +1127,7 @@ pub(crate) fn run_get_dependency_depth(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let depth = store
         .dependency_depth(id, kind)
         .ok_or_else(|| anyhow!("not a symbol node: {path}"))?;
@@ -1158,9 +1147,7 @@ pub(crate) fn run_get_reachable_set(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let reachable = store.reachable_set(id, kind);
     let count = reachable.len();
     let value = serde_json::json!({ "reachable": reachable, "count": count });
@@ -1175,9 +1162,7 @@ pub(crate) fn run_get_reaches_into(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let callers = store.reaches_into(id, kind);
     let count = callers.len();
     let value = serde_json::json!({ "callers": callers, "count": count });
@@ -1415,9 +1400,7 @@ pub(crate) fn run_clustering_coefficient(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let (coefficient, neighbor_count, neighbor_edge_count) =
         store.clustering_coefficient_stats(id, kind);
     print_tree_value(
@@ -1438,9 +1421,7 @@ pub(crate) fn run_eccentricity(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let (eccentricity, reachable_count) = store.eccentricity_stats(id, kind);
     print_tree_value(
         &serde_json::json!({
@@ -1482,9 +1463,7 @@ pub(crate) fn run_harmonic_centrality(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let (harmonic_centrality, reachable_count, symbol_count) =
         store.harmonic_centrality_stats(id, kind);
     print_tree_value(
@@ -1506,12 +1485,8 @@ pub(crate) fn run_neighbor_similarity(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id1 = store
-        .lookup(path1)
-        .ok_or_else(|| anyhow!("path not found: {path1}"))?;
-    let id2 = store
-        .lookup(path2)
-        .ok_or_else(|| anyhow!("path not found: {path2}"))?;
+    let id1 = store.lookup(path1).ok_or_else(|| path_not_found(path1))?;
+    let id2 = store.lookup(path2).ok_or_else(|| path_not_found(path2))?;
     let (similarity, shared, total) = store.neighbor_similarity_stats(id1, id2, kind);
     print_tree_value(
         &serde_json::json!({ "similarity": similarity, "shared": shared, "total": total }),
@@ -1870,9 +1845,7 @@ pub(crate) fn run_batch_reachable_to(
 
 pub(crate) fn run_get_node_degree(root: &Path, path: &str, format: Format) -> Result<()> {
     let store = load_index(root)?;
-    let id = store
-        .lookup(path)
-        .ok_or_else(|| anyhow!("path not found: {path}"))?;
+    let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let d = store.node_degree(id);
     let value = serde_json::json!({
         "in_calls":       d.in_calls,
@@ -1937,9 +1910,7 @@ pub(crate) fn run_get_common_callers(
     }
     let mut ids = Vec::with_capacity(paths.len());
     for p in paths {
-        let id = store
-            .lookup(p)
-            .ok_or_else(|| anyhow!("path not found: {p}"))?;
+        let id = store.lookup(p).ok_or_else(|| path_not_found(p))?;
         ids.push(id);
     }
     let callers = store.common_callers(&ids, kind);
@@ -1962,9 +1933,7 @@ pub(crate) fn run_get_common_callees(
     }
     let mut ids = Vec::with_capacity(paths.len());
     for p in paths {
-        let id = store
-            .lookup(p)
-            .ok_or_else(|| anyhow!("path not found: {p}"))?;
+        let id = store.lookup(p).ok_or_else(|| path_not_found(p))?;
         ids.push(id);
     }
     let callees = store.common_callees(&ids, kind);
@@ -1982,12 +1951,8 @@ pub(crate) fn run_get_common_reachable(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id1 = store
-        .lookup(path1)
-        .ok_or_else(|| anyhow!("path not found: {path1}"))?;
-    let id2 = store
-        .lookup(path2)
-        .ok_or_else(|| anyhow!("path not found: {path2}"))?;
+    let id1 = store.lookup(path1).ok_or_else(|| path_not_found(path1))?;
+    let id2 = store.lookup(path2).ok_or_else(|| path_not_found(path2))?;
     let common = store.common_reachable(id1, id2, kind);
     let count = common.len();
     let value = serde_json::json!({ "common": common, "count": count });
@@ -2003,12 +1968,8 @@ pub(crate) fn run_get_mutual_reachability(
 ) -> Result<()> {
     let store = load_index(root)?;
     let kind = parse_edge_kind(edge_kind)?;
-    let id1 = store
-        .lookup(path1)
-        .ok_or_else(|| anyhow!("path not found: {path1}"))?;
-    let id2 = store
-        .lookup(path2)
-        .ok_or_else(|| anyhow!("path not found: {path2}"))?;
+    let id1 = store.lookup(path1).ok_or_else(|| path_not_found(path1))?;
+    let id2 = store.lookup(path2).ok_or_else(|| path_not_found(path2))?;
     let result = store.mutual_reachability(id1, id2, kind);
     let value = serde_json::json!({
         "forward": result.forward,
@@ -2055,10 +2016,10 @@ pub(crate) fn run_find_call_path(
     let store = load_index(root)?;
     let from_id = store
         .lookup(from_path)
-        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+        .ok_or_else(|| path_not_found(from_path))?;
     let to_id = store
         .lookup(to_path)
-        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+        .ok_or_else(|| path_not_found(to_path))?;
     let maybe = store.find_call_path(from_id, to_id, max_depth);
     let value = path_or_unreachable(maybe, &store, max_depth, "call");
     print_tree_value(&value, format)
@@ -2074,10 +2035,10 @@ pub(crate) fn run_find_import_path(
     let store = load_index(root)?;
     let from_id = store
         .lookup(from_path)
-        .ok_or_else(|| anyhow!("path not found: {from_path}"))?;
+        .ok_or_else(|| path_not_found(from_path))?;
     let to_id = store
         .lookup(to_path)
-        .ok_or_else(|| anyhow!("path not found: {to_path}"))?;
+        .ok_or_else(|| path_not_found(to_path))?;
     let maybe = store.find_import_path(from_id, to_id, max_depth);
     let value = path_or_unreachable(maybe, &store, max_depth, "import");
     print_tree_value(&value, format)
@@ -2239,6 +2200,16 @@ mod tests {
         let store = Store::default();
         let err = symbol_info(&store, "nonexistent").unwrap_err();
         assert!(format!("{err}").contains("path not found"));
+    }
+
+    #[test]
+    fn path_not_found_error_teaches_format_and_recovery_tool() {
+        // FIX B CLI twin: the not-found error teaches the `file>Type>member`
+        // format and names the recovery command.
+        let msg = format!("{}", path_not_found("Store::upsert_node"));
+        assert!(msg.contains("Store::upsert_node"), "msg: {msg}");
+        assert!(msg.contains("file>Type>member"), "msg: {msg}");
+        assert!(msg.contains("search-symbol"), "msg: {msg}");
     }
 
     // RFC-0101 Phase 2 — CLI twin for mycelium_context (RED-first)

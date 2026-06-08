@@ -32,10 +32,20 @@ pub fn application_error(value: &Value) -> CallToolResult {
 
 /// Canonical not-found error: symbol present in a valid index but the
 /// requested path does not exist.
+///
+/// The `error` message teaches the `file>Type>member` path format and points
+/// to `mycelium_search_symbol` for recovery, so an agent that passed a bare
+/// name (e.g. `Store::upsert_node`) learns how to resolve it in one step.
+/// `reason` stays the stable machine-readable code for clients that branch
+/// on it.
 #[must_use]
 pub fn not_found(path: &str) -> CallToolResult {
     application_error(&serde_json::json!({
-        "error": format!("symbol not found: {path}"),
+        "error": format!(
+            "path not found: {path} — symbol paths are `file>Type>member` \
+             (e.g. `src/store.rs>Store>upsert_node`); run mycelium_search_symbol \
+             to resolve a name to its full path."
+        ),
         "found": false,
         "reason": "symbol not found",
         "path": path,
@@ -132,6 +142,19 @@ mod tests {
         assert_eq!(v["found"], false);
         assert_eq!(v["reason"], "symbol not found");
         assert_eq!(v["path"], "mod>foo");
+    }
+
+    #[test]
+    fn not_found_error_teaches_path_format_and_recovery_tool() {
+        let result = not_found("Store::upsert_node");
+        let v: Value = serde_json::from_str(payload_text(&result)).unwrap();
+        let msg = v["error"].as_str().unwrap();
+        // Echoes the offending input ...
+        assert!(msg.contains("Store::upsert_node"), "msg: {msg}");
+        // ... teaches the `file>Type>member` format ...
+        assert!(msg.contains("file>Type>member"), "msg: {msg}");
+        // ... and names the recovery tool.
+        assert!(msg.contains("search_symbol"), "msg: {msg}");
     }
 
     // ── not_indexed ───────────────────────────────────────────────────────────

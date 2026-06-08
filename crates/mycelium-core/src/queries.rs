@@ -145,6 +145,19 @@ pub fn all_symbols_payload(page: &[String], total_count: usize) -> Value {
     json!({ "symbols": page, "count": page.len(), "total_count": total_count })
 }
 
+/// Build the `{ "entry_points": [...], "count": N, "total_count": M }` payload
+/// for `get_entry_points` from an already-paginated `page` and the
+/// pre-pagination `total_count`.
+///
+/// `count` is the page length (pre-budget); `total_count` is the full match
+/// count before `limit`/`offset`. Budgeting (if any) is applied by the caller
+/// *after* this, capping the page — so `count`/`total_count` always report the
+/// true sizes (mirrors [`all_symbols_payload`]; RFC-0109: budget caps the page).
+#[must_use]
+pub fn entry_points_payload(page: &[String], total_count: usize) -> Value {
+    json!({ "entry_points": page, "count": page.len(), "total_count": total_count })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,5 +370,14 @@ mod tests {
         assert_eq!(v["symbols"], serde_json::json!(["a", "b"]));
         assert_eq!(v["count"], 2);
         assert_eq!(v["total_count"], 10);
+    }
+
+    #[test]
+    fn entry_points_payload_reports_page_and_total() {
+        // A 2-item page out of a 7-match total.
+        let v = entry_points_payload(&["a".to_owned(), "b".to_owned()], 7);
+        assert_eq!(v["entry_points"], serde_json::json!(["a", "b"]));
+        assert_eq!(v["count"], 2);
+        assert_eq!(v["total_count"], 7);
     }
 }
