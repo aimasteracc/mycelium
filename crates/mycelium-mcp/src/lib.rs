@@ -222,6 +222,13 @@ fn persist_full_redb_index(root: &Path, store: &Store) -> anyhow::Result<()> {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating redb index dir {}", parent.display()))?;
     }
+    // Codex P2 (#700): a FULL persist must make redb EXACTLY match the store.
+    // `replace_file_from_store` only upserts files PRESENT in the store, so any
+    // file the source-of-truth (a fresh rmp / re-index) DROPPED would survive in
+    // a pre-existing redb and resurrect on the next serve start. Rebuild redb
+    // from scratch so absent files cannot persist. Safe here: this runs at
+    // startup after the in-memory store is fully loaded, before any reader.
+    let _ = std::fs::remove_file(&redb);
     let mut backend = RedbBackend::open(&redb)
         .map_err(|e| anyhow::anyhow!("opening redb index {}: {e}", redb.display()))?;
 

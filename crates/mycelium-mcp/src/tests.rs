@@ -535,6 +535,43 @@ async fn redb_watch_batch_persists_one_changed_file() {
     );
 }
 
+/// Codex P2 (#700): a FULL re-persist (reconverging redb from a freshly-loaded
+/// rmp) must make redb EXACTLY match the store. Before the fix,
+/// `replace_file_from_store` only upserted files PRESENT in the store, so a file
+/// the CLI re-index DELETED survived in a pre-existing redb and resurrected on
+/// the next `serve --mcp` start (the re-persist also refreshed redb's mtime, so
+/// the next startup picked redb). The full persist now rebuilds redb from
+/// scratch, so absent files cannot survive.
+#[cfg(feature = "redb-backend")]
+#[tokio::test]
+async fn persist_full_redb_index_drops_files_absent_from_store() {
+    let tmp = tempfile::tempdir().unwrap();
+
+    // First persist: a.py + gone.py.
+    let mut store1 = Store::new();
+    reindex_file("a.py", b"def keep(): pass", "py", &mut store1);
+    reindex_file("gone.py", b"def doomed(): pass", "py", &mut store1);
+    store1.resolve_bare_call_stubs();
+    persist_full_redb_index(tmp.path(), &store1).expect("first redb persist");
+
+    // Second FULL persist with gone.py REMOVED (a CLI re-index deleted it).
+    let mut store2 = Store::new();
+    reindex_file("a.py", b"def keep(): pass", "py", &mut store2);
+    store2.resolve_bare_call_stubs();
+    persist_full_redb_index(tmp.path(), &store2).expect("second full redb persist");
+
+    let redb = tmp.path().join(".mycelium").join("index.redb");
+    let loaded = Store::load(&redb).expect("load redb store");
+    assert!(
+        loaded.lookup("a.py>keep").is_some(),
+        "a file still in the store must remain after a full re-persist"
+    );
+    assert!(
+        loaded.lookup("gone.py>doomed").is_none(),
+        "a file ABSENT from the store must NOT survive a full re-persist (no resurrection)"
+    );
+}
+
 /// End-to-end regression (#mcp-serve-stale-snapshot): a stale `index.redb`
 /// (old symbol) sits next to a NEWER `index.rmp` (new symbols), exactly as
 /// after `mycelium index .` runs while serve is down. `serve --mcp` must load
