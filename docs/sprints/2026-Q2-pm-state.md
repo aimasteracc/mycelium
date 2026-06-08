@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v130 — PR #697 merged; Codex P2 ×2 rejected; develop HEAD `d0b3d5f`; v0.3.0 registries published, git ceremony pending) |
-| Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
+| Last updated | 2026-06-08 (PM dispatch v132 — PR #701 closed (superseded); PR #699 Codex P2 fixed (Ruby span, d688486); #699 CI running; develop HEAD `42334bd`) |
+| Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568; post-ceremony: Issue #657 fix (PR #699) |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -76,10 +76,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
    - **Option C**: Retire the metric (remove the row from Charter §2)
    This is a public SLA commitment; no autonomous actor can resolve it.
 
-**P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
-3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
-4. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
-5. Issue #428 god-file-split remaining slices (P2 carried from v0.2.0)
+**P1 (unblocked / in flight):**
+3. **PR #699** (`fix/issue-657-method-span-precision`): method span precision fix for Issue #657 — CI running; Codex P2 fixed (Ruby containers, commit `d688486`). Merge once CI green.
+
+**P1 (post-v0.3.0 ceremony, blocked until #568 finalizes):**
+4. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
+5. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
+6. Issue #428 god-file-split remaining slices (P2 carried from v0.2.0)
 
 **P2:**
 6. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -88,19 +91,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v130)
+## Dispatch state (2026-06-08 v132)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×2)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — completes v0.3.0 git ceremony (Steps 1–4). **(2)** Choose RFC-0120 Option A/B/C (Charter §2 token ratio 0.753 vs ≤0.30). |
-| PM | **DONE ✅** | v130 complete: PR #697 merged (`d0b3d5f`); Codex P2 ×2 rejected; PM state updated. |
+| PM | **DONE ✅** | v132 complete: PR #701 closed (superseded, rebase conflicts); PR #699 Codex P2 fixed (Ruby span `d688486`); PM state v132 pushed; decisions.jsonl v131+v132 appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | idle | RFC-0120 option analysis available on request. |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | idle | No P1 feature work unblocked; waiting RFC-0120 direction + post-v0.3.0 backlog triage. |
+| rust-implementer | **P1 in-flight** | PR #699 — admin-merge once CI green (all checks ✅ expected; Codex P2 fixed). |
 
 ---
 
@@ -130,7 +133,32 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-08 PM dispatch v130 (this run)
+### 2026-06-08 PM dispatch v132 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v130 on develop; last = rust-implementer 11:30 callable-guard PR#702), anti-patterns (ci/testing/release-governance/tdd hits), PM state v130 on develop (local clone stale at v28; rehydrated from origin/develop `42334bd`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #701 (pm-state-v131, CI 22/22 ✅, Codex P2), #699 (method span fix, CI running, Codex P2 live), #568 (release/v0.3.0, founder-gated).
+- 0 labeled P0/P1 issues. Develop GREEN (`42334bd`).
+- Since v130: PRs #700 (mcp serve stale snapshot) and #702 (callable-guard) merged on develop.
+- PR #698 already merged by prior session at 10:16Z.
+
+**Actions taken:**
+1. **Identified Codex P2 on PR #699 as valid** (Ruby `class`/`module` anchors excluded from `is_type_container()`; span fix missed them). TDD RED: `method_span_is_method_not_class_ruby` fails. Fix: `|| matches!(anchor.kind(), "class" | "module")`. GREEN + full test suite passes. Commit `d688486` pushed. Replied to Codex thread 3372392168. ✅
+2. **Closed PR #701** as superseded: Codex P2 (v130 missing) is outdated after PR #698 merged; rebase hit 8-way conflicts (branch diverged before PRs #700/#702). ✅
+3. **Appended decisions.jsonl v131 + v132** entries (this run). ✅
+4. **Updated PM state v132** (this document). ✅
+5. **PR #699 CI running** — will merge once all checks complete.
+
+**Escalations to founder (P0, carried forward):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
+- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
+
+### 2026-06-08 PM dispatch v131 (PR #698 Codex fixed; Issues #636+#673 closed; PR #699 opened)
+
+*(see closed PR #701 for full archive — superseded by v132)*
+
+### 2026-06-08 PM dispatch v130 (this run — archived)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (local clone at v28 — stale by 101 dispatches; rehydrated from GitHub API), anti-patterns (domain hits: release-governance, testing, git-workflow), PM state v28 on local/v129 on develop (post #697 merge), v0.2 PRD.
 
