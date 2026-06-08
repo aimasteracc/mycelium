@@ -5477,6 +5477,37 @@ async fn query_parse_error_returns_error_envelope() {
 }
 
 #[tokio::test]
+async fn query_unsupported_selector_returns_error_envelope_not_empty() {
+    // Three-Surface parity with the CLI: a selector that PARSES but names an
+    // unsupported attribute (`[lang=…]`; the supported name is `language`)
+    // must surface `{error:…}`, never a silent `{matches:[], count:0}` that an
+    // agent would misread as "no Rust functions exist".
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        store.upsert_node_with_kind(
+            TrunkPath::parse("src/a.rs>foo").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
+    }
+    let raw = server
+        .mycelium_query(Parameters(QueryRequest {
+            expr: ".function[lang=rust]".to_owned(),
+            output_format: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    let err = val["error"].as_str().unwrap_or("");
+    assert!(
+        err.contains("unsupported") && err.contains("language"),
+        "expected unsupported-selector error naming `language`, got: {}",
+        result_str(&raw)
+    );
+    // No partial / empty-match leakage.
+    assert!(val.get("matches").is_none());
+}
+
+#[tokio::test]
 async fn get_siblings_class_methods() {
     let server = MyceliumServer::new();
     {

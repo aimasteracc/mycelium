@@ -48,7 +48,14 @@ pub(crate) fn execute(index_path: &Path, selector: &str) -> Result<Vec<String>> 
     // grammar hint + did-you-mean + docs pointer; Debug would dump the bare enum.
     let ast = parse(selector).map_err(|e| anyhow!("hyphae parse error: {e}"))?;
     let evaluator = Evaluator::new(&store);
-    Ok(evaluator.eval(&ast))
+    // `eval_checked` (not `eval`): a selector that parses but names an
+    // unsupported attribute (`[lang=…]`) or pseudo-class (`:frobnicate()`)
+    // returns an explicit `EvalError` here instead of a silent empty set that
+    // an agent would misread as "no matches". `{e}` (Display) carries the
+    // supported-name hint.
+    evaluator
+        .eval_checked(&ast)
+        .map_err(|e| anyhow!("hyphae query error: {e}"))
 }
 
 /// CLI entry point. Loads the snapshot from `.mycelium/index.rmp` at `root`,
@@ -107,5 +114,21 @@ mod tests {
             msg.to_lowercase().contains("parse") || msg.to_lowercase().contains("hyphae"),
             "got: {msg}"
         );
+    }
+
+    #[test]
+    fn execute_errors_on_unsupported_selector_instead_of_empty() {
+        // An agent writing `[lang=rust]` (the supported name is `language`)
+        // must get an actionable ERROR, not a silent empty match set that
+        // reads as "no Rust functions exist".
+        let dir = tempdir().unwrap();
+        let snap = dir.path().join(".mycelium").join("index.rmp");
+        std::fs::create_dir_all(snap.parent().unwrap()).unwrap();
+        Store::default().save(&snap).unwrap();
+
+        let err = execute(&snap, ".function[lang=rust]").unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("unsupported"), "got: {msg}");
+        assert!(msg.contains("language"), "suggests the right name: {msg}");
     }
 }

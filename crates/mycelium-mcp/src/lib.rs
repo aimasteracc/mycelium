@@ -2099,7 +2099,21 @@ impl MyceliumServer {
         };
         let store = self.store.read().await;
         let evaluator = mycelium_hyphae::evaluator::Evaluator::new(&store);
-        let matches = evaluator.eval(&ast);
+        // `eval_checked` (not `eval`): a selector that parses but names an
+        // unsupported attribute (`[lang=…]`) or pseudo-class (`:frobnicate()`)
+        // returns an explicit error here instead of a silent `{matches:[]}`
+        // envelope an agent would misread as "no matches". Routes through the
+        // same `{error:…}` path as a parse failure (Three-Surface parity with
+        // the CLI `mycelium query`).
+        let matches = match evaluator.eval_checked(&ast) {
+            Ok(matches) => matches,
+            Err(e) => {
+                drop(store);
+                return application_error(&serde_json::json!({
+                    "error": format!("hyphae query error: {e}")
+                }));
+            }
+        };
         drop(store);
         let count = matches.len();
         let value = serde_json::json!({ "matches": matches, "count": count });
