@@ -1313,6 +1313,46 @@ fn most_connected_excludes_phantoms_and_induces_degree() {
 }
 
 #[test]
+fn k_core_excludes_phantoms() {
+    let (store, ..) = store_with_phantom_callee();
+    // k == 0 returns the whole symbol universe — must not include the phantom.
+    let core0 = store.k_core(EdgeKind::Calls, 0);
+    assert!(
+        !core0.contains(&"Db>upsert_node".to_string()),
+        "phantom must not appear in k_core(0): {core0:?}"
+    );
+    assert_eq!(
+        core0,
+        store_phantom_free_twin().k_core(EdgeKind::Calls, 0),
+        "k_core(0) must match the phantom-free twin"
+    );
+    // k == 1: with the phantom edge induced out, `main` has subgraph degree 1
+    // and `query` degree 1, so both survive — same as the twin.
+    assert_eq!(
+        store.k_core(EdgeKind::Calls, 1),
+        store_phantom_free_twin().k_core(EdgeKind::Calls, 1),
+        "k_core(1) must match the phantom-free twin"
+    );
+}
+
+#[test]
+fn dependency_layers_excludes_phantoms() {
+    let (store, ..) = store_with_phantom_callee();
+    let layers = store.dependency_layers(EdgeKind::Calls);
+    assert!(
+        !layers
+            .iter()
+            .any(|layer| layer.contains(&"Db>upsert_node".to_string())),
+        "phantom must not appear in any dependency layer: {layers:?}"
+    );
+    assert_eq!(
+        layers,
+        store_phantom_free_twin().dependency_layers(EdgeKind::Calls),
+        "dependency layering must match the phantom-free twin"
+    );
+}
+
+#[test]
 fn store_all_file_paths_empty_when_only_symbols() {
     let mut store = Store::new();
     // Insert only symbol-level nodes, no file-level nodes.

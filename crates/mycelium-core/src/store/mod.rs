@@ -2391,12 +2391,9 @@ impl Store {
     /// symbol nodes.  Results sorted ascending.  File nodes excluded.
     #[must_use]
     pub fn k_core(&self, kind: EdgeKind, k: usize) -> Vec<String> {
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing sym_set restriction excludes phantom edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
         if sym_ids.is_empty() {
             return Vec::new();
         }
@@ -2507,13 +2504,9 @@ impl Store {
     /// guarded by the invariant that each edge is processed exactly once.
     #[must_use]
     pub fn dependency_layers(&self, kind: EdgeKind) -> Vec<Vec<String>> {
-        // Collect symbol NodeIds only (paths containing '>').
-        let sym_ids: Vec<NodeId> = self
-            .trunk
-            .all_paths()
-            .filter(|p| p.contains('>'))
-            .filter_map(|p| self.trunk.lookup_path(p))
-            .collect();
+        // RFC-0118 Part A.2: real-symbol induced subgraph — phantoms excluded as
+        // nodes; the existing sym_set restriction excludes phantom edges.
+        let sym_ids: Vec<NodeId> = self.symbol_universe();
 
         if sym_ids.is_empty() {
             return Vec::new();
