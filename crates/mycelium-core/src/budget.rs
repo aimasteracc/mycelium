@@ -187,6 +187,7 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
         "symbols",
         "dead_symbols",
         "isolated_symbols",
+        "entry_points",
     ] {
         cap(key, budget.max_nodes);
     }
