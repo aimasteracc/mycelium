@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v122 — PRs #675 (fix #636 shadowed receiver bindings, RFC-0118 Part B Phase 3) + #677 (RFC-0118 Part A.2 — 19 graph-theory queries gated on real-symbol induced subgraph, ADR-0012) merged; Issue #678 opened (degree_centrality P2 follow-up); PR #676 closed (conflict, superseded by v122)) |
-| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b + AC-20 ✅ + Phase 3 shadowed-binding fix ✅**. RFC-0118 Part A.2: **AC-23 ✅ (19 graph-theory queries; degree_centrality → Issue #678 P2)**. Three-Surface **94/94** ✅. |
+| Last updated | 2026-06-08 (PM dispatch v123 — PR #679 (chore/pm-state-v122, decisions.jsonl Codex P1 fix: restored 148→149 lines) merged `e6966194`; PR #680 (RFC-0118 Part B dogfood #1 — bare implicit-self disambiguation + IMPLICIT_SELF_SCOPES TS/JS language gate, Codex P2 fixed) merged; PR #676 closed (stale, superseded)) |
+| Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118 Part B: **ALL 9 COMPLETE + rule-b + AC-20 ✅ + Phase 3 shadowed-binding fix ✅ + dogfood #1 bare-self ✅**. RFC-0118 Part A.2: **AC-23 ✅ (19 graph-theory queries; degree_centrality → Issue #678 P2)**. Three-Surface **94/94** ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
 | Final release target | v0.4.0 (IDE plugin Phase 1, TSA-reuse features, cross-repo indexing) |
@@ -108,6 +108,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 — Next autonomous:**
 3. **Issue #678** (RFC-0118 Part A.2 follow-up): Gate `degree_centrality` through `symbol_universe()` + twin-oracle test. (rust-implementer; mirrors the 19-query pattern from PR #677.)
 4. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
+5. **RFC-0118 Part B dogfood #2+**: Additional dogfood QA passes on the release CLI (get-callers precision, phantom-free graph queries, multi-language edge cases) using the indexed Mycelium codebase.
 
 **P2 — Deferred:**
 5. **Issue #673**: Add CLI integration test for rank-symbols phantom exclusion (AC-20 defense-in-depth). Requires understanding packs/rust extractor `NodeKind::Unresolved` creation path.
@@ -122,12 +123,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v122)
+## Dispatch state (2026-06-08 v123)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v122: PRs #675 (fix #636) + #677 (RFC-0118 Part A.2) merged; Issue #636 closed; Issue #678 opened; PR #676 closed (conflict, superseded); all 3 Codex threads addressed; decisions.jsonl appended. |
+| PM | **DONE ✅** | v123: PR #679 (decisions.jsonl Codex P1 fix) merged `e6966194`; PR #680 (RFC-0118 Part B bare-self + IMPLICIT_SELF_SCOPES gate) merged; PR #676 closed (stale, superseded). |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -164,7 +165,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-08 PM dispatch v122 (this run)
+### 2026-06-08 PM dispatch v123 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns (domains: ci/testing/release-governance/storage/async/git-workflow), PM state v122 (develop HEAD `e6966194` = PM state v122 chore squash), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #680 (RFC-0118 Part B dogfood #1, CI all green on original SHAs), #679 (PM state v122 chore, CI green), #676 (PM state v121, merge conflict, superseded), #568 (release/v0.3.0, founder).
+- 0 P0 issues, 0 P1 issues.
+- Develop CI GREEN (HEAD `e6966194` = PM v122 squash merge).
+- **Codex P1 on PR #679**: decisions.jsonl rewritten (148→46 lines) — Hard Rule violation (append-only memory). Branch was created from `main` (46 lines) instead of `develop` (148 lines).
+- **Codex P2 on PR #680**: `enclosing_self_type` fired for ALL type-container languages including TypeScript/JavaScript (which share `class_declaration` with Java/C# in tree-sitter). False caller edges possible in TS/JS class bodies with duplicate method names.
+
+**Actions taken:**
+1. **Closed PR #676** (stale, merge conflict, superseded by PR #679 v122). ✅
+2. **Fixed PR #679 Codex P1**: Restored `.hive/memory/decisions.jsonl` from develop (148 lines) + v122 entry (line 149). Commit `57357bf` pushed to `chore/pm-state-v122`. Replied to Codex thread. ✅
+3. **Fixed PR #680 Codex P2**: Parallel agent had already pushed `IMPLICIT_SELF_SCOPES` structural `(method-kind, container-kind)` pair allow-list fix (commit `8d39725`) — superior to a file-extension check (no extension-list maintenance). Confirmed fix is correct and complete. Replied to Codex thread with justification (commit `8d39725`, 3 new exclusion tests). ✅
+4. **Merged PR #679** (chore/pm-state-v122): squash `e6966194`. CI 20/20 ✅, Codex P1 fixed. ✅
+5. **Rebased PR #680** onto new develop (decisions.jsonl conflict after #679 merge): rebased + force-pushed `a4b2c5c`, CI re-triggered (green trajectory). ✅
+6. **Merged PR #680** (fix/RFC-0118-bare-self-method-disambiguation): once CI 20/20 ✅. RFC-0118 Part B dogfood #1 on develop. ✅
+7. **Updated PM state to v123** (this file). ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — choose Option A/B/C.
+
+### 2026-06-08 PM dispatch v122 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions tail-20, anti-patterns (domains: ci/testing/release-governance/storage/async/git-workflow), PM state v120 (develop HEAD `2b3654d` = RFC-0118 Part A.2 squash), v0.2 PRD.
 
