@@ -1371,6 +1371,18 @@ impl Store {
             let inferred = receiver::infer_receiver_type(&ctx.receiver_ctx);
             if let Resolution::Unique(path) = receiver::disambiguate(inferred, &candidates) {
                 if let Some(def_id) = self.trunk.lookup_path(&path) {
+                    // Kind-aware guard (independent-review SHOULD-FIX on PR #682):
+                    // a method call can NEVER resolve to a type alias. The
+                    // single-candidate fast-path in `disambiguate` returns Unique
+                    // without a kind check, so a lone `>method`-suffix TypeAlias
+                    // would otherwise gain a phantom Calls edge here — the same
+                    // mis-bind the simple/import-aware passes already guard. Every
+                    // stub reaching this loop IS a call stub (it has a recorded
+                    // call-site context), so a bare incoming-Calls check is
+                    // redundant; gate purely on the candidate kind.
+                    if self.kind_of(def_id) == Some(NodeKind::TypeAlias) {
+                        continue;
+                    }
                     // Don't bind a call to itself. (A stub can't be a candidate:
                     // candidates come from all_paths filtered to contain '>',
                     // and stubs are bare names without '>'.)
@@ -1537,8 +1549,10 @@ impl Store {
                 // edges (see the `callers` early-continue above), so a TypeAlias
                 // candidate here is always a mis-bind. A stub with BOTH incoming
                 // Calls AND Imports whose only candidate is a TypeAlias is
-                // conservatively left unresolved — declining the call is correct;
-                // the import half can re-resolve in the simple pass.
+                // conservatively left unresolved — declining the call is correct.
+                // (The simple pass has already run and also declined this stub —
+                // it reached this import-aware pass precisely because it had ≥2
+                // candidates there — so no further resolution is possible.)
                 if self.is_uncallable_target_for_call_stub(stub_id, def_id) {
                     continue;
                 }

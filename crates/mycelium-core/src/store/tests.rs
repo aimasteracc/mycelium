@@ -949,6 +949,46 @@ fn store_resolve_import_aware_call_stub_does_not_bind_to_type_alias() {
 }
 
 #[test]
+fn store_resolve_call_site_context_does_not_bind_to_type_alias() {
+    // Same guard must hold in the RFC-0118 Part B receiver-context pass
+    // (`resolve_call_site_contexts`): it disambiguates a recorded method call
+    // site against path-suffix candidates and ADDs a Calls edge. A method call
+    // can never resolve to a type alias either. Here the sole `>foo` candidate
+    // is a TypeAlias; the single-candidate fast-path in `disambiguate` would
+    // bind it without a kind check, manufacturing a phantom Calls→TypeAlias edge
+    // (independent-review SHOULD-FIX on PR #682). The simple/import passes leave
+    // the call stub in place (their guard already blocks the TypeAlias), so the
+    // stub survives to the Part B pass — which must also decline.
+    let mut store = Store::new();
+    let caller = store.upsert_node_with_kind(path("caller.rs>do_work"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(TrunkPath::parse("foo").unwrap(), NodeKind::Unresolved);
+    let type_alias = store.upsert_node_with_kind(path("defs.rs>foo"), NodeKind::TypeAlias);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+    store.record_call_site(
+        caller,
+        stub,
+        ReceiverContext {
+            receiver: "x".to_owned(),
+            method: "foo".to_owned(),
+            imports: Vec::new(),
+            locals: Vec::new(),
+            self_type: None,
+            params: Vec::new(),
+            fields: Vec::new(),
+        },
+    );
+
+    let _ = store.resolve_bare_call_stubs();
+
+    assert!(
+        !store
+            .incoming(type_alias, EdgeKind::Calls)
+            .contains(&caller),
+        "the receiver-context pass must not add a Calls edge to a TypeAlias def"
+    );
+}
+
+#[test]
 fn store_resolve_extends_stub_mixed_import_sites_resolved_per_edge() {
     // Two subclasses extend the same bare `Base` but import DIFFERENT defs:
     // a.py>Sub imports b.py → resolves to b.py>Base.
