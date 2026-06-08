@@ -83,10 +83,15 @@ enum Cmd {
     Query {
         /// The Hyphae expression. See RFC-0003 for the full grammar.
         ///
-        /// Examples:
-        ///   `#login`          match symbols named `login`
-        ///   `.function`       match all function symbols
-        ///   `.class>.method`  methods of classes (direct child)
+        /// Kind selectors take a leading dot (`.function`, `.class`); names
+        /// take `#` (`#Foo`); `*` matches any kind; pseudo-classes (`:calls`,
+        /// `:callers`, `:has`, `:not`) follow a base selector. Examples:
+        ///   `#login`                 match symbols named `login`
+        ///   `.function`              match all function symbols
+        ///   `.class>.method`         methods of classes (direct child)
+        ///   `*:calls(#login)`        callers of `login` (any kind)
+        ///   `.function:calls(#login)` functions that call `login`
+        ///   `.class:has(.method)`    classes containing a method
         expr: String,
 
         /// Project root (defaults to current directory). The index is read
@@ -1026,7 +1031,7 @@ enum Cmd {
     /// The CLI twin of the `mycelium_context` MCP tool (RFC-0101).
     Context {
         /// Natural-language task or Hyphae selector, e.g.
-        /// `"trace ServeHTTP to HandlerFunc"` or `"function:calls(#AuthService)"`.
+        /// `"trace ServeHTTP to HandlerFunc"` or `".function:calls(#AuthService)"`.
         #[arg(long)]
         task: String,
         /// Project root (defaults to current directory).

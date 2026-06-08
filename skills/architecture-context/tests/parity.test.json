@@ -40,8 +40,8 @@
       "capability": "context",
       "name": "hyphae_selector_routing",
       "fixture": "tiny_two_function_project",
-      "cli_args": ["context", "--task", "function:calls(#login)", "--format", "json"],
-      "mcp_input": { "task": "function:calls(#login)" },
+      "cli_args": ["context", "--task", ".function:calls(#login)", "--format", "json"],
+      "mcp_input": { "task": ".function:calls(#login)" },
       "parity_invariant": "A Hyphae selector task routes through the DSL evaluator on both surfaces (routing=\"hyphae\", candidates=[]) and yields identical entry_points."
     }
   ]
