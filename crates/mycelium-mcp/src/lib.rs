@@ -129,13 +129,25 @@ fn mtime_of(path: &Path) -> Option<std::time::SystemTime> {
 /// Pure freshness arbiter: given the optional `(path, mtime)` of the redb and
 /// rmp snapshots, return the path of whichever is **newer** by mtime.
 ///
-/// On an exact tie, redb wins (it is the richer reactive backend and is
-/// re-persisted from rmp on load anyway). Either side may be absent.
+/// On an exact tie, **rmp wins**. This matters on filesystems with 1-second
+/// mtime granularity (HFS+ without fine timestamps, many Docker/network mounts):
+/// `mycelium index` rewrites only `index.rmp`, so if that write lands in the
+/// same 1-second bucket as a pre-existing stale `index.redb`, a redb-wins tie
+/// would re-serve the stale graph — exactly the bug this guards against. rmp is
+/// the canonical artifact the CLI always writes and is at worst equally fresh on
+/// a tie; redb is a derived cache that the load path re-persists from rmp
+/// immediately (so the next startup loads a fresh redb). Either side may be
+/// absent.
 ///
 /// Root cause this guards against (#mcp-serve-stale-snapshot): `mycelium index`
 /// rewrites only `index.rmp`, never `index.redb`. The previous logic preferred
 /// redb whenever it merely *existed*, so a stale leftover redb shadowed a fresh
 /// rmp and the MCP server silently served stale data versus the CLI.
+///
+/// Scope note: this compares the two *snapshot* mtimes only. It does NOT detect
+/// source files edited while serve was down (both snapshots would be stale);
+/// that residual staleness is closed within seconds by the RFC-0107 watcher once
+/// serve starts (a bounded window, unlike the original permanent divergence).
 #[cfg(feature = "redb-backend")]
 fn pick_index_path(
     redb: Option<(PathBuf, std::time::SystemTime)>,
@@ -143,10 +155,10 @@ fn pick_index_path(
 ) -> Option<PathBuf> {
     match (redb, rmp) {
         (Some((rp, rt)), Some((mp, mt))) => {
-            if rt >= mt {
-                Some(rp) // tie or redb-newer -> redb
+            if rt > mt {
+                Some(rp) // redb strictly newer -> redb
             } else {
-                Some(mp) // rmp strictly newer -> rmp (fresh CLI re-index)
+                Some(mp) // rmp newer OR tie -> rmp (canonical CLI artifact; safe on tie)
             }
         }
         (Some((rp, _)), None) => Some(rp),

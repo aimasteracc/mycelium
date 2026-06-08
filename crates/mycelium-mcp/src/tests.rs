@@ -562,14 +562,21 @@ async fn serve_loads_newer_rmp_over_stale_redb() {
     let redb = mycelium_dir.join("index.redb");
     let redb_mtime = std::fs::metadata(&redb).unwrap().modified().unwrap();
     // Ensure the rmp lands STRICTLY newer than the redb (CLI re-index gap).
-    loop {
+    // Bounded so a 1-second-granularity FS (or a mocked clock) can't hang CI.
+    let mut advanced = false;
+    for _ in 0..400 {
         fresh.save(&rmp).expect("save fresh rmp");
         let rmp_mtime = std::fs::metadata(&rmp).unwrap().modified().unwrap();
         if rmp_mtime > redb_mtime {
+            advanced = true;
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
+    assert!(
+        advanced,
+        "rmp mtime did not advance past redb within 2s — 1s-granularity FS?"
+    );
     assert!(
         std::fs::metadata(&rmp).unwrap().modified().unwrap()
             > std::fs::metadata(&redb).unwrap().modified().unwrap(),
@@ -6981,18 +6988,20 @@ fn pick_index_path_prefers_newer_redb_over_stale_rmp() {
     assert_eq!(got, Some(redb), "newer redb must win over stale rmp");
 }
 
-/// On an exact mtime tie, redb wins (it is the richer reactive backend and is
-/// re-persisted from rmp on load anyway — this keeps behavior deterministic).
+/// On an exact mtime tie, **rmp wins** — critical on 1-second-granularity
+/// filesystems where `mycelium index` (writes only rmp) can land in the same
+/// second as a stale pre-existing redb; a redb-wins tie would re-serve the stale
+/// graph. rmp is the canonical CLI artifact and is re-persisted into redb on load.
 #[cfg(feature = "redb-backend")]
 #[test]
-fn pick_index_path_tie_prefers_redb() {
+fn pick_index_path_tie_prefers_rmp() {
     use std::path::PathBuf;
     use std::time::SystemTime;
     let redb = PathBuf::from("/r/.mycelium/index.redb");
     let rmp = PathBuf::from("/r/.mycelium/index.rmp");
     let t = SystemTime::now();
-    let got = pick_index_path(Some((redb.clone(), t)), Some((rmp, t)));
-    assert_eq!(got, Some(redb), "tie -> redb");
+    let got = pick_index_path(Some((redb, t)), Some((rmp.clone(), t)));
+    assert_eq!(got, Some(rmp), "tie -> rmp (safe on 1s-granularity FS)");
 }
 
 /// Only one present -> that one wins regardless of the other being absent.
