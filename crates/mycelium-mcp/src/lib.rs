@@ -1981,9 +1981,10 @@ impl MyceliumServer {
         description = "Execute a Hyphae DSL selector against the project's index. \
                        Hyphae is a CSS-selector-inspired query language (RFC-0003) that lets agents \
                        fetch a set of matching symbols in one call instead of multiple JSON tool round-trips. \
-                       Examples: `#Foo` (symbol named Foo); `*:calls(#Foo)` (callers of Foo); \
-                       `.function:calls(#Foo)` (functions that call Foo); `.class:has(.method)` \
-                       (classes containing a method); `#Foo>.method` (methods directly inside Foo). \
+                       Examples: `#Foo` (symbol named Foo); `.function` (all functions); \
+                       `.class>.method` (direct-child methods of a class); `*:calls(#Foo)` (callers of Foo); \
+                       `.function:calls(#Foo)` (functions that call Foo); \
+                       `.class:has(.method)` (classes containing a method). \
                        Kind selectors take a leading dot (`.function`, `.class`); names take `#` (`#Foo`); \
                        `*` matches any kind; pseudo-classes (`:calls`, `:callers`, `:has`, `:not`) follow a base selector. \
                        Returns { matches: [...], count: N } on success, { error: \"...\" } on parse failure. \

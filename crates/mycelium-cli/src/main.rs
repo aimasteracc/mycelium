@@ -86,11 +86,11 @@ enum Cmd {
         /// Kind selectors take a leading dot (`.function`, `.class`); names
         /// take `#` (`#Foo`); `*` matches any kind; pseudo-classes (`:calls`,
         /// `:callers`, `:has`, `:not`) follow a base selector. Examples:
-        ///   `#login`                 match symbols named `login`
-        ///   `.function`              match all function symbols
-        ///   `.class>.method`         methods of classes (direct child)
-        ///   `*:calls(#login)`        callers of `login` (any kind)
-        ///   `.function:calls(#login)` functions that call `login`
+        ///   `#Foo`                   symbol named Foo
+        ///   `.function`              all functions
+        ///   `.class>.method`         direct-child methods of a class
+        ///   `*:calls(#Foo)`          callers of Foo
+        ///   `.function:calls(#Foo)`  functions that call Foo
         ///   `.class:has(.method)`    classes containing a method
         expr: String,
 
