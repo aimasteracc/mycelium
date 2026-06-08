@@ -3109,10 +3109,11 @@ class Dog {
 }
 
 #[test]
-fn extractor_go_bare_self_method_binds_multi_match() {
-    // Go methods are pathed by receiver type: `func (a Animal) speak()` →
-    // Animal>speak. A bare `speak()` inside `func (a Animal) run()` must bind to
-    // Animal>speak when `speak` is also defined on Dog.
+fn extractor_go_bare_call_is_not_self_method() {
+    // Go has NO implicit receiver: a bare `speak()` inside `func (a Animal) run()`
+    // is a PACKAGE-LEVEL function call, never an Animal-method call (you must
+    // write `a.speak()`). So the bare call must NOT be bound to Animal>speak (nor
+    // Dog>speak) — review correction: Go is excluded from the bare-self path.
     let source = "\
 package main
 type Animal struct{}
@@ -3133,12 +3134,12 @@ func (d Dog) speak() {}
         .expect("Animal.speak exists");
     let dog_speak = store.lookup("test.go>Dog>speak").expect("Dog.speak exists");
     assert!(
-        store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
-        "run() must be a caller of Animal>speak (bare implicit-self)"
+        !store.incoming(animal_speak, EdgeKind::Calls).contains(&run),
+        "Go bare `speak()` is a package function, NOT Animal>speak (no implicit receiver)"
     );
     assert!(
         !store.incoming(dog_speak, EdgeKind::Calls).contains(&run),
-        "run() must NOT be mis-bound to Dog>speak"
+        "Go bare call must not bind to Dog>speak either"
     );
 }
 

@@ -899,17 +899,22 @@ fn enclosing_self_type(node: tree_sitter::Node<'_>, source: &[u8]) -> Option<Str
     if let Some(t) = enclosing_class_chain(node, source).into_iter().next_back() {
         return Some(t);
     }
-    // Go: the receiver type lives on the enclosing method_declaration.
     // Ruby: `class`/`module` are intentionally excluded from `is_type_container`
     // (their kind names collide with JS class-expressions and Python's module
-    // root, which would manufacture orphan caller paths). We read the enclosing
-    // Ruby `class`/`module` `name` field here directly, scoped to this bare-call
-    // path only, so it never pollutes the shared lexical chain.
+    // root, which would manufacture orphan caller paths). Read the enclosing Ruby
+    // type name here directly, GATED on a Ruby `method`/`singleton_method`
+    // ancestor so the bare `class`/`module` kinds can never fire for another
+    // language's grammar.
+    //
+    // Go is intentionally NOT handled: Go has no implicit receiver — a bare
+    // `speak()` inside a method body is ALWAYS a package-level function, never a
+    // self-method call — so a bare Go call must not be bound to the receiver type.
     let mut cur = node;
+    let mut in_ruby_method = false;
     while let Some(parent) = cur.parent() {
         match parent.kind() {
-            "method_declaration" => return go_receiver_type(parent, source),
-            "class" | "module" => {
+            "method" | "singleton_method" => in_ruby_method = true,
+            "class" | "module" if in_ruby_method => {
                 let name = container_name(parent, source);
                 if name != "_Unknown" {
                     return Some(name.to_owned());
