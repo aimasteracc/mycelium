@@ -295,6 +295,53 @@ fn harmonic_centrality_smoke() {
     assert!(v["harmonic_centrality"].is_number());
 }
 
+/// Fixture: a single Rust source file that calls an undefined external function.
+/// After indexing, `unknown_extern_fn` becomes a `NodeKind::Unresolved` phantom
+/// (`resolve_bare_call_stubs` cannot find a definition for it in the indexed files).
+fn prepare_with_unresolved_call() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("src/lib.rs"),
+        "pub fn caller() { unknown_extern_fn(); }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let status = Command::new(mycelium_bin())
+        .args(["index", root.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    dir
+}
+
+/// AC-20 defense-in-depth (CLI surface): `rank-symbols --format json` must not
+/// surface `NodeKind::Unresolved` phantom callee stubs.
+///
+/// The MCP-level guard lives in `is_real_symbol` (shared core builder). This CLI
+/// integration test catches any regression where a CLI handler bypasses the shared
+/// builder and exposes the raw `all_paths()` iterator instead.
+///
+/// Resolves Issue #673.
+#[test]
+fn rank_symbols_excludes_unresolved_phantom() {
+    let p = prepare_with_unresolved_call();
+    let v = json_out(&["rank-symbols", "--format", "json"], p.path());
+    let syms = v["symbols"].as_array().expect("'symbols' must be an array");
+    assert!(
+        !syms
+            .iter()
+            .any(|s| s["path"].as_str() == Some("unknown_extern_fn")),
+        "NodeKind::Unresolved phantom 'unknown_extern_fn' must not appear in \
+         rank-symbols output (AC-20 CLI defense-in-depth): {syms:?}"
+    );
+}
+
 #[test]
 fn neighbor_similarity_smoke() {
     let p = prepare_diamond();
