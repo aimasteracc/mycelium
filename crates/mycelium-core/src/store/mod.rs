@@ -1380,7 +1380,10 @@ impl Store {
                     // stub reaching this loop IS a call stub (it has a recorded
                     // call-site context), so a bare incoming-Calls check is
                     // redundant; gate purely on the candidate kind.
-                    if self.kind_of(def_id) == Some(NodeKind::TypeAlias) {
+                    // Exception: Go named types (TypeAlias from a .go file) ARE
+                    // callable as type conversions; mirror the is_uncallable logic.
+                    let is_go_def = self.path_of(def_id).is_some_and(|p| p.contains(".go>"));
+                    if self.kind_of(def_id) == Some(NodeKind::TypeAlias) && !is_go_def {
                         continue;
                     }
                     // Don't bind a call to itself. (A stub can't be a candidate:
@@ -1399,21 +1402,34 @@ impl Store {
     /// RFC-0118: whether redirecting `stub_id` onto `def_id` would bind a
     /// function CALL onto a non-callable definition.
     ///
-    /// Returns `true` (block the redirect) only when BOTH hold:
+    /// Returns `true` (block the redirect) only when ALL of:
     /// 1. the stub has at least one incoming [`EdgeKind::Calls`] edge — i.e. it
     ///    is (also) a call site, and
-    /// 2. the candidate definition's kind is [`NodeKind::TypeAlias`] — a type
-    ///    alias is never a call target.
+    /// 2. the candidate definition's kind is [`NodeKind::TypeAlias`], and
+    /// 3. the definition is NOT from a Go source file.
+    ///
+    /// Point 3 exists because Go named types (`type Status int`) are stored as
+    /// `NodeKind::TypeAlias` but ARE valid call targets — `Status(1)` is a type
+    /// conversion expression, emitted by the Go pack as a `Calls` edge. For
+    /// every other indexed language (Rust, TypeScript, Python, …) a `TypeAlias`
+    /// is never callable, so the guard fires. Language is inferred from the `.go`
+    /// file-extension marker in the definition's trunk path.
     ///
     /// Gating on incoming `Calls` (rather than blanket-blocking every
     /// `TypeAlias` redirect) preserves the legitimate import-of-type-alias case
     /// (`use foo::SomeAlias`), which carries only `Imports`/`References` edges.
     /// Struct/Class/Enum/EnumMember candidates are left callable — those ARE
     /// valid tuple/variant constructor targets (`MyStruct(...)`,
-    /// `MyEnum::Variant(...)`). Only `TypeAlias` is blocked.
+    /// `MyEnum::Variant(...)`). Only `TypeAlias` is blocked (except Go).
     fn is_uncallable_target_for_call_stub(&self, stub_id: NodeId, def_id: NodeId) -> bool {
-        self.kind_of(def_id) == Some(NodeKind::TypeAlias)
-            && !self.synapse.incoming(stub_id, EdgeKind::Calls).is_empty()
+        if self.kind_of(def_id) != Some(NodeKind::TypeAlias) {
+            return false;
+        }
+        if self.synapse.incoming(stub_id, EdgeKind::Calls).is_empty() {
+            return false;
+        }
+        // Go named types are TypeAlias but callable as type conversions — allow.
+        !self.path_of(def_id).is_some_and(|p| p.contains(".go>"))
     }
 
     fn resolve_bare_call_stubs_simple(&mut self) -> usize {

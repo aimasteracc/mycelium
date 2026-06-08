@@ -989,6 +989,36 @@ fn store_resolve_call_site_context_does_not_bind_to_type_alias() {
 }
 
 #[test]
+fn store_resolve_go_named_type_call_still_resolves() {
+    // Go named types (`type Status int`) are stored as NodeKind::TypeAlias but
+    // ARE valid call targets in expression context — `Status(1)` is a type
+    // conversion, emitted by the Go pack as a Calls edge. The TypeAlias call
+    // guard must NOT block these; it must only block Rust/TS non-callable aliases.
+    // Language is detected by the definition's file path (.go> marker).
+    let mut store = Store::new();
+    let caller = store.upsert_node_with_kind(path("main.go>run"), NodeKind::Function);
+    let stub =
+        store.upsert_node_with_kind(TrunkPath::parse("Status").unwrap(), NodeKind::Unresolved);
+    let go_type = store.upsert_node_with_kind(path("types.go>Status"), NodeKind::TypeAlias);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 1,
+        "a Go named-type call (type conversion) must resolve to the TypeAlias def"
+    );
+    assert!(
+        store.lookup("Status").is_none(),
+        "resolved Go type-conversion stub must be removed after resolution"
+    );
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&go_type),
+        "caller's Calls edge must point at the resolved Go TypeAlias def"
+    );
+}
+
+#[test]
 fn store_resolve_extends_stub_mixed_import_sites_resolved_per_edge() {
     // Two subclasses extend the same bare `Base` but import DIFFERENT defs:
     // a.py>Sub imports b.py → resolves to b.py>Base.
