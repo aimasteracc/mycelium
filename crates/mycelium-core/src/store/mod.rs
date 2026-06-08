@@ -1371,6 +1371,21 @@ impl Store {
             let inferred = receiver::infer_receiver_type(&ctx.receiver_ctx);
             if let Resolution::Unique(path) = receiver::disambiguate(inferred, &candidates) {
                 if let Some(def_id) = self.trunk.lookup_path(&path) {
+                    // Kind-aware guard (independent-review SHOULD-FIX on PR #682):
+                    // a method call can NEVER resolve to a type alias. The
+                    // single-candidate fast-path in `disambiguate` returns Unique
+                    // without a kind check, so a lone `>method`-suffix TypeAlias
+                    // would otherwise gain a phantom Calls edge here — the same
+                    // mis-bind the simple/import-aware passes already guard. Every
+                    // stub reaching this loop IS a call stub (it has a recorded
+                    // call-site context), so a bare incoming-Calls check is
+                    // redundant; gate purely on the candidate kind.
+                    // Exception: Go named types (TypeAlias from a .go file) ARE
+                    // callable as type conversions; mirror the is_uncallable logic.
+                    let is_go_def = self.path_of(def_id).is_some_and(|p| p.contains(".go>"));
+                    if self.kind_of(def_id) == Some(NodeKind::TypeAlias) && !is_go_def {
+                        continue;
+                    }
                     // Don't bind a call to itself. (A stub can't be a candidate:
                     // candidates come from all_paths filtered to contain '>',
                     // and stubs are bare names without '>'.)
@@ -1382,6 +1397,39 @@ impl Store {
             }
         }
         resolved
+    }
+
+    /// RFC-0118: whether redirecting `stub_id` onto `def_id` would bind a
+    /// function CALL onto a non-callable definition.
+    ///
+    /// Returns `true` (block the redirect) only when ALL of:
+    /// 1. the stub has at least one incoming [`EdgeKind::Calls`] edge — i.e. it
+    ///    is (also) a call site, and
+    /// 2. the candidate definition's kind is [`NodeKind::TypeAlias`], and
+    /// 3. the definition is NOT from a Go source file.
+    ///
+    /// Point 3 exists because Go named types (`type Status int`) are stored as
+    /// `NodeKind::TypeAlias` but ARE valid call targets — `Status(1)` is a type
+    /// conversion expression, emitted by the Go pack as a `Calls` edge. For
+    /// every other indexed language (Rust, TypeScript, Python, …) a `TypeAlias`
+    /// is never callable, so the guard fires. Language is inferred from the `.go`
+    /// file-extension marker in the definition's trunk path.
+    ///
+    /// Gating on incoming `Calls` (rather than blanket-blocking every
+    /// `TypeAlias` redirect) preserves the legitimate import-of-type-alias case
+    /// (`use foo::SomeAlias`), which carries only `Imports`/`References` edges.
+    /// Struct/Class/Enum/EnumMember candidates are left callable — those ARE
+    /// valid tuple/variant constructor targets (`MyStruct(...)`,
+    /// `MyEnum::Variant(...)`). Only `TypeAlias` is blocked (except Go).
+    fn is_uncallable_target_for_call_stub(&self, stub_id: NodeId, def_id: NodeId) -> bool {
+        if self.kind_of(def_id) != Some(NodeKind::TypeAlias) {
+            return false;
+        }
+        if self.synapse.incoming(stub_id, EdgeKind::Calls).is_empty() {
+            return false;
+        }
+        // Go named types are TypeAlias but callable as type conversions — allow.
+        !self.path_of(def_id).is_some_and(|p| p.contains(".go>"))
     }
 
     fn resolve_bare_call_stubs_simple(&mut self) -> usize {
@@ -1404,6 +1452,18 @@ impl Store {
 
             if matches.len() == 1 {
                 let def_id = matches[0];
+                // RFC-0118: kind-aware call resolution. A function CALL site
+                // must never bind to a non-callable definition. A
+                // `NodeKind::TypeAlias` is NEVER a call target — you cannot
+                // call a type alias. The dogfood symptom was `budget.rs>Err`
+                // (an associated `type Err = String`) becoming page-rank's #1
+                // node because every stdlib `Err(...)` call-stub redirected
+                // onto it. Gate ONLY on the stub having incoming `Calls` edges:
+                // a non-call stub (e.g. `use foo::SomeAlias`) legitimately
+                // resolves to a TypeAlias and must not regress.
+                if self.is_uncallable_target_for_call_stub(stub_id, def_id) {
+                    continue;
+                }
                 self.synapse.redirect_node(stub_id, def_id);
                 // RFC-0118 Part C: route through remove_node so kind_map + span_map
                 // are cleaned alongside trunk. redirect_node already cleared synapse,
@@ -1500,6 +1560,18 @@ impl Store {
             }
 
             if let Some(def_id) = best_def {
+                // RFC-0118: kind-aware call resolution (same guard as the simple
+                // pass). This pass only ever fires for stubs with incoming Calls
+                // edges (see the `callers` early-continue above), so a TypeAlias
+                // candidate here is always a mis-bind. A stub with BOTH incoming
+                // Calls AND Imports whose only candidate is a TypeAlias is
+                // conservatively left unresolved — declining the call is correct.
+                // (The simple pass has already run and also declined this stub —
+                // it reached this import-aware pass precisely because it had ≥2
+                // candidates there — so no further resolution is possible.)
+                if self.is_uncallable_target_for_call_stub(stub_id, def_id) {
+                    continue;
+                }
                 self.synapse.redirect_node(stub_id, def_id);
                 // RFC-0118 Part C: kind_map + span_map hygiene (same as simple pass).
                 self.remove_node(stub_id);
