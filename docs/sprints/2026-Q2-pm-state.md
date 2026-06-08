@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v127 — PR #689 (MCP agent-experience) rebased post-#688 + merged first (22/22 ✅, squash `c2dddcc`); PR #687 (PM v126 chore) Codex P2 rejected + rebased twice (post-#688, post-#689) + merged; PR #688 (Hyphae docs) added to unreleased) |
+| Last updated | 2026-06-08 (PM dispatch v128 — PRs #691 (download-artifact bump) + #694 (ignore bump) + #692 (salsa bump) squash-merged; PRs #693 (tiktoken bump) + #690 (codecov bump) branches updated to retrigger CI; 5 Dependabot PRs processed) |
 | Current sprint | **v0.3.0 ceremony READY** (P0 — founder action) + **RFC-0120 Charter §2 governance event** (P0 — ratio 0.753 vs ≤0.30 claim). RFC-0118: ALL PARTS COMPLETE. Three-Surface **94/94** ✅. MCP agent UX: entry-points paginates ✅, path-not-found teaches format ✅, reachability tools disambiguated ✅. |
 | Active release branch | **`release/v0.3.0`** — PR #568 open (→ main); all registries published (crates.io ✅ npm ✅ PyPI ✅); **AWAITING FOUNDER FINALIZE** |
 | Next release target | **v0.3.0** → ceremony imminent. **v0.4.0** = VS Code ext (RFC-0112 Ph1 on develop) + TSA-reuse feature set (RFC-0113–0117) + GitHub Action. |
@@ -101,6 +101,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] **test(cli): AC-20 defense-in-depth — rank_symbols_excludes_unresolved_phantom with positive control** — PR #684 ✅ MERGED 2026-06-08. Fixture extended with `entry()→caller()` giving `caller` a real incoming edge; positive control (`src/lib.rs>caller` present) + negative control (`unknown_extern_fn` absent). Closes Issue #673. Codex P2 fixed (`be73ba9`).
 - [x] **fix(docs): Hyphae kind-selector examples corrected + parse-verified query examples added** — PR #688 ✅ MERGED 2026-06-08. All documented Hyphae examples (README, Node/Python SDK snippets, architecture-context skill) used dot-less `function:calls(#X)` — invalid Hyphae (kind selectors require leading `.`). Corrected to `.function:calls(#AuthService)` / `#Foo>.method`. Both `mycelium_query` MCP description and CLI `query` help now carry copy-pasteable parse-verified examples (`#Foo`, `*:calls(#Foo)`, `.function:calls(#Foo)`, `.class:has(.method)`, `#Foo>.method`) in lockstep. Regression test `documented_examples_parse.rs` added. Codex P2 (CLI↔MCP drift) fixed. Refs: RFC-0003, RFC-0090.
 - [x] **fix(mcp): MCP agent-experience — entry-points pagination + actionable path-not-found + reachability disambiguation** — PR #689 ✅ MERGED 2026-06-08. (A) `mycelium_get_entry_points` now accepts `limit`/`offset`/`budget` + returns `{entry_points,count,total_count}` via shared core builder; CLI `get-entry-points` gains byte-identical flags (was bare JSON dump ~37K tokens). (B) shared `not_found()` MCP helper + CLI `path_not_found()` now emit `path not found: {p} — symbol paths are file>Type>member; run mycelium_search_symbol`. (C) `get_cross_refs`/`get_reachable_to`/`get_reaches_into`/`batch_reachable_to`/`get_caller_tree` descriptions carry verified "When to use vs alternatives" table. Codex P2 (`entry_points` key missing from `apply_budget`) fixed in commit 2 (`68b9051`). 1635 tests pass.
+- [x] **ci: bump actions/download-artifact from 7 to 8** — PR #691 ✅ MERGED 2026-06-08 (squash `4f1e329`). CI 22/22; no Codex findings.
+- [x] **chore(deps): bump ignore from 0.4.25 to 0.4.26** — PR #694 ✅ MERGED 2026-06-08 (squash `f642040`). CI 22/22; no Codex findings.
+- [x] **chore(deps): bump salsa from 0.26.2 to 0.27.0** — PR #692 ✅ MERGED 2026-06-08 (squash `8bf8ecd`). CI 22/22; no Codex findings.
+- [ ] **chore(deps): bump tiktoken-rs from 0.6.0 to 0.12.0** — PR #693 open; docs job failed with transient HTTP 504 on mdbook binary download (unrelated to dep). Branch updated → fresh CI running.
+- [ ] **ci: bump codecov/codecov-action from 6 to 7** — PR #690 open; same transient HTTP 504. Branch updated → fresh CI running.
 
 ---
 
@@ -111,11 +116,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 2. **RFC-0120 Charter §2 governance event** (PR #649): ratio = **0.753** vs ≤0.30 claim. `bpe_charter_sla_binding` fails. See `crates/mycelium-mcp/tests/corpus/REPORT.md §Decision`. Choose: **A** (retract claim, amend Charter §2 + README), **B** (redesign TextFormatter for ≥70% reduction), or **C** (reframe comparison to Hyphae query syntax). Charter §9 amendment requires BDFL approval.
 
 **P1 — Next autonomous:**
-3. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
-4. **RFC-0118 Part B dogfood #2+**: Additional dogfood QA passes on the release CLI (get-callers precision, phantom-free graph queries, multi-language edge cases) using the indexed Mycelium codebase.
+3. **PR #693 / #690 — dependabot bumps** (tiktoken-rs 0.6→0.12 + codecov 6→7): branches updated; CI re-running after transient 504 flake cleared. Admin-merge once Quality Gate ✅ + no Codex P1.
+4. **RFC-0119 AC-12/AC-13** (e2e-runner): Real-corpus context query + dogfood transcript.
+5. **RFC-0118 Part B dogfood #2+**: Additional dogfood QA passes on the release CLI (get-callers precision, phantom-free graph queries, multi-language edge cases) using the indexed Mycelium codebase.
 
 **P2 — Deferred:**
-5. **Issue #657**: Method/function definition spans use enclosing type extent (jump-to-definition precision, P2 enhancement).
+6. **Issue #657**: Method/function definition spans use enclosing type extent (jump-to-definition precision, P2 enhancement).
 7. **Issue #612**: RFC-0118 Phase 1 implementation notes (Phase 2b prerequisite: cross-file extraction ordering).
 8. **MCP god-file split slice 4** — lib.rs ~4,485 lines.
 9. **RFC-0104 cold SLA numbers**: Charter §2 amendment (founder, after nightly data collected).
@@ -126,12 +132,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v127)
+## Dispatch state (2026-06-08 v128)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **P0 action (2 items)** | **(1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`. **(2)** RFC-0120 Charter §2 governance event — REPORT.md §Decision on develop: choose Option A/B/C. |
-| PM | **DONE ✅** | v127: PR #689 rebased (conflict with #688) + merged FIRST (22/22 ✅, `c2dddcc`); PR #687 Codex P2 rejected + rebased twice + merged (20/20 ✅, `664843b`); PR #688 + #689 noted in unreleased; PM state v127 chore PR #690 pushed. |
+| PM | **DONE ✅** | v128: PRs #691+#694+#692 (dependabot: download-artifact / ignore / salsa) squash-merged; PRs #693+#690 (tiktoken / codecov) branches updated for fresh CI; PM state v128 chore pushed. |
 | release | **P0 — READY** | PR #568: Release CI ✅. crates.io ✅ npm ✅ PyPI ✅. Awaiting founder `finalize`. |
 | security-reviewer | **P2** | Post-v0.3.0 regression scan (after release ships). |
 | architect | **P1** | RFC-0104 cold SLA Charter §2 amendment (after nightly data; founder). |
@@ -167,6 +173,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v128 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, `_orchestrator.md`, decisions.jsonl tail-20 (163 lines; last entries = PR #686 watch-fix + PR #688 Hyphae-docs + MCP-agent-exp `07:30` + PM v126 `05:20` + PM v127 `06:35`), anti-patterns (domains: ci/release-governance/merge-discipline/tdd/git-workflow), PM state v127 (develop HEAD = `664843b` — PM v126 chore squash), v0.2 PRD.
+
+**Assessment:**
+- 6 open PRs: #568 (release/v0.3.0 — dirty, awaiting founder finalize; P0), #694 (ignore bump, QG ✅), #693 (tiktoken bump, QG ❌ — docs 504 transient), #692 (salsa bump, QG ✅), #691 (download-artifact bump, QG ✅), #690 (codecov bump, QG ❌ — docs 504 transient).
+- 0 open P0/P1 issues.
+- Develop CI: GREEN (06:44Z). Main CI: Nightly FAILED (mutation testing `lock.json` collision — fix on develop PRs #597/#603, resolves when v0.3.0 ships).
+- Dependabot docs failures: transient HTTP 504 on mdbook binary download from GitHub Releases. All non-docs jobs passed. Not a code issue.
+
+**Actions taken:**
+1. **Merged PR #691** (ci: bump actions/download-artifact 7→8, QG ✅, no Codex) → squash `4f1e329`. ✅
+2. **Merged PR #694** (chore: bump ignore 0.4.25→0.4.26, QG ✅, no Codex) → squash `f642040`. ✅
+3. **Merged PR #692** (chore: bump salsa 0.26.2→0.27.0, QG ✅, no Codex) → squash `8bf8ecd`. ✅
+4. **Updated branch PR #693** (tiktoken-rs bump) to latest develop → fresh CI triggered. ✅
+5. **Updated branch PR #690** (codecov bump) to latest develop → fresh CI triggered. ✅
+6. **PM state v128 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (carried forward):**
+- **(P0-1)** PR #568: v0.3.0 ceremony READY — trigger `finalize` workflow_dispatch on `release.yml`.
+- **(P0-2)** RFC-0120 Charter §2 governance event — choose Option A/B/C.
 
 ### 2026-06-08 PM dispatch v127 (this run)
 
