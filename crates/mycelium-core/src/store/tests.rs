@@ -1018,6 +1018,134 @@ fn store_resolve_go_named_type_call_still_resolves() {
     );
 }
 
+// ── RFC-0118: calls never bind to Module/File/Import/Export (extends #682) ──
+
+#[test]
+fn store_resolve_call_stub_does_not_bind_to_module() {
+    // Reproduces the lib.rs>push dogfood bug: 60 stdlib `Vec::push` / `String::push`
+    // call sites emit a bare `push` Calls stub. The only `>push` definition is
+    // `crates/mycelium-mcp/src/lib.rs>push` — a `mod push;` declaration recorded
+    // as NodeKind::Module. A function CALL can never resolve to a module, so the
+    // stub must be LEFT in place (Unresolved), not redirected onto the Module def
+    // (which was manufacturing page-rank's #1 phantom hub at score 0.031).
+    let mut store = Store::new();
+    let caller = store.upsert_node_with_kind(path("caller.rs>do_work"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(TrunkPath::parse("push").unwrap(), NodeKind::Unresolved);
+    let module = store.upsert_node_with_kind(path("lib.rs>push"), NodeKind::Module);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 0,
+        "a CALL stub must not resolve to a Module definition"
+    );
+    assert!(
+        store.lookup("push").is_some(),
+        "the unresolved call stub must be left in place, not redirected"
+    );
+    assert!(
+        !store.incoming(module, EdgeKind::Calls).contains(&caller),
+        "the module must not gain a phantom incoming Calls edge"
+    );
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&stub),
+        "the caller's Calls edge must still point at the Unresolved stub"
+    );
+}
+
+#[test]
+fn store_resolve_import_aware_call_stub_does_not_bind_to_module() {
+    // Same guard must hold in the import-aware pass: an AMBIGUOUS call stub
+    // `push` defined as Module in two files, where the caller's file imports one
+    // of them, must NOT be redirected onto a Module. (Mixed Calls+Import evidence
+    // with only a Module candidate → conservatively left unresolved.)
+    let mut store = Store::new();
+    let caller_file = store.upsert_node_with_kind(path("caller.rs"), NodeKind::File);
+    let caller = store.upsert_node_with_kind(path("caller.rs>do_work"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(TrunkPath::parse("push").unwrap(), NodeKind::Unresolved);
+    let b_file = store.upsert_node_with_kind(path("b.rs"), NodeKind::File);
+    let b_push = store.upsert_node_with_kind(path("b.rs>push"), NodeKind::Module);
+    let _c_file = store.upsert_node_with_kind(path("c.rs"), NodeKind::File);
+    let _c_push = store.upsert_node_with_kind(path("c.rs>push"), NodeKind::Module);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+    store.upsert_edge(EdgeKind::Imports, caller_file, b_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 0,
+        "import-aware pass must not bind a call stub to a Module"
+    );
+    assert!(
+        store.lookup("push").is_some(),
+        "call stub must remain unresolved (Module is not callable)"
+    );
+    assert!(
+        !store.incoming(b_push, EdgeKind::Calls).contains(&caller),
+        "the imported Module must not gain a phantom Calls caller"
+    );
+}
+
+#[test]
+fn store_resolve_call_site_context_does_not_bind_to_module() {
+    // Same guard must hold in the RFC-0118 Part B receiver-context pass
+    // (`resolve_call_site_contexts`): a recorded method call whose sole `>push`
+    // candidate is a Module must NOT gain a phantom Calls edge via the
+    // single-candidate fast-path in `disambiguate`.
+    let mut store = Store::new();
+    let caller = store.upsert_node_with_kind(path("caller.rs>do_work"), NodeKind::Function);
+    let stub = store.upsert_node_with_kind(TrunkPath::parse("push").unwrap(), NodeKind::Unresolved);
+    let module = store.upsert_node_with_kind(path("lib.rs>push"), NodeKind::Module);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+    store.record_call_site(
+        caller,
+        stub,
+        ReceiverContext {
+            receiver: "x".to_owned(),
+            method: "push".to_owned(),
+            imports: Vec::new(),
+            locals: Vec::new(),
+            self_type: None,
+            params: Vec::new(),
+            fields: Vec::new(),
+        },
+    );
+
+    let _ = store.resolve_bare_call_stubs();
+
+    assert!(
+        !store.incoming(module, EdgeKind::Calls).contains(&caller),
+        "the receiver-context pass must not add a Calls edge to a Module def"
+    );
+}
+
+#[test]
+fn store_resolve_call_stub_binds_to_field_closure() {
+    // No-regression: a Field/Variable can hold a closure/function pointer that is
+    // then called (`self.callback()`). The generalized non-callable guard must
+    // NOT block Field (or Variable/Property/Constant) candidates — blocking them
+    // would lose real call edges. Here a bare `callback` call stub resolves to a
+    // unique Field def.
+    let mut store = Store::new();
+    let caller = store.upsert_node_with_kind(path("caller.rs>run"), NodeKind::Function);
+    let stub =
+        store.upsert_node_with_kind(TrunkPath::parse("callback").unwrap(), NodeKind::Unresolved);
+    let field = store.upsert_node_with_kind(path("model.rs>callback"), NodeKind::Field);
+    store.upsert_edge(EdgeKind::Calls, caller, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 1,
+        "a Field-held closure call stub must still resolve"
+    );
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&field),
+        "Calls edge must point at the Field definition"
+    );
+}
+
 #[test]
 fn store_resolve_extends_stub_mixed_import_sites_resolved_per_edge() {
     // Two subclasses extend the same bare `Base` but import DIFFERENT defs:
