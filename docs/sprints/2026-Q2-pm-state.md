@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v130 — PR #697 merged; Codex P2 ×2 rejected; develop HEAD `d0b3d5f`; v0.3.0 registries published, git ceremony pending) |
+| Last updated | 2026-06-08 (PM dispatch v133 — PR #699 merged (method span fix, closes #657); PR #704 closed (superseded); develop HEAD `7db42168`) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -54,6 +54,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] ci: codecov/codecov-action 6→7 (PR #690, squash `3506a93`)
 - [x] chore(deps): tiktoken-rs 0.6.0→0.12.0 (PR #693, squash `d4610c6`)
 - [x] chore(pm): PM state v128–v129 (PRs #696–#697)
+- [x] fix(extractor): method span precision — use declaration node not class anchor, covers TS/JS/Python/Java/C#/C++/Ruby (PR #699, squash `7db42168`, closes Issue #657)
 
 **v0.3.0 ceremony status — REGISTRIES ✅, GIT ⏳ PENDING:**
 - [x] **Registries published** 2026-06-05T17:59Z — crates.io ✅, npm ✅, PyPI ✅
@@ -79,7 +80,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
 4. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
-5. Issue #428 god-file-split remaining slices (P2 carried from v0.2.0)
+5. Post-v0.3.0 backlog triage: Issue #428 god-file-split remaining slices + new P1 candidates from Issue #612
 
 **P2:**
 6. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -88,19 +89,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v130)
+## Dispatch state (2026-06-08 v133)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×2)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — completes v0.3.0 git ceremony (Steps 1–4). **(2)** Choose RFC-0120 Option A/B/C (Charter §2 token ratio 0.753 vs ≤0.30). |
-| PM | **DONE ✅** | v130 complete: PR #697 merged (`d0b3d5f`); Codex P2 ×2 rejected; PM state updated. |
+| PM | **DONE ✅** | v133 complete: PR #699 merged (`7db42168`, closes #657); PR #704 closed (superseded); PM state v133 pushed. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | idle | RFC-0120 option analysis available on request. |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | idle | No P1 feature work unblocked; waiting RFC-0120 direction + post-v0.3.0 backlog triage. |
+| rust-implementer | **DONE ✅** | PR #699 merged — Issue #657 closed. Awaiting RFC-0120 direction + post-v0.3.0 backlog triage for next P1 feature. |
 
 ---
 
@@ -129,6 +130,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v133 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/ci-portability domain hits), PM state v132 (from PR #704 branch — local clone stale at v130), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #699 (method span fix, CI 20/20 ✅, Codex P2 fixed+outdated), #704 (PM v132 chore, CI pending), #568 (release/v0.3.0, founder-gated, 28/28 CI ✅).
+- 0 open P0/P1 issues (Issue #657 in flight via #699; #612 P2 deferred).
+- Develop CI GREEN (post-#702 squash `42334bd`).
+
+**Actions taken:**
+1. **Merged PR #699** (squash `7db42168`) — fix(extractor): method span precision, closes Issue #657. CI 20/20 SUCCESS; Codex P2 (Ruby containers) fixed via commit `d688486` + thread replied; thread `is_outdated=true`. ✅
+2. **Closed PR #704** as superseded by v133 (CI only had triage checks; v133 supersedes it). ✅
+3. **Updated PM state v133** (this document) + decisions.jsonl. ✅
+
+**Escalations to founder (P0, carried forward):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4).
+- **(2) RFC-0120**: Charter §2 Hyphae token ratio 0.753 vs ≤0.30. Choose Option A/B/C.
+
+### 2026-06-08 PM dispatch v132 (PR #701 closed; PR #699 Codex P2 fixed; Ruby span d688486)
+
+*(see closed PR #704 for full archive — superseded by v133)*
 
 ### 2026-06-08 PM dispatch v130 (this run)
 
