@@ -15,7 +15,9 @@ use std::time::Duration;
 
 use tokio::sync::RwLock;
 
-use super::{BatchDelta, CancelToken, FileReindexer, WatchConfig, WatchEngine, WatchEvent};
+use super::{
+    BatchDelta, CancelToken, FileReindexer, WatchConfig, WatchEngine, WatchEvent, watch_dirs,
+};
 use crate::store::Store;
 use crate::trunk::TrunkPath;
 use crate::types::NodeKind;
@@ -234,6 +236,140 @@ async fn ignore_rules_skip_target_and_gitignored() {
     assert!(super::is_supported_source_rel("a.rs"));
     assert!(!super::is_supported_source_rel("README.md"));
     assert_eq!(super::source_extension(Path::new("a.rs")), Some("rs"));
+}
+
+/// Build a representative project tree under a fresh tempdir and return it:
+/// a real source file, a large `target/` artifact, a `.git/` entry, a
+/// `node_modules/` package, and a `.gitignore` that excludes `node_modules/`.
+fn build_project_tree() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src").join("main.rs"), b"fn main() {}\n").unwrap();
+    std::fs::create_dir_all(root.join("target").join("debug").join("incremental")).unwrap();
+    std::fs::write(
+        root.join("target")
+            .join("debug")
+            .join("incremental")
+            .join("x.o"),
+        b"\0\0",
+    )
+    .unwrap();
+    std::fs::create_dir_all(root.join(".git")).unwrap();
+    std::fs::write(root.join(".git").join("HEAD"), b"ref: refs/heads/main\n").unwrap();
+    std::fs::create_dir_all(root.join("node_modules").join("pkg")).unwrap();
+    std::fs::write(root.join("node_modules").join("pkg").join("i.js"), b"x\n").unwrap();
+    std::fs::write(root.join(".gitignore"), b"node_modules/\n").unwrap();
+    dir
+}
+
+/// RED→GREEN: the ignore-aware walk must enumerate `root` and `root/src` but
+/// must NOT descend into `target/`, `.git/`, or the gitignored
+/// `node_modules/`. This is the unit-testable core of the fd-exhaustion fix:
+/// without it, `notify`'s recursive watch registers OS watches on every
+/// build artifact and crashes with "Too many open files".
+#[test]
+fn watch_dirs_excludes_target_git_and_gitignored() {
+    let dir = build_project_tree();
+    let root = dir.path();
+    let dirs = watch_dirs(root);
+
+    assert!(
+        dirs.iter().any(|d| d == root),
+        "root itself must be watched: {dirs:?}"
+    );
+    assert!(
+        dirs.iter().any(|d| d == &root.join("src")),
+        "src/ must be watched: {dirs:?}"
+    );
+    assert!(
+        !dirs.iter().any(|d| d.starts_with(root.join("target"))),
+        "no dir under target/ may be watched: {dirs:?}"
+    );
+    assert!(
+        !dirs.iter().any(|d| d.starts_with(root.join(".git"))),
+        "no dir under .git/ may be watched: {dirs:?}"
+    );
+    assert!(
+        !dirs
+            .iter()
+            .any(|d| d.starts_with(root.join("node_modules"))),
+        "no dir under gitignored node_modules/ may be watched: {dirs:?}"
+    );
+}
+
+/// `attach` on a realistic tree (with a `target/` full of artifacts) must
+/// succeed — the per-dir `NonRecursive` registration never descends into
+/// `target/`, so it cannot exhaust file descriptors the way the old
+/// single recursive watch over the whole root did.
+#[test]
+fn attach_succeeds_on_tree_with_target() {
+    let dir = build_project_tree();
+    let cfg = WatchConfig::new(dir.path().to_path_buf());
+    let session = WatchEngine::attach(&cfg);
+    assert!(
+        session.is_ok(),
+        "attach must succeed on a tree containing target/: {:?}",
+        session.err()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn engine_picks_up_file_in_newly_created_dir() {
+    // Dynamic new-dir handling: with per-dir NonRecursive watches, a dir
+    // created AFTER startup must be watched so files inside it are still
+    // re-indexed. Mirrors the existing drive harness.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    let store = Arc::new(RwLock::new(Store::new()));
+    let reindexer = Arc::new(RecordingReindexer::default());
+    let cancel = CancelToken::new();
+
+    let store_h = Arc::clone(&store);
+    let reindexer_h = Arc::clone(&reindexer);
+    let cancel_h = cancel.clone();
+    let root_h = root.clone();
+    let task = tokio::spawn(async move {
+        let cfg = WatchConfig::new(root_h);
+        let reindexer_ref: &dyn FileReindexer = reindexer_h.as_ref();
+        WatchEngine::run(
+            cfg,
+            store_h,
+            reindexer_ref,
+            None,
+            move |_ev, _delta, _store| {},
+            cancel_h,
+        )
+        .await
+        .unwrap();
+    });
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    // Create a subdir AFTER the watcher attached, then a file inside it.
+    let sub = root.join("newmod");
+    std::fs::create_dir_all(&sub).unwrap();
+    // Give the Create(dir) event time to register the dynamic watch.
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    std::fs::write(sub.join("inner.rs"), b"fn f() {}\n").unwrap();
+
+    let saw = wait_until(Duration::from_secs(3), || {
+        reindexer
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(rel, _)| rel == "newmod/inner.rs")
+    })
+    .await;
+
+    cancel.cancel();
+    let _ = tokio::time::timeout(Duration::from_secs(2), task).await;
+
+    assert!(
+        saw,
+        "file created in a newly-created subdir must be re-indexed"
+    );
 }
 
 /// A [`FileReindexer`] that replaces the file's symbols with a fixed NEW

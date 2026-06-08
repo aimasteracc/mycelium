@@ -198,6 +198,60 @@ pub fn is_supported_source_rel(path: &str) -> bool {
     source_extension(Path::new(path)).is_some()
 }
 
+// ── ignore-aware watch registration ────────────────────────────────────────────
+
+/// `true` when the first repository-relative component of `rel` is a
+/// hard-excluded directory (`target/` or `.mycelium/`). Mirrors the
+/// always-skip rule the indexer applies in `collect_source_files` and the
+/// event-time filter in [`WatchEngine::drive`], so watch and index agree on
+/// scope.
+fn is_hard_excluded(rel: &Path) -> bool {
+    rel.components().next().is_some_and(|first_comp| {
+        matches!(
+            first_comp.as_os_str().to_string_lossy().as_ref(),
+            "target" | ".mycelium"
+        )
+    })
+}
+
+/// Enumerate the directories that [`WatchEngine::attach`] should register a
+/// **`NonRecursive`** OS watch on.
+///
+/// This is the unit-testable core of the fd-exhaustion fix. Instead of a
+/// single `watch(root, Recursive)` — which makes `notify` descend into
+/// `target/`, `.git/`, `node_modules/`, … and register tens of thousands of
+/// OS watches until it hits `EMFILE` ("Too many open files") on startup — we
+/// walk `root` with [`ignore::WalkBuilder`] honouring `.gitignore` +
+/// `.myceliumignore` plus the hard-coded `target/` / `.mycelium/` exclusions
+/// (byte-for-byte the same semantics the indexer uses in
+/// `mycelium-cli::index::collect_source_files`), and return only the surviving
+/// directories (the root itself included). A `NonRecursive` watch on each of
+/// those keeps the fd count bounded to the number of in-scope directories.
+#[must_use]
+pub fn watch_dirs(root: &Path) -> Vec<PathBuf> {
+    let mut wb = ignore::WalkBuilder::new(root);
+    wb.follow_links(false)
+        .add_custom_ignore_filename(".myceliumignore");
+    for name in [".gitignore", ".myceliumignore"] {
+        let p = root.join(name);
+        if p.exists() {
+            wb.add_ignore(&p);
+        }
+    }
+    let root_owned = root.to_path_buf();
+    wb.filter_entry(move |e| {
+        // Never descend into target/ or .mycelium/ (matches the indexer).
+        e.path()
+            .strip_prefix(&root_owned)
+            .map_or(true, |rel| !is_hard_excluded(rel))
+    })
+    .build()
+    .filter_map(Result::ok)
+    .filter(|e| e.file_type().is_some_and(|ft| ft.is_dir()))
+    .map(|e| e.path().to_path_buf())
+    .collect()
+}
+
 // ── engine ───────────────────────────────────────────────────────────────────
 
 /// A live `notify` watcher with its event channel.
@@ -218,14 +272,30 @@ pub struct WatchSession {
 pub struct WatchEngine;
 
 impl WatchEngine {
-    /// Synchronously create the `notify` watcher and attach the recursive
-    /// watch on `cfg.root`, plus compose the ignore matcher. The returned
-    /// [`WatchSession`] must be passed to [`Self::drive`] — typically in a
-    /// `tokio::spawn` so the loop runs in the background.
+    /// Synchronously create the `notify` watcher and register an
+    /// **ignore-aware, per-directory `NonRecursive`** watch under `cfg.root`,
+    /// plus compose the ignore matcher. The returned [`WatchSession`] must be
+    /// passed to [`Self::drive`] — typically in a `tokio::spawn` so the loop
+    /// runs in the background.
+    ///
+    /// # Why not a single recursive watch
+    /// A single `watch(root, Recursive)` makes `notify` descend into `target/`,
+    /// `.git/`, `node_modules/`, … and register an OS-level watch per directory,
+    /// which exhausts file descriptors on any real project and crashes startup
+    /// with "Too many open files (os error 24)". Instead we walk `root` with
+    /// [`watch_dirs`] (honouring `.gitignore` + `.myceliumignore` and the
+    /// hard-coded `target/` / `.mycelium/` exclusions, mirroring the indexer)
+    /// and register a `NonRecursive` watch on each surviving directory, keeping
+    /// the fd count bounded to the number of in-scope directories.
+    ///
+    /// New top-level/subdirectories created **after** startup are picked up
+    /// dynamically by [`Self::drive`] (it watches any non-ignored directory it
+    /// sees a `Create` event for).
     ///
     /// # Errors
-    /// Returns an error if the watcher cannot be created or `cfg.root` cannot
-    /// be watched.
+    /// Returns an error only if the watcher itself cannot be created. A failure
+    /// to watch an individual directory (e.g. a transient race where a dir
+    /// vanished) is logged via `tracing::warn` and skipped, never fatal.
     pub fn attach(cfg: &WatchConfig) -> anyhow::Result<WatchSession> {
         use anyhow::Context as _;
 
@@ -241,9 +311,21 @@ impl WatchEngine {
         )
         .context("creating file system watcher")?;
 
-        watcher
-            .watch(&cfg.root, RecursiveMode::Recursive)
-            .context("starting recursive watch")?;
+        // Ignore-aware per-directory NonRecursive registration (see fn docs).
+        let mut watched_count = 0usize;
+        for dir in watch_dirs(&cfg.root) {
+            match watcher.watch(&dir, RecursiveMode::NonRecursive) {
+                Ok(()) => watched_count += 1,
+                Err(e) => tracing::warn!(
+                    "watch: skipping directory {} (could not watch: {e})",
+                    dir.display()
+                ),
+            }
+        }
+        tracing::debug!(
+            "watch: registered {watched_count} non-recursive directory watches under {}",
+            cfg.root.display()
+        );
 
         let gitignore = {
             let mut gb = ignore::gitignore::GitignoreBuilder::new(&cfg.root);
@@ -266,7 +348,8 @@ impl WatchEngine {
     /// Drive the watch loop until `cancel` fires.
     ///
     /// # Behaviour (byte-identical to the original MCP loop)
-    /// 1. Build a `notify::RecommendedWatcher` recursive on `cfg.root`.
+    /// 1. Register an ignore-aware, per-directory `NonRecursive` watch under
+    ///    `cfg.root` (see [`Self::attach`]); dynamically watch new dirs.
     /// 2. Compose a `.gitignore` + `.myceliumignore` matcher rooted at `cfg.root`.
     /// 3. For each batch of file-system events (debounced by `cfg.debounce`):
     ///    - drop paths under `target/` or `.mycelium/`;
@@ -300,11 +383,13 @@ impl WatchEngine {
         F: FnMut(&WatchEvent, &BatchDelta, &Store) + Send,
     {
         let WatchSession {
-            watcher,
+            mut watcher,
             mut rx,
             gitignore,
         } = session;
-        let _watcher = watcher; // keep alive for the function lifetime
+        // `watcher` is kept owned+mutable: alive for the function lifetime AND
+        // available so we can dynamically register NonRecursive watches on
+        // directories created after startup (recall fix for per-dir watching).
         let mut batch_seq: u64 = 0;
 
         loop {
@@ -354,6 +439,26 @@ impl WatchEngine {
                     }
                     // 2. Honour .gitignore / .myceliumignore.
                     if gitignore.matched(abs_path, abs_path.is_dir()).is_ignore() {
+                        continue;
+                    }
+
+                    // 3. Dynamic recall: a directory created after startup is
+                    // not covered by the per-dir NonRecursive watches set up in
+                    // `attach`, so files created inside it would be missed.
+                    // Register a NonRecursive watch on any non-ignored new dir.
+                    // (The skip + gitignore checks above already excluded
+                    // target/.mycelium/ and gitignored paths.)
+                    if abs_path.is_dir() {
+                        match watcher.watch(abs_path, RecursiveMode::NonRecursive) {
+                            Ok(()) => tracing::debug!(
+                                "watch: dynamically watching new directory {}",
+                                abs_path.display()
+                            ),
+                            Err(e) => tracing::warn!(
+                                "watch: could not watch new directory {}: {e}",
+                                abs_path.display()
+                            ),
+                        }
                         continue;
                     }
 
