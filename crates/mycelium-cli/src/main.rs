@@ -1120,15 +1120,20 @@ enum Cmd {
         mcp: bool,
         /// Pre-load (or build) the symbol index from this root directory.
         ///
-        /// Loads `.mycelium/index.rmp` if present; otherwise runs a full index
-        /// and saves the snapshot before the server accepts connections.
+        /// Loads the freshest existing snapshot under `.mycelium/` (the newer
+        /// of `index.redb` / `index.rmp` by mtime, so a CLI re-index that
+        /// rewrote only `index.rmp` is not shadowed by a stale `index.redb`);
+        /// otherwise runs a full index and saves the snapshot before the
+        /// server accepts connections.
         #[arg(long)]
         root: Option<PathBuf>,
         /// Restrict MCP filesystem access to these directories (RFC-0097).
         ///
         /// `mycelium_index_workspace` and `mycelium_load_index` will reject any
         /// path not under one of these roots. May be repeated.
-        /// Defaults to the current working directory when not specified.
+        /// When omitted, defaults to `--root` if given, else the current
+        /// working directory (so a cross-CWD `serve --root R` still permits
+        /// subscriptions under R).
         #[arg(long = "allowed-roots", value_name = "DIR")]
         allowed_roots: Vec<PathBuf>,
     },
@@ -2027,14 +2032,13 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             allowed_roots,
         } => {
             let root = root.map(|p| p.canonicalize().unwrap_or(p));
-            // RFC-0097: default allowed roots to CWD when none specified.
-            let allowed = if allowed_roots.is_empty() {
-                vec![std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))]
-            } else {
-                allowed_roots
-            };
+            // RFC-0097 allowed-roots default is resolved inside `serve_stdio`
+            // (`resolve_allowed_roots`): empty -> `[root]` when `--root` is
+            // given, else `[CWD]`. Passing the raw (possibly empty) list lets
+            // an explicit `--root` seed allowed-roots instead of being
+            // overridden by the process CWD (#mcp-serve-stale-snapshot).
             let rt = Runtime::new()?;
-            rt.block_on(mycelium_mcp::serve_stdio(root, allowed))?;
+            rt.block_on(mycelium_mcp::serve_stdio(root, allowed_roots))?;
         }
         Cmd::Serve { mcp: false, .. } => {
             tracing::warn!("`mycelium serve` requires `--mcp` flag (other transports are v0.2)");
