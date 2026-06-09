@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **RFC-0122 (rule f) — function-return-type receiver inference** (`mycelium-rcig-core`).
+  `let s = get_store(); s.upsert_node()` now resolves to the correct `Store::upsert_node`
+  instead of leaving the call unresolved. Implemented via: (1) new `@binding.fn_call` and
+  `@fn.return_type` tree-sitter captures in the Rust pack, (2) `LocalBinding.fn_call_hint`
+  field, (3) `Store::set_return_type` / `return_type_of`, (4) `enrich_context` pre-enrichment
+  pass that synthesises `ctor_type` from `fn_call_hint` + `return_type_of` before
+  `infer_receiver_type` runs (RFC-0118 rule c). No new redb table; no schema migration.
+
 ### Changed
 
 - **RFC-0118 marked Implemented** — all 24 acceptance criteria now tracked and confirmed

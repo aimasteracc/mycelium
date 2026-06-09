@@ -3364,3 +3364,43 @@ fn method_span_is_method_not_class_ruby() {
         "method span must start at the method declaration line (2), not the class line (1)"
     );
 }
+
+// RFC-0122 AC-2/3/4/5: rule f — resolve `let s = get_store(); s.upsert_node()` via
+// fn_call_hint → return_type_of → enrich_context → infer_receiver_type rule c.
+#[test]
+fn extractor_rust_rule_f_resolves_return_binding_caller() {
+    let source = "\
+fn get_store() -> Store { Store {} }
+struct Store;
+impl Store { fn upsert_node(&self) {} }
+struct Trunk;
+impl Trunk { fn upsert_node(&self) {} }
+fn run() {
+    let s = get_store();
+    s.upsert_node();
+}
+";
+    let ext = rs_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rs", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    store.resolve_bare_call_stubs();
+    let _ = store.resolve_call_site_contexts();
+
+    let run = store.lookup("test.rs>run").expect("run exists");
+    let store_m = store
+        .lookup("test.rs>Store>upsert_node")
+        .expect("Store::upsert_node exists");
+    let trunk_m = store
+        .lookup("test.rs>Trunk>upsert_node")
+        .expect("Trunk::upsert_node exists");
+
+    assert!(
+        store.incoming(store_m, EdgeKind::Calls).contains(&run),
+        "run() must be a caller of Store>upsert_node via rule f (fn return binding)"
+    );
+    assert!(
+        !store.incoming(trunk_m, EdgeKind::Calls).contains(&run),
+        "run() must NOT be mis-bound to Trunk>upsert_node"
+    );
+}

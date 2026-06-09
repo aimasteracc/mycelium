@@ -1,6 +1,6 @@
 # RFC-0122: Phase 2b — Function-return-type receiver inference (rule f)
 
-- **Status**: Draft
+- **Status**: Implemented
 - **Created**: 2026-06-09
 - **Revised**: 2026-06-09 (v2 — architect review, PM dispatch v149/v150)
 - **Author**: orchestrator (PM dispatch v148); revised by architect (v149)
@@ -203,18 +203,18 @@ automatically.  No parity obligation.
 
 ## Acceptance criteria
 
-- [ ] AC-1: `LocalBinding.fn_call_hint` field present; all existing struct
+- [x] AC-1: `LocalBinding.fn_call_hint` field present; all existing struct
   literals compile without change (field is `None` by default via `Option`).
-- [ ] AC-2: Extractor populates `fn_call_hint` for `let s = get_store()` style
+- [x] AC-2: Extractor populates `fn_call_hint` for `let s = get_store()` style
   bindings (call-expression initialisers, non-constructor).
-- [ ] AC-3: `Store::return_type_of` implemented and unit-tested.
-- [ ] AC-4: `enrich_context` synthesises `ctor_type` from `fn_call_hint` +
+- [x] AC-3: `Store::return_type_of` implemented and unit-tested.
+- [x] AC-4: `enrich_context` synthesises `ctor_type` from `fn_call_hint` +
   `return_type_of`; `infer_receiver_type` fires rule c on the enriched context.
-- [ ] AC-5: Integration test `rule_f_resolves_return_binding_caller` GREEN — a
+- [x] AC-5: Integration test `rule_f_resolves_return_binding_caller` GREEN — a
   two-symbol fixture (function returning a type + method call via return binding)
   resolved by `get-callers`.
-- [ ] AC-6: `cargo test --all` green; coverage ≥ 90%; clippy clean.
-- [ ] AC-7: No new redb table, no schema migration, no new unsafe.
+- [x] AC-6: `cargo test --all` green; coverage ≥ 90%; clippy clean.
+- [x] AC-7: No new redb table, no schema migration, no new unsafe.
 
 ---
 
@@ -254,5 +254,4 @@ Rejected by ADR-0010 (no live LSP; cold-start latency violates Charter §2).
 |---|---|---|
 | 2026-06-09 | Draft (v1) | Authored by PM dispatch v148; proposed new redb table |
 | 2026-06-09 | Draft (v2) | Revised by architect review (PM v149): scope narrowed to pure-resolver extension; new redb table removed; rule f via `enrich_context` pre-enrichment; acceptance criteria simplified |
-
-*Next step: rust-implementer TDD implementation (after PR #568 back-merges to develop).*
+| 2026-06-09 | Implemented | All 7 ACs satisfied by PM dispatch v152; 855 tests green; clippy clean |

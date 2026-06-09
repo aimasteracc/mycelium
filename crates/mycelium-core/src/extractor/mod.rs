@@ -335,24 +335,43 @@ impl Extractor {
                         .then(|| c.node.utf8_text(source).ok())
                         .flatten()
                 });
-                let Some(ctor_type) = ctor else { continue };
-                // Only treat title-case RHS paths as constructor TYPES. This drops
-                // utility-module calls like `mem::take` / `io::stdin` (lowercase
-                // module → not a type), preventing a wrong-bind if a struct ever
-                // shared that name (reviewer finding). Cross-language: types are
-                // title-case in Rust/Python/TS/Go-exported/Java/C#.
-                if !ctor_type.chars().next().is_some_and(char::is_uppercase) {
-                    continue;
-                }
-                // Scope to the enclosing function node (file-level lets are skipped).
-                if let Some(scope) = enclosing_function_node(local_node) {
-                    local_bindings
-                        .entry(scope.start_byte())
-                        .or_default()
-                        .push(LocalBinding {
-                            name: local_name.to_owned(),
-                            ctor_type: Some(ctor_type.to_owned()),
-                        });
+                // RFC-0122 rule-f: if no @binding.ctor, check for @binding.fn_call
+                // (plain function call initialiser, e.g. `let s = get_store()`).
+                let fn_call = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "binding.fn_call")
+                        .then(|| c.node.utf8_text(source).ok())
+                        .flatten()
+                });
+                match ctor {
+                    Some(ctor_type) => {
+                        // Only treat title-case RHS paths as constructor TYPES.
+                        if !ctor_type.chars().next().is_some_and(char::is_uppercase) {
+                            continue;
+                        }
+                        if let Some(scope) = enclosing_function_node(local_node) {
+                            local_bindings.entry(scope.start_byte()).or_default().push(
+                                LocalBinding {
+                                    name: local_name.to_owned(),
+                                    ctor_type: Some(ctor_type.to_owned()),
+                                    fn_call_hint: None,
+                                },
+                            );
+                        }
+                    }
+                    None => {
+                        // Record fn_call_hint for plain calls: `let s = get_store()`.
+                        if let Some(fn_name) = fn_call {
+                            if let Some(scope) = enclosing_function_node(local_node) {
+                                local_bindings.entry(scope.start_byte()).or_default().push(
+                                    LocalBinding {
+                                        name: local_name.to_owned(),
+                                        ctor_type: None,
+                                        fn_call_hint: Some(fn_name.to_owned()),
+                                    },
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -367,7 +386,14 @@ impl Extractor {
             let mut seen: HashMap<String, String> = HashMap::new();
             let mut conflicting: Vec<String> = Vec::new();
             for b in bindings.iter() {
-                let ty = b.ctor_type.clone().unwrap_or_default();
+                // Use ctor_type as primary key; prefix fn_call_hint with "fn:"
+                // so plain-call bindings get distinct keys (prevents false
+                // "same type" matches with ctor bindings whose name is empty).
+                let ty = b
+                    .ctor_type
+                    .clone()
+                    .or_else(|| b.fn_call_hint.as_ref().map(|h| format!("fn:{h}")))
+                    .unwrap_or_default();
                 if let Some(prev) = seen.insert(b.name.clone(), ty.clone()) {
                     if prev != ty {
                         conflicting.push(b.name.clone());
@@ -820,6 +846,23 @@ impl Extractor {
                         };
                         store.upsert_edge(EdgeKind::Implements, class_id, iface_id);
                     }
+                    // RFC-0122: record function return type for rule-f enrichment.
+                    "reference.fn_return" => {
+                        let fn_name = m.captures.iter().find_map(|c| {
+                            (names[c.index as usize] == "fn.name")
+                                .then(|| c.node.utf8_text(source).ok())
+                                .flatten()
+                        });
+                        let ret_type = m.captures.iter().find_map(|c| {
+                            (names[c.index as usize] == "fn.return_type")
+                                .then(|| c.node.utf8_text(source).ok())
+                                .flatten()
+                        });
+                        if let (Some(fn_name), Some(ret_type)) = (fn_name, ret_type) {
+                            store.set_return_type(fn_name, ret_type);
+                        }
+                    }
+                    // RFC-0122 / RFC-0118: binding and param captures are handled in Pass 1b.
                     _ => {}
                 }
             }
