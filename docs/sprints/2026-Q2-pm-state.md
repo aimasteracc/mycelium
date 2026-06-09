@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-09 (PM dispatch v148 — PR #720 closed (broken branch, 35 files, same issue as v142); RFC-0122 drafted (Phase 2b cross-file call resolution); 3 P0s unchanged ×13 consecutive runs) |
+| Last updated | 2026-06-09 (PM dispatch v149 — PR #721 merged (chore/pm-state-v148, 22/22 ✅); architect investigation: RFC-0122 needs reconciliation with existing `call_site_contexts` mechanism; 3 P0s unchanged ×14 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -67,7 +67,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** No code-level feature work can land until #568 back-merges (branch baseline), but RFC draft work can proceed. RFC-0122 drafted this run. Codex usage limits are exhausted — see P0 #3.
+> ⚠️ **All three P0 items require founder action.** No code-level feature work can land until #568 back-merges (branch baseline). RFC draft work can proceed. RFC-0122 drafted (v148); architect review completed (v149) — spec needs reconciliation with existing `call_site_contexts` mechanism. Codex usage limits are exhausted — see P0 #3.
 
 **P0 (founder action required):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
@@ -81,7 +81,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
 4. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
-5. Issue #612 Item 1 — Phase 2b `resolve_call_site_contexts`: **RFC-0122 Draft ✅ written** (`rfcs/0122-phase2b-cross-file-call-resolution.md`); pack captures verified present. After #568 back-merge: architect review RFC-0122 → rust-implementer TDD implementation.
+5. Issue #612 Item 1 — Phase 2b: RFC-0122 Draft ✅ written (v148); **architect review COMPLETE (v149)** — RFC-0122 proposes new redb `CallSiteContext` table, but existing in-memory `call_site_contexts` Vec + `resolve_call_site_contexts()` is already the deferred post-merge mechanism. Actual gap: `infer_receiver_type` returns `None` for function-return-type cases (`let s = get_store()`). RFC-0122 needs revision: extend `ReceiverContext` / `infer_receiver_type` for function-return cases rather than adding a new persisted table. Commented on Issue #612. After #568 back-merge: revise RFC-0122 spec → rust-implementer TDD.
 
 **P2:**
 6. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -95,10 +95,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v148 complete: PR #720 closed (broken branch); RFC-0122 drafted; PM state v148 written; decisions.jsonl appended. |
+| PM | **DONE ✅** | v149 complete: PR #721 merged; RFC-0122 architect review + Issue #612 comment; PM state v149 written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
-| architect | **P1 (ready)** | RFC-0122 draft at `rfcs/0122-phase2b-cross-file-call-resolution.md` — review and refine spec. After #568 back-merges: hand off to rust-implementer. |
+| architect | **P1 (review DONE)** | RFC-0122 spec reviewed (v149): proposes new redb table but existing `call_site_contexts` Vec + `resolve_call_site_contexts()` already serves as the deferred mechanism. Gap narrowed to `infer_receiver_type` not handling function-return-type cases. RFC-0122 needs spec revision before implementation. After #568 back-merge: revise RFC-0122 (pure-resolver extension, no new redb table). |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
@@ -133,7 +133,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-09 PM dispatch v148 (this run)
+### 2026-06-09 PM dispatch v149 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-09T08:30:00Z` v148, 183 total), anti-patterns (domain hits: release-governance/merge-discipline/git-workflow), PM state v148 (from origin/develop `db93a34` post-#721-merge), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR at session start: #568 (release/v0.3.0, founder-gated, CI 28/28 ✅). PR #721 just merged as first action.
+- 1 open issue: #612 (P2, Phase 2b cross-file call resolution — RFC-0122 drafted in v148).
+- Develop HEAD: `db93a34` (PM state v148 squash from #721). CI: GREEN.
+- 3 P0 escalations unchanged (×14 consecutive runs). All founder-gated.
+- **Architect investigation (new value this run):** Read RFC-0122 spec + existing `resolve_call_site_contexts()` code + `ReceiverContext` + `infer_receiver_type()` + `disambiguate()`. Finding: RFC-0122 as drafted proposes a NEW redb-persisted `CallSiteContext` table, but the in-memory `call_site_contexts: Vec<CallSiteContext>` + `resolve_call_site_contexts()` in `store/mod.rs` already IS the deferred post-merge mechanism. The real gap is narrower: `infer_receiver_type()` returns `None` for function-return-type cases (e.g., `let s = get_store()` where `get_store` returns a cross-file type). RFC-0122 needs revision to specify a pure-resolver extension rather than adding a new persisted table.
+
+**Actions taken:**
+1. **Merged PR #721** (chore/pm-state-v148, 22/22 CI ✅, Codex limit exhausted → no findings → Hard Rule vacuously satisfied). Squash `db93a34`. ✅
+2. **Architect review of RFC-0122:** Checked out `origin/develop` resolver code. Found: `call_site_contexts` Vec is already an in-memory deferred context table; `resolve_call_site_contexts()` already runs post-merge (after all files). Gap = `infer_receiver_type()` returns `None` for non-constructor, non-annotation variable bindings. RFC-0122 needs spec revision (narrower scope, no new redb table). ✅
+3. **Commented on Issue #612** with architect finding. ✅
+4. **PM state v149 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged ×14 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05. `dirty` merge is normal gitflow artifact.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
+
+### 2026-06-09 PM dispatch v148 (prev run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-5, last entry `2026-06-09T07:15:00Z` v146, 182 total), anti-patterns (domain hits: release-governance/pm-dispatch/git-workflow/merge-discipline), PM state v146 (from origin/develop `0fcbc41c` post-#719-merge), v0.2 PRD.
 
