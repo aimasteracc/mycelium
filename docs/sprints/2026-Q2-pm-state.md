@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v143 — PR #715 closed (broken branch); 3 P0s unchanged ×8 consecutive runs) |
+| Last updated | 2026-06-08 (PM dispatch v144 — Phase 2b Rust pack captures verified complete; cross-file resolution gap documented on Issue #612; 3 P0s unchanged ×9 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -81,7 +81,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
 4. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
-5. Post-v0.3.0 backlog triage: Issue #428 god-file-split remaining slices + new P1 candidates from Issue #612
+5. Post-v0.3.0 backlog triage: Issue #612 Item 1 (Phase 2b `resolve_call_site_contexts` cross-file algorithm RFC — pack captures verified ✅ present; remaining gap is multi-step type→variable→method resolution in the post-merge pass)
 
 **P2:**
 6. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -90,19 +90,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-08 v143)
+## Dispatch state (2026-06-08 v144)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
-| PM | **DONE ✅** | v143 complete: PR #715 closed (broken branch); v143 PM state written; decisions.jsonl appended. |
-| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge will land on develop; then plan v0.3.1 scope. |
+| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact (version-file conflicts between v0.2.0 main and v0.3.0 branch; ceremony script handles via `-X ours`), NOT a blocker. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
+| PM | **DONE ✅** | v144 complete: Phase 2b Rust captures verified; Issue #612 comment posted; PM state v144 written; decisions.jsonl appended. |
+| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
-| architect | idle | RFC-0121 analysis complete — see [rfcs/0121-charter-hyphae-token-sla-amendment.md](rfcs/0121-charter-hyphae-token-sla-amendment.md). RFC-0118 → Implemented (no further architect work needed). |
+| architect | idle | RFC-0121 analysis complete — see [rfcs/0121-charter-hyphae-token-sla-amendment.md](rfcs/0121-charter-hyphae-token-sla-amendment.md). RFC-0118 → Implemented. When #568 back-merges: scope RFC-0122 for Phase 2b `resolve_call_site_contexts` cross-file algorithm (pack captures already present). |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | idle | RFC-0118 Implemented — no new feature work until #568 back-merge + RFC-0120 measurement lands. Issue #612 Item 1 (Phase 2b cross-file extraction context table) needs design RFC when unblocked. |
+| rust-implementer | idle | RFC-0118 Implemented. Issue #612 Item 1 (Phase 2b): pack captures ✅ verified present (`@call.receiver`, `@binding.local`, `@binding.ctor`, `@param.type`); remaining gap = multi-step type→variable→method resolution in `resolve_call_site_contexts` — needs RFC-0122 spec first. |
 
 ---
 
@@ -132,6 +132,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-08 PM dispatch v144 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-08T21:45:00Z` v143), anti-patterns (domain hits: release-governance/governance-verification), PM state v143 (from origin/develop `13e4765`), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #568 (release/v0.3.0, 28/28 CI ✅, `mergeable_state: dirty`, founder-gated). **Dirty state analysis**: conflict is between v0.2.0 main (CHANGELOG + Cargo.toml at v0.2.0) and the v0.3.0 release branch (same files at v0.3.0). Standard gitflow version-file conflict. The `finalize` workflow_dispatch ceremony script resolves via `-X ours` (release branch wins) — this is NOT a blocker for the founder's action.
+- 1 open issue: #612 (P2, Item 1 Phase 2b cross-file resolution; Item 2 resolved).
+- Develop CI GREEN (HEAD `13e4765`, both CI + E2E success 2026-06-08T22:13).
+- 3 P0s: all founder-gated (unchanged ×9 consecutive runs). Codex billing notice = 0 code findings; chore PRs can still be merged (Hard Rule vacuously satisfied).
+
+**New finding this run:** Verified `packs/rust/queries.scm` on develop — **RFC-0118 Phase 2b pack captures ARE complete**: `@call.receiver` (line 158), `@binding.local`/`@binding.ctor` (lines 183/186), `@param.type` (line 195) all present. The Phase 2b gap in Issue #612 Item 1 is NOT about missing captures — it is about the `resolve_call_site_contexts()` post-merge pass failing to do multi-step resolution (receiver variable → declared type → method definition) for cross-file cases where the type definition was in a different file. This narrows the RFC-0122 spec to the algorithm, not the captures.
+
+**Actions taken:**
+1. **Commented on Issue #612** — Phase 2b Rust pack captures verified present; narrowed remaining gap to `resolve_call_site_contexts` multi-step algorithm for cross-file bindings. ✅
+2. **Updated P1 #5 in PM state** — removed stale Issue #428 reference (CLOSED 2026-06-02), replaced with accurate Phase 2b algorithm description. ✅
+3. **Updated dispatch state** — added dirty-merge analysis for PR #568; added RFC-0122 scope note for architect. ✅
+4. **PM state v144 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged ×9 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — `dirty` merge is normal gitflow, ceremony script handles it. CI 28/28 ✅; registries published 2026-06-05. **One-click action** to complete the v0.3.0 ceremony.
+- **(2) RFC-0121**: [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A**, no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — upgrade account or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
 
 ### 2026-06-08 PM dispatch v143 (this run)
 
