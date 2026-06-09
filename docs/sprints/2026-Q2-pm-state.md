@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-09 (PM dispatch v152 — PR #724 merged (chore/pm-state-v151, 22/22 CI ✅, Codex vacuously satisfied); nightly mutation failure diagnosed (CI infra bug, fix already on develop); 3 P0s unchanged ×17 consecutive runs) |
+| Last updated | 2026-06-09 (PM dispatch v153 — PR #725 pack-parity fix pushed (`fcaa3e9`); pack parity ✅ green; Quality Gate in_progress; merge pending CI pass; 3 P0s unchanged ×17 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -96,14 +96,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. Side-effect: nightly mutation CI failure on main will also resolve once main advances to v0.3.0 (fix already on develop). **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v152 complete: PR #724 merged (chore/pm-state-v151, squash `e49275b`); nightly mutation failure diagnosed (CI infra bug, fix on develop); PM state v152 written; decisions.jsonl appended. |
+| PM | **DONE ✅** | v153 complete: PR #725 pack-parity fix pushed (`fcaa3e9`); pack parity ✅; merge pending Quality Gate. PM state v153 + decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension — `LocalBinding.fn_call_hint` + `enrich_context` rule f; no new redb table. Spec is implementation-ready. |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **P1 (blocked + spec v2 on develop)** | RFC-0122 v2 ✅ on develop; pack captures ✅ verified; pure-resolver scope confirmed. After #568 back-merge: begin TDD (RED: `rule_f_resolves_return_binding_caller`; steps: `LocalBinding.fn_call_hint` → extractor → `store.return_type_of` → `enrich_context`). |
+| rust-implementer | **P1 — PR #725 CI pending** | RFC-0122 rule-f COMPLETE (founder-authored PR #725). Pack-parity fix `fcaa3e9` pushed; pack parity ✅; Quality Gate in_progress. Merge pending CI pass. |
 
 ---
 
@@ -133,6 +133,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-09 PM dispatch v153 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, INDEX.md, decisions.jsonl (tail-25, stale local clone rehydrated via GitHub API commit log to v151), anti-patterns (domain hits: release-governance/merge-discipline/tdd/git-workflow/ci), PM state v152 (fetched from origin/chore/pm-state-v152), v0.2 PRD.
+
+**Assessment:**
+- Local clone at main SHA `5468797` (v0.2.0). Fetched origin/develop → HEAD `e49275b` (v151 at session start); remote chore/pm-state-v152 confirmed at `8aa5726` (v152 = PR #724 merged + mutation failure diagnosed — parallel run).
+- 2 open PRs: #725 (feat/RFC-0122 rule f, founder-authored, CI 21/22 — FAILING on "Pack query parity"), #568 (release/v0.3.0, founder-gated, CI 28/28 ✅).
+- 1 open issue: #612 (P2).
+- 3 P0 escalations unchanged (×17 consecutive runs).
+- **Highest-value autonomous action**: Fix "Pack query parity" failure on PR #725 — founder implementation blocked by trivial sync omission.
+
+**Actions taken:**
+1. **Diagnosed PR #725 pack parity failure**: fetched job log (job 80441956174). Root cause: canonical `packs/rust/queries.scm` + core embedded copy were updated with RFC-0122 captures; `crates/mycelium-mcp/packs/rust/queries.scm` and `crates/mycelium-cli/packs/rust/queries.scm` were not. 17-line diff confirmed. ✅
+2. **Fixed**: checked out `feature/RFC-0122-rule-f-fn-return-binding`; `cp packs/rust/queries.scm` to both MCP and CLI embedded paths; committed `fcaa3e9` (`fix(packs): sync RFC-0122 queries to MCP and CLI embedded copies`) with DCO; pushed. Pack parity job now **success** (job 80446901315, run 27241764642). ✅
+3. **Codex clearance**: PR #725 has Codex billing notice only (comment 4664700207) — no P1/P2/P3 code findings. Hard Rule vacuously satisfied per v134–v152 precedent. ✅
+4. **CI status**: 17/18 checks green; remaining in_progress are tests (win/linux/nightly) + integration + coverage — no failures visible. Quality Gate pending. ✅
+5. **PM state v153 written** + decisions.jsonl appended. ✅
+6. **Next step**: once Quality Gate turns ✅ → admin-merge PR #725. Founder or next autonomous run.
+
+**Escalations to founder (P0, unchanged ×17 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — one-click action. CI 28/28 ✅; registries published. Also fixes nightly mutation CI on main (infra bug, fix on develop).
+- **(2) RFC-0121**: Choose Option A/B/C — PM recommends A. [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or suspend Hard Rule.
 
 ### 2026-06-09 PM dispatch v152 (this run)
 
