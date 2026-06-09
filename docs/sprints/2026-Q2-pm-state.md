@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-09 (PM dispatch v150 — PR #722 merged (chore/pm-state-v149, 3/3 CI ✅); **RFC-0122 revised to v2** (pure-resolver extension: `LocalBinding.fn_call_hint` + `enrich_context` rule f; new redb table removed); PR #723 opened; 3 P0s unchanged ×15 consecutive runs) |
+| Last updated | 2026-06-09 (PM dispatch v151 — PR #723 merged (fix/rfc-0122-revision, 22/22 CI ✅, Codex vacuously satisfied); RFC-0122 v2 now on develop; 3 P0s unchanged ×16 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -81,7 +81,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
 4. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
-5. Issue #612 Item 1 — Phase 2b: **RFC-0122 v2 ✅ written (v150)** — pure-resolver extension: extend `LocalBinding.fn_call_hint`, add `enrich_context` pre-enrichment in `resolve_call_site_contexts`, rule f fires on enriched context; no new redb table, no schema migration. PR #723 open (CI pending). After #568 back-merge + PR #723 merge: rust-implementer TDD (RED: `rule_f_resolves_return_binding_caller`).
+5. Issue #612 Item 1 — Phase 2b: **RFC-0122 v2 ✅ on develop (v151, PR #723 merged `77aaa782`)** — pure-resolver extension: extend `LocalBinding.fn_call_hint`, add `enrich_context` pre-enrichment in `resolve_call_site_contexts`, rule f fires on enriched context; no new redb table, no schema migration. After #568 back-merge: rust-implementer TDD (RED: `rule_f_resolves_return_binding_caller`).
 
 **P2:**
 6. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -90,19 +90,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-09 v150)
+## Dispatch state (2026-06-09 v151)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v150 complete: PR #722 merged; RFC-0122 v2 written (pure-resolver, no redb table); PR #723 opened; PM state v150 written; decisions.jsonl appended. |
+| PM | **DONE ✅** | v151 complete: PR #723 merged (RFC-0122 v2 + PM state v150, squash `77aaa782`); PM state v151 written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
-| architect | **DONE ✅** | RFC-0122 v2 written (v150): pure-resolver extension finalized — `LocalBinding.fn_call_hint` + `enrich_context` rule f; no new redb table. PR #723 open for review. |
+| architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension — `LocalBinding.fn_call_hint` + `enrich_context` rule f; no new redb table. Spec is implementation-ready. |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **P1 (blocked + spec v2 ready)** | RFC-0122 v2 ✅ finalized; pack captures ✅ verified; pure-resolver scope confirmed. After #568 back-merge + PR #723 merge: begin TDD (RED: `rule_f_resolves_return_binding_caller`; steps: `LocalBinding.fn_call_hint` → extractor → `store.return_type_of` → `enrich_context`). |
+| rust-implementer | **P1 (blocked + spec v2 on develop)** | RFC-0122 v2 ✅ on develop; pack captures ✅ verified; pure-resolver scope confirmed. After #568 back-merge: begin TDD (RED: `rule_f_resolves_return_binding_caller`; steps: `LocalBinding.fn_call_hint` → extractor → `store.return_type_of` → `enrich_context`). |
 
 ---
 
@@ -132,6 +132,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-09 PM dispatch v151 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry v149 on disk; v150 in PR #723 pending merge), anti-patterns (domain hits: release-governance/merge-discipline/tdd/git-workflow/governance-rfc), PM state v150 (from PR #723 content + origin/develop `77aaa78` post-merge), v0.2 PRD, INDEX.md.
+
+**Assessment:**
+- Local clone detached at main SHA `54687972` (v0.2.0). Fetched origin/develop.
+- 2 open PRs at session start: #723 (fix/rfc-0122-revision, RFC-0122 v2 spec + PM state v150, 22/22 CI ✅, Codex billing notice only = vacuously satisfied), #568 (release/v0.3.0, founder-gated, CI 28/28 ✅, registries published).
+- 0 open P0/P1 issues.
+- Develop CI GREEN (sha `7403c6be` = PM state v149; CI #1494 + E2E #1221 success).
+- 3 P0 escalations unchanged (×16 consecutive runs). All founder-gated.
+- **Highest-value autonomous action**: Merge PR #723 (RFC-0122 v2 spec now on develop — unblocks rust-implementer after #568 back-merge).
+
+**Actions taken:**
+1. **Merged PR #723** (fix/rfc-0122-revision, 22/22 CI ✅, Codex vacuously satisfied per billing exhaustion since v134) — squash `77aaa782`. RFC-0122 v2 now on develop. ✅
+2. **PM state v151 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged ×16 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05. `dirty` merge is normal gitflow artifact.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
 
 ### 2026-06-09 PM dispatch v150 (this run)
 
