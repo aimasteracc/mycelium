@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-09 (PM dispatch v149 — PR #721 merged (chore/pm-state-v148, 22/22 ✅); architect investigation: RFC-0122 needs reconciliation with existing `call_site_contexts` mechanism; 3 P0s unchanged ×14 consecutive runs) |
+| Last updated | 2026-06-09 (PM dispatch v150 — PR #722 merged (chore/pm-state-v149, 3/3 CI ✅); **RFC-0122 revised to v2** (pure-resolver extension: `LocalBinding.fn_call_hint` + `enrich_context` rule f; new redb table removed); PR #723 opened; 3 P0s unchanged ×15 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -67,7 +67,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** No code-level feature work can land until #568 back-merges (branch baseline). RFC draft work can proceed. RFC-0122 drafted (v148); architect review completed (v149) — spec needs reconciliation with existing `call_site_contexts` mechanism. Codex usage limits are exhausted — see P0 #3.
+> ⚠️ **All three P0 items require founder action.** No code-level feature work can land until #568 back-merges (branch baseline). RFC-0122 v2 written (v150) — pure-resolver extension, no new redb table; rust-implementer ready after #568 back-merge. Codex usage limits are exhausted — see P0 #3.
 
 **P0 (founder action required):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
@@ -81,7 +81,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
 4. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
-5. Issue #612 Item 1 — Phase 2b: RFC-0122 Draft ✅ written (v148); **architect review COMPLETE (v149)** — RFC-0122 proposes new redb `CallSiteContext` table, but existing in-memory `call_site_contexts` Vec + `resolve_call_site_contexts()` is already the deferred post-merge mechanism. Actual gap: `infer_receiver_type` returns `None` for function-return-type cases (`let s = get_store()`). RFC-0122 needs revision: extend `ReceiverContext` / `infer_receiver_type` for function-return cases rather than adding a new persisted table. Commented on Issue #612. After #568 back-merge: revise RFC-0122 spec → rust-implementer TDD.
+5. Issue #612 Item 1 — Phase 2b: **RFC-0122 v2 ✅ written (v150)** — pure-resolver extension: extend `LocalBinding.fn_call_hint`, add `enrich_context` pre-enrichment in `resolve_call_site_contexts`, rule f fires on enriched context; no new redb table, no schema migration. PR #723 open (CI pending). After #568 back-merge + PR #723 merge: rust-implementer TDD (RED: `rule_f_resolves_return_binding_caller`).
 
 **P2:**
 6. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -90,19 +90,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-09 v148)
+## Dispatch state (2026-06-09 v150)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v149 complete: PR #721 merged; RFC-0122 architect review + Issue #612 comment; PM state v149 written; decisions.jsonl appended. |
+| PM | **DONE ✅** | v150 complete: PR #722 merged; RFC-0122 v2 written (pure-resolver, no redb table); PR #723 opened; PM state v150 written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
-| architect | **P1 (review DONE)** | RFC-0122 spec reviewed (v149): proposes new redb table but existing `call_site_contexts` Vec + `resolve_call_site_contexts()` already serves as the deferred mechanism. Gap narrowed to `infer_receiver_type` not handling function-return-type cases. RFC-0122 needs spec revision before implementation. After #568 back-merge: revise RFC-0122 (pure-resolver extension, no new redb table). |
+| architect | **DONE ✅** | RFC-0122 v2 written (v150): pure-resolver extension finalized — `LocalBinding.fn_call_hint` + `enrich_context` rule f; no new redb table. PR #723 open for review. |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **P1 (blocked + spec ready)** | RFC-0122 Draft ✅ written; pack captures ✅ verified. After #568 back-merge + architect RFC review: begin TDD (RED: `cross_file_caller_resolved_after_post_pass`). |
+| rust-implementer | **P1 (blocked + spec v2 ready)** | RFC-0122 v2 ✅ finalized; pack captures ✅ verified; pure-resolver scope confirmed. After #568 back-merge + PR #723 merge: begin TDD (RED: `rule_f_resolves_return_binding_caller`; steps: `LocalBinding.fn_call_hint` → extractor → `store.return_type_of` → `enrich_context`). |
 
 ---
 
@@ -132,6 +132,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-09 PM dispatch v150 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-09T09:30:00Z` v149, 184 total), anti-patterns (domain hits: release-governance/merge-discipline/tdd/git-workflow), PM state v149 (from origin/develop `7403c6b` post-#722-merge), v0.2 PRD, INDEX.md.
+
+**Assessment:**
+- 1 open PR at session start: #568 (release/v0.3.0, founder-gated, CI 28/28 ✅). PR #722 (chore/pm-state-v149) was merged as first action (CI 3/3 ✅, Codex exhausted = billing notice only = Hard Rule vacuously satisfied).
+- 1 open issue: #612 (P2, Item 1 Phase 2b — RFC-0122 spec drafted v148, architect reviewed v149).
+- Develop CI GREEN (CI #1494 success, E2E #1221 success as of 2026-06-09T04:15).
+- 3 P0 escalations unchanged (×15 consecutive runs). All founder-gated.
+- **Highest-value autonomous action**: Revise RFC-0122 based on v149 architect finding (pure-resolver extension, no new redb table). Read `receiver.rs` + `extractor/mod.rs` on origin/develop to ground the revision in real code.
+
+**Actions taken:**
+1. **Merged PR #722** (chore/pm-state-v149, 3/3 CI ✅ — CI #1495/E2E #1222/Triage #807; Codex billing notice only; Hard Rule vacuously satisfied). Squash `7403c6b`. ✅
+2. **Revised RFC-0122** (`rfcs/0122-phase2b-cross-file-call-resolution.md`) v1 → v2: removed `TABLE_CALL_SITE_CONTEXT` redb proposal; replaced with pure-resolver extension — extend `LocalBinding` with `fn_call_hint: Option<String>`, add `enrich_context()` pre-enrichment in `resolve_call_site_contexts`, no new redb table, no schema migration, no watch-engine integration. Simplified from 9 ACs to 7. Alternatives considered updated to label v1 as "Superseded by this revision". ✅
+3. **PM state v150 written** + decisions.jsonl appended. ✅
+4. **PR #723 opened** (`fix/rfc-0122-revision` → develop). ✅
+
+**Escalations to founder (P0, unchanged ×15 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05. `dirty` merge is normal gitflow artifact.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
 
 ### 2026-06-09 PM dispatch v149 (this run)
 
