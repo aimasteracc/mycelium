@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-08 (PM dispatch v144 — Phase 2b Rust pack captures verified complete; cross-file resolution gap documented on Issue #612; 3 P0s unchanged ×9 consecutive runs) |
+| Last updated | 2026-06-09 (PM dispatch v145 — PR #717 merged (chore/pm-state-v144, squash 3139f207); 3 P0s unchanged ×10 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -95,7 +95,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact (version-file conflicts between v0.2.0 main and v0.3.0 branch; ceremony script handles via `-X ours`), NOT a blocker. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage (Hard Rule unenforceable while exhausted). |
-| PM | **DONE ✅** | v144 complete: Phase 2b Rust captures verified; Issue #612 comment posted; PM state v144 written; decisions.jsonl appended. |
+| PM | **DONE ✅** | v145 complete: PR #717 merged (squash 3139f207); PM state v145 written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | idle | RFC-0121 analysis complete — see [rfcs/0121-charter-hyphae-token-sla-amendment.md](rfcs/0121-charter-hyphae-token-sla-amendment.md). RFC-0118 → Implemented. When #568 back-merges: scope RFC-0122 for Phase 2b `resolve_call_site_contexts` cross-file algorithm (pack captures already present). |
@@ -132,6 +132,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-09 PM dispatch v145 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-08T23:30:00Z` v144), anti-patterns (domain hits: release-governance/governance-verification/git-workflow), PM state v144 (from origin/develop `3139f207` post-#717-merge), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #568 (release/v0.3.0, 28/28 CI ✅, `mergeable_state: dirty`, founder-gated). No change from v144.
+- 0 open P0/P1 issues (#612 is P2, item 1 = RFC-0122 spec pending founder finalize).
+- Develop CI GREEN (HEAD `3139f207`, chore/pm-state-v144 squash, all CI success 2026-06-08T23:21Z).
+- 3 P0 escalations all unchanged (×10 consecutive runs). No autonomous feature work unblocked.
+- PR #717 (chore/pm-state-v144): CI 22/22 ✅; Codex = billing notice only (limits exhausted since v134, no P1/P2/P3 code findings; Hard Rule vacuously satisfied per established precedent).
+
+**Actions taken:**
+1. **Merged PR #717** (chore/pm-state-v144, squash `3139f207`) — CI 22/22 ✅; Codex billing notice only. ✅
+2. **PM state v145 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged ×10 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — `dirty` merge is normal gitflow, ceremony script handles it. CI 28/28 ✅; registries published 2026-06-05. **One-click action** to complete the v0.3.0 ceremony.
+- **(2) RFC-0121**: [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A**, no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — upgrade account or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
 
 ### 2026-06-08 PM dispatch v144 (this run)
 
