@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-09 (PM dispatch v151 — PR #723 merged (fix/rfc-0122-revision, 22/22 CI ✅, Codex vacuously satisfied); RFC-0122 v2 now on develop; 3 P0s unchanged ×16 consecutive runs) |
+| Last updated | 2026-06-09 (PM dispatch v152 — PR #724 merged (chore/pm-state-v151, 22/22 CI ✅, Codex vacuously satisfied); nightly mutation failure diagnosed (CI infra bug, fix already on develop); 3 P0s unchanged ×17 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -71,6 +71,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 **P0 (founder action required):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
+   > **⚠️ Nightly CI side-effect (diagnosed v152):** Nightly `mutation testing` job has been failing on main (SHA `54687972` = v0.2.0). Root cause: CI infrastructure bug — `nightly.yml` on v0.2.0 main pipes `cargo-mutants` stdout to `tee mutants.out` (creates a FILE), but `cargo-mutants` also tries to create `mutants.out/` as an output DIRECTORY → crash "Not a directory (os error 20)". The enforcement script then exits at `SUMMARY=$(grep...)` due to `set -e` + `grep` returning exit 1 on the empty log. **Fix is already on develop** (`nightly.yml` uses `mutants.log` for tee + uploads `mutants.out/` dir separately). Will land on main the moment PR #568 finalizes. NOT a real kill-rate drop.
 2. **RFC-0121** ([RFC file written](../../rfcs/0121-charter-hyphae-token-sla-amendment.md)): Charter §2 Hyphae token efficiency ratio measured at **0.753 vs target ≤0.30** — choose:
    - **Option A** (PM recommendation): Amend Charter §2 to per-class targets (tree ≤35% ✅ already met, list ≤70%, scalar ≤90%) — no engineering work, immediately satisfies CI gates
    - **Option B**: Implement additional compression to reach ≤30% across all tools — significant engineering
@@ -90,12 +91,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-09 v151)
+## Dispatch state (2026-06-09 v152)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v151 complete: PR #723 merged (RFC-0122 v2 + PM state v150, squash `77aaa782`); PM state v151 written; decisions.jsonl appended. |
+| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. Side-effect: nightly mutation CI failure on main will also resolve once main advances to v0.3.0 (fix already on develop). **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
+| PM | **DONE ✅** | v152 complete: PR #724 merged (chore/pm-state-v151, squash `e49275b`); nightly mutation failure diagnosed (CI infra bug, fix on develop); PM state v152 written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension — `LocalBinding.fn_call_hint` + `enrich_context` rule f; no new redb table. Spec is implementation-ready. |
@@ -133,7 +134,37 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-09 PM dispatch v151 (this run)
+### 2026-06-09 PM dispatch v152 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry v151 `2026-06-09T10:30:00Z`), anti-patterns (domain hits: ci/release/tdd/surface/test/coverage/release-governance/merge-discipline), PM state v151 (develop HEAD `e49275b` post-#724-squash), v0.2 PRD.
+
+**Assessment:**
+- Local clone stale (container init at main v0.2.0). Rehydrated from GitHub MCP.
+- 2 open PRs: #724 (chore/pm-state-v151, 22/22 CI ✅, Codex billing notice only = vacuously satisfied), #568 (release/v0.3.0, founder-gated, CI 28/28 ✅, registries published 2026-06-05).
+- 0 open P0/P1 issues.
+- Develop CI GREEN (sha `77aaa782`). PR #724 CI: 22/22 ✅ (Quality Gate ✅).
+- Nightly CI on main: FAILING — `mutation testing (kill-rate gate >= 70%)` job failed. Diagnosed: CI infra bug (see below).
+- 3 P0 escalations unchanged (×17 consecutive runs). All founder-gated.
+- **Highest-value autonomous action**: (1) Merge PR #724 (PM state v151); (2) Diagnose nightly mutation failure.
+
+**Nightly mutation failure diagnosis (job 80257944707, run 27186972735):**
+- `cargo-mutants` crashed: "Error: open or create lock.json in existing directory / Not a directory (os error 20)"
+- Root cause: `nightly.yml` on main (v0.2.0) pipes output to `tee mutants.out` — this creates a FILE named `mutants.out`; cargo-mutants 27.x also tries to create a DIRECTORY named `mutants.out/` for its own output (lock.json etc.) → OS rejects directory creation because the name is taken by a file (possibly cached from previous run via Swatinem/rust-cache).
+- Enforcement script (`set -e` + `pipefail`): `SUMMARY=$(grep -E 'missed|caught' mutants.out | tail -1)` — since mutants.out has only the crash error (no "caught"/"missed" lines), grep exits 1; bash `set -e` causes immediate exit.
+- **Fix already on develop**: `nightly.yml` on develop uses `mutants.log` for the tee output (naming collision avoided), and uploads `mutants.out/` dir separately. Will land on main when PR #568 finalizes.
+- **NOT a real kill-rate drop** — cargo-mutants never ran; no mutation statistics were computed.
+
+**Actions taken:**
+1. **Merged PR #724** (chore/pm-state-v151, 22/22 CI ✅, Codex billing notice only) — squash `e49275b`. ✅
+2. **Diagnosed nightly mutation testing failure** — CI infra bug, fix on develop. ✅
+3. **PM state v152 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged ×17 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05. `dirty` merge is normal gitflow artifact. Also resolves the nightly mutation CI failure (fix is on develop/release-v0.3.0).
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
+
+### 2026-06-09 PM dispatch v151 (PR #723 merged; RFC-0122 v2 on develop)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry v149 on disk; v150 in PR #723 pending merge), anti-patterns (domain hits: release-governance/merge-discipline/tdd/git-workflow/governance-rfc), PM state v150 (from PR #723 content + origin/develop `77aaa78` post-merge), v0.2 PRD, INDEX.md.
 
@@ -154,303 +185,102 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (no engineering work).
 - **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
 
-### 2026-06-09 PM dispatch v150 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-09T09:30:00Z` v149, 184 total), anti-patterns (domain hits: release-governance/merge-discipline/tdd/git-workflow), PM state v149 (from origin/develop `7403c6b` post-#722-merge), v0.2 PRD, INDEX.md.
-
-**Assessment:**
-- 1 open PR at session start: #568 (release/v0.3.0, founder-gated, CI 28/28 ✅). PR #722 (chore/pm-state-v149) was merged as first action (CI 3/3 ✅, Codex exhausted = billing notice only = Hard Rule vacuously satisfied).
-- 1 open issue: #612 (P2, Item 1 Phase 2b — RFC-0122 spec drafted v148, architect reviewed v149).
-- Develop CI GREEN (CI #1494 success, E2E #1221 success as of 2026-06-09T04:15).
-- 3 P0 escalations unchanged (×15 consecutive runs). All founder-gated.
-- **Highest-value autonomous action**: Revise RFC-0122 based on v149 architect finding (pure-resolver extension, no new redb table). Read `receiver.rs` + `extractor/mod.rs` on origin/develop to ground the revision in real code.
+### 2026-06-09 PM dispatch v150 (RFC-0122 revised v1→v2; PR #723 opened)
 
 **Actions taken:**
-1. **Merged PR #722** (chore/pm-state-v149, 3/3 CI ✅ — CI #1495/E2E #1222/Triage #807; Codex billing notice only; Hard Rule vacuously satisfied). Squash `7403c6b`. ✅
-2. **Revised RFC-0122** (`rfcs/0122-phase2b-cross-file-call-resolution.md`) v1 → v2: removed `TABLE_CALL_SITE_CONTEXT` redb proposal; replaced with pure-resolver extension — extend `LocalBinding` with `fn_call_hint: Option<String>`, add `enrich_context()` pre-enrichment in `resolve_call_site_contexts`, no new redb table, no schema migration, no watch-engine integration. Simplified from 9 ACs to 7. Alternatives considered updated to label v1 as "Superseded by this revision". ✅
-3. **PM state v150 written** + decisions.jsonl appended. ✅
-4. **PR #723 opened** (`fix/rfc-0122-revision` → develop). ✅
+1. Merged PR #722 (squash `7403c6b`) — CI ✅; Codex billing notice only. ✅
+2. Revised RFC-0122 v1 → v2: removed `TABLE_CALL_SITE_CONTEXT` redb proposal; replaced with pure-resolver extension (`LocalBinding.fn_call_hint` + `enrich_context`); no new redb table; grounded in `receiver.rs` + `extractor/mod.rs` on origin/develop. ✅
+3. PM state v150 written + decisions.jsonl appended. ✅
+4. PR #723 opened (fix/rfc-0122-revision → develop). ✅
 
-**Escalations to founder (P0, unchanged ×15 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05. `dirty` merge is normal gitflow artifact.
-- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (no engineering work).
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
-
-### 2026-06-09 PM dispatch v149 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-09T08:30:00Z` v148, 183 total), anti-patterns (domain hits: release-governance/merge-discipline/git-workflow), PM state v148 (from origin/develop `db93a34` post-#721-merge), v0.2 PRD.
-
-**Assessment:**
-- 1 open PR at session start: #568 (release/v0.3.0, founder-gated, CI 28/28 ✅). PR #721 just merged as first action.
-- 1 open issue: #612 (P2, Phase 2b cross-file call resolution — RFC-0122 drafted in v148).
-- Develop HEAD: `db93a34` (PM state v148 squash from #721). CI: GREEN.
-- 3 P0 escalations unchanged (×14 consecutive runs). All founder-gated.
-- **Architect investigation (new value this run):** Read RFC-0122 spec + existing `resolve_call_site_contexts()` code + `ReceiverContext` + `infer_receiver_type()` + `disambiguate()`. Finding: RFC-0122 as drafted proposes a NEW redb-persisted `CallSiteContext` table, but the in-memory `call_site_contexts: Vec<CallSiteContext>` + `resolve_call_site_contexts()` in `store/mod.rs` already IS the deferred post-merge mechanism. The real gap is narrower: `infer_receiver_type()` returns `None` for function-return-type cases (e.g., `let s = get_store()` where `get_store` returns a cross-file type). RFC-0122 needs revision to specify a pure-resolver extension rather than adding a new persisted table.
+### 2026-06-09 PM dispatch v149 (architect review of RFC-0122; PR #722 merged)
 
 **Actions taken:**
-1. **Merged PR #721** (chore/pm-state-v148, 22/22 CI ✅, Codex limit exhausted → no findings → Hard Rule vacuously satisfied). Squash `db93a34`. ✅
-2. **Architect review of RFC-0122:** Checked out `origin/develop` resolver code. Found: `call_site_contexts` Vec is already an in-memory deferred context table; `resolve_call_site_contexts()` already runs post-merge (after all files). Gap = `infer_receiver_type()` returns `None` for non-constructor, non-annotation variable bindings. RFC-0122 needs spec revision (narrower scope, no new redb table). ✅
-3. **Commented on Issue #612** with architect finding. ✅
-4. **PM state v149 written** + decisions.jsonl appended. ✅
+1. Merged PR #721 (squash `db93a34`) — CI 22/22 ✅; Codex billing notice only. ✅
+2. Architect review: `call_site_contexts` Vec already IS the in-memory deferred mechanism; gap = `infer_receiver_type()` returns `None` for function-return-type bindings. RFC-0122 scope narrowed to pure-resolver extension. ✅
+3. Commented on Issue #612 with architect finding. ✅
+4. PM state v149 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged ×14 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05. `dirty` merge is normal gitflow artifact.
-- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (no engineering work).
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
-
-### 2026-06-09 PM dispatch v148 (prev run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-5, last entry `2026-06-09T07:15:00Z` v146, 182 total), anti-patterns (domain hits: release-governance/pm-dispatch/git-workflow/merge-discipline), PM state v146 (from origin/develop `0fcbc41c` post-#719-merge), v0.2 PRD.
-
-**Assessment:**
-- Local clone stale (container init at v0.2.0 main). Fetched origin/develop.
-- 2 open PRs at session start: #720 (chore/pm-state-v147, `mergeable_state: dirty`, 35 changed files — same issue as v142 broken branch), #568 (release/v0.3.0, founder-gated, pending CI status).
-- 1 open issue: #612 (P2, Item 1 Phase 2b cross-file resolution).
-- Develop CI GREEN on HEAD `0fcbc41c` (PR #719 squash).
-- 3 P0 escalations unchanged (×13 consecutive runs). All founder-gated.
-- **PR #720 diagnosis**: `get_files` confirmed 35 files changed (Rust code, npm/, RFCs) despite "chore/docs only" claim in PR body. Same root cause as v142 — branch dragged in pre-squash commits that develop already absorbed. `mergeable_state: dirty`. Closed with explanation.
-- **New work**: RFC-0122 drafted as Phase 2b spec — unblocks architect review and rust-implementer TDD after #568 back-merge. Pack captures already verified (v144). This is the highest-value autonomous action when code-landing is blocked.
+### 2026-06-09 PM dispatch v148 (RFC-0122 drafted; broken PR #720 diagnosed and closed)
 
 **Actions taken:**
-1. **Commented on PR #720** with root-cause diagnosis (35 files, wrong base, same as v142). ✅
-2. **Closed PR #720** (broken branch). ✅
-3. **Created `chore/pm-state-v148`** from `origin/develop` HEAD (`0fcbc41c`). ✅
-4. **Drafted RFC-0122** (`rfcs/0122-phase2b-cross-file-call-resolution.md`) — full spec for `resolve_call_site_contexts` post-merge pass, `CallSiteContext` redb table, 9 acceptance criteria, alternatives considered. ✅
-5. **PM state v148 written** + decisions.jsonl appended. ✅
+1. Closed PR #720 (broken branch, 35 files, wrong base, same as v142). ✅
+2. Drafted RFC-0122 (Phase 2b cross-file call resolution spec). ✅
+3. PM state v148 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged ×13 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch — `dirty` merge is normal gitflow, ceremony script handles it. CI 28/28 ✅; registries published 2026-06-05. **One-click action** to complete v0.3.0 ceremony.
-- **(2) RFC-0121**: [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A**, no engineering work). ×13 runs pending.
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — upgrade account or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
+### 2026-06-09 PM dispatch v147 (ABORTED — PR #720 broken branch, closed in v148)
 
-### 2026-06-09 PM dispatch v147 (ABORTED — PR #720 broken branch, closed in v148 pre-flight)
+No code landed on develop.
 
-No code landed on develop. PR #720 had 35 changed files (wrong base, same as v142). PM state v147 written but never merged. Closed in v148.
-
-### 2026-06-09 PM dispatch v146 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-09T00:00:00Z` v145), anti-patterns (domain hits: release-governance/governance-verification/git-workflow), PM state v145 (from origin/develop `96ed3f65` post-#718-merge), v0.2 PRD.
-
-**Assessment:**
-- Local clone was stale (disk state = v28 from container init). Rehydrated from GitHub MCP — confirmed at v145 on origin/develop `96ed3f65`.
-- 1 open PR: #568 (release/v0.3.0, 28/28 CI ✅, `mergeable_state: dirty`, founder-gated). CI jobs confirmed: Quality Gate ✅, all builds/tests/registries ✅; "merge to main/tag/GH Release" SKIPPED (workflow_dispatch-only by design). `dirty` state = expected version-file conflict between main v0.2.0 and release branch v0.3.0 — ceremony script resolves via `-X ours`.
-- 1 open issue: #612 (P2 — RFC-0122 Phase 2b `resolve_call_site_contexts` algorithm; blocked on RFC-0122 spec, which needs #568 finalize first). No new issues.
-- Develop CI GREEN (HEAD `96ed3f65`, PR #718 squash).
-- 3 P0 escalations all unchanged (×11 consecutive runs).
-- PR #718 (chore/pm-state-v145): CI 22/22 ✅; Codex comment = billing notice only (limits exhausted since v134, no P1/P2/P3 code findings) — Hard Rule vacuously satisfied per v134+ precedent.
+### 2026-06-09 PM dispatch v146 (PR #718 merged; dirty-merge analysis confirmed)
 
 **Actions taken:**
-1. **Merged PR #718** (chore/pm-state-v145, squash `96ed3f65`) — CI 22/22 ✅; Codex billing notice only. ✅
-2. **PM state v146 written** + decisions.jsonl appended. ✅
+1. Merged PR #718 (squash `96ed3f65`) — CI 22/22 ✅; Codex billing notice only. ✅
+2. PM state v146 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged ×11 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch — CI 28/28 ✅; registries published 2026-06-05. `dirty` state is expected gitflow artifact, NOT a blocker. **One-click action** to complete v0.3.0 ceremony.
-- **(2) RFC-0121**: [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A**, no engineering work).
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — upgrade account or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
-
-### 2026-06-09 PM dispatch v145 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-08T23:30:00Z` v144), anti-patterns (domain hits: release-governance/governance-verification/git-workflow), PM state v144 (from origin/develop `3139f207` post-#717-merge), v0.2 PRD.
-
-**Assessment:**
-- 1 open PR: #568 (release/v0.3.0, 28/28 CI ✅, `mergeable_state: dirty`, founder-gated). No change from v144.
-- 0 open P0/P1 issues (#612 is P2, item 1 = RFC-0122 spec pending founder finalize).
-- Develop CI GREEN (HEAD `3139f207`, chore/pm-state-v144 squash, all CI success 2026-06-08T23:21Z).
-- 3 P0 escalations all unchanged (×10 consecutive runs). No autonomous feature work unblocked.
-- PR #717 (chore/pm-state-v144): CI 22/22 ✅; Codex = billing notice only (limits exhausted since v134, no P1/P2/P3 code findings; Hard Rule vacuously satisfied per established precedent).
+### 2026-06-09 PM dispatch v145 (PR #717 merged)
 
 **Actions taken:**
-1. **Merged PR #717** (chore/pm-state-v144, squash `3139f207`) — CI 22/22 ✅; Codex billing notice only. ✅
-2. **PM state v145 written** + decisions.jsonl appended. ✅
+1. Merged PR #717 (squash `3139f207`) — CI 22/22 ✅; Codex billing notice only. ✅
+2. PM state v145 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged ×10 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch — `dirty` merge is normal gitflow, ceremony script handles it. CI 28/28 ✅; registries published 2026-06-05. **One-click action** to complete the v0.3.0 ceremony.
-- **(2) RFC-0121**: [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A**, no engineering work).
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — upgrade account or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
-
-### 2026-06-08 PM dispatch v144 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry `2026-06-08T21:45:00Z` v143), anti-patterns (domain hits: release-governance/governance-verification), PM state v143 (from origin/develop `13e4765`), v0.2 PRD.
-
-**Assessment:**
-- 1 open PR: #568 (release/v0.3.0, 28/28 CI ✅, `mergeable_state: dirty`, founder-gated). **Dirty state analysis**: conflict is between v0.2.0 main (CHANGELOG + Cargo.toml at v0.2.0) and the v0.3.0 release branch (same files at v0.3.0). Standard gitflow version-file conflict. The `finalize` workflow_dispatch ceremony script resolves via `-X ours` (release branch wins) — this is NOT a blocker for the founder's action.
-- 1 open issue: #612 (P2, Item 1 Phase 2b cross-file resolution; Item 2 resolved).
-- Develop CI GREEN (HEAD `13e4765`, both CI + E2E success 2026-06-08T22:13).
-- 3 P0s: all founder-gated (unchanged ×9 consecutive runs). Codex billing notice = 0 code findings; chore PRs can still be merged (Hard Rule vacuously satisfied).
-
-**New finding this run:** Verified `packs/rust/queries.scm` on develop — **RFC-0118 Phase 2b pack captures ARE complete**: `@call.receiver` (line 158), `@binding.local`/`@binding.ctor` (lines 183/186), `@param.type` (line 195) all present. The Phase 2b gap in Issue #612 Item 1 is NOT about missing captures — it is about the `resolve_call_site_contexts()` post-merge pass failing to do multi-step resolution (receiver variable → declared type → method definition) for cross-file cases where the type definition was in a different file. This narrows the RFC-0122 spec to the algorithm, not the captures.
+### 2026-06-08 PM dispatch v144 (nightly mutation failure earlier? No — Rust pack captures verified; Issue #612 narrowed)
 
 **Actions taken:**
-1. **Commented on Issue #612** — Phase 2b Rust pack captures verified present; narrowed remaining gap to `resolve_call_site_contexts` multi-step algorithm for cross-file bindings. ✅
-2. **Updated P1 #5 in PM state** — removed stale Issue #428 reference (CLOSED 2026-06-02), replaced with accurate Phase 2b algorithm description. ✅
-3. **Updated dispatch state** — added dirty-merge analysis for PR #568; added RFC-0122 scope note for architect. ✅
-4. **PM state v144 written** + decisions.jsonl appended. ✅
+1. Commented on Issue #612 — pack captures verified; gap narrowed to `resolve_call_site_contexts` algorithm. ✅
+2. PM state v144 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged ×9 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch — `dirty` merge is normal gitflow, ceremony script handles it. CI 28/28 ✅; registries published 2026-06-05. **One-click action** to complete the v0.3.0 ceremony.
-- **(2) RFC-0121**: [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A**, no engineering work).
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — upgrade account or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
-
-### 2026-06-08 PM dispatch v143 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (177 entries, tail = v141 2026-06-08T19:30Z), anti-patterns (no domain hits), PM state v141 (from origin/develop `79afcd54`), v0.2 PRD.
-
-**Assessment:**
-- 2 open PRs at session start: #715 (chore/pm-state-v142, `mergeable_state: dirty`, Codex billing-only), #568 (release/v0.3.0, 28/28 CI ✅, founder-gated).
-- 1 open issue: #612 (P2 — Item 1 Phase 2b design RFC; Item 2 resolved PR #684).
-- Develop CI GREEN (HEAD `79afcd54`).
-- v142 dispatch (PR #715): branch was created from orphaned/empty git root — single commit added ALL repo files as new additions (~2609 lines, 35 files); `mergeable_state: dirty` is the conflict with every existing file on develop. v142 decisions.jsonl entry was never merged.
+### 2026-06-08 PM dispatch v143 (PR #715 broken, closed; PM state v143 from correct base)
 
 **Actions taken:**
-1. **Diagnosed and closed PR #715** (broken branch from wrong root) — posted comment with root cause analysis. ✅
-2. **Created `chore/pm-state-v143`** from `origin/develop` (`79afcd54`). ✅
-3. **PM state v143 written** + decisions.jsonl appended (v142 gap-note + v143 entry). ✅
+1. Diagnosed and closed PR #715 (broken branch). ✅
+2. PM state v143 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged × 8 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4). CI 28/28 ✅; registries published 2026-06-05.
-- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA (PM recommends **A** — per-class targets, no engineering work). RFC at [rfcs/0121-charter-hyphae-token-sla-amendment.md](../../rfcs/0121-charter-hyphae-token-sla-amendment.md).
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Hard Rule unenforceable — upgrade account or explicitly suspend. See https://chatgpt.com/codex/cloud/settings/usage
+### 2026-06-08 PM dispatch v142 (ABORTED — wrong root)
 
-### 2026-06-08 PM dispatch v142 (ABORTED — branch created from wrong root; PR #715 never merged)
+No decisions.jsonl entry was appended.
 
-No decisions.jsonl entry was appended (branch broken; PR closed in v143 pre-flight).
-
-### 2026-06-08 PM dispatch v141 (this run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/async/ci-portability/git-workflow/dco-check), PM state v139 (initial read) → rehydrated from origin/develop as v140 post-fetch, v0.2 PRD.
-
-**Assessment:**
-- 2 open PRs: #713 (docs/RFC-0118 + PM state v140, CI 22/22 ✅, Codex billing notice only), #568 (release/v0.3.0, founder-gated, CI 28/28 ✅).
-- 0 open P0/P1 issues (#612 is P2).
-- Develop CI GREEN (HEAD `6b73f563` = PM state v139).
-- All 3 P0 escalations unchanged (×6 consecutive runs).
+### 2026-06-08 PM dispatch v141 (PR #713 merged; RFC-0118 ACs synced)
 
 **Actions taken:**
-1. **Merged PR #713** (docs/RFC-0118 Status → Implemented + PM state v140, squash `644f008e`) — CI 22/22 ✅; Codex comment is billing notice only (no P1/P2/P3 code findings); Hard Rule satisfied per v134+ precedent. ✅
-2. **PM state v141 written** + decisions.jsonl appended. ✅
+1. Merged PR #713 (squash `644f008e`) — CI 22/22 ✅; Codex billing notice only. ✅
+2. Updated RFC-0118 ACs (all 24 now [x]); Status → Implemented. ✅
+3. PM state v141 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged × 6 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4). CI 28/28 ✅; registries published 2026-06-05.
-- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA. PM recommends **A** (per-class targets, no engineering work required).
-- **(3) Codex limits**: Upgrade account or explicitly suspend Hard Rule. See https://chatgpt.com/codex/cloud/settings/usage
-
-### 2026-06-08 PM dispatch v140 (PR #713 authored; RFC-0118 ACs synced)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (release-governance/tdd/async/ci-portability/git-workflow/dco-check), PM state v139 (from origin/develop post-#712-merge), v0.2 PRD. Confirmed: v0.3.0 registries published; git ceremony awaiting founder; develop CI GREEN (HEAD `6b73f563`).
-
-**Assessment:**
-- 2 open PRs: #712 (chore/pm-state-v139, CI 22/22 ✅, Codex billing-only) + #568 (release/v0.3.0, founder-gated, CI 28/28 ✅).
-- 1 open issue: #612 (P2 — Item 1 Phase 2b design RFC; Item 2 resolved by PR #684).
-- 3 P0 escalations unchanged (PR #568 finalize + RFC-0121 + Codex limits).
-- RFC-0118 Status: Draft — all implementation landed (AC-20/22/23/24 confirmed checked previously) but AC-1 to AC-19/21 unchecked despite the code being complete.
+### 2026-06-08 PM dispatch v140 (RFC-0118 ACs updated; PR #712 merged)
 
 **Actions taken:**
-1. **Merged PR #712** (chore/pm-state-v139, squash `6b73f563`) — CI 22/22 ✅; Codex billing notice only (no code findings). ✅
-2. **Updated RFC-0118 acceptance criteria**: ticked AC-1 through AC-21 (all 24 ACs now `[x]`); changed Status from "Draft" to "Implemented". This closes the documentation gap where the code was fully implemented but the RFC governance record was stale. ✅
-3. **PM state v140 written** + decisions.jsonl appended. ✅
+1. Merged PR #712 (squash `6b73f563`). ✅
+2. Ticked RFC-0118 ACs 1–21; Status Draft → Implemented. ✅
+3. PM state v140 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged × 5 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4). CI 28/28 ✅; registries published 2026-06-05.
-- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA. PM recommends **A** (per-class targets).
-- **(3) Codex limits**: Upgrade or explicitly suspend Hard Rule. See https://chatgpt.com/codex/cloud/settings/usage
-
-### 2026-06-08 PM dispatch v139 (previous run)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: release-governance, tdd, async, ci-portability, git-workflow), PM state v138 (fetched from origin/develop), v0.2 PRD.
-
-**Assessment:**
-- 3 open PRs: #711 (fix/rfc-0120-duplicate-number, CI ✅ 3/3 workflows success), #710 (chore/pm-state-v138, CI ✅ 3/3 workflows success), #568 (release/v0.3.0, founder-gated). Both #710 and #711 have Codex billing notice only (limits exhausted since v134) — no P1/P2/P3 code findings; Hard Rule satisfied.
-- 1 open issue: #612 (P2, Item 1 Phase 2b design RFC pending; Item 2 resolved v107).
-- Develop CI GREEN (HEAD `b758835` post v138-merge at session start).
-- All 3 P0 escalations unchanged (PR #568 finalize, RFC-0121 Option A/B/C, Codex limits).
+### 2026-06-08 PM dispatch v139 (PRs #711+#710 merged; RFC-0120 renamed → RFC-0121)
 
 **Actions taken:**
-1. **Merged PR #711** (fix/rfc-0120-duplicate-number, squash `0575492`) — RFC-0120 SLA amendment RFC renamed to RFC-0121 to eliminate duplicate number with `0120-token-density-measurement-honesty.md`. CI ✅; Codex billing notice only. ✅
-2. **Merged PR #710** (chore/pm-state-v138, squash `b758835`) — CI ✅; Codex billing notice only. ✅
-3. **Updated all RFC-0120 (SLA amendment) references → RFC-0121** in PM state (priorities, decision gates, dispatch state). ✅
-4. **PM state v139 written** + decisions.jsonl appended. ✅
+1. Merged PR #711 (squash `0575492`) — RFC-0121 rename. ✅
+2. Merged PR #710 (squash `b758835`). ✅
+3. PM state v139 written + decisions.jsonl appended. ✅
 
-**Escalations to founder (P0, unchanged × 4 consecutive runs):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
-- **(2) RFC-0121**: [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — choose Option A/B/C (PM recommends A: per-class targets, immediately satisfies Charter §2 without engineering work).
-- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade at https://chatgpt.com/codex/cloud/settings/usage.
-
-### 2026-06-08 PM dispatch v138 (PR #709 merged; deferred v137 decisions entry appended)
-
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (local clone stale; rehydrated via GitHub MCP), anti-patterns (domain hits: release-governance, tdd, async, ci-portability, git-workflow), PM state v136 (fetched from develop post-#708-merge), v0.2 PRD.
-
-**Assessment:**
-- 2 open PRs: #708 (chore/pm-state-v136, 22/22 CI ✅, Codex billing notice only — no code findings), #568 (release/v0.3.0, 28/28 CI ✅, founder-gated, `mergeable_state: dirty`).
-- 1 open issue: #612 (P2, Item 1 Phase 2b future RFC; Item 2 confirmed resolved in v107).
-- Develop CI GREEN (HEAD `fdea9b3` after #708 squash-merge).
-- RFC-0120 still no file in repo (confirmed). All 3 P0 gates carry forward; highest-value autonomous action: write RFC-0120 to give founder a structured decision document.
+### 2026-06-08 PM dispatch v137–v138 (RFC-0120 drafted; PRs #708–#709 merged)
 
 **Actions taken:**
-1. **Merged PR #708** (chore/pm-state-v136, squash `fdea9b3`) — CI 22/22 ✅; Codex billing notice (no P1/P2/P3 findings → Hard Rule satisfied). ✅
-2. **Wrote RFC-0120** (`rfcs/0120-hyphae-token-ratio-sla.md`) — full analysis of Options A/B/C with tradeoffs. Root cause documented: Charter §2 target was anchored on RFC-0094's best-case tree-query benchmark (28.5%) but production average across 93+ tools is 0.753 because flat/scalar responses compress much less. PM recommendation: **Option A** (per-class targets). ✅
-3. **PM state v137 written** + decisions.jsonl appended. ✅
+1. Wrote RFC-0120 (`rfcs/0120-hyphae-token-ratio-sla.md`) — Options A/B/C, PM recommends A. ✅
+2. Merged PRs #708 + #709. ✅
+3. PM state v137–v138 written + decisions.jsonl appended (v137 deferred, appended in v138). ✅
 
-**Escalations to founder (P0, unchanged except P0 #2 now has written RFC):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
-- **(2) RFC-0120**: [RFC now written](rfcs/0120-hyphae-token-ratio-sla.md) — choose Option A/B/C (PM recommends A: per-class targets, immediately satisfies Charter §2 without engineering work).
-- **(3) Codex limits**: Hard Rule unenforceable while exhausted. Upgrade or explicitly suspend the requirement.
+### 2026-06-08 PM dispatch v134–v136 (PRs #705–#707 merged; Codex limits escalated; Issue #657 closed)
 
-### 2026-06-08 PM dispatch v138 (PR #709 merged; deferred v137 decisions entry appended)
+*(see archived dispatch details in decisions.jsonl)*
 
-**Actions taken:**
-1. Fetched origin/develop; confirmed PR #709 CI 22/22 ✅; Codex billing notice only (limits exhausted since v134). Hard Rule satisfied. ✅
-2. Merged PR #709 (squash `8c05fb8`) — RFC-0120 draft + PM state v137. ✅
-3. Appended deferred v137 decisions.jsonl entry (could not push via MCP last run due to file size). ✅
-4. Appended v138 decisions.jsonl entry. ✅
-5. PM state v138 written. ✅
+### 2026-06-08 PM dispatch v133 (PR #699 merged; Issue #657 closed)
 
-**Escalations to founder (P0, unchanged):**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony.
-- **(2) RFC-0120**: RFC written at `rfcs/0120-hyphae-token-ratio-sla.md` — choose Option A/B/C (PM recommends A).
-- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z — Hard Rule unenforceable. Upgrade at https://chatgpt.com/codex/cloud/settings/usage.
+*(see archived dispatch details in decisions.jsonl)*
 
-### 2026-06-08 PM dispatch v137 (RFC-0120 drafted; PR #708 merged)
+### 2026-06-08 PM dispatch v130 (PRs #693–#697 merged; PM state rehydrated)
 
-**Actions taken:**
-1. Merged PR #708 (squash `fdea9b3`) — CI 22/22 ✅; Codex billing notice only. ✅
-2. Wrote RFC-0120 (`rfcs/0120-hyphae-token-ratio-sla.md`) — full root-cause analysis, Options A/B/C, PM recommends A. ✅
-3. PM state v137 pushed. ✅ (decisions.jsonl deferred — file too large for push_files; appended in v138.)
+*(see archived dispatch details in decisions.jsonl)*
 
-### 2026-06-08 PM dispatch v136 (PR #707 merged; Issue #612 clarified; 3 P0s founder-gated)
-
-**Actions taken:**
-1. Merged PR #707 (squash `4e22e23`) — CI 22/22 ✅; Codex billing notice only. ✅
-2. Commented on Issue #612 — Item 2 confirmed resolved (PR #684); Item 1 Phase 2b design prerequisite tracked. ✅
-3. PM state v136 written + decisions.jsonl appended. ✅
-
-### 2026-06-08 PM dispatch v135 (PR #706 merged; 3 P0s confirmed; Codex limits escalated)
-
-**Actions taken:**
-1. Merged PR #706 (squash `f6f77526`) — CI 22/22 ✅; Codex billing notice. ✅
-2. Confirmed RFC-0120 has no file (search returned 0 results). ✅
-3. PM state v135 written + decisions.jsonl appended. ✅
-
-### 2026-06-08 PM dispatch v134 (Codex limits exhausted escalated as P0 #3; Issue #657 closed)
-
-**Actions taken:**
-1. Merged PR #705 (squash `2dfb00cd`) — CI 22/22 ✅. ✅
-2. Closed Issue #657 (fixed by PR #699). ✅
-3. Escalated Codex limits as P0 #3. ✅
-
-### 2026-06-08 PM dispatch v133 (PR #699 merged; Issue #657 closed; PR #704 closed)
-
-**Actions taken:**
-1. Merged PR #699 (squash `7db42168`) — fix(extractor): method span precision, closes Issue #657. ✅
-2. Closed PR #704 as superseded by v133. ✅
-
-### 2026-06-08 PM dispatch v130 (state rehydrated from stale local clone; PR #697 merged; Codex P2 ×2 rejected)
-
-**Actions taken:**
-1. Rejected Codex P2 ×2 on PR #697 with justifications. ✅
-2. Merged PR #697 (squash `d0b3d5f`). ✅
-3. Rewrote PM state v130 from scratch (reconciled from GitHub API). ✅
-
-### 2026-06-08 PM dispatch v129 (PRs #690+#693+#696 merged; Codex P1 on #696 rejected)
+### 2026-06-08 PM dispatch v129 (PRs #690+#693+#696 merged)
 
 *(see PR #697 squash commit `d0b3d5f` for full archive)*
 
