@@ -13,26 +13,35 @@
 (module) @definition.module
 
 ; ── Top-level function definitions ──────────────────────────────────
+;
+; NOTE on @definition.* anchoring (PR #750 follow-up, 2026-06-11): the
+; @definition capture sits on the ITEM node, NOT on the file-root `module`
+; — the extractor takes the SPAN from the @definition anchor, so anchoring
+; on the root made every top-level symbol's span cover the whole file.
+; Paths derive from @name text only, so re-anchoring changes spans only.
+; @definition.method captures stay anchored on the class container (the
+; extractor builds the `Class>method` path from that anchor and recovers
+; the precise span via the issue-#657 METHOD_DECL_KINDS walk-up).
 
 (module
   (function_definition
-    name: (identifier) @name)) @definition.function
+    name: (identifier) @name) @definition.function)
 
 (module
   (decorated_definition
     definition: (function_definition
-      name: (identifier) @name))) @definition.function
+      name: (identifier) @name)) @definition.function)
 
 ; ── Class definitions ────────────────────────────────────────────────
 
 (module
   (class_definition
-    name: (identifier) @name)) @definition.class
+    name: (identifier) @name) @definition.class)
 
 (module
   (decorated_definition
     definition: (class_definition
-      name: (identifier) @name))) @definition.class
+      name: (identifier) @name)) @definition.class)
 
 ; ── Methods (functions inside a class body) ─────────────────────────
 

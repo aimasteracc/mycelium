@@ -3518,6 +3518,292 @@ fn function_span_is_item_not_file_ruby() {
     );
 }
 
+// ── Multi-language symbol span precision (completes PR #750's audit) ─────────
+//
+// PR #750's audit found the same file-root anchoring bug in five more packs:
+// `@definition.*` captures anchored on the file-root node (python `module`,
+// ts/js `program`, go `source_file`, cpp `translation_unit`) made every
+// top-level symbol's span cover the WHOLE FILE. Paths derive from `@name`
+// text only, so re-anchoring on the item node changes spans only.
+//
+// RED before fix: the SECOND top-level symbol's span is 1..EOF.
+// GREEN after fix: each span covers exactly the declared item's lines.
+
+#[test]
+fn function_span_is_item_not_file_python() {
+    // Line 1: `def first():`
+    // Line 2: `    pass`
+    // Line 3: ``
+    // Line 4: `@deco`              — decorated_definition span starts here
+    // Line 5: `def second():`
+    // Line 6: `    return 1`
+    // Line 7: ``
+    // Line 8: `class K:`
+    // Line 9: `    pass`
+    let source =
+        "def first():\n    pass\n\n@deco\ndef second():\n    return 1\n\nclass K:\n    pass\n";
+    let store = extract(source);
+
+    let first_id = store
+        .lookup("test.py>first")
+        .expect("first fn node must exist (path must be unchanged)");
+    let span = store
+        .span_of(first_id)
+        .expect("first must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (1, 2),
+        "first span must cover the def, not the whole module"
+    );
+
+    let second_id = store
+        .lookup("test.py>second")
+        .expect("second fn node must exist (path must be unchanged)");
+    let span = store
+        .span_of(second_id)
+        .expect("second must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (4, 6),
+        "decorated second span must cover decorator+def, not the whole module"
+    );
+
+    let k_id = store
+        .lookup("test.py>K")
+        .expect("class K node must exist (path must be unchanged)");
+    let span = store.span_of(k_id).expect("K must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (8, 9),
+        "class K span must cover the class, not the whole module"
+    );
+}
+
+#[test]
+fn function_span_is_item_not_file_typescript() {
+    // Line 1:  `export function first(): number {`
+    // Line 2:  `  return 1;`
+    // Line 3:  `}`
+    // Line 4:  `const second = () => 2;`
+    // Line 5:  `export class K {`
+    // Line 6:  `  m() {}`
+    // Line 7:  `}`
+    // Line 8:  `type T = number;`
+    // Line 9:  `interface I {`
+    // Line 10: `  x: number;`
+    // Line 11: `}`
+    let source = "export function first(): number {\n  return 1;\n}\nconst second = () => 2;\nexport class K {\n  m() {}\n}\ntype T = number;\ninterface I {\n  x: number;\n}\n";
+    let store = extract_ts(source);
+
+    for (path, expected, what) in [
+        ("test.ts>first", (1, 3), "exported fn"),
+        ("test.ts>second", (4, 4), "arrow-fn const"),
+        ("test.ts>K", (5, 7), "exported class"),
+        ("test.ts>T", (8, 8), "type alias"),
+        ("test.ts>I", (9, 11), "interface"),
+    ] {
+        let id = store
+            .lookup(path)
+            .unwrap_or_else(|| panic!("{path} must exist (path must be unchanged)"));
+        let span = store
+            .span_of(id)
+            .unwrap_or_else(|| panic!("{path} must have a source span"));
+        assert_eq!(
+            (span.start_line, span.end_line),
+            expected,
+            "{what} {path} span must cover the item, not the whole program"
+        );
+    }
+}
+
+#[test]
+fn function_span_is_item_not_file_javascript() {
+    // Line 1:  `export function first() {`
+    // Line 2:  `  return 1;`
+    // Line 3:  `}`
+    // Line 4:  `const second = () => 2;`
+    // Line 5:  `const third = function () {`
+    // Line 6:  `  return 3;`
+    // Line 7:  `};`
+    // Line 8:  `export class K {`
+    // Line 9:  `  m() {}`
+    // Line 10: `}`
+    let source = "export function first() {\n  return 1;\n}\nconst second = () => 2;\nconst third = function () {\n  return 3;\n};\nexport class K {\n  m() {}\n}\n";
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract("test.js", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+
+    for (path, expected, what) in [
+        ("test.js>first", (1, 3), "exported fn"),
+        ("test.js>second", (4, 4), "arrow-fn const"),
+        ("test.js>third", (5, 7), "function-expression const"),
+        ("test.js>K", (8, 10), "exported class"),
+    ] {
+        let id = store
+            .lookup(path)
+            .unwrap_or_else(|| panic!("{path} must exist (path must be unchanged)"));
+        let span = store
+            .span_of(id)
+            .unwrap_or_else(|| panic!("{path} must have a source span"));
+        assert_eq!(
+            (span.start_line, span.end_line),
+            expected,
+            "{what} {path} span must cover the item, not the whole program"
+        );
+    }
+}
+
+#[test]
+fn function_span_is_item_not_file_go() {
+    // Line 1:  `package main`
+    // Line 2:  ``
+    // Line 3:  `type Server struct {` — type_spec span (correct)
+    // Line 4:  `	name string`
+    // Line 5:  `}`
+    // Line 6:  ``
+    // Line 7:  `const X = 1`          — const_spec span (correct)
+    // Line 8:  ``
+    // Line 9:  `var V = 2`            — var_spec span (correct)
+    // Line 10: ``
+    // Line 11: `func First() {`
+    // Line 12: `}`
+    // Line 13: ``
+    // Line 14: `func Second() int {`
+    // Line 15: `	return 1`
+    // Line 16: `}`
+    let source = "package main\n\ntype Server struct {\n\tname string\n}\n\nconst X = 1\n\nvar V = 2\n\nfunc First() {\n}\n\nfunc Second() int {\n\treturn 1\n}\n";
+    let ext = go_extractor();
+    let mut store = Store::new();
+    ext.extract("test.go", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+
+    for (path, expected, what) in [
+        ("test.go>Server", (3, 5), "type declaration"),
+        ("test.go>X", (7, 7), "const"),
+        ("test.go>V", (9, 9), "package-level var"),
+        ("test.go>First", (11, 12), "first fn"),
+        ("test.go>Second", (14, 16), "second fn"),
+    ] {
+        let id = store
+            .lookup(path)
+            .unwrap_or_else(|| panic!("{path} must exist (path must be unchanged)"));
+        let span = store
+            .span_of(id)
+            .unwrap_or_else(|| panic!("{path} must have a source span"));
+        assert_eq!(
+            (span.start_line, span.end_line),
+            expected,
+            "{what} {path} span must cover the item, not the whole source_file"
+        );
+    }
+}
+
+#[test]
+fn function_span_is_item_not_file_cpp() {
+    // Line 1: `int first() {`
+    // Line 2: `  return 1;`
+    // Line 3: `}`
+    // Line 4: `int *second() {`  — pointer-returning free fn
+    // Line 5: `  return nullptr;`
+    // Line 6: `}`
+    // Line 7: `class K {`
+    // Line 8: `  void m() {}`
+    // Line 9: `};`
+    let source = "int first() {\n  return 1;\n}\nint *second() {\n  return nullptr;\n}\nclass K {\n  void m() {}\n};\n";
+    let ext = cpp_extractor();
+    let mut store = Store::new();
+    ext.extract("test.cpp", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+
+    for (path, expected, what) in [
+        ("test.cpp>first", (1, 3), "free fn"),
+        ("test.cpp>second", (4, 6), "pointer-returning free fn"),
+        ("test.cpp>K", (7, 9), "class"),
+    ] {
+        let id = store
+            .lookup(path)
+            .unwrap_or_else(|| panic!("{path} must exist (path must be unchanged)"));
+        let span = store
+            .span_of(id)
+            .unwrap_or_else(|| panic!("{path} must have a source span"));
+        assert_eq!(
+            (span.start_line, span.end_line),
+            expected,
+            "{what} {path} span must cover the item, not the whole translation_unit"
+        );
+    }
+}
+
+// Method spans for the five audited languages already resolve via the
+// issue-#657 walk-up (their decl kinds were in METHOD_DECL_KINDS before this
+// fix); these assertions pin that behaviour so a pack edit can't regress it.
+#[test]
+fn method_span_is_method_not_class_multilang() {
+    // Python: class with two methods — second method span only its lines.
+    let store =
+        extract("class C:\n    def a(self):\n        pass\n    def b(self):\n        return 1\n");
+    let b_id = store
+        .lookup("test.py>C>b")
+        .expect("C>b method node must exist");
+    let span = store.span_of(b_id).expect("C>b must have a span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (4, 5),
+        "python method span must cover only the def, not the class"
+    );
+
+    // TypeScript: second method span only its lines.
+    let store = extract_ts("class C {\n  a() {}\n  b() {\n    return 1;\n  }\n}\n");
+    let b_id = store
+        .lookup("test.ts>C>b")
+        .expect("C>b method node must exist");
+    let span = store.span_of(b_id).expect("C>b must have a span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (3, 5),
+        "typescript method span must cover only the method, not the class"
+    );
+
+    // Go: method anchors on method_declaration itself — span is the method.
+    let ext = go_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.go",
+        b"package main\ntype S struct{}\nfunc (s S) A() {}\nfunc (s S) B() int {\n\treturn 1\n}\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    let b_id = store
+        .lookup("test.go>S>B")
+        .expect("S>B method node must exist");
+    let span = store.span_of(b_id).expect("S>B must have a span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (4, 6),
+        "go method span must cover only the method, not the file"
+    );
+
+    // C++: second in-class method span only its line.
+    let ext = cpp_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "test.cpp",
+        b"class K {\n  void a() {}\n  int b() {\n    return 1;\n  }\n};\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+    let b_id = store
+        .lookup("test.cpp>K>b")
+        .expect("K>b method node must exist");
+    let span = store.span_of(b_id).expect("K>b must have a span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (3, 5),
+        "c++ method span must cover only the method, not the class"
+    );
+}
+
 // RFC-0122 AC-2/3/4/5: rule f — resolve `let s = get_store(); s.upsert_node()` via
 // fn_call_hint → return_type_of → enrich_context → infer_receiver_type rule c.
 #[test]

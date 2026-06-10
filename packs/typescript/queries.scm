@@ -13,15 +13,26 @@
 (program) @definition.module
 
 ; ── Top-level function declarations ─────────────────────────────────
+;
+; NOTE on @definition.* anchoring (PR #750 follow-up, 2026-06-11): the
+; @definition capture sits on the ITEM node (the export_statement for
+; exported items, so the span keeps the `export` keyword), NOT on the
+; file-root `program` — the extractor takes the SPAN from the @definition
+; anchor, so anchoring on the root made every top-level symbol's span
+; cover the whole file. Paths derive from @name text only, so re-anchoring
+; changes spans only. @definition.method captures stay anchored on the
+; class container (the extractor builds the `Class>method` path from that
+; anchor and recovers the precise span via the issue-#657
+; METHOD_DECL_KINDS walk-up).
 
 (program
   (function_declaration
-    name: (identifier) @name)) @definition.function
+    name: (identifier) @name) @definition.function)
 
 (program
   (export_statement
     declaration: (function_declaration
-      name: (identifier) @name))) @definition.function
+      name: (identifier) @name)) @definition.function)
 
 ; ── Top-level arrow functions / const fn assignments ────────────────
 
@@ -29,25 +40,25 @@
   (lexical_declaration
     (variable_declarator
       name: (identifier) @name
-      value: (arrow_function)))) @definition.function
+      value: (arrow_function))) @definition.function)
 
 (program
   (export_statement
     declaration: (lexical_declaration
       (variable_declarator
         name: (identifier) @name
-        value: (arrow_function))))) @definition.function
+        value: (arrow_function)))) @definition.function)
 
 ; ── Class declarations ───────────────────────────────────────────────
 
 (program
   (class_declaration
-    name: (type_identifier) @name)) @definition.class
+    name: (type_identifier) @name) @definition.class)
 
 (program
   (export_statement
     declaration: (class_declaration
-      name: (type_identifier) @name))) @definition.class
+      name: (type_identifier) @name)) @definition.class)
 
 ; ── Methods (inside class body) ─────────────────────────────────────
 
@@ -60,23 +71,23 @@
 
 (program
   (interface_declaration
-    name: (type_identifier) @name)) @definition.interface
+    name: (type_identifier) @name) @definition.interface)
 
 (program
   (export_statement
     declaration: (interface_declaration
-      name: (type_identifier) @name))) @definition.interface
+      name: (type_identifier) @name)) @definition.interface)
 
 ; ── Type alias declarations ──────────────────────────────────────────
 
 (program
   (type_alias_declaration
-    name: (type_identifier) @name)) @definition.type_alias
+    name: (type_identifier) @name) @definition.type_alias)
 
 (program
   (export_statement
     declaration: (type_alias_declaration
-      name: (type_identifier) @name))) @definition.type_alias
+      name: (type_identifier) @name)) @definition.type_alias)
 
 ; ── Import statements (Synapse Imports edges) ───────────────────────
 

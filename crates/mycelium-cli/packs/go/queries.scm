@@ -12,10 +12,20 @@
 (source_file) @definition.module
 
 ; ── Top-level functions ───────────────────────────────────────────────
+;
+; NOTE on @definition.* anchoring (PR #750 follow-up, 2026-06-11): the
+; @definition capture sits on the ITEM node (the function_declaration, or
+; the per-name type_spec/const_spec/var_spec inside grouped declarations),
+; NOT on the file-root `source_file` — the extractor takes the SPAN from
+; the @definition anchor, so anchoring on the root made every top-level
+; symbol's span cover the whole file. Anchoring on the *_spec (not the
+; *_declaration) gives each name in a grouped `type (…)` / `const (…)` /
+; `var (…)` block its own span. Paths derive from @name text only, so
+; re-anchoring changes spans only.
 
 (source_file
   (function_declaration
-    name: (identifier) @name)) @definition.function
+    name: (identifier) @name) @definition.function)
 
 ; ── Methods (receiver functions) ─────────────────────────────────────
 ; A Go method's receiver type is its container: `func (s *Server) Run()` →
@@ -31,21 +41,21 @@
 (source_file
   (type_declaration
     (type_spec
-      name: (type_identifier) @name))) @definition.type
+      name: (type_identifier) @name) @definition.type))
 
 ; ── Constants ────────────────────────────────────────────────────────
 
 (source_file
   (const_declaration
     (const_spec
-      name: (identifier) @name))) @definition.const
+      name: (identifier) @name) @definition.const))
 
 ; ── Variables (package-level) ────────────────────────────────────────
 
 (source_file
   (var_declaration
     (var_spec
-      name: (identifier) @name))) @definition.variable
+      name: (identifier) @name) @definition.variable))
 
 ; ── Import references ─────────────────────────────────────────────────
 ; Go: import "path/to/pkg" or import alias "path/to/pkg"
