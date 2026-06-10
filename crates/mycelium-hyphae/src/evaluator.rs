@@ -120,8 +120,8 @@ impl EvalError {
     /// Build an [`EvalError::UnsupportedKind`] for `name`, attaching a
     /// did-you-mean hint when a supported kind is a near-miss.
     fn unsupported_kind(name: &str) -> Self {
-        let hint =
-            suggest_kind(name).map_or_else(String::new, |s| format!("\n  (Did you mean `.{s}`?)"));
+        let hint = suggest_kind(name)
+            .map_or_else(String::new, |s| format!("\n\n  (Did you mean `.{s}`?)"));
         Self::UnsupportedKind {
             name: name.to_owned(),
             hint,
@@ -134,11 +134,22 @@ impl EvalError {
 /// Suggests a supported kind that the input abbreviates (`fn` → `function`:
 /// the input is a subsequence) or nearly spells (`clazz` → `class`:
 /// Levenshtein distance ≤ 2). Ties resolve to the smallest edit distance.
+///
+/// The abbreviation branch additionally anchors on the FIRST character
+/// (review finding on PR #749): without the anchor, a short input like `st`
+/// subsequence-matches `const` out of the middle (c-o-n-**s**-**t**) and the
+/// edit-distance tie-break would suggest `.const` where the user almost
+/// certainly meant `.struct`. Anchoring keeps the advertised abbreviations
+/// (`fn` → `function`, `st` → `struct`) and rejects mid-word accidents.
 fn suggest_kind(input: &str) -> Option<&'static str> {
+    let first = input.chars().next();
     SUPPORTED_KINDS
         .iter()
         .copied()
-        .filter(|k| (input.len() >= 2 && is_subsequence(input, k)) || levenshtein(input, k) <= 2)
+        .filter(|k| {
+            (input.len() >= 2 && first == k.chars().next() && is_subsequence(input, k))
+                || levenshtein(input, k) <= 2
+        })
         .min_by_key(|k| levenshtein(input, k))
 }
 
@@ -787,6 +798,25 @@ mod tests {
         // Nested inside a pseudo argument: the validator must recurse.
         let nested = ev_checked(&store, "*:not(.clazz)").expect_err("nested unknown kind");
         assert!(nested.to_string().contains("clazz"), "{nested}");
+    }
+
+    #[test]
+    fn suggest_kind_anchors_on_first_char() {
+        // Review finding (PR #749): without a first-char anchor, `st`
+        // subsequence-matches `const` out of the middle and the edit-distance
+        // tie-break suggests `.const` where `.struct` is clearly meant.
+        assert_eq!(super::suggest_kind("st"), Some("struct"), "st -> struct");
+        // The advertised abbreviation + typo cases must keep working.
+        assert_eq!(
+            super::suggest_kind("fn"),
+            Some("function"),
+            "fn -> function"
+        );
+        assert_eq!(
+            super::suggest_kind("clazz"),
+            Some("class"),
+            "clazz -> class"
+        );
     }
 
     #[test]
