@@ -251,6 +251,74 @@ fn get_callee_tree_root_has_children() {
     );
 }
 
+// ADR-0013: unresolved callees (stdlib calls, undefined symbols) are collapsed
+// into an `unresolved_callees` count per node instead of placeholder leaves.
+// Byte-identical node shape with the MCP tool (Charter §5.13).
+#[test]
+fn get_callee_tree_collapses_unresolved_into_count() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("src/lib.rs"),
+        "pub fn real_callee() {}\n\
+         pub fn entry() { real_callee(); undefined_a(); undefined_b(); }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let status = Command::new(mycelium_bin())
+        .args(["index", root.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let out = Command::new(mycelium_bin())
+        .current_dir(root)
+        .args([
+            "get-callee-tree",
+            "src/lib.rs>entry",
+            "--max-depth",
+            "3",
+            "--format",
+            "json",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let children = value["children"].as_array().unwrap();
+    assert_eq!(
+        children.len(),
+        1,
+        "only the resolved callee is a child, got: {value}"
+    );
+    assert!(
+        children[0]["path"]
+            .as_str()
+            .unwrap()
+            .contains("real_callee")
+    );
+    assert_eq!(
+        value["unresolved_callees"].as_u64(),
+        Some(2),
+        "the 2 undefined callees collapse into a count, got: {value}"
+    );
+    let rendered = serde_json::to_string(&value).unwrap();
+    assert!(
+        !rendered.contains("<unknown>") && !rendered.contains("undefined_a"),
+        "no placeholder leaves: {rendered}"
+    );
+    assert!(
+        children[0].get("unresolved_callees").is_none(),
+        "zero count is omitted: {rendered}"
+    );
+}
+
 #[test]
 fn get_caller_tree_root_has_callers() {
     let project = prepare_chain_project();

@@ -1155,6 +1155,72 @@ async fn get_callee_tree_leaf_at_max_depth() {
     );
 }
 
+// ADR-0013: unresolved-callee stubs are collapsed into `unresolved_callees`
+// per node instead of N placeholder leaves.
+#[tokio::test]
+async fn get_callee_tree_collapses_unresolved_into_count() {
+    use mycelium_core::types::NodeKind;
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        let root =
+            store.upsert_node_with_kind(TrunkPath::parse("a.rs>root").unwrap(), NodeKind::Function);
+        let real1 = store
+            .upsert_node_with_kind(TrunkPath::parse("b.rs>real1").unwrap(), NodeKind::Function);
+        let real2 = store
+            .upsert_node_with_kind(TrunkPath::parse("c.rs>real2").unwrap(), NodeKind::Function);
+        let stub1 =
+            store.upsert_node_with_kind(TrunkPath::parse("unwrap").unwrap(), NodeKind::Unresolved);
+        let stub2 =
+            store.upsert_node_with_kind(TrunkPath::parse("map").unwrap(), NodeKind::Unresolved);
+        let stub3 =
+            store.upsert_node_with_kind(TrunkPath::parse("collect").unwrap(), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, root, real1);
+        store.upsert_edge(EdgeKind::Calls, root, real2);
+        store.upsert_edge(EdgeKind::Calls, root, stub1);
+        store.upsert_edge(EdgeKind::Calls, root, stub2);
+        store.upsert_edge(EdgeKind::Calls, root, stub3);
+    }
+    let raw = server
+        .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+            path: "a.rs>root".to_string(),
+            max_depth: Some(3),
+            output_format: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    let root = &val["root"];
+    let children = root["children"].as_array().unwrap();
+    assert_eq!(children.len(), 2, "only resolved callees are children");
+    let child_paths: Vec<&str> = children
+        .iter()
+        .map(|c| c["path"].as_str().unwrap())
+        .collect();
+    assert!(child_paths.contains(&"b.rs>real1"));
+    assert!(child_paths.contains(&"c.rs>real2"));
+    // No placeholder leaves anywhere in the payload.
+    let rendered = serde_json::to_string(&val).unwrap();
+    assert!(
+        !rendered.contains("<unknown>"),
+        "no <unknown> placeholder nodes: {rendered}"
+    );
+    assert!(
+        !rendered.contains("\"unwrap\"") && !rendered.contains("\"collect\""),
+        "stub paths must not appear as nodes: {rendered}"
+    );
+    assert_eq!(
+        root["unresolved_callees"].as_u64(),
+        Some(3),
+        "parent carries the collapsed count"
+    );
+    // Token economy: the field is omitted when the count is 0.
+    assert!(
+        children[0].get("unresolved_callees").is_none(),
+        "zero count is omitted, got: {}",
+        children[0]
+    );
+}
+
 // ── RFC-0021: mycelium_get_caller_tree ──────────────────────────────────
 
 #[tokio::test]

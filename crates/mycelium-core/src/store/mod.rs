@@ -68,12 +68,23 @@ use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
 /// Represents a symbol and its direct callees (recursively up to the
 /// configured `max_depth`).  Cycles are represented as leaf nodes
 /// (`children` is empty) rather than causing infinite recursion.
+///
+/// ADR-0013: callees the resolver could not bind to a real definition
+/// ([`NodeKind::Unresolved`] phantoms, or dangling edge targets with no trunk
+/// path) are NOT emitted as children; they are collapsed into
+/// [`unresolved_callees`](Self::unresolved_callees) so agents see the count
+/// without paying for N placeholder leaves.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CalleeNode {
     /// The node this tree entry represents.
     pub id: NodeId,
-    /// Callee subtrees, one per outgoing `Calls` edge, up to `max_depth`.
+    /// Callee subtrees, one per outgoing `Calls` edge to a *resolved*
+    /// callee, up to `max_depth`.
     pub children: Vec<Self>,
+    /// Number of direct callees collapsed because they could not be resolved
+    /// to a real definition (ADR-0013). Always 0 at cycle/depth-limit leaves,
+    /// whose children are not expanded at all.
+    pub unresolved_callees: usize,
 }
 
 /// A node in the caller tree returned by [`Store::caller_tree`].
@@ -2021,16 +2032,35 @@ impl Store {
             return CalleeNode {
                 id,
                 children: vec![],
+                unresolved_callees: 0,
             };
         }
+        // ADR-0013: only callees that resolve to a real, displayable symbol
+        // become children; the rest (Unresolved phantoms and dangling edge
+        // targets without a trunk path) are summarized as a count. The
+        // `is_real_symbol` gate is negative (excludes only `Unresolved`), so
+        // kind-less programmatic stores keep the legacy contract.
+        let mut unresolved_callees = 0;
         let children: Vec<CalleeNode> = self
             .synapse
             .outgoing(id, EdgeKind::Calls)
             .iter()
+            .filter(|&&child_id| {
+                let resolved =
+                    self.is_real_symbol(child_id) && self.trunk.path_of(child_id).is_some();
+                if !resolved {
+                    unresolved_callees += 1;
+                }
+                resolved
+            })
             .map(|&child_id| self.callee_tree_inner(child_id, depth_remaining - 1, visited))
             .collect();
         visited.remove(&id);
-        CalleeNode { id, children }
+        CalleeNode {
+            id,
+            children,
+            unresolved_callees,
+        }
     }
 
     /// Return a depth-limited tree of all transitive callers of `id`.

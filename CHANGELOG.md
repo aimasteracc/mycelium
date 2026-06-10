@@ -44,6 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`mycelium_get_callee_tree` / `get-callee-tree` collapse unresolved callees into a count
+  (ADR-0013).** Callees the resolver could not bind to a real definition (stdlib calls like
+  `unwrap`/`map`, ambiguous names — `NodeKind::Unresolved` phantoms, plus dangling edge targets
+  previously rendered as `"path":"<unknown>"`) are no longer emitted as individual placeholder
+  leaves. Each tree node instead carries `"unresolved_callees": N` (omitted when 0). Measured on
+  the dogfood repo (`index.rs>index_path`, depth 3) the tree shrank from 173 nodes (142 noise,
+  82%) to 31 real-symbol nodes. Resolved-node output is unchanged; kind-less programmatic stores
+  are unaffected. `Store::CalleeNode` gains a public `unresolved_callees` field. Caller tree is
+  untouched — phantoms are never call *sources* (verified). Both surfaces share the core gate, so
+  CLI ↔ MCP stay byte-identical. (ADR-0013)
+
 - **BREAKING (`mycelium_get_token_stats` output shape):** old fields `{ sample_query, json_bytes,
   msgpack_bytes, ratio, compact_chars, token_ratio }` replaced by `{ tokenizer, corpus_version,
   fixtures, aggregate_json_tokens, aggregate_text_tokens, text_to_json_token_ratio,

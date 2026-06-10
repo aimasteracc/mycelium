@@ -269,6 +269,9 @@ enum Cmd {
         budget: Option<String>,
     },
     /// Return the recursive callee tree rooted at a symbol.
+    /// Callees that could not be resolved to a definition (stdlib calls,
+    /// ambiguous names) are collapsed into an `unresolved_callees` count per
+    /// node instead of being listed as placeholder leaves; omitted when 0.
     GetCalleeTree {
         path: String,
         #[arg(long, default_value_t = 3)]
