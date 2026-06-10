@@ -299,9 +299,9 @@ pub fn test_gap_payload(
             // body_start = start_line + 1 (TSA heuristic; RFC-0115 §Phase-2).
             // No span → (0, 0): body_start ≤ end_line holds, and line-0 never
             // appears in coverage.json (1-indexed), so the symbol reads as a gap.
-            let (body_start, end_line) = store.span_of(id).map_or((0, 0), |s| {
-                (s.start_line.saturating_add(1), s.end_line)
-            });
+            let (body_start, end_line) = store
+                .span_of(id)
+                .map_or((0, 0), |s| (s.start_line.saturating_add(1), s.end_line));
             let blast_radius = u32::try_from(
                 store
                     .reachable_to(id, crate::types::EdgeKind::Calls, 20)
