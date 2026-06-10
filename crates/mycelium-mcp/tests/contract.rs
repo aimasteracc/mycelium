@@ -331,3 +331,76 @@ async fn successful_lookup_yields_is_error_false() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+/// RFC-0120 Phase 3 — `mycelium_get_token_stats` output shape contract.
+///
+/// Verifies the tool returns the new token-axis fields and that
+/// `wire_format_byte_ratio` (wire metric) ≠ `text_to_json_token_ratio`
+/// (token metric) — the two axes must remain distinct.
+#[tokio::test]
+async fn token_stats_output_shape_contract() -> anyhow::Result<()> {
+    let (server_transport, client_transport) = tokio::io::duplex(65_536);
+    let server = MyceliumServer::new();
+    let server_handle = tokio::spawn(async move {
+        let _r = server.serve(server_transport).await?.waiting().await?;
+        anyhow::Ok(())
+    });
+    let client = TestClient.serve(client_transport).await?;
+
+    let result = client
+        .call_tool(
+            CallToolRequestParams::new("mycelium_get_token_stats".to_string())
+                .with_arguments(serde_json::Map::new()),
+        )
+        .await?;
+
+    client.cancel().await?;
+    let _ = server_handle.await;
+
+    assert_eq!(
+        result.is_error,
+        Some(false),
+        "mycelium_get_token_stats must succeed; got is_error={:?}",
+        result.is_error,
+    );
+
+    let text = result
+        .content
+        .first()
+        .and_then(|c| c.as_text())
+        .map_or("", |t| t.text.as_str());
+    let body: serde_json::Value =
+        serde_json::from_str(text).expect("mycelium_get_token_stats must return valid JSON");
+
+    // Required fields from RFC-0120 Phase 3 contract.
+    for key in &[
+        "tokenizer",
+        "corpus_version",
+        "fixtures",
+        "aggregate_json_tokens",
+        "aggregate_text_tokens",
+        "text_to_json_token_ratio",
+        "token_reduction_pct",
+        "wire_format_byte_ratio",
+    ] {
+        assert!(
+            body.get(key).is_some(),
+            "mycelium_get_token_stats response missing required key: {key}"
+        );
+    }
+
+    // The two axes must be distinct numeric values.
+    let token_ratio = body["text_to_json_token_ratio"]
+        .as_f64()
+        .expect("text_to_json_token_ratio must be a number");
+    let wire_ratio = body["wire_format_byte_ratio"]
+        .as_f64()
+        .expect("wire_format_byte_ratio must be a number");
+    assert!(
+        (token_ratio - wire_ratio).abs() > 0.001,
+        "text_to_json_token_ratio ({token_ratio:.4}) and wire_format_byte_ratio \
+         ({wire_ratio:.4}) must be distinct — they measure different axes"
+    );
+
+    Ok(())
+}

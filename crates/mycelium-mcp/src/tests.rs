@@ -6277,53 +6277,64 @@ async fn search_symbol_json_mode_when_compact_disabled() {
     assert!(val["matches"].as_array().is_some());
 }
 
+/// RFC-0120 Phase 3: verifies the new token-axis output shape.
+/// Old fields (`sample_query`, `json_bytes`, `msgpack_bytes`, `ratio`, `compact_chars`,
+/// `token_ratio`) were removed; new fields (`tokenizer`, `corpus_version`, `fixtures`,
+/// `aggregate_*`, ratios) added.
 #[tokio::test]
 async fn get_token_stats_returns_valid_shape() {
     let server = MyceliumServer::new();
     let raw = server.mycelium_get_token_stats().await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-    // All expected fields must be present and positive.
-    assert_eq!(val["sample_query"].as_str().unwrap(), "top 3 symbols");
-    let json_bytes = val["json_bytes"].as_u64().unwrap();
-    let msgpack_bytes = val["msgpack_bytes"].as_u64().unwrap();
-    assert!(json_bytes > 0, "json_bytes must be positive");
-    assert!(msgpack_bytes > 0, "msgpack_bytes must be positive");
-    let ratio = val["ratio"].as_f64().unwrap();
-    // Ratio must be a sane positive fraction.
-    assert!(ratio > 0.0, "ratio must be positive");
-    // MessagePack raw bytes are always smaller than an equivalent JSON
-    // string for structured data (field names not repeated).  For the
-    // fixed sample this is consistently < 1.0.
+
+    // Required RFC-0120 Phase 3 fields.
     assert!(
-        ratio < 1.0,
-        "msgpack raw bytes should be smaller than JSON bytes, ratio was {ratio:.3}"
+        val["tokenizer"].as_str().is_some(),
+        "tokenizer must be a string"
     );
-    // New fields added for SPRINT-004 token-ratio SLA fix.
-    let compact_chars = val["compact_chars"].as_u64().unwrap();
-    assert!(compact_chars > 0, "compact_chars must be positive");
-    let token_ratio = val["token_ratio"].as_f64().unwrap();
-    assert!(token_ratio > 0.0, "token_ratio must be positive");
+    assert_eq!(
+        val["corpus_version"].as_str().unwrap(),
+        "v2-ripgrep",
+        "corpus_version must be v2-ripgrep"
+    );
+    assert!(
+        val["fixtures"].as_array().map_or(0, Vec::len) >= 6,
+        "fixtures must have ≥ 6 entries"
+    );
+    let agg_json = val["aggregate_json_tokens"].as_u64().unwrap();
+    let agg_text = val["aggregate_text_tokens"].as_u64().unwrap();
+    assert!(agg_json > 0, "aggregate_json_tokens must be positive");
+    assert!(agg_text > 0, "aggregate_text_tokens must be positive");
+    let token_ratio = val["text_to_json_token_ratio"].as_f64().unwrap();
+    assert!(
+        0.0 < token_ratio && token_ratio < 1.0,
+        "text_to_json_token_ratio must be (0, 1); got {token_ratio:.4}"
+    );
+    let reduction = val["token_reduction_pct"].as_f64().unwrap();
+    assert!(
+        reduction > 0.0,
+        "token_reduction_pct must be positive; got {reduction:.2}"
+    );
+    let wire_ratio = val["wire_format_byte_ratio"].as_f64().unwrap();
+    assert!(
+        0.0 < wire_ratio && wire_ratio < 1.0,
+        "wire_format_byte_ratio must be (0, 1); got {wire_ratio:.4}"
+    );
 }
 
+/// RFC-0120 Phase 3: token ratio and wire-format byte ratio must be distinct axes.
 #[tokio::test]
 async fn get_token_stats_token_ratio_vs_byte_ratio() {
     let server = MyceliumServer::new();
     let raw = server.mycelium_get_token_stats().await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
-    let token_ratio = val["token_ratio"].as_f64().unwrap();
-    // token_ratio is abbreviated-compact-text chars / verbose-JSON chars.
-    // It must be strictly between 0 and 1 to satisfy the Charter §2
-    // AI token-efficiency SLA (compact output uses fewer AI tokens than JSON).
+    let token_ratio = val["text_to_json_token_ratio"].as_f64().unwrap();
+    let wire_ratio = val["wire_format_byte_ratio"].as_f64().unwrap();
+    // The two axes must differ by more than noise.
     assert!(
-        0.0 < token_ratio && token_ratio < 1.0,
-        "token_ratio out of range: {token_ratio:.4}"
-    );
-    // The raw msgpack byte ratio must be <= the text-compact token ratio:
-    // binary is always at least as compact as any text abbreviation.
-    let byte_ratio = val["ratio"].as_f64().unwrap();
-    assert!(
-        byte_ratio <= token_ratio,
-        "byte_ratio {byte_ratio:.4} should be <= token_ratio {token_ratio:.4}"
+        (token_ratio - wire_ratio).abs() > 0.001,
+        "text_to_json_token_ratio ({token_ratio:.4}) and wire_format_byte_ratio \
+         ({wire_ratio:.4}) must be distinct — they measure different axes"
     );
 }
 

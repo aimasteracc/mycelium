@@ -4111,48 +4111,125 @@ impl MyceliumServer {
     }
 
     #[tool(
-        description = "Return a byte-count comparison between JSON and MessagePack serialisation \
-                       for a fixed sample payload (three symbol search results). \
-                       Use this to verify the Charter §2 token-efficiency SLA (≤ 30 % of JSON). \
-                       Returns { sample_query, json_bytes, msgpack_bytes, ratio }."
+        description = "Return TextFormatter vs JsonFormatter token counts over a committed \
+                       corpus (RFC-0120 Phase 3). Primary metric: text_to_json_token_ratio \
+                       measured at 0.753 on the real ripgrep corpus (24.7% reduction). \
+                       Charter §2 asserts ≤ 0.30 (70%+ reduction); see RFC-0121 for the \
+                       governance decision. Secondary metric wire_format_byte_ratio is the \
+                       JSON/MessagePack BYTE ratio (wire-format metric, NOT the per-token \
+                       metric above — a separate axis). \
+                       Returns { tokenizer, corpus_version, fixtures, \
+                       aggregate_json_tokens, aggregate_text_tokens, \
+                       text_to_json_token_ratio, token_reduction_pct, \
+                       wire_format_byte_ratio }. \
+                       BREAKING (RFC-0120): old fields { sample_query, json_bytes, \
+                       msgpack_bytes, ratio, compact_chars, token_ratio } removed."
     )]
     async fn mycelium_get_token_stats(&self) -> CallToolResult {
-        // Fixed sample payload — three representative symbol paths.
-        let sample = serde_json::json!({
-            "matches": [
-                "src/engine/store.rs>Store",
-                "src/engine/store.rs>Store::upsert_node",
-                "src/engine/store.rs>Store::search_symbol"
-            ]
-        });
-        let json_bytes = sample.to_string().len();
-        // The sample value is entirely static strings; serialisation cannot fail.
-        #[allow(clippy::unwrap_used)]
-        let msgpack_bytes = rmp_serde::to_vec_named(&sample).unwrap_or_default().len();
-        // Byte ratio: raw msgpack binary vs JSON text.
+        use crate::token_bench::{FixtureCase, measure_corpus};
+
+        // Corpus fixtures embedded at compile time so the binary is self-contained.
+        // Captured from BurntSushi/ripgrep via scripts/capture_token_corpus.sh.
+        let corpus = vec![
+            FixtureCase {
+                name: "callee_tree".to_owned(),
+                value: serde_json::from_str(include_str!(
+                    "../tests/corpus/callee_tree.json"
+                ))
+                .expect("corpus callee_tree.json is valid JSON"),
+            },
+            FixtureCase {
+                name: "caller_tree".to_owned(),
+                value: serde_json::from_str(include_str!(
+                    "../tests/corpus/caller_tree.json"
+                ))
+                .expect("corpus caller_tree.json is valid JSON"),
+            },
+            FixtureCase {
+                name: "context".to_owned(),
+                value: serde_json::from_str(include_str!(
+                    "../tests/corpus/context.json"
+                ))
+                .expect("corpus context.json is valid JSON"),
+            },
+            FixtureCase {
+                name: "search_symbol".to_owned(),
+                value: serde_json::from_str(include_str!(
+                    "../tests/corpus/search_symbol.json"
+                ))
+                .expect("corpus search_symbol.json is valid JSON"),
+            },
+            FixtureCase {
+                name: "subclasses_tree".to_owned(),
+                value: serde_json::from_str(include_str!(
+                    "../tests/corpus/subclasses_tree.json"
+                ))
+                .expect("corpus subclasses_tree.json is valid JSON"),
+            },
+            FixtureCase {
+                name: "symbol_info".to_owned(),
+                value: serde_json::from_str(include_str!(
+                    "../tests/corpus/symbol_info.json"
+                ))
+                .expect("corpus symbol_info.json is valid JSON"),
+            },
+        ];
+
+        // Use BpeTokenCounter (cl100k_base) when the `tiktoken` feature is enabled
+        // (the figure-of-record tokenizer for Charter §2). Falls back to the hermetic
+        // whitespace-approximate counter in builds without the feature.
+        #[cfg(feature = "tiktoken")]
+        let (report, tokenizer) = {
+            use crate::token_bench::BpeTokenCounter;
+            (
+                measure_corpus(&corpus, &BpeTokenCounter::cl100k_base()),
+                "cl100k_base",
+            )
+        };
+        #[cfg(not(feature = "tiktoken"))]
+        let (report, tokenizer) = {
+            use crate::token_bench::WhitespaceTokenCounter;
+            (measure_corpus(&corpus, &WhitespaceTokenCounter), "whitespace-approximate")
+        };
+
+        // Secondary metric: JSON-vs-MessagePack byte ratio (wire-format, NOT token ratio).
+        let wire_sample = serde_json::json!({"matches": ["a", "b", "c"]});
+        let wire_json_bytes = wire_sample.to_string().len();
+        let wire_msgpack_bytes = rmp_serde::to_vec_named(&wire_sample)
+            .unwrap_or_default()
+            .len();
         #[allow(clippy::cast_precision_loss)]
-        let ratio = msgpack_bytes as f64 / json_bytes as f64;
-        // Token ratio: abbreviated compact-JSON text vs verbose JSON text.
-        // The compact format uses single-char key "m" instead of "matches", reducing
-        // AI-visible token consumption without binary encoding overhead.
-        let compact = serde_json::json!({
-            "m": [
-                "src/engine/store.rs>Store",
-                "src/engine/store.rs>Store::upsert_node",
-                "src/engine/store.rs>Store::search_symbol"
-            ]
-        });
-        let compact_chars = compact.to_string().len();
+        let wire_format_byte_ratio = wire_msgpack_bytes as f64 / wire_json_bytes as f64;
+
         #[allow(clippy::cast_precision_loss)]
-        let token_ratio = compact_chars as f64 / json_bytes as f64;
+        let fixtures: Vec<serde_json::Value> = report
+            .fixtures
+            .iter()
+            .map(|f| {
+                let ratio = if f.json_tokens > 0 {
+                    f.text_tokens as f64 / f.json_tokens as f64
+                } else {
+                    1.0
+                };
+                serde_json::json!({
+                    "name": f.name,
+                    "json_tokens": f.json_tokens,
+                    "text_tokens": f.text_tokens,
+                    "ratio": ratio,
+                })
+            })
+            .collect();
+
         success_str(
             serde_json::json!({
-                "sample_query": "top 3 symbols",
-                "json_bytes": json_bytes,
-                "msgpack_bytes": msgpack_bytes,
-                "ratio": ratio,
-                "compact_chars": compact_chars,
-                "token_ratio": token_ratio,
+                "tokenizer": tokenizer,
+                "corpus_version": "v2-ripgrep",
+                "fixtures": fixtures,
+                "aggregate_json_tokens": report.total_json_tokens,
+                "aggregate_text_tokens": report.total_text_tokens,
+                "text_to_json_token_ratio": report.text_to_json_token_ratio(),
+                "token_reduction_pct": report.token_reduction_pct(),
+                "wire_format_byte_ratio": wire_format_byte_ratio,
             })
             .to_string(),
         )
