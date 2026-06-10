@@ -5,191 +5,108 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v28 — PR #496 merged; #502/#505/#506 closed superseded; PR #508 opened (develop CI fix); RFC-0109 tools 1–3 on develop) |
-| Current sprint | **RFC-0109 graph-list parity roll-out (3/7 tools on develop: get_callees + get_callers + get_dead_symbols) — develop CI red (macOS), PR #508 fix running** |
-| Active release branch | none — v0.1.19 shipped; release/v0.1.20 to be cut once RFC-0109 roll-out complete |
-| Next release target | **v0.1.20** — RFC-0109 graph-list object-shape parity (all 7 tools) + budget/ADR-0010 docs |
-| Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03. |
+| Last updated | 2026-06-10 (PM dispatch v164 — PR #738 merged (PM v163 chore, squash `7962097`); RFC-0115/0116 status corrected to Partially Implemented; RFC-0116 Phase 2 identified as **unblocked P1**; 3 P0s unchanged ×29 consecutive runs) |
+| Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
+| Active release branch | `release/v0.3.0` (PR #568) |
+| Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
+| Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
+| Last shipped (git) | **v0.2.0** — ceremony 4/4 COMPLETE (main `54687972`, 2026-06-04) |
 
 ---
 
-## ✅ v0.1.13 — SHIPPED (ceremony COMPLETE)
+## ✅ v0.1.13–v0.1.19 — SHIPPED (all ceremonies COMPLETE)
 
-**What shipped:**
-- [x] RFC-0093 Phase 2: `success_str` exported from error module; all 101 MCP success-return sites unified
-- [x] RFC-0096 Phase 1 (Python): `EdgeKind::TypeImports` for `if TYPE_CHECKING:` imports
-- [x] TypeScript relative-import resolver bug fix (`@reference.import` now dispatches to TS resolver for .ts/.js files)
-- [x] ADR-0004: Patricia Trie for Trunk documented
-- [x] ADR-0005: MessagePack wire format documented
-- [x] ADR-0006: Hyphae CSS-selector grammar style documented
-- [x] Post-v0.1.12 security scan: CLEAN
-
-**v0.1.13 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.13` → `main` — PR #332 MERGED ✅ (founder authorized 2026-05-31)
-- [x] **Step 2**: Tag `v0.1.13` pushed ✅
-- [x] **Step 3**: GitHub Release published ✅
-- [x] **Step 4**: Back-merge `release/v0.1.13` → `develop` — PR #333 MERGED ✅
+*(Full detail archived in PM dispatches v1–v28. Key content: RFC-0093/0096/0107/0108, redb storage, Salsa Phase 2, reactive subscriptions, packs/rust precision fix. All four ceremony steps confirmed for each version.)*
 
 ---
 
-## ✅ v0.1.14 — SHIPPED (ceremony 4/4 COMPLETE)
+## ✅ v0.2.0 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-04)
 
-**What shipped:**
-- [x] RFC-0096 Phase 2 TypeScript: `import type` → TypeImports edges + TS resolver bug fix
-- [x] RFC-0093 Phase 3 (BREAKING): all 89 MCP tools → `is_error: Some(true)` per MCP spec
-- [x] Skills INDEX.md CI gate: `skill-parity` promoted to required Quality Gate
-- [x] Store::merge R1 parallel-index primitive (step 1/2)
-- [x] Dogfood pass rate 8/8: all 8 core CLI commands green
+**Highlights:**
+- [x] RFC-0109 COMPLETE: all 7 graph-list tools byte-identical CLI↔MCP + per-call budget knob (PRs #508–#513)
+- [x] RFC-0110: npm/bun CLI distribution — prebuilt binaries via optionalDependencies (5 platforms); `npx @aimasteracc/mycelium` works without Rust toolchain
+- [x] RFC-0102 COMPLETE: `budget{}` nested response object + BudgetMode tag + per-call override knob (PRs #497–#499)
+- [x] ADR-0010: No live LSP; prefer static SCIP/LSIF ingestion (PR #496)
+- [x] sla_ancestors_100k macOS CI guard bumped 30ms → 100ms (PR #508)
 
-**v0.1.14 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.14` → `main` — PR #352 MERGED ✅
-- [x] **Step 2**: Tag `v0.1.14` pushed ✅
-- [x] **Step 3**: GitHub Release published ✅
-- [x] **Step 4**: Back-merge `release/v0.1.14` → `develop` — PR #349 MERGED ✅
-
----
-
-## ✅ v0.1.15 — CONTENT DONE; CEREMONY BROKEN (superseded by v0.1.16)
-
-**v0.1.15 ceremony status — BROKEN ⚠️ (orphan tag; content absorbed into v0.1.16):**
-- ❌ Steps 1–4: all failed (release.yml CRATES_IO_TOKEN failure; orphan tag; PRs #361/#362 closed unmerged)
-- **Resolution**: v0.1.15 content absorbed into v0.1.16 release.
+**v0.2.0 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
+- [x] **Step 1**: `release/v0.2.0` → `main` — SHA `54687972` ✅
+- [x] **Step 2**: Tag `v0.2.0` pushed ✅
+- [x] **Step 3**: GitHub Release v0.2.0 published ✅; npm `@aimasteracc/mycelium@0.2.0` ✅
+- [x] **Step 4**: Back-merge `release/v0.2.0` → develop ✅
 
 ---
 
-## ✅ v0.1.16 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-02)
+## 🔧 Post-v0.2.0 — In v0.3.0 (registries PUBLISHED ✅; git ceremony ⏳ pending)
 
-**What shipped:**
-- [x] RFC-0100 Phase 1+2: redb `StorageBackend` trait + `InMemoryBackend` + `RedbBackend` (feature-flagged)
-- [x] RFC-0101 draft, RFC-0102 draft, RFC-0103 draft
-- [x] MCP server routing instructions + primary tool-selection decision tree
-- [x] Incremental persistence journal (Issue #343)
-- [x] Memory budget / bounded store (Issue #344)
-- [x] Release ceremony script `scripts/release-ceremony.sh`
-- [x] Dep bumps: redb 2.6.3→4.1, logos 0.14→0.16, salsa 0.18→0.26
-- [x] mycelium_context (90th MCP tool) + OutputBudget + import-aware stub resolution
+> Pushed to `release/v0.3.0` (2026-06-05). Registries ✅ published (crates.io/npm/PyPI). Git ceremony Steps 1–4 pending founder `finalize` workflow_dispatch.
 
-**v0.1.16 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.16` → `main` — commit `0d27c5a` 2026-06-02T01:27Z ✅
-- [x] **Step 2**: Tag `v0.1.16` pushed ✅
-- [x] **Step 3**: GitHub Release published 2026-06-02T01:27:33Z ✅
-- [x] **Step 4**: Back-merge `release/v0.1.16` → `develop` — commit `cb31814` 2026-06-02T01:28Z ✅
+**Content (PR #568 + confirmed PRs on develop):**
+- [x] **RFC-0111 Phase 1**: Node/TS SDK `@aimasteracc/mycelium-sdk` — embed Mycelium without Rust toolchain
+- [x] **RFC-0111 Phase 2**: Python SDK `mycelium-rcig` / `import mycelium_rcig`
+- [x] **RFC-0103**: import-aware `Extends` resolution
+- [x] **RFC-0094 Phase 4**: token-efficient MCP output
+- [x] MCP god-file split slice 3
+- [x] fix(watch): ignore-aware WatchEngine NonRecursive directory watches — EMFILE crash fix on large repos (PR #686, squash `bf2d246`)
+- [x] fix(docs): Hyphae kind-selector examples corrected + parse-verified query examples added (PR #688); regression test `documented_examples_parse.rs`
+- [x] fix(mcp): entry-points pagination + actionable path-not-found + reachability disambiguation (PR #689, 1635 tests) — `mycelium_get_entry_points` gains `limit`/`offset`/`budget`; shared `not_found()` helper; 5 tools carry "When to use" table
+- [x] test(cli): AC-20 defense-in-depth `rank_symbols_excludes_unresolved_phantom` + positive control (PR #684, closes Issue #673)
+- [x] ci: codecov/codecov-action 6→7 (PR #690, squash `3506a93`)
+- [x] chore(deps): tiktoken-rs 0.6.0→0.12.0 (PR #693, squash `d4610c6`)
+- [x] chore(pm): PM state v128–v129 (PRs #696–#697)
+- [x] fix(extractor): method span precision — use declaration node not class anchor, covers TS/JS/Python/Java/C#/C++/Ruby (PR #699, squash `7db42168`, closes Issue #657)
 
----
-
-## ⚠️ v0.1.17 — CRATES PUBLISHED; GIT CEREMONY SUPERSEDED BY v0.1.18
-
-**Content already on develop (post-v0.1.16):**
-- [x] RFC-0101 Phase 2: `mycelium context` CLI twin — Three-Surface Rule fully satisfied (PR #414)
-- [x] RFC-0102 Implemented: OutputBudget moved to `mycelium-core`; CLI+MCP byte-identical (PR #438)
-- [x] RFC-0100 Phase 3: **redb is now the default storage backend** (PR #448)
-- [x] RFC-0104: Charter §2 warm/cold SLA split — founder-approved 2026-06-02 (PR #444)
-- [x] Issue #428 god-file-split slice 1: redb value codecs → `store::redb_codec` (PR #441)
-- [x] Issue #428 god-file-split slice 2: `mod tests` → `src/tests.rs` (PR #442, `lib.rs` 12191→5627 lines, −54%)
-- [x] 100k-node redb SLA gate + env-guarded nightly benchmark (PR #440)
-- [x] Orphan `BoundedStore`/`MemoryBudget`/`FileAccessTracker` LRU removed (PR #440)
-- [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
-- [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
-
-**v0.1.17 ceremony status — PARTIAL (crates only; git superseded by v0.1.18):**
-- [x] **Pre-release**: `publish to crates.io/npm/PyPI` ✅ — all 5 crates at v0.1.17.
-- [x] **Step 4**: Back-merge `release/v0.1.17` → `develop` — **PR #477 MERGED ✅** 2026-06-03T07:54Z
-- [x] **Retro-tag**: `v0.1.17` pushed at `6aa1bed` (2026-06-03T12:30Z) for traceability ✅
-- ✅ Git ceremony superseded: main jumps v0.1.16 → v0.1.18 → v0.1.19. Founder confirmed.
-
----
-
-## ✅ v0.1.18 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-03)
-
-**What shipped in v0.1.18:**
-- [x] **RFC-0107 SUBSCRIBE**: `mycelium_subscribe`, `mycelium_unsubscribe`, `mycelium_subscription_status` (3 new MCP tools = 93 total). `mycelium watch --subscribe` CLI face.
-- [x] **RFC-0108 Salsa Phase 2**: `mycelium/queryResultChanged` reactive query subscriptions. BLAKE3-128 hash. 5 query kinds. 2s quiet-period, 200ms eval-budget.
-- [x] **fix(subscribe)**: Replace `RwLock::blocking_read()` with `try_read()` in async watch paths (PR #479).
-- [x] **fix(packs/rust)**: Capture `Type::method()` and `crate::mod::func()` call sites (PR #474).
-- Reactive-completion roadmap: **4/4 COMPLETE** (watch ✅ push ✅ subscribe ✅ salsa ✅).
-
-**v0.1.18 ceremony status — ALL FOUR STEPS COMPLETE ✅ (2026-06-03):**
-- [x] **Step 1**: PR #490 merged `release/v0.1.18` → main (`-X ours` to resolve stale gitlinks + ADR numbering) ✅
-- [x] **Step 2**: Tag `v0.1.18` pushed ✅ (SHA e429a224, 2026-06-03T12:30Z)
-- [x] **Step 3**: GitHub Release v0.1.18 created ✅ (2026-06-03T12:30Z) — "reactive-completion roadmap complete"
-- [x] **Step 4**: Back-merge PR #483 MERGED to develop ✅ (2026-06-03T09:10:56Z)
-- [x] RFC-0105 EXCEPTION ratified by founder — PR #491 (2026-06-03)
-
----
-
-## ✅ v0.1.19 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-03T15:49Z)
-
-> **⚠️ Content boundary note (Codex audit 2026-06-03):** PRs #497–#501 were verified
-> via `git log 8ffcad9..bb685def --first-parent` to have landed on develop **after**
-> the v0.1.19 release merge (`8ffcad9 #494`). They are **not** in v0.1.19; they belong
-> in the post-v0.1.19 unreleased section below.
-
-**What shipped in v0.1.19 (release branch content only):**
-- [x] fix(packs/rust): extractor precision 67% → 99.8% recall — 5 additive queries.scm patterns (PR #492)
-- [x] docs(adr): ADR-0008 redb as default backend (PR #485); ADR-0009 numbering fix (PR #486)
-- [x] docs(rules): Codex review Hard Rule added to CLAUDE.md (PR #488); vision scorecard updated (PR #489)
-- [x] RFC-0105 EXCEPTION: WatchEngine Three-Surface exception ratified (PR #491)
-
-**v0.1.19 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.19` → `main` — founder ceremony ✅
-- [x] **Step 2**: Tag `v0.1.19` pushed ✅ (SHA 55761a85, 2026-06-03)
-- [x] **Step 3**: GitHub Release v0.1.19 created ✅ (2026-06-03T15:49Z) — "precision pass + ADR docs"
-- [x] **Step 4**: Back-merge PR #493 MERGED ✅ (develop HEAD = `55761a85`)
-
----
-
-## 🔧 Post-v0.1.19 — Unreleased on develop (→ v0.1.20)
-
-> These commits are on develop but were **not** part of v0.1.19 (per Codex audit).
-> They will ship in v0.1.20.
-
-- [x] docs: align doc claims with code — tool count 89→93, RFC-0100/0102 acceptance criteria synced (PR #495, `dc5883d`)
-- [x] RFC-0102 nested `budget{}` response object + BudgetMode tag (PR #497)
-- [x] RFC-0102 per-call budget override knob on `mycelium_context` + CLI twin (PR #498)
-- [x] fix(budget): cap `callee_paths`/`caller_paths`/`dead_symbols`/`isolated_symbols` in apply_budget (PR #499)
-- [x] docs(rfc): RFC-0109 graph-list output-shape parity + budget roll-out, Option A ratified (PR #500)
-- [x] feat(queries): RFC-0109 **get_callees** shared builder + object shape + budget knob (PR #501)
-- [x] feat(queries): RFC-0109 **get_callers** shared builder + object shape + budget knob (PR #504, `9bd288c0`)
-- [x] feat(queries): RFC-0109 **get_dead_symbols** shared builder + object shape + budget knob (PR #507, `2c130452`)
-- [x] docs(adr): **ADR-0010** — no live LSP; prefer static SCIP/LSIF (PR #496, merged this session)
+**v0.3.0 ceremony status — REGISTRIES ✅, GIT ⏳ PENDING:**
+- [x] **Registries published** 2026-06-05T17:59Z — crates.io ✅, npm ✅, PyPI ✅
+- [ ] **Step 1**: `release/v0.3.0` → `main` — **⏳ awaiting `finalize` workflow_dispatch (founder action on PR #568)**
+- [ ] **Step 2**: Tag `v0.3.0` — awaiting finalize
+- [ ] **Step 3**: GitHub Release v0.3.0 — awaiting finalize
+- [ ] **Step 4**: Back-merge `release/v0.3.0` → develop — awaiting finalize
 
 ---
 
 ## Live priorities (ordered)
 
-**P0 (develop CI red — fix in flight):**
-1. **PR #508** (`fix/sla-ancestors-macos-flake`) — CI running. Fixes `sla_ancestors_100k` macOS flake (32.9ms vs 30ms limit; bumped to 100ms). Once CI green → admin-merge.
+> ⚠️ **All three P0 items require founder action.** RFC-0120 COMPLETE. RFC-0114 COMPLETE (94/94 Three-Surface). RFC-0113 Partially Implemented (Phase 1 done; corpus measurement = P1 post-#568). RFC-0115 Partially Implemented (Phase 1 done; Phase 2 gated on `body_start` data path). RFC-0116 Partially Implemented (Phase 1 done; Phase 2 **UNBLOCKED**). Codex usage limits exhausted — see P0 #3.
 
-**P1 (RFC-0109 roll-out — unblock v0.1.20):**
-2. **RFC-0109 tool 4**: `get_isolated_symbols` shared builder (rust-implementer; mirrors get_callees pattern).
-3. **RFC-0109 tool 5**: `get_reachable` shared builder.
-4. **RFC-0109 tool 6**: `get_reachable_to` shared builder.
-5. **RFC-0109 tool 7**: `get_all_symbols` (bespoke pagination — reconcile last).
-6. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands).
-7. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark (bench; macOS SLA fix landed via #508 first).
+**P0 (founder action required):**
+1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
+2. **RFC-0121** ([RFC file written](../../rfcs/0121-charter-hyphae-token-sla-amendment.md)): Charter §2 Hyphae token efficiency ratio measured at **0.753 vs target ≤0.30** — choose:
+   - **Option A** (PM recommendation): Amend Charter §2 to per-class targets (tree ≤35% ✅ already met, list ≤70%, scalar ≤90%) — no engineering work, immediately satisfies CI gates
+   - **Option B**: Implement additional compression to reach ≤30% across all tools — significant engineering
+   - **Option C**: Retire the metric entirely (remove row from Charter §2)
+3. **Codex usage limits exhausted** (surfaced v134): The `chatgpt-codex-connector` bot posted billing notice on PR #705 (2026-06-08T12:11:49Z). CLAUDE.md Hard Rule requires Codex findings to be addressed before any merge, but Codex cannot review while limits are exhausted. **Current open PR #568 is founder-gated separately** (not blocked by Codex). **Future PRs are at risk**: the Hard Rule becomes unenforceable until limits reset. Founder must upgrade Codex account / add credits, or explicitly suspend the Codex Hard Rule while limits are out.
 
-**P2 (v0.2.0 scope):**
-8. Issue #428 god-file-split remaining slices.
-9. Skill marketplace submission to Claude Code marketplace.
-10. "First 5 minutes" walkthrough validation.
-11. `release.yml` finalize merge step systemic fix (ceremony script is the current workaround).
+**🆕 P1 (unblocked NOW — no v0.3.0 dependency):**
+2. **RFC-0116 Phase 2** (`feature/RFC-0116-safe-to-edit`): `mycelium safe-to-edit <symbol>` (CLI) + `mycelium_safe_to_edit` (MCP) — thin Store adapter over existing `reachable_to` + callers APIs; pure `verdict.rs` core already on develop (`crates/mycelium-core/src/verdict.rs`, 14038 bytes). **Fully unblocked** — no v0.3.0 dependency. Three-Surface Rule: new capability → Phase 2 MUST deliver CLI ↔ MCP 1:1 + Skill coverage. TDD: write RED tests for Store adapter first (Phase 2 AC in RFC-0116). Health/test-gap inputs optional (pass `None`).
+
+**P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
+3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
+4. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench)
+5. **RFC-0113 Phase 2**: corpus measurement — `unknown`-tail reduction benchmark on dogfood corpus; target metric TBD in RFC text (rust-implementer; blocked until build available)
+6. ~~Issue #612~~ **CLOSED ✅ (v154)** — both items complete.
+7. ~~**RFC-0120 Phase 3 Part B**~~ **✅ COMPLETE** (PR #731 merged squash `6e24141` in v158) — RFC-0120 Status → Implemented.
+
+**P2:**
+7. Skill marketplace submission to Claude Code marketplace (tech-writer)
+8. "First 5 minutes" walkthrough validation with npm/bun path
+9. ~~`release.yml` finalize merge step systemic fix~~  **✅ RESOLVED (v160)** — finalize step is correctly `workflow_dispatch`-gated.
 
 ---
 
-## Dispatch state (2026-06-03 v28 — PR #496 merged; #502/#505/#506 closed; PR #508 CI running; RFC-0109 3/7 on develop)
+## Dispatch state (2026-06-10 v164)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action requested (P0)** | **(1)** Admin-merge PR #508 (`fix/sla-ancestors-macos-flake`) once CI green — fixes develop Quality Gate red. |
-| PM | **DONE ✅** | v28 complete: PR #496 merged; #502/#505/#506 closed; PR #508 opened; PM state corrected (v0.1.19 boundary); decisions.jsonl appended. |
-| release | **DONE ✅** | All ceremonies complete (v0.1.17 retro-tag ✅, v0.1.18 ✅, v0.1.19 ✅). Next: cut `release/v0.1.20` once RFC-0109 all 7 tools on develop. |
-| security-reviewer | **DONE ✅** | Post-v0.1.19 scan: CLEAN (no new unsafe/secrets in #497–#508 range). |
-| architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅ (merged this session). |
-| e2e-runner | **P1** | Dogfood re-run with redb-as-default + watch --subscribe (8/8 CLI). |
-| bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA (after #508 merges). |
-| tech-writer | idle | Skill marketplace submission prep (P2). |
-| rust-implementer | **P1** | RFC-0109 tools 4–7: get_isolated_symbols → get_reachable → get_reachable_to → get_all_symbols. |
+| founder | **action required (P0 ×3, ×29 runs)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — CI 28/28 ✅; registries published; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
+| PM | **DONE ✅** | v164 complete: PR #738 merged (v163, `7962097`); RFC-0115/0116 confirmed Partially Implemented; RFC-0116 Phase 2 identified as unblocked P1; decisions.jsonl appended. |
+| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
+| security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
+| architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`). |
+| e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
+| bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
+| tech-writer | idle | Skill marketplace prep (P2). |
+| rust-implementer | **P1 (unblocked)** | **RFC-0116 Phase 2**: `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP — thin Store adapter + Skill coverage (no v0.3.0 dependency). TDD: RED first per RFC-0116 Phase 2 AC. |
 
 ---
 
@@ -200,10 +117,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Re-licensing (forbidden — see Charter §5.8).
 - Storage-format break.
 - Skill marketplace listing metadata sign-off.
-- **RFC-0104 cold SLA measurement**: Charter §2 table amendment (warm/cold split) requires measured nightly data.
+- **RFC-0104 cold SLA measurement**: Charter §2 warm/cold SLA table amendment requires measured nightly data.
+- **RFC-0121 SLA amendment**: [RFC-0121 written](rfcs/0121-charter-hyphae-token-sla-amendment.md) — Charter §2 "≤30% of JSON token count" measured 0.753; **founder must choose Option A (per-class targets, PM-recommended) / B (implement compression) / C (retire metric).** Note: RFC-0120 (`rfcs/0120-token-density-measurement-honesty.md`) is the prerequisite measurement RFC (implement real BPE tokenizer).
+- **Codex usage limits**: CLAUDE.md Hard Rule (Codex review mandatory pre-merge) is unenforceable while limits are exhausted. **Founder must** upgrade account or explicitly suspend the rule.
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED by founder 2026-06-03T12:30Z.
-- ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED — retro-tag pushed; main jumps v0.1.16 → v0.1.18 → v0.1.19.
-- **Systemic**: `release.yml` finalize merge step — ceremony script is workaround; fix deferred to P2.
+- ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED.
+- ~~**Systemic**: `release.yml` finalize merge step~~  **✅ RESOLVED (v160)**.
 
 ---
 
@@ -212,48 +131,47 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - **Hourly (autonomous)**: each agent picks the top item from its queue.
 - **Daily PM check** (orchestrator): scan issue queue for new P0/P1; rebalance.
 - **Weekly Sprint review** (orchestrator + founder if available): mark sprint exit criteria; cut next sprint.
-- **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/v0.1.x branch, publish.
+- **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/vX.Y.Z branch.
 
 ---
 
 ## Archive
 
-### 2026-06-03 PM dispatch v28 (this run)
+### 2026-06-10 PM dispatch v164 (this run)
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: ci/testing/release-governance), PM state (v25 on disk — stale; v27 on branch), v0.2 PRD.
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20: last entry v163 at 08:45Z, 196 total), anti-patterns (domain hits: release-governance/merge-discipline/governance-verification/git-workflow), PM state v163 (develop HEAD `7962097` post-#738 merge), v0.2 PRD. Read `.hive/memory/INDEX.md`.
 
 **Assessment:**
-- 4 open PRs: #496 (ADR-0010, CI ✅), #502 (PM v26, CI ✅, Codex 2 findings), #505 (get_callers, CI ✅, Codex 1 finding), #506 (PM v27, CI ✅, Codex 1 finding).
-- 0 open issues.
-- Develop CI RED: `sla_ancestors_100k` macOS failure (32.978ms vs 30ms limit) on SHA `2c130452` (get_dead_symbols squash merge). Feature branch and PR CI had passed; failure is develop-only (loaded macOS runner, ~6× slower than Linux).
-- RFC-0109 tools 1–3 (get_callees, get_callers, get_dead_symbols) already on develop.
-- Codex findings: #496 (2 outdated), #502 (1 outdated, 1 live), #505 (1 live — stale PR), #506 (1 live — v0.1.19 content boundary error).
+- PR #738 (PM v163 chore): CI 22/22 ✅, Codex billing quota notice only (no code findings — Hard Rule vacuously satisfied per v134+ precedent). Merged this run (squash `7962097`).
+- 0 open issues. Develop CI GREEN. 94/94 Three-Surface compliant.
+- PR #568 (release/v0.3.0): CI 28/28 ✅; registries published 2026-06-05T17:59Z; awaiting `finalize` workflow_dispatch. 3 P0 escalations ×29 consecutive runs.
+- **New discovery**: Scanned Draft RFCs (0115, 0116, 0118). RFC-0118: `Status: Implemented` (already done). RFC-0115 `test_gap.rs` (7446 bytes) and RFC-0116 `verdict.rs` (14038 bytes) BOTH exist on develop — Phase 1 implemented — but RFC status files still say "Draft". RFC-0116 Phase 2 (Store adapter + CLI/MCP + Skill) is **fully unblocked** (no v0.3.0 dependency, no #568 dependency). This item was missing from P1 queue.
 
 **Actions taken:**
-1. **Diagnosed** develop CI red: macOS `sla_ancestors_100k` timing SLA flake. Bumped macOS limit 30ms → 100ms. Committed + pushed `fix/sla-ancestors-macos-flake`. **PR #508** opened (CI running). ✅
-2. **Replied to all Codex findings** (6 replies): #502 threads (1 outdated acknowledged, 1 v28 will fix), #496 threads (both outdated, fixed by `836ada4`), #505 thread (PR stale, text-mode concern addressed in merged #504), #506 thread (v0.1.19 boundary bug, v28 will fix). ✅
-3. **Merged PR #496** (docs/adr-0010-no-live-lsp, Codex all outdated, CI ✅) → squash `4bdc4de`. ✅
-4. **Closed PR #502** as superseded by v28 (merge conflict after #496 landed; Codex replies posted). ✅
-5. **Closed PR #505** as stale (develop has get_callers from #504; text-mode Codex concern resolved in merged version). ✅
-6. **Closed PR #506** as superseded by v28 (v0.1.19 content boundary error corrected in this PM state). ✅
-7. **Corrected PM state**: v0.1.19 section now has boundary note; PRs #497–#501 moved to post-v0.1.19 unreleased section. Dispatch/priorities updated. ✅
-8. **Appended decisions.jsonl**. ✅
+1. **Merged PR #738** (chore PM v163, squash `7962097`). CI 22/22 ✅. Codex Hard Rule vacuously satisfied. ✅
+2. **Verified RFC-0115 Phase 1**: `crates/mycelium-core/src/test_gap.rs` on develop HEAD. ✅
+3. **Verified RFC-0116 Phase 1**: `crates/mycelium-core/src/verdict.rs` on develop HEAD. ✅
+4. **Updated RFC-0115 status**: `Draft` → `Partially Implemented` (Phase 1 done; Phase 2 — Store adapter pending). ✅
+5. **Updated RFC-0116 status**: `Draft` → `Partially Implemented` (Phase 1 done; Phase 2 — Store adapter + CLI/MCP pending). ✅
+6. **Added RFC-0116 Phase 2** to P1 queue as next unblocked rust-implementer task. ✅
+7. **Updated dispatch state**: rust-implementer → P1 (unblocked): RFC-0116 Phase 2. ✅
+8. **PM state v164 written + decisions.jsonl appended**. ✅
 
-**Escalations to founder:**
-- **(1) PR #508**: Admin-merge once CI green — restores develop Quality Gate to green. Minimal 2-file change (sla_trunk.rs + CHANGELOG).
+**Escalations to founder (P0, unchanged ×29 consecutive runs):**
+1. **PR #568** — trigger `finalize` workflow_dispatch (one-click). CI gate fully green; registries published 2026-06-05T17:59Z.
+2. **RFC-0121** — choose Option A/B/C for Charter §2 Hyphae token SLA. Full analysis in `rfcs/0121-charter-hyphae-token-sla-amendment.md`; PM recommends **A**.
+3. **Codex billing** — upgrade credits at https://chatgpt.com/codex/cloud/settings/usage, or explicitly suspend the CLAUDE.md Codex Hard Rule.
 
-### 2026-06-03 PM dispatch v27 (PRs #485+#486 merged; ADR numbering fix: 0008-redb-storage-engine → 0009; v0.1.18 ceremony still BROKEN pending founder)
+### 2026-06-10 PM dispatch v163 (prior run)
 
-*(see closed PR #506 for full archive)*
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20: last entry v162 07:35Z), anti-patterns, PM state v162, v0.2 PRD.
 
-### 2026-06-03 PM dispatch v26 (PR #501 merged; PR #496 Codex fix; v0.1.17–v0.1.19 ceremonies confirmed)
+**Assessment:** PR #737 (PM v162 chore): CI 22/22 ✅, Codex billing quota notice only. Develop CI GREEN. 0 open issues. 94/94 Three-Surface. PR #568 founder-gated. 3 P0 escalations ×28 runs unchanged.
 
-*(see closed PR #502 for full archive)*
+**Actions taken:** (1) Merged PR #737 (squash `7da70b5`). (2) No new unblocked code work identified. (3) PM state v163 written. (4) decisions.jsonl appended.
 
-### 2026-06-03 PM dispatch v25 (PRs #485+#486 merged; ADR numbering fix)
+**Escalations:** Same 3 P0s ×28 runs (see v164 for full detail).
 
-*(see earlier archive entries for full detail)*
+### Earlier dispatches (v1–v162)
 
-### Earlier dispatches (v1–v24)
-
-*(archived in older versions of this file)*
+*(archived in older versions of this file — see git history)*
