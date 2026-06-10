@@ -46,6 +46,18 @@ fn load_index(root: &Path) -> Result<Store> {
         .with_context(|| format!("failed to load index from {}", index_path.display()))
 }
 
+// ── get-token-stats ───────────────────────────────────────────────────────────
+
+/// Print the token-efficiency payload produced by `mycelium_get_token_stats`.
+///
+/// Uses the same shared `token_stats_payload()` as the MCP tool, so CLI and
+/// MCP emit byte-identical JSON (RFC-0120 Phase 3B byte-identity contract).
+pub(crate) fn run_get_token_stats() -> Result<()> {
+    let payload = mycelium_mcp::token_bench::token_stats_payload();
+    println!("{}", serde_json::to_string_pretty(&payload)?);
+    Ok(())
+}
+
 // ── search-symbol ─────────────────────────────────────────────────────────────
 
 pub(crate) fn run_search_symbol(

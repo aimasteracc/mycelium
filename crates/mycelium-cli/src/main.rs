@@ -63,6 +63,14 @@ impl From<QueryFormat> for queries::Format {
 enum Cmd {
     /// Print the engine version.
     Version,
+    /// Measure `TextFormatter` vs `JsonFormatter` token counts over the committed corpus.
+    ///
+    /// Reports the token-efficiency ratio (Text/JSON tokens) using the same embedded
+    /// corpus and logic as the MCP tool `mycelium_get_token_stats`, producing
+    /// byte-identical JSON output.  The primary metric is `text_to_json_token_ratio`
+    /// (Charter §2 target ≤ 0.30).  `wire_format_byte_ratio` (`JSON` vs `MessagePack` bytes)
+    /// is a separate secondary axis.
+    GetTokenStats,
     /// Placeholder for `mycelium init` (creates a `.mycelium/` config dir).
     /// Hidden until implemented — see issue #154.
     #[command(hide = true)]
@@ -1166,6 +1174,9 @@ fn dispatch(cmd: Cmd) -> Result<()> {
     match cmd {
         Cmd::Version => {
             println!("mycelium {}", env!("CARGO_PKG_VERSION"));
+        }
+        Cmd::GetTokenStats => {
+            queries::run_get_token_stats()?;
         }
         Cmd::Init => {
             tracing::warn!(

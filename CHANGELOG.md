@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0120 Phase 3B — `mycelium get-token-stats` CLI twin** (Three-Surface Rule completion).
+  New `mycelium get-token-stats` subcommand produces byte-identical JSON to `mycelium_get_token_stats`
+  by sharing the same `token_bench::token_stats_payload()` core function. A new
+  `crates/mycelium-cli/tests/cli_token_stats.rs` byte-identity harness spawns the CLI binary and
+  `assert_eq!`s its output against the in-process MCP body. The `EXCEPTION: MCP-only` entry for
+  `get_token_stats` in `skills/INDEX.md` is retracted and reclassified as a full CLI ↔ MCP ↔ Skill
+  triple. (RFC-0120 Phase 3B)
+
 - **RFC-0120 Phase 3 — `mycelium_get_token_stats` rewired onto real token axis.**
   The tool now measures `TextFormatter` vs `JsonFormatter` BPE token counts over a committed
   6-fixture ripgrep corpus (embedded via `include_str!`). Primary output: `text_to_json_token_ratio`
