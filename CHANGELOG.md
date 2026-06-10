@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0120 Phase 3 — `mycelium_get_token_stats` rewired onto real token axis.**
+  The tool now measures `TextFormatter` vs `JsonFormatter` BPE token counts over a committed
+  6-fixture ripgrep corpus (embedded via `include_str!`). Primary output: `text_to_json_token_ratio`
+  (measured 0.753 / 24.7% reduction). Secondary output `wire_format_byte_ratio` retains the old
+  JSON/MessagePack byte metric under a clearly-labelled separate key. Requires the `tiktoken`
+  cargo feature for real BPE counts; falls back to `whitespace-approximate` otherwise.
+
+### Changed
+
+- **BREAKING (`mycelium_get_token_stats` output shape):** old fields `{ sample_query, json_bytes,
+  msgpack_bytes, ratio, compact_chars, token_ratio }` replaced by `{ tokenizer, corpus_version,
+  fixtures, aggregate_json_tokens, aggregate_text_tokens, text_to_json_token_ratio,
+  token_reduction_pct, wire_format_byte_ratio }`. The old byte ratio is preserved as
+  `wire_format_byte_ratio`. (RFC-0120 Phase 3)
+
 - **RFC-0122 (rule f) — function-return-type receiver inference** (`mycelium-rcig-core`).
   `let s = get_store(); s.upsert_node()` now resolves to the correct `Store::upsert_node`
   instead of leaving the call unresolved. Implemented via: (1) new `@binding.fn_call` and
