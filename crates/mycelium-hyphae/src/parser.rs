@@ -15,26 +15,55 @@ use crate::{
     lexer::{Token, tokenise},
 };
 
+/// The teaching text appended to every position-carrying parse error: what a
+/// valid Hyphae selector looks like, plus a docs pointer. One renderer for
+/// all variants — no raw lexer/parser internals (Debug formatting) may leak
+/// into the message a user or agent sees.
+const GRAMMAR_HINT: &str = "A Hyphae simple selector is `#Name` (by symbol name), `.kind` (e.g. \
+     `.function`, `.class`), or `*` (any) — combined with `>` (child), \
+     `:pseudo(arg)`, and `[attr=value]`. To find a symbol named `Foo`, write \
+     `#Foo` (NOT `Foo`, `class.Foo`, or `class:name(Foo)`).\n  \
+     Grammar: rfcs/0003-hyphae-query-language.md and rfcs/0091-hyphae-jquery-selectors.md";
+
+/// Render `tok` the way the user wrote it (`` `div` ``, `` `:calls` ``,
+/// `` `>` ``, "whitespace") — never the internal Debug form
+/// (`Ident("div")`). Used to build [`ParseError::UnexpectedToken`].
+fn describe_token(tok: &Token<'_>) -> String {
+    match tok {
+        Token::Hash(s) => format!("`#{s}`"),
+        Token::Dot(s) => format!("`.{s}`"),
+        Token::Colon(s) => format!("`:{s}`"),
+        Token::Gt => "`>`".to_owned(),
+        Token::Tilde => "`~`".to_owned(),
+        Token::LParen => "`(`".to_owned(),
+        Token::RParen => "`)`".to_owned(),
+        Token::LBracket => "`[`".to_owned(),
+        Token::RBracket => "`]`".to_owned(),
+        Token::Eq => "`=`".to_owned(),
+        Token::Comma => "`,`".to_owned(),
+        Token::Star => "`*`".to_owned(),
+        Token::Number(n) => format!("number `{n}`"),
+        Token::Ident(s) => format!("`{s}`"),
+        Token::Ws => "whitespace".to_owned(),
+    }
+}
+
 /// Error type for Hyphae parse failures.
 #[derive(thiserror::Error, Clone, Debug, PartialEq, Eq)]
 pub enum ParseError {
     /// A token was encountered that does not fit the grammar at that position.
-    #[error(
-        "unexpected token `{0}` at position {1}\n  \
-         A Hyphae simple selector is `#Name` (by symbol name), `.kind` (e.g. \
-         `.function`, `.class`), or `*` (any) — combined with `>` (child), \
-         `:pseudo(arg)`, and `[attr=value]`. To find a symbol named `Foo`, write \
-         `#Foo` (NOT `Foo`, `class.Foo`, or `class:name(Foo)`).\n  \
-         Grammar: rfcs/0003-hyphae-query-language.md and rfcs/0091-hyphae-jquery-selectors.md"
-    )]
+    ///
+    /// The `String` is the human rendering from [`describe_token`] (already
+    /// backtick-quoted), never a Debug-formatted internal token.
+    #[error("unexpected token {0} at position {1}\n  {GRAMMAR_HINT}")]
     UnexpectedToken(String, usize),
 
     /// The input ended before the grammar was satisfied.
-    #[error("unexpected end of input")]
+    #[error("unexpected end of input\n  {GRAMMAR_HINT}")]
     UnexpectedEof,
 
     /// The lexer encountered an unrecognised character.
-    #[error("lexer error at position {0}")]
+    #[error("unrecognized character at position {0}\n  {GRAMMAR_HINT}")]
     LexError(usize),
 }
 
@@ -53,7 +82,7 @@ pub fn parse(input: &str) -> Result<Ast, ParseError> {
     parser.skip_ws();
     if parser.pos < parser.tokens.len() {
         let (tok, pos) = &parser.tokens[parser.pos];
-        return Err(ParseError::UnexpectedToken(format!("{tok:?}"), *pos));
+        return Err(ParseError::UnexpectedToken(describe_token(tok), *pos));
     }
     Ok(ast)
 }
@@ -166,7 +195,7 @@ impl<'src> Parser<'src> {
             }
             Some(other) => {
                 return Err(ParseError::UnexpectedToken(
-                    format!("{other:?}"),
+                    describe_token(other),
                     self.current_pos(),
                 ));
             }
@@ -199,23 +228,31 @@ impl<'src> Parser<'src> {
         let name = match name_tok {
             Token::Ident(s) => s.to_owned(),
             other => {
-                return Err(ParseError::UnexpectedToken(format!("{other:?}"), name_pos));
+                return Err(ParseError::UnexpectedToken(
+                    describe_token(&other),
+                    name_pos,
+                ));
             }
         };
         match self.advance() {
             Some((Token::Eq, _)) => {}
-            Some((tok, pos)) => return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos)),
+            Some((tok, pos)) => return Err(ParseError::UnexpectedToken(describe_token(&tok), pos)),
             None => return Err(ParseError::UnexpectedEof),
         }
         let (value_tok, value_pos) = self.advance().ok_or(ParseError::UnexpectedEof)?;
         let value = match value_tok {
             Token::Ident(s) => s.to_owned(),
             Token::Number(n) => n.to_string(),
-            other => return Err(ParseError::UnexpectedToken(format!("{other:?}"), value_pos)),
+            other => {
+                return Err(ParseError::UnexpectedToken(
+                    describe_token(&other),
+                    value_pos,
+                ));
+            }
         };
         match self.advance() {
             Some((Token::RBracket, _)) => {}
-            Some((tok, pos)) => return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos)),
+            Some((tok, pos)) => return Err(ParseError::UnexpectedToken(describe_token(&tok), pos)),
             None => return Err(ParseError::UnexpectedEof),
         }
         Ok(AttributeSelector { name, value })
@@ -232,7 +269,7 @@ impl<'src> Parser<'src> {
         let name = if let Token::Colon(n) = tok {
             n.to_owned()
         } else {
-            return Err(ParseError::UnexpectedToken(format!("{tok:?}"), pos));
+            return Err(ParseError::UnexpectedToken(describe_token(&tok), pos));
         };
 
         let argument = if matches!(self.peek(), Some(Token::LParen)) {
@@ -249,7 +286,7 @@ impl<'src> Parser<'src> {
                         match t {
                             Token::Number(n) => PseudoArg::Number(n),
                             other => {
-                                return Err(ParseError::UnexpectedToken(format!("{other:?}"), p));
+                                return Err(ParseError::UnexpectedToken(describe_token(&other), p));
                             }
                         }
                     }
@@ -258,7 +295,7 @@ impl<'src> Parser<'src> {
                         match t {
                             Token::Ident(s) => PseudoArg::Path(s.to_owned()),
                             other => {
-                                return Err(ParseError::UnexpectedToken(format!("{other:?}"), p));
+                                return Err(ParseError::UnexpectedToken(describe_token(&other), p));
                             }
                         }
                     }
@@ -268,7 +305,7 @@ impl<'src> Parser<'src> {
                 match self.advance() {
                     Some((Token::RParen, _)) => {}
                     Some((t, p)) => {
-                        return Err(ParseError::UnexpectedToken(format!("{t:?}"), p));
+                        return Err(ParseError::UnexpectedToken(describe_token(&t), p));
                     }
                     None => return Err(ParseError::UnexpectedEof),
                 }
@@ -456,6 +493,38 @@ mod tests {
     #[test]
     fn invalid_char_error() {
         assert!(matches!(parse("@bad"), Err(ParseError::LexError(_))));
+    }
+
+    #[test]
+    fn lex_error_is_human_readable_and_teaches() {
+        // Live QA: `#a + #b` (a CSS adjacent-sibling guess) surfaced as the
+        // raw Debug `LexError(3)` — an internal variant name plus a bare byte
+        // offset. The rendered error must instead say, in human words, what
+        // was found and where, and teach the grammar.
+        let err = parse("#a + #b").expect_err("`+` is not a Hyphae combinator");
+        let msg = err.to_string();
+        assert!(!msg.contains("LexError("), "no Debug noise: {msg}");
+        assert!(msg.contains("position 3"), "names the byte position: {msg}");
+        assert!(
+            msg.to_lowercase().contains("character"),
+            "describes the failure in human words: {msg}"
+        );
+        assert!(
+            msg.contains("#Name") || msg.contains("Hyphae"),
+            "teaches the grammar: {msg}"
+        );
+    }
+
+    #[test]
+    fn unexpected_token_error_has_no_debug_noise() {
+        // Live QA: `div` surfaced as `UnexpectedToken("Ident(\"div\")", 0)` —
+        // the offending token was embedded in its Debug form. The rendered
+        // error must name the token as the user wrote it, not as an enum.
+        let err = parse("div").expect_err("bare ident is not a selector");
+        let msg = err.to_string();
+        assert!(!msg.contains("Ident(\""), "no Debug-formatted token: {msg}");
+        assert!(msg.contains("div"), "names the offending token: {msg}");
+        assert!(msg.contains("position 0"), "names the position: {msg}");
     }
 
     #[test]

@@ -49,6 +49,26 @@ const SUPPORTED_PSEUDOS: &[&str] = &[
     "nth-child",
 ];
 
+/// Kind tokens the `.kind` base selector accepts — the domain of
+/// [`node_kind_from_str`], which is the exact function [`Evaluator::eval_base`]
+/// matches kinds with. Kept in sync by
+/// `tests::eval_checked_accepts_every_supported_kind`.
+const SUPPORTED_KINDS: &[&str] = &[
+    "function",
+    "method",
+    "class",
+    "struct",
+    "enum",
+    "interface",
+    "trait",
+    "module",
+    "variable",
+    "constant",
+    "const",
+    "type",
+    "import",
+];
+
 /// Error returned when a query parses but names a selector the evaluator does
 /// not implement.
 ///
@@ -75,6 +95,86 @@ pub enum EvalError {
          :not, :has, :in, :first-child, :last-child, :only-child, :nth-child."
     )]
     UnsupportedPseudo(String),
+
+    /// `.kind` named a node kind the evaluator does not implement.
+    ///
+    /// `hint` is either empty or a pre-rendered `\n  (Did you mean ...?)`
+    /// line; see [`EvalError::unsupported_kind`]. Kept in sync with
+    /// [`SUPPORTED_KINDS`] (asserted by
+    /// `tests::eval_checked_rejects_unknown_kind_and_suggests_function`).
+    #[error(
+        "unsupported selector: kind `.{name}` is not implemented (RFC-0003).\n  \
+         Supported kinds: .function, .method, .class, .struct, .enum, \
+         .interface (alias .trait), .module, .variable, .constant (alias .const), \
+         .type, .import.{hint}"
+    )]
+    UnsupportedKind {
+        /// The unknown kind token as written (without the leading dot).
+        name: String,
+        /// Pre-rendered did-you-mean line, or empty when no near-miss exists.
+        hint: String,
+    },
+}
+
+impl EvalError {
+    /// Build an [`EvalError::UnsupportedKind`] for `name`, attaching a
+    /// did-you-mean hint when a supported kind is a near-miss.
+    fn unsupported_kind(name: &str) -> Self {
+        let hint = suggest_kind(name)
+            .map_or_else(String::new, |s| format!("\n\n  (Did you mean `.{s}`?)"));
+        Self::UnsupportedKind {
+            name: name.to_owned(),
+            hint,
+        }
+    }
+}
+
+/// Best-effort did-you-mean for an unknown kind token.
+///
+/// Suggests a supported kind that the input abbreviates (`fn` → `function`:
+/// the input is a subsequence) or nearly spells (`clazz` → `class`:
+/// Levenshtein distance ≤ 2). Ties resolve to the smallest edit distance.
+///
+/// The abbreviation branch additionally anchors on the FIRST character
+/// (review finding on PR #749): without the anchor, a short input like `st`
+/// subsequence-matches `const` out of the middle (c-o-n-**s**-**t**) and the
+/// edit-distance tie-break would suggest `.const` where the user almost
+/// certainly meant `.struct`. Anchoring keeps the advertised abbreviations
+/// (`fn` → `function`, `st` → `struct`) and rejects mid-word accidents.
+fn suggest_kind(input: &str) -> Option<&'static str> {
+    let first = input.chars().next();
+    SUPPORTED_KINDS
+        .iter()
+        .copied()
+        .filter(|k| {
+            (input.len() >= 2 && first == k.chars().next() && is_subsequence(input, k))
+                || levenshtein(input, k) <= 2
+        })
+        .min_by_key(|k| levenshtein(input, k))
+}
+
+/// `true` if every char of `needle` appears in `hay` in order (abbreviation
+/// check: `fn` ⊑ `function`).
+fn is_subsequence(needle: &str, hay: &str) -> bool {
+    let mut hay_chars = hay.chars();
+    needle.chars().all(|c| hay_chars.any(|h| h == c))
+}
+
+/// Levenshtein edit distance — inputs are short kind tokens, so the simple
+/// O(len a × len b) two-row DP is plenty.
+fn levenshtein(a: &str, b: &str) -> usize {
+    let b_chars: Vec<char> = b.chars().collect();
+    let mut prev: Vec<usize> = (0..=b_chars.len()).collect();
+    for (i, ca) in a.chars().enumerate() {
+        let mut cur = Vec::with_capacity(b_chars.len() + 1);
+        cur.push(i + 1);
+        for (j, cb) in b_chars.iter().enumerate() {
+            let cost = usize::from(ca != *cb);
+            cur.push((prev[j] + cost).min(prev[j + 1] + 1).min(cur[j] + 1));
+        }
+        prev = cur;
+    }
+    prev[b_chars.len()]
 }
 
 /// Map a file extension to a language wire string (`rust`, `python`, ...).
@@ -464,6 +564,15 @@ fn validate_selector(sel: &Selector) -> Result<(), EvalError> {
 }
 
 fn validate_simple(simple: &SimpleSelector) -> Result<(), EvalError> {
+    // Validity check is `node_kind_from_str` itself — the exact function
+    // `eval_base` matches `.kind` tokens with — so the validator can NEVER
+    // reject a kind that would have matched (kinds are open-ended-ish across
+    // language families; a hand-maintained allow-list here would drift).
+    if let BaseSelector::Kind(kind) = &simple.base {
+        if node_kind_from_str(kind).is_none() {
+            return Err(EvalError::unsupported_kind(kind));
+        }
+    }
     for attr in &simple.attributes {
         if !SUPPORTED_ATTRIBUTES.contains(&attr.name.as_str()) {
             return Err(EvalError::UnsupportedAttribute(attr.name.clone()));
@@ -648,6 +757,87 @@ mod tests {
         assert!(err.to_string().contains("frobnicate"), "{err}");
     }
 
+    // ── Unknown `.kind` selectors → explicit error (extends the #703 guard) ──
+    //
+    // `.fn` / `.clazz` previously evaluated to a silent `{matches:[], count:0}`
+    // while `[nmae=foo]` correctly errored: the #703 validation covered
+    // attribute and pseudo-class names but not `.kind` tokens. The validator
+    // must reject unknown kinds with the valid-kind list and a did-you-mean —
+    // and it must NEVER reject a kind the evaluator would actually match
+    // (the validity check is `node_kind_from_str`, the exact function
+    // `eval_base` matches with).
+
+    #[test]
+    fn eval_checked_rejects_unknown_kind_and_suggests_function() {
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        let err = ev_checked(&store, ".fn").expect_err("`.fn` must be an error, not Ok-empty");
+        let msg = err.to_string();
+        assert!(msg.contains("fn"), "names the offending kind: {msg}");
+        assert!(
+            msg.contains(".function"),
+            "suggests the supported `.function` kind: {msg}"
+        );
+        // Lists every supported kind token so the agent can self-correct.
+        for kind in super::SUPPORTED_KINDS {
+            assert!(
+                msg.contains(kind),
+                "valid-kind list must include `{kind}`: {msg}"
+            );
+        }
+    }
+
+    #[test]
+    fn eval_checked_suggests_class_for_clazz() {
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        let err = ev_checked(&store, ".clazz").expect_err("`.clazz` must be an error");
+        let msg = err.to_string();
+        assert!(msg.contains("clazz"), "names the offending kind: {msg}");
+        assert!(msg.contains(".class"), "suggests `.class`: {msg}");
+        // Nested inside a pseudo argument: the validator must recurse.
+        let nested = ev_checked(&store, "*:not(.clazz)").expect_err("nested unknown kind");
+        assert!(nested.to_string().contains("clazz"), "{nested}");
+    }
+
+    #[test]
+    fn suggest_kind_anchors_on_first_char() {
+        // Review finding (PR #749): without a first-char anchor, `st`
+        // subsequence-matches `const` out of the middle and the edit-distance
+        // tie-break suggests `.const` where `.struct` is clearly meant.
+        assert_eq!(super::suggest_kind("st"), Some("struct"), "st -> struct");
+        // The advertised abbreviation + typo cases must keep working.
+        assert_eq!(
+            super::suggest_kind("fn"),
+            Some("function"),
+            "fn -> function"
+        );
+        assert_eq!(
+            super::suggest_kind("clazz"),
+            Some("class"),
+            "clazz -> class"
+        );
+    }
+
+    #[test]
+    fn eval_checked_accepts_every_supported_kind() {
+        // No-false-rejection guard: every kind token the evaluator can match
+        // (the domain of `node_kind_from_str`, advertised via SUPPORTED_KINDS)
+        // must validate cleanly across all language families.
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        for kind in super::SUPPORTED_KINDS {
+            assert!(
+                super::node_kind_from_str(kind).is_some(),
+                "SUPPORTED_KINDS entry `{kind}` must be matchable by node_kind_from_str"
+            );
+            assert!(
+                ev_checked(&store, &format!(".{kind}")).is_ok(),
+                "supported kind `.{kind}` must not be rejected"
+            );
+        }
+    }
+
     #[test]
     fn eval_checked_passes_working_combinators() {
         // No-regression: child + descendant combinators must validate cleanly.
@@ -656,6 +846,9 @@ mod tests {
         store.upsert_node(TrunkPath::parse("src/a.rs>Outer>inner").unwrap());
         assert!(ev_checked(&store, ".class>.method").is_ok());
         assert!(ev_checked(&store, ".class .method").is_ok());
-        assert!(ev_checked(&store, "#Outer .inner").is_ok());
+        // `.inner` (previously used here) is NOT a real kind token — under the
+        // unknown-kind guard it now correctly errors; use a valid kind.
+        assert!(ev_checked(&store, "#Outer .method").is_ok());
+        assert!(ev_checked(&store, "#Outer #inner").is_ok());
     }
 }

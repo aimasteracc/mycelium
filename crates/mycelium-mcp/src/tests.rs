@@ -5574,6 +5574,57 @@ async fn query_unsupported_selector_returns_error_envelope_not_empty() {
 }
 
 #[tokio::test]
+async fn query_lex_error_envelope_is_human_readable() {
+    // Live QA: `#a + #b` returned `hyphae parse error: LexError(3)` — the
+    // raw Debug of an internal variant. The MCP envelope must carry the same
+    // human Display message as the CLI (Three-Surface parity).
+    let server = MyceliumServer::new();
+    let raw = server
+        .mycelium_query(Parameters(QueryRequest {
+            expr: "#a + #b".to_owned(),
+            output_format: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    let err = val["error"].as_str().unwrap_or("");
+    assert!(!err.contains("LexError("), "no Debug noise, got: {err}");
+    assert!(
+        !err.contains("Ident(\""),
+        "no Debug-formatted token, got: {err}"
+    );
+    assert!(err.contains("position"), "names the position, got: {err}");
+    assert!(val.get("matches").is_none());
+}
+
+#[tokio::test]
+async fn query_unknown_kind_returns_error_envelope_with_suggestion() {
+    // `.fn` (unsupported; `.function` is the token) must surface `{error:…}`
+    // with a did-you-mean, never a silent `{matches:[], count:0}`.
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        store.upsert_node_with_kind(
+            TrunkPath::parse("src/a.rs>foo").unwrap(),
+            mycelium_core::types::NodeKind::Function,
+        );
+    }
+    let raw = server
+        .mycelium_query(Parameters(QueryRequest {
+            expr: ".fn".to_owned(),
+            output_format: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    let err = val["error"].as_str().unwrap_or("");
+    assert!(
+        err.contains("unsupported") && err.contains(".function"),
+        "expected unsupported-kind error suggesting `.function`, got: {}",
+        result_str(&raw)
+    );
+    assert!(val.get("matches").is_none());
+}
+
+#[tokio::test]
 async fn get_siblings_class_methods() {
     let server = MyceliumServer::new();
     {

@@ -86,6 +86,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   full-total field) and `count` equaled the pre-truncation array length. Payloads without
   `total_count` (`dead_symbols`, `isolated_symbols`, `reachable`) keep `count` as the documented
   full pre-budget total.
+- **Unknown `.kind` selectors now return an explicit error with a did-you-mean
+  (extends the #703 silent-empty guard).** `.fn` / `.clazz` previously evaluated
+  to a silent `{matches:[], count:0}` while `[lang=…]` / `:frobnicate` correctly
+  errored — the #703 validation covered attribute and pseudo-class names but not
+  `.kind` tokens. `Evaluator::eval_checked` now validates the kind token against
+  `node_kind_from_str` (the exact function the evaluator matches `.kind` with, so
+  a matchable kind can never be falsely rejected) and returns
+  `EvalError::UnsupportedKind` listing the supported kinds plus a near-miss
+  suggestion (`.fn` → `.function`, `.clazz` → `.class`). Surfaced identically by
+  CLI `mycelium query` and MCP `mycelium_query` (Three-Surface parity).
+
+- **Hyphae lexer/parser errors no longer leak internal Debug tokens.**
+  `#a + #b` previously surfaced as `hyphae parse error: LexError(3)` (MCP
+  rendered the error with `{:?}`) and `div` as `unexpected token Ident("div")`.
+  All `ParseError` variants now render through one friendly path: human wording
+  (`unrecognized character at position 3`), the token as the user wrote it
+  (`` `div` ``), and the existing `#Name`/`.kind`/`*` grammar teaching text +
+  docs pointer on every variant.
 
 - **Method/function definition spans now point to the declaration, not the enclosing class (Issue #657).**
   When a `@definition.method` query anchors on the enclosing type container (e.g.
