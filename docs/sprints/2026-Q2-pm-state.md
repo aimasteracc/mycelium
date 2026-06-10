@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-10 (PM dispatch v158 — PRs #731 + #732 merged; RFC-0120 COMPLETE (Three-Surface Rule fully satisfied); 3 P0s unchanged ×23 consecutive runs) |
+| Last updated | 2026-06-10 (PM dispatch v159 — decisions.jsonl v158 deferred entry appended; RFC-0122 dispatch stale note corrected (Phase 2b IS Implemented, PR #725); 3 P0s unchanged ×24 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -91,19 +91,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-10 v158)
+## Dispatch state (2026-06-10 v159)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v158 complete: PR #731 merged (feat/rfc-0120-phase3b-cli-twin, squash `6e24141`); PR #732 merged (chore/pm-state-v157, squash `113291b`, Quality Gate ✅ / commitlint Docker flake noted); PM state v158 written; decisions.jsonl append deferred. |
+| PM | **DONE ✅** | v159 complete: decisions.jsonl v158 deferred entry appended (bash); RFC-0122 dispatch stale note corrected; PM state v159 written. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension fully IMPLEMENTED (PR #725 merged `27df3cdc`). |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **DONE ✅** | RFC-0120 fully complete (Phase 3 `f5774d0` + Phase 3B `6e24141`). Three-Surface Rule satisfied for `get_token_stats`. Blocked on #568 back-merge for RFC-0122 Phase 2b impl. |
+| rust-implementer | **DONE ✅** | RFC-0120 fully complete (Phase 3 `f5774d0` + Phase 3B `6e24141`). RFC-0122 Phase 2b DONE (PR #725 `27df3cdc`). All work blocked on #568 back-merge; next: dogfood re-run + RFC-0104 SLA. |
 
 ---
 
@@ -133,6 +133,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-10 PM dispatch v159 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail via bash — last entries v157 `03:30Z`; v158 deferred), anti-patterns (domain hits: ci/tdd/three-surface/release-governance), PM state v158 (from origin/develop `2f7fe7b`), v0.2 PRD, RFC-0122.
+
+**Assessment:**
+- Local repo was at v0.2.0 main. Fetched origin/develop; created `chore/pm-state-v159` from `origin/develop 2f7fe7b`.
+- 0 open issues.
+- 1 open PR: #568 (release/v0.3.0, 28/28 CI ✅ — all jobs `success` or `skipped`; registries published 2026-06-05; founder-gated).
+- Develop CI GREEN (HEAD `2f7fe7b`, PR #732 squash).
+- 3 P0 escalations unchanged (×24 consecutive runs). All founder-gated.
+- **RFC-0122 stale note found**: v158 dispatch table listed rust-implementer as "Blocked on #568 back-merge for RFC-0122 Phase 2b impl" — but `rfcs/0122` shows `Status: Implemented` (all 7 ACs `[x]`; implemented in PM v152, PR #725 squash `27df3cdc`). Corrected dispatch table.
+- **decisions.jsonl gap**: v158 deferred append (file ~300KB, MCP limit). Local bash access resolves; appended v158 + v159 entries.
+- **Autonomous code work assessment**: All P1 items (dogfood re-run, RFC-0104 cold SLA, future RFC-0122 follow-ons) blocked until #568 back-merge lands on develop. P2 Skill marketplace needs founder metadata sign-off. No unblocked code task available; PM hygiene cycle is the correct action.
+
+**Actions taken:**
+1. **Appended decisions.jsonl**: v158 deferred entry + v159 entry. File now 297KB. ✅
+2. **Corrected dispatch state**: RFC-0122 Phase 2b note updated from stale "Blocked" → "DONE (PR #725 `27df3cdc`)". ✅
+3. **PM state v159 written**. ✅
+
+**Escalations to founder (P0, unchanged ×24 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05T17:59Z. `dirty` merge state is standard gitflow artifact (version-file conflict main v0.2.0 vs branch v0.3.0); ceremony script resolves via `-X ours`.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (per-class targets, no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. CLAUDE.md Hard Rule unenforceable. Upgrade account or explicitly suspend rule. See https://chatgpt.com/codex/cloud/settings/usage
 
 ### 2026-06-10 PM dispatch v158 (this run)
 
