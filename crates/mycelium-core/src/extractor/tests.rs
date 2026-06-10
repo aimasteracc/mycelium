@@ -3592,7 +3592,9 @@ fn function_span_is_item_not_file_typescript() {
     // Line 9:  `interface I {`
     // Line 10: `  x: number;`
     // Line 11: `}`
-    let source = "export function first(): number {\n  return 1;\n}\nconst second = () => 2;\nexport class K {\n  m() {}\n}\ntype T = number;\ninterface I {\n  x: number;\n}\n";
+    // Line 12: `export const third = () => 3;` — exported arrow const: the
+    //           export_statement-anchored lexical_declaration path (review pin)
+    let source = "export function first(): number {\n  return 1;\n}\nconst second = () => 2;\nexport class K {\n  m() {}\n}\ntype T = number;\ninterface I {\n  x: number;\n}\nexport const third = () => 3;\n";
     let store = extract_ts(source);
 
     for (path, expected, what) in [
@@ -3601,6 +3603,7 @@ fn function_span_is_item_not_file_typescript() {
         ("test.ts>K", (5, 7), "exported class"),
         ("test.ts>T", (8, 8), "type alias"),
         ("test.ts>I", (9, 11), "interface"),
+        ("test.ts>third", (12, 12), "exported arrow-fn const"),
     ] {
         let id = store
             .lookup(path)
@@ -3672,7 +3675,12 @@ fn function_span_is_item_not_file_go() {
     // Line 14: `func Second() int {`
     // Line 15: `	return 1`
     // Line 16: `}`
-    let source = "package main\n\ntype Server struct {\n\tname string\n}\n\nconst X = 1\n\nvar V = 2\n\nfunc First() {\n}\n\nfunc Second() int {\n\treturn 1\n}\n";
+    // Line 17: ``
+    // Line 18: `const (`             — grouped const block (review pin):
+    // Line 19: `	GX = 10`            —   each const_spec gets its OWN span,
+    // Line 20: `	GY = 20`            —   not the whole const_declaration block
+    // Line 21: `)`
+    let source = "package main\n\ntype Server struct {\n\tname string\n}\n\nconst X = 1\n\nvar V = 2\n\nfunc First() {\n}\n\nfunc Second() int {\n\treturn 1\n}\n\nconst (\n\tGX = 10\n\tGY = 20\n)\n";
     let ext = go_extractor();
     let mut store = Store::new();
     ext.extract("test.go", source.as_bytes(), &mut store)
@@ -3684,6 +3692,8 @@ fn function_span_is_item_not_file_go() {
         ("test.go>V", (9, 9), "package-level var"),
         ("test.go>First", (11, 12), "first fn"),
         ("test.go>Second", (14, 16), "second fn"),
+        ("test.go>GX", (19, 19), "grouped const (own spec span)"),
+        ("test.go>GY", (20, 20), "grouped const (own spec span)"),
     ] {
         let id = store
             .lookup(path)
