@@ -27,7 +27,8 @@ const GRAMMAR_HINT: &str = "A Hyphae simple selector is `#Name` (by symbol name)
      `:pseudo(arg)`, and `[attr=value]` (pseudo-classes and attribute filters \
      may appear in any order after the base). To find a symbol named `Foo`, write \
      `#Foo` (NOT `Foo`, `class.Foo`, or `class:name(Foo)`).\n  \
-     Grammar: rfcs/0003-hyphae-query-language.md and rfcs/0091-hyphae-jquery-selectors.md";
+     Grammar: rfcs/0003-hyphae-query-language.md, rfcs/0091-hyphae-jquery-selectors.md, \
+     and rfcs/0124-hyphae-attr-after-pseudo.md";
 
 /// Render `tok` the way the user wrote it (`` `div` ``, `` `:calls` ``,
 /// `` `>` ``, "whitespace") — never the internal Debug form

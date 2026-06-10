@@ -897,9 +897,23 @@ mod tests {
         let mut store = Store::new();
         store.upsert_node(TrunkPath::parse("src/a.rs>Outer>alpha").unwrap());
         store.upsert_node(TrunkPath::parse("src/a.rs>Outer>beta").unwrap());
+        // Discriminating sibling in ANOTHER file (review pin): gamma is the
+        // first-child of its own parent, but the attribute filter excludes it.
+        // If a future change ranked structural pseudos within the filtered
+        // candidate set instead of the full store, the two orderings would
+        // diverge here and this test would catch it.
+        store.upsert_node(TrunkPath::parse("src/b.rs>Other>gamma").unwrap());
         let pre = ev(&store, "*[file=src/a.rs]:first-child");
         let post = ev(&store, "*:first-child[file=src/a.rs]");
         assert_eq!(pre, post, "structural pseudo must commute with attributes");
+        assert!(
+            !pre.iter().any(|p| p.contains("gamma")),
+            "gamma (first-child in src/b.rs) must be excluded by [file=src/a.rs]"
+        );
+        assert!(
+            pre.iter().any(|p| p.contains("alpha")),
+            "alpha (first-child in src/a.rs) must survive both orderings"
+        );
     }
 
     #[test]
