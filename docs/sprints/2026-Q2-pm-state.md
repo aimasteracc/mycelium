@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-10 (PM dispatch v155 — PR #727 merged (chore/pm-state-v154, squash `168689d`); RFC-0120 Phase 3 implemented (PR #728 open: token-axis rewrite of `mycelium_get_token_stats`); 3 P0s unchanged ×20 consecutive runs) |
+| Last updated | 2026-06-10 (PM dispatch v156 — PR #729 merged (chore/pm-state-v155, squash `77fed1d`); PR #728 rustfmt fix pushed (commit `0eea923`, CI re-running); 3 P0s unchanged ×21 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -67,7 +67,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** RFC-0120 Phase 3 **PR #728 open** (feat/rfc-0120-phase3-token-stats-rewrite → develop): rewires `mycelium_get_token_stats` onto real token-efficiency axis; awaiting CI + merge. Issue #612 CLOSED (v154). Codex usage limits exhausted — see P0 #3.
+> ⚠️ **All three P0 items require founder action.** RFC-0120 Phase 3 **PR #728 open** (feat/rfc-0120-phase3-token-stats-rewrite → develop): rustfmt fix (`0eea923`) pushed in v156; CI re-running. Issue #612 CLOSED (v154). Codex usage limits exhausted — see P0 #3.
 
 **P0 (founder action required):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
@@ -91,19 +91,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-10 v155)
+## Dispatch state (2026-06-10 v156)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v155 complete: PR #727 merged (chore/pm-state-v154, squash `168689d`); RFC-0120 Phase 3 PR #728 opened (token-axis rewrite); PM state v155 written; decisions.jsonl appended. |
+| PM | **DONE ✅** | v156 complete: PR #729 merged (chore/pm-state-v155, squash `77fed1d`); PR #728 rustfmt fix pushed (`0eea923`); PM state v156 written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension fully IMPLEMENTED (PR #725 merged `27df3cdc`). |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **PR #728 awaiting CI** | RFC-0120 Phase 3: `mycelium_get_token_stats` rewired onto real token-efficiency axis (BPE/whitespace-fallback, embedded corpus, BREAKING field removal). PR #728 open (`feat/rfc-0120-phase3-token-stats-rewrite` → develop). Phase 3 Part B (CLI twin) follows after merge. |
+| rust-implementer | **PR #728 CI re-running** | RFC-0120 Phase 3: rustfmt fix (`0eea923`) pushed. CI re-running. Phase 3 Part B (CLI twin `mycelium get-token-stats`) queued after merge. |
 
 ---
 
@@ -133,6 +133,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-10 PM dispatch v156 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-5, last entry v155 2026-06-10T06:00Z, 190 total), anti-patterns (domain hits: release-governance/merge-discipline/tdd/git-workflow), PM state v155 (from develop after PR #729 merge, HEAD `77fed1d`), v0.2 PRD.
+
+**Assessment:**
+- Local clone stale (container at v0.2.0 main). Full pre-flight from GitHub MCP: PM state v154 on develop (pre-merge), then v155 via PR #729.
+- 3 open PRs at session start: #729 (chore/pm-state-v155, CI 22/22 ✅, Codex billing-only), #728 (feat/rfc-0120-phase3-token-stats-rewrite, CI ❌ **Quality Gate FAILURE** — rustfmt), #568 (release/v0.3.0, founder-gated, CI 28/28 ✅).
+- 0 open issues.
+- Develop CI GREEN at `168689d` (v155's base). PR #728 is the CI-failing blocker.
+- 3 P0 escalations unchanged (×21 consecutive runs). All founder-gated.
+- **Highest-value autonomous action**: Diagnose and fix PR #728 rustfmt failure.
+
+**Actions taken:**
+1. **Merged PR #729** (chore/pm-state-v155, CI 22/22 ✅, Codex billing notice only = Hard Rule vacuously satisfied per v134+ precedent) — squash `77fed1d`. ✅
+2. **Diagnosed PR #728 rustfmt failure**: fetched `feat/rfc-0120-phase3-token-stats-rewrite` into local worktree (`/tmp/pr728-fix`), ran `cargo fmt --all`; diff shows: (a) 6 `include_str!()` calls multi-line → single-line (each path fits in 100-char max_width), (b) non-tiktoken whitespace-fallback tuple `(expr, "str")` single-line → multi-line trailing-comma to match tiktoken block's style. ✅
+3. **Pushed rustfmt fix** to PR #728 branch: committed `style(token-stats): apply rustfmt` (`0eea923`) with DCO sign-off; `cargo fmt --all --check` returns exit 0 after fix. CI re-triggered. ✅
+4. **PM state v156 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, unchanged ×21 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — **one-click action**. CI 28/28 ✅; registries published 2026-06-05. `dirty` merge is normal gitflow artifact.
+- **(2) RFC-0121**: Choose Option A/B/C for Charter §2 Hyphae token SLA ([RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md)) — PM recommends **A** (per-class targets, no engineering work).
+- **(3) Codex limits**: Exhausted since 2026-06-08T12:11Z. Upgrade or explicitly suspend Hard Rule. https://chatgpt.com/codex/cloud/settings/usage
 
 ### 2026-06-10 PM dispatch v155 (this run)
 
