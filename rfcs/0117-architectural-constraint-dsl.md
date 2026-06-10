@@ -1,6 +1,6 @@
 # RFC-0117: architectural-constraint DSL — forbid-rule layering checks over synapse edges (design)
 
-- **Status**: **Draft** (design — no implementation in this PR)
+- **Status**: **Partially Implemented** (Phase 1 pure evaluator + `Constraint`/`EdgeRef`/`Violation` types done in `crates/mycelium-core/src/constraints.rs`; Phase 2 — YAML loader + Store adapter + `check-architecture` CLI+MCP+Skill — not yet started)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
