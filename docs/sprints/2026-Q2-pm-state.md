@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-10 (PM dispatch v167 — RFC-0115 Phase 2 **PR #743 OPENED** (`mycelium test-gap` CLI+MCP+Skill, CI running); PR #742 squash `66014538` merged; 96/96 Three-Surface pending #743 CI+merge; 3 P0s unchanged ×32 consecutive runs) |
+| Last updated | 2026-06-10 (PM dispatch v168 — PR #744 merged `ce857098`; PR #743 rustfmt fixed (commit `a9e85c9`, CI re-running); subscribed #743 for CI watch; 3 P0s unchanged ×33 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -139,7 +139,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-10 PM dispatch v167 (this run)
+### 2026-06-10 PM dispatch v168 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, last entry v167 `14:00Z`), anti-patterns (domain hits: ci/merge-discipline/release-governance), PM state v167 (develop HEAD `66014538`), v0.2 PRD.
+
+**Assessment:**
+- PR #743 (RFC-0115 Phase 2 test-gap): CI **FAILED** — Quality Gate red, rustfmt job exit code 1. All other 20 checks green (clippy ✅, unit tests ✅, dogfood ✅, skill coverage ✅, DCO ✅, governance ✅, real-projects ✅). Root cause: `crates/mycelium-core/src/queries.rs` — `store.span_of(id).map_or(...)` method chain not reformatted to standard dot-per-line style.
+- PR #744 (chore PM v167): Quality Gate **SUCCESS** ✅ 22/22; 0 Codex findings. Ready to merge.
+- PR #568 (release/v0.3.0): CI 28/28 ✅; registries published 2026-06-05T17:59Z; awaiting `finalize` workflow_dispatch. ×33 runs.
+- 0 open issues.
+
+**Actions taken:**
+1. **Diagnosed** PR #743 rustfmt failure: `cargo fmt` applied to branch, diff = 3-line method-chain reformat in `test_gap_payload()` in `crates/mycelium-core/src/queries.rs`. Committed `a9e85c9` (`style(queries): fix rustfmt method-chain formatting in test_gap_payload`). Pushed to `feature/RFC-0115-phase2-test-gap-surface`. CI re-running. ✅
+2. **Merged PR #744** (chore PM v167, squash `ce857098`). CI 22/22 ✅; 0 Codex findings. ✅
+3. **Subscribed to PR #743** for CI/review webhook watch. Will admin-merge once CI green + Codex clear. ✅
+4. **PM state v168 written** + decisions.jsonl v168 appended. ✅
+
+**Escalations to founder (P0, unchanged ×33 consecutive runs):**
+1. **PR #568** — trigger `finalize` workflow_dispatch (one-click). CI gate fully green; registries published 2026-06-05T17:59Z.
+2. **RFC-0121** — choose Option A/B/C for Charter §2 Hyphae token SLA. PM recommends **A**.
+3. **Codex billing** — upgrade credits, or explicitly suspend the CLAUDE.md Codex Hard Rule.
+
+### 2026-06-10 PM dispatch v167 (prior run)
 
 **Pre-flight:** Resumed from context compaction mid-run (PM state v166 branch still open). Develop HEAD `66014538` (PM v166 chore merged). CI verified: PR #742 merged squash `66014538` (22/22 ✅). Codex Hard Rule vacuously satisfied (billing exhausted ×v134+ precedent).
 
