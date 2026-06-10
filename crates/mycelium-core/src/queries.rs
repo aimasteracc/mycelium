@@ -136,10 +136,12 @@ pub fn reachable_payload(reachable: &[String]) -> Value {
 /// `get_all_symbols` from an already-paginated `page` and the pre-pagination
 /// `total_count`.
 ///
-/// `count` is the page length (pre-budget); `total_count` is the full match
-/// count before `limit`/`offset`. Budgeting (if any) is applied by the caller
-/// *after* this, capping the page — so `count`/`total_count` always report the
-/// true sizes (RFC-0109: budget caps the selected page).
+/// `count` is the returned page length; `total_count` is the full match count
+/// before `limit`/`offset`. Budgeting (if any) is applied by the caller *after*
+/// this, capping the page — [`apply_budget`](crate::budget::apply_budget)
+/// rewrites `count` to the post-truncation length, so `count` always equals
+/// the array actually returned while `total_count` keeps the true total
+/// (RFC-0109: budget caps the selected page).
 #[must_use]
 pub fn all_symbols_payload(page: &[String], total_count: usize) -> Value {
     json!({ "symbols": page, "count": page.len(), "total_count": total_count })
@@ -149,10 +151,12 @@ pub fn all_symbols_payload(page: &[String], total_count: usize) -> Value {
 /// for `get_entry_points` from an already-paginated `page` and the
 /// pre-pagination `total_count`.
 ///
-/// `count` is the page length (pre-budget); `total_count` is the full match
-/// count before `limit`/`offset`. Budgeting (if any) is applied by the caller
-/// *after* this, capping the page — so `count`/`total_count` always report the
-/// true sizes (mirrors [`all_symbols_payload`]; RFC-0109: budget caps the page).
+/// `count` is the returned page length; `total_count` is the full match count
+/// before `limit`/`offset`. Budgeting (if any) is applied by the caller *after*
+/// this — [`apply_budget`](crate::budget::apply_budget) rewrites `count` to the
+/// post-truncation length, so `count` always equals the array actually returned
+/// while `total_count` keeps the true total (mirrors [`all_symbols_payload`];
+/// RFC-0109: budget caps the page).
 #[must_use]
 pub fn entry_points_payload(page: &[String], total_count: usize) -> Value {
     json!({ "entry_points": page, "count": page.len(), "total_count": total_count })
