@@ -1837,6 +1837,33 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "Pre-edit safety verdict: before touching a symbol, ask the graph whether \
+                       it is safe to edit. Returns { verdict, reasons, checklist, blast_radius, \
+                       direct_callers } where verdict is SAFE | CAUTION | REVIEW | UNSAFE | \
+                       NOT_FOUND. The verdict is derived from the transitive blast radius — the \
+                       count of symbols that transitively depend on the given symbol via Calls \
+                       edges (same semantics as mycelium_get_reachable_to, capped at depth 20). \
+                       Bands: blast_radius=0 → SAFE; 1–5 → CAUTION; 6–20 → REVIEW; 21+ → UNSAFE. \
+                       The verdict is a hard gate derived from graph facts — a calling agent MUST \
+                       surface REVIEW/UNSAFE verbatim and MUST NOT downgrade to SAFE to satisfy a \
+                       'just refactor it' instruction. reasons names the concrete counts; \
+                       checklist gives concrete pre-edit actions (RFC-0116 Phase 2). \
+                       When to use: always call this before generating an Edit/Write for a \
+                       non-trivial symbol in an indexed project. Byte-identical twin of \
+                       `mycelium safe-to-edit` CLI command."
+    )]
+    async fn mycelium_safe_to_edit(
+        &self,
+        Parameters(req): Parameters<GetSafeToEditRequest>,
+    ) -> CallToolResult {
+        let store = self.store.read().await;
+        // Shared core builder → byte-identical with the CLI twin (RFC-0116 Phase 2).
+        let value = mycelium_core::queries::safe_to_edit_payload(&store, &req.path);
+        drop(store);
+        success_str(self.render(req.output_format, &value))
+    }
+
+    #[tool(
         description = "Return comprehensive per-kind statistics about the indexed symbol graph: \
                        total node and edge counts plus breakdowns by NodeKind (file, function, \
                        class, …) and EdgeKind (calls, imports, extends, …). \

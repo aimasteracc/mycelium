@@ -583,6 +583,37 @@ pub(crate) fn run_project_health(root: &Path, format: Format) -> Result<()> {
     Ok(())
 }
 
+/// Pre-edit safety verdict for a symbol (RFC-0116 Phase 2).
+/// Byte-identical JSON output with the MCP twin `mycelium_safe_to_edit`.
+pub(crate) fn run_safe_to_edit(root: &Path, path: &str, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    // Shared core builder → byte-identical with the MCP tool (RFC-0116 Phase 2).
+    let value = mycelium_core::queries::safe_to_edit_payload(&store, path);
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+        Format::Text => {
+            let verdict = value["verdict"].as_str().unwrap_or("?");
+            let blast = value["blast_radius"].as_u64().unwrap_or(0);
+            let callers = value["direct_callers"].as_u64().unwrap_or(0);
+            println!("Verdict: {verdict}  (blast_radius={blast}, direct_callers={callers})");
+            if let Some(reasons) = value["reasons"].as_array() {
+                for r in reasons {
+                    println!("  • {}", r.as_str().unwrap_or(""));
+                }
+            }
+            if let Some(items) = value["checklist"].as_array() {
+                if !items.is_empty() {
+                    println!("Checklist:");
+                    for item in items {
+                        println!("  ☐ {}", item.as_str().unwrap_or(""));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn run_get_dead_symbols(
     root: &Path,
     prefix: Option<&str>,

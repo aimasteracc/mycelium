@@ -348,6 +348,19 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Pre-edit safety verdict: SAFE | CAUTION | REVIEW | UNSAFE (RFC-0116).
+    /// Returns `{ verdict, reasons, checklist, blast_radius, direct_callers }`.
+    /// The verdict is derived from the transitive blast radius (symbols that
+    /// depend on this one) — a hard gate, not softened by downstream intent.
+    /// Byte-identical twin of `mycelium_safe_to_edit`.
+    SafeToEdit {
+        /// Symbol path to assess, e.g. `"src/auth.rs>Session>login"`.
+        path: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Return `imports` + `imported_by` for a file/module.
     GetImports {
         path: String,
@@ -1383,6 +1396,10 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         Cmd::ProjectHealth { root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_project_health(&canonical, format.into())?;
+        }
+        Cmd::SafeToEdit { path, root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_safe_to_edit(&canonical, &path, format.into())?;
         }
         Cmd::GetImports { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);

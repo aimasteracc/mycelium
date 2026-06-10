@@ -158,6 +158,64 @@ pub fn entry_points_payload(page: &[String], total_count: usize) -> Value {
     json!({ "entry_points": page, "count": page.len(), "total_count": total_count })
 }
 
+/// Build the `{ verdict, reasons, checklist, blast_radius, direct_callers }`
+/// payload for `safe_to_edit` / `mycelium_safe_to_edit` (RFC-0116 Phase 2).
+///
+/// Thin Store adapter: assembles [`crate::verdict::EditMetrics`] from the existing
+/// call-graph surface (blast radius via [`Store::reachable_to`] + direct-caller
+/// count via [`Store::incoming`]) and delegates to the pure
+/// [`crate::verdict::edit_verdict`] core. `health` and `test_gap_uncovered` are
+/// left `None` until RFC-0114 / RFC-0115 land (Phase 3). Max BFS depth is capped
+/// at 20 — sufficient to saturate any realistic blast radius without scanning
+/// unreachable nodes.
+///
+/// Output is byte-identical across CLI and MCP by construction (both call this
+/// builder), satisfying Charter §5.13 / RFC-0090 Three-Surface Rule.
+#[must_use]
+pub fn safe_to_edit_payload(store: &Store, path: &str) -> Value {
+    use crate::verdict::{EditMetrics, edit_verdict};
+
+    let Some(id) = store.lookup(path) else {
+        let ev = edit_verdict(&EditMetrics {
+            symbol_found: false,
+            parse_broken: false,
+            direct_callers: 0,
+            blast_radius: 0,
+            health: None,
+            test_gap_uncovered: None,
+        });
+        return json!({
+            "verdict": ev.verdict.as_str(),
+            "reasons": ev.reasons,
+            "checklist": ev.checklist,
+            "blast_radius": 0u32,
+            "direct_callers": 0u32,
+        });
+    };
+
+    let reachable = store.reachable_to(id, EdgeKind::Calls, 20);
+    let blast_radius = u32::try_from(reachable.len()).unwrap_or(u32::MAX);
+    let direct_callers =
+        u32::try_from(store.incoming(id, EdgeKind::Calls).len()).unwrap_or(u32::MAX);
+
+    let m = EditMetrics {
+        symbol_found: true,
+        parse_broken: false,
+        direct_callers,
+        blast_radius,
+        health: None,
+        test_gap_uncovered: None,
+    };
+    let ev = edit_verdict(&m);
+    json!({
+        "verdict": ev.verdict.as_str(),
+        "reasons": ev.reasons,
+        "checklist": ev.checklist,
+        "blast_radius": blast_radius,
+        "direct_callers": direct_callers,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,5 +437,79 @@ mod tests {
         assert_eq!(v["entry_points"], serde_json::json!(["a", "b"]));
         assert_eq!(v["count"], 2);
         assert_eq!(v["total_count"], 7);
+    }
+
+    // ── RFC-0116 Phase 2: safe_to_edit_payload ────────────────────────────────
+
+    #[test]
+    fn safe_to_edit_payload_not_found_returns_not_found_verdict() {
+        let store = Store::new();
+        let v = safe_to_edit_payload(&store, "src/missing.rs>Missing>method");
+        assert_eq!(v["verdict"], "NOT_FOUND");
+        assert_eq!(v["blast_radius"], 0);
+        assert_eq!(v["direct_callers"], 0);
+    }
+
+    #[test]
+    fn safe_to_edit_payload_leaf_symbol_is_safe() {
+        let mut store = Store::new();
+        let _leaf = store.upsert_node(p("src/a.rs>A>leaf"));
+        let v = safe_to_edit_payload(&store, "src/a.rs>A>leaf");
+        assert_eq!(v["verdict"], "SAFE");
+        assert_eq!(v["blast_radius"], 0);
+        assert_eq!(v["direct_callers"], 0);
+        assert!(v["checklist"].as_array().is_some_and(Vec::is_empty));
+    }
+
+    #[test]
+    fn safe_to_edit_payload_caution_blast_radius() {
+        // 3 symbols call target → blast_radius=3 after reachable_to → CAUTION
+        let mut store = Store::new();
+        let target = store.upsert_node(p("src/b.rs>B>target"));
+        for i in 0..3u32 {
+            let caller = store.upsert_node(p(&format!("src/c{i}.rs>C>call")));
+            store.upsert_edge(EdgeKind::Calls, caller, target);
+        }
+        let v = safe_to_edit_payload(&store, "src/b.rs>B>target");
+        assert_eq!(v["verdict"], "CAUTION");
+        assert_eq!(v["blast_radius"], 3);
+        assert!(v["direct_callers"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn safe_to_edit_payload_review_blast_radius() {
+        let mut store = Store::new();
+        let target = store.upsert_node(p("src/core.rs>Core>fn"));
+        for i in 0..12u32 {
+            let caller = store.upsert_node(p(&format!("src/u{i}.rs>U>call")));
+            store.upsert_edge(EdgeKind::Calls, caller, target);
+        }
+        let v = safe_to_edit_payload(&store, "src/core.rs>Core>fn");
+        assert_eq!(v["verdict"], "REVIEW");
+    }
+
+    #[test]
+    fn safe_to_edit_payload_unsafe_blast_radius() {
+        let mut store = Store::new();
+        let target = store.upsert_node(p("src/base.rs>Base>hot"));
+        for i in 0..25u32 {
+            let caller = store.upsert_node(p(&format!("src/d{i}.rs>D>call")));
+            store.upsert_edge(EdgeKind::Calls, caller, target);
+        }
+        let v = safe_to_edit_payload(&store, "src/base.rs>Base>hot");
+        assert_eq!(v["verdict"], "UNSAFE");
+        assert!(!v["checklist"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn safe_to_edit_payload_shape_has_required_fields() {
+        let mut store = Store::new();
+        let _ = store.upsert_node(p("src/x.rs>X>method"));
+        let v = safe_to_edit_payload(&store, "src/x.rs>X>method");
+        assert!(v.get("verdict").is_some());
+        assert!(v.get("reasons").is_some());
+        assert!(v.get("checklist").is_some());
+        assert!(v.get("blast_radius").is_some());
+        assert!(v.get("direct_callers").is_some());
     }
 }
