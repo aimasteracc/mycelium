@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-10 (PM dispatch v162 — PR #736 merged (PM v161 chore, squash `8d0fc17`); verified RFC-0113 partially implemented (corpus measurement pending — P1 post-#568); RFC-0114 confirmed DONE; 0 open issues; 94/94 Three-Surface; 3 P0s unchanged ×27 consecutive runs) |
+| Last updated | 2026-06-10 (PM dispatch v163 — PR #737 merged (PM v162 chore, squash `7da70b5`); 0 open issues; 94/94 Three-Surface; 3 P0s unchanged ×28 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -92,12 +92,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-10 v162)
+## Dispatch state (2026-06-10 v163)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — CI 28/28 ✅; registries published; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v162 complete: PR #736 merged (v161 chore, squash `8d0fc17`); RFC-0113/0114 status verified; post-v0.3.0 P1 backlog updated (RFC-0113 Phase 2 corpus measurement added to queue). |
+| PM | **DONE ✅** | v163 complete: PR #737 merged (v162 chore, squash `7da70b5`); 0 new issues; no unblocked code work; 3 P0s escalated ×28 consecutive runs. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension fully IMPLEMENTED (PR #725 merged `27df3cdc`). |
@@ -134,6 +134,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-10 PM dispatch v163 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 via bash — last entry v162 `07:35Z`, 196 total), anti-patterns (domain hits: release-governance/merge-discipline/governance-verification/git-workflow), PM state v162 (from PR #737 branch `53a7367`), v0.2 PRD.
+
+**Assessment:**
+- PR #737 (PM v162 chore): CI 22/22 ✅; Codex = billing quota notice only (no P1/P2/P3 code findings; Hard Rule vacuously satisfied per v134+ precedent since 2026-06-08). → **Merged squash `7da70b5`**. ✅
+- 0 open issues.
+- 1 open PR: #568 (release/v0.3.0, founder-gated, CI 28/28 ✅; registries published 2026-06-05T17:59Z).
+- Develop CI GREEN (HEAD `7da70b5` post-merge). 94/94 Three-Surface compliant.
+- All P1 items blocked on PR #568 finalize (v0.3.0 git ceremony Steps 1–4).
+- 3 P0 escalations unchanged ×28 consecutive runs. All founder-gated.
+
+**Actions taken:**
+1. **Merged PR #737** (chore PM v162, squash `7da70b5`). CI 22/22 ✅. ✅
+2. **PM state v163 written**. ✅
+3. **decisions.jsonl v163 entry appended**. ✅
+
+**Escalations to founder (P0, unchanged ×28 consecutive runs):**
+1. **PR #568** — trigger `finalize` workflow_dispatch (one-click). CI gate fully green; registries published 2026-06-05T17:59Z.
+2. **RFC-0121** — choose Option A/B/C for Charter §2 Hyphae token SLA. Full analysis in `rfcs/0121-charter-hyphae-token-sla-amendment.md`; PM recommends **A**.
+3. **Codex billing** — upgrade credits at https://chatgpt.com/codex/cloud/settings/usage, or explicitly suspend the CLAUDE.md Codex Hard Rule.
 
 ### 2026-06-10 PM dispatch v162 (this run)
 
