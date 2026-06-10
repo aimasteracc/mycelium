@@ -185,6 +185,23 @@
     function: (scoped_identifier
       path: (identifier) @binding.ctor))) @reference.binding
 
+; ── RFC-0122: function return-type annotation (free functions) ───────────
+; `fn get_store() -> Store` → capture fn name + return type so Store helper
+; can answer `return_type_of("get_store") = "Store"` for rule-f enrichment.
+(source_file
+  (function_item
+    name: (identifier) @fn.name
+    return_type: (type_identifier) @fn.return_type)) @reference.fn_return
+
+; ── RFC-0122 rule-f prerequisite: plain function-call binding ────────────
+; `let s = get_store()` → capture `s` + callee `get_store` so the post-merge
+; enrich_context pass can look up get_store's return type and synthesise ctor_type.
+; Unscoped calls only (Type::new() is already matched above as @binding.ctor).
+(let_declaration
+  pattern: (identifier) @binding.local
+  value: (call_expression
+    function: (identifier) @binding.fn_call)) @reference.fn_binding
+
 ; ── RFC-0118 Part B rule-b: function parameters with declared types ──────
 ; `fn f(s: &mut Store)` → bind `s` to `Store` so `s.method()` resolves. The core
 ; normalizes the type (strips &, mut, lifetimes, generics) and keeps only

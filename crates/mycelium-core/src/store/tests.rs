@@ -2130,6 +2130,7 @@ fn resolve_call_site_contexts_binds_multi_match_method_via_receiver_type() {
             locals: vec![LocalBinding {
                 name: "store".to_owned(),
                 ctor_type: Some("Store".to_owned()),
+                fn_call_hint: None,
             }],
             self_type: None,
             params: vec![],
@@ -2218,6 +2219,7 @@ fn resolve_call_site_contexts_keeps_stub_when_partially_resolved() {
             locals: vec![LocalBinding {
                 name: "s".to_owned(),
                 ctor_type: Some("Store".to_owned()),
+                fn_call_hint: None,
             }],
             self_type: None,
             params: vec![],
@@ -2278,6 +2280,7 @@ fn merge_carries_call_site_contexts_for_parallel_indexing() {
             locals: vec![LocalBinding {
                 name: "store".to_owned(),
                 ctor_type: Some("Store".to_owned()),
+                fn_call_hint: None,
             }],
             self_type: None,
             params: vec![],

@@ -58,7 +58,7 @@ use serde::{Deserialize, Serialize};
 
 use hashbrown::HashMap;
 
-use crate::resolver::receiver::{self, Candidate, ReceiverContext, Resolution};
+use crate::resolver::receiver::{self, Candidate, LocalBinding, ReceiverContext, Resolution};
 use crate::synapse::Synapse;
 use crate::trunk::{Trunk, TrunkPath};
 use crate::types::{EdgeKind, NodeId, NodeKind, SourceSpan};
@@ -421,6 +421,13 @@ pub struct Store {
     /// (so the snapshot/redb wire format is unchanged). Empty in a loaded store.
     #[serde(default, skip)]
     call_site_contexts: Vec<CallSiteContext>,
+    /// Function return-type hints captured at extraction time (RFC-0122 rule f).
+    ///
+    /// Maps simple function name → declared return type (e.g. `"get_store"` →
+    /// `"Store"`). Transient: not persisted; rebuilt on each extraction. First
+    /// writer wins for name collisions (same-crate precision is sufficient — RFC-0122).
+    #[serde(default, skip)]
+    fn_return_types: HashMap<String, String>,
 }
 
 /// One captured method call site awaiting post-merge disambiguation (RFC-0118 B).
@@ -780,6 +787,13 @@ impl Store {
         //    caller_id/stub_id remain valid in `self` with no remapping.
         self.call_site_contexts
             .extend(other.call_site_contexts.iter().cloned());
+        // 4. Merge function return-type hints (RFC-0122 rule f). First writer wins
+        //    per fn name; collision is benign (same-crate precision).
+        for (name, ret) in &other.fn_return_types {
+            self.fn_return_types
+                .entry(name.clone())
+                .or_insert_with(|| ret.clone());
+        }
     }
 
     /// Remove the node `id` from both Trunk and Synapse.
@@ -1302,6 +1316,25 @@ impl Store {
         base + aware + extends_aware + by_receiver
     }
 
+    /// Record the declared return type of a function (RFC-0122 rule f).
+    ///
+    /// Called by the extractor when the pack captures `@fn.return_type`.
+    /// First caller wins for name collisions (same-crate precision is sufficient).
+    pub fn set_return_type(&mut self, fn_name: &str, return_type: &str) {
+        self.fn_return_types
+            .entry(fn_name.to_owned())
+            .or_insert_with(|| return_type.to_owned());
+    }
+
+    /// Look up the declared return type for a function by its simple name (RFC-0122 rule f).
+    ///
+    /// Returns `Some(type_name)` when a `@fn.return_type` capture recorded the
+    /// return type for `fn_name`, `None` otherwise.
+    #[must_use]
+    pub fn return_type_of(&self, fn_name: &str) -> Option<&str> {
+        self.fn_return_types.get(fn_name).map(String::as_str)
+    }
+
     /// Record a method call site for post-merge receiver disambiguation
     /// (RFC-0118 Part B). Called by the extractor when a method call cannot be
     /// statically bound and falls back to the shared `Unresolved` stub.
@@ -1332,6 +1365,39 @@ impl Store {
     /// `NodeKind::Unresolved`, so Part A already excludes it from the symbol/rank
     /// universe; the precise edge added here is a pure gain. Safe stub-edge
     /// removal is deferred to when the extractor records *every* unresolved call.
+    /// RFC-0122 rule f: pre-enrich a receiver context by resolving any
+    /// `fn_call_hint` local binding to its declared return type, synthesising a
+    /// `ctor_type` so `infer_receiver_type` rule c can fire normally.
+    ///
+    /// Keeps `infer_receiver_type` a pure function (no store parameter).
+    fn enrich_context(&self, ctx: &ReceiverContext) -> ReceiverContext {
+        let locals: Vec<LocalBinding> = ctx
+            .locals
+            .iter()
+            .map(|l| {
+                if l.ctor_type.is_none() {
+                    if let Some(hint) = &l.fn_call_hint {
+                        if let Some(ret_type) = self.return_type_of(hint) {
+                            return LocalBinding {
+                                name: l.name.clone(),
+                                ctor_type: Some(ret_type.to_owned()),
+                                fn_call_hint: l.fn_call_hint.clone(),
+                            };
+                        }
+                    }
+                }
+                l.clone()
+            })
+            .collect();
+        ReceiverContext {
+            locals,
+            ..ctx.clone()
+        }
+    }
+
+    /// Post-merge pass (RFC-0118 Part B): resolves each recorded call-site context
+    /// to a concrete callee, disambiguating multi-match methods by receiver type.
+    /// Returns the number of call stubs resolved on this pass.
     #[must_use]
     pub fn resolve_call_site_contexts(&mut self) -> usize {
         let contexts = std::mem::take(&mut self.call_site_contexts);
@@ -1368,7 +1434,11 @@ impl Store {
                 })
                 .collect();
 
-            let inferred = receiver::infer_receiver_type(&ctx.receiver_ctx);
+            // RFC-0122 rule f: pre-enrich contexts whose receiver is bound via a
+            // plain function call (`let s = get_store()`) — synthesise ctor_type
+            // from the callee's declared return type so rule c fires normally.
+            let enriched_ctx = self.enrich_context(&ctx.receiver_ctx);
+            let inferred = receiver::infer_receiver_type(&enriched_ctx);
             if let Resolution::Unique(path) = receiver::disambiguate(inferred, &candidates) {
                 if let Some(def_id) = self.trunk.lookup_path(&path) {
                     // Kind-aware guard (independent-review SHOULD-FIX on PR #682,

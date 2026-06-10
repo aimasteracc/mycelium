@@ -14,13 +14,17 @@ pub struct AliasBinding {
     pub resolved_path: String,
 }
 
-/// A local variable binding whose RHS is a constructor call.
+/// A local variable binding whose RHS is a constructor or plain function call.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalBinding {
     /// The local variable name.
     pub name: String,
     /// `Some("Store")` when RHS is a constructor: `Store::new()` / `Store(...)`.
+    /// Mutually exclusive with `fn_call_hint` — at most one is `Some`.
     pub ctor_type: Option<String>,
+    /// `Some("get_store")` when RHS is a plain function call: `let s = get_store()`.
+    /// Used by `enrich_context` (RFC-0122 rule f) to resolve the return type.
+    pub fn_call_hint: Option<String>,
 }
 
 /// A function parameter with an optional type annotation.
@@ -212,6 +216,7 @@ mod tests {
             locals: vec![LocalBinding {
                 name: "store".to_owned(),
                 ctor_type: Some("Store".to_owned()),
+                fn_call_hint: None,
             }],
             ..ctx_default()
         };
@@ -378,6 +383,7 @@ mod tests {
             locals: vec![LocalBinding {
                 name: "self".to_owned(),
                 ctor_type: Some("WrongType".to_owned()),
+                fn_call_hint: None,
             }],
             ..ctx_default()
         };
@@ -399,6 +405,7 @@ mod tests {
             locals: vec![LocalBinding {
                 name: "x".to_owned(),
                 ctor_type: Some("LocalType".to_owned()),
+                fn_call_hint: None,
             }],
             ..ctx_default()
         };
@@ -417,15 +424,29 @@ mod tests {
                 LocalBinding {
                     name: "s".to_owned(),
                     ctor_type: Some("Store".to_owned()),
+                    fn_call_hint: None,
                 },
                 LocalBinding {
                     name: "s".to_owned(),
                     ctor_type: Some("Trunk".to_owned()),
+                    fn_call_hint: None,
                 },
             ],
             ..ctx_default()
         };
         // Both `s → Store` and `s → Trunk` in the table — ambiguous → None.
         assert_eq!(infer_receiver_type(&ctx), None);
+    }
+
+    // RFC-0122 AC-1: LocalBinding carries fn_call_hint for plain function-call initialisers.
+    #[test]
+    fn local_binding_fn_call_hint_field() {
+        let b = LocalBinding {
+            name: "s".to_owned(),
+            ctor_type: None,
+            fn_call_hint: Some("get_store".to_owned()),
+        };
+        assert_eq!(b.fn_call_hint.as_deref(), Some("get_store"));
+        assert!(b.ctor_type.is_none());
     }
 }
