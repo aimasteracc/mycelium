@@ -131,4 +131,35 @@ mod tests {
         assert!(msg.contains("unsupported"), "got: {msg}");
         assert!(msg.contains("language"), "suggests the right name: {msg}");
     }
+
+    #[test]
+    fn execute_errors_on_unknown_kind_with_suggestion() {
+        // `.fn` (the Rust keyword guess; the supported token is `.function`)
+        // must get an actionable ERROR with a did-you-mean, not a silent
+        // empty match set that reads as "no functions exist".
+        let dir = tempdir().unwrap();
+        let snap = dir.path().join(".mycelium").join("index.rmp");
+        std::fs::create_dir_all(snap.parent().unwrap()).unwrap();
+        Store::default().save(&snap).unwrap();
+
+        let err = execute(&snap, ".fn").unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("unsupported"), "got: {msg}");
+        assert!(msg.contains(".function"), "suggests `.function`: {msg}");
+    }
+
+    #[test]
+    fn execute_parse_error_has_no_debug_noise() {
+        // `#a + #b` previously leaked the raw Debug `LexError(3)`; the CLI
+        // must render the human Display message instead.
+        let dir = tempdir().unwrap();
+        let snap = dir.path().join(".mycelium").join("index.rmp");
+        std::fs::create_dir_all(snap.parent().unwrap()).unwrap();
+        Store::default().save(&snap).unwrap();
+
+        let err = execute(&snap, "#a + #b").unwrap_err();
+        let msg = format!("{err}");
+        assert!(!msg.contains("LexError("), "no Debug noise: {msg}");
+        assert!(msg.contains("position"), "names the position: {msg}");
+    }
 }

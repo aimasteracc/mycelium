@@ -2122,8 +2122,12 @@ impl MyceliumServer {
         let ast = match mycelium_hyphae::parse(&req.expr) {
             Ok(ast) => ast,
             Err(e) => {
+                // `{e}` (Display), not `{e:?}` (Debug): ParseError's Display
+                // carries the human position + grammar teaching text; Debug
+                // leaked internals like `LexError(3)` (Three-Surface parity
+                // with the CLI `mycelium query`, which renders Display).
                 return application_error(&serde_json::json!({
-                    "error": format!("hyphae parse error: {e:?}")
+                    "error": format!("hyphae parse error: {e}")
                 }));
             }
         };
