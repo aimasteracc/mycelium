@@ -145,6 +145,11 @@ The agent should retry with a corrected selector. The `error` field always conta
 | `[kind=function]` | Filter by `NodeKind` wire string. |
 | `[file=src/lib.rs]` | Filter by file path. |
 
+Attribute filters and pseudo-classes may appear in **any order** after the
+base ([RFC-0124](../../rfcs/0124-hyphae-attr-after-pseudo.md)). Order carries
+no semantics — filters compose by set intersection, so
+`*:calls(#Foo)[file=src/x.rs]` ≡ `*[file=src/x.rs]:calls(#Foo)`.
+
 ### Composition examples
 
 ```
@@ -153,9 +158,10 @@ The agent should retry with a corrected selector. The `error` field always conta
 .struct[file=src/lib.rs]:implements(#Repository)
 .method:first-child:in(src/handlers/)
 *:nth-child(3)
+*:calls(#Foo)[file=src/x.rs]
 ```
 
-Full grammar: [RFC-0003](../../rfcs/0003-hyphae-query-language.md) + [RFC-0091](../../rfcs/0091-hyphae-jquery-selectors.md).
+Full grammar: [RFC-0003](../../rfcs/0003-hyphae-query-language.md) + [RFC-0091](../../rfcs/0091-hyphae-jquery-selectors.md) + [RFC-0124](../../rfcs/0124-hyphae-attr-after-pseudo.md).
 
 ## Parity contract
 

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0124 — Hyphae attribute filters after pseudo-classes.** Attribute filters
+  (`[file=…]`, `[language=…]`, `[kind=…]`) and pseudo-classes may now appear in **any order**
+  after the base of a simple selector — `*:calls(#Foo)[file=src/x.rs]` (previously
+  `UnexpectedToken("LBracket")`) now parses and means the same as `*[file=src/x.rs]:calls(#Foo)`.
+  Grammar: `simple ::= base (attribute_filter | pseudo_class)*`. Filters compose by set
+  intersection, so order carries no semantics (normative; pinned by tests, including structural
+  pseudos like `:first-child`, which rank against all store siblings per CSS semantics). Pure
+  superset of the RFC-0091 grammar; AST and evaluator unchanged. CLI `query` help and MCP
+  `mycelium_query` description gain the same example in lockstep. (RFC-0124)
+
 - **RFC-0123 (Draft) — MCP Facade Consolidation design.** New RFC proposing to consolidate the
   95-tool MCP surface into 11 action facades (`mycelium_query`, `mycelium_context`,
   `mycelium_symbols`, `mycelium_callgraph`, `mycelium_reach`, `mycelium_hierarchy`,

@@ -28,6 +28,11 @@ const DOCUMENTED_EXAMPLES: &[&str] = &[
     ".class:has(.method)",   // classes that contain a method
     ".function",             // all function symbols
     ".class>.method",        // methods directly nested in a class
+    // RFC-0124: attribute filters may follow pseudo-classes (any order).
+    "*:calls(#Foo)[file=src/x.rs]", // callers of Foo defined in src/x.rs
+    // skills/hyphae-query/SKILL.md composition example — advertised since
+    // RFC-0091 but only parseable since RFC-0124 (attr after pseudo).
+    ".class:has(.method:calls(#log))[language=python]",
 ];
 
 #[test]
