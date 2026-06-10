@@ -1404,6 +1404,14 @@ pub struct GetProjectHealthRequest {
     pub output_format: Option<OutputFormat>,
 }
 
+/// Input parameters for `mycelium_check_architecture` (RFC-0117 Phase 2).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetCheckArchitectureRequest {
+    /// Response format override. Omit to use the transport default.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
+}
+
 /// Input parameters for `mycelium_test_gap`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetTestGapRequest {

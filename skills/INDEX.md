@@ -17,6 +17,7 @@
 | Phase 3.2 (v0.4.0 scope, **in develop**) | ✅ RFC-0114 `project_health` added (1 new Three-Surface pair). **94/94 compliant.** `graph-structure` Skill covers the new pair. |
 | Phase 3.3 (v0.4.0 scope, **in develop**) | ✅ RFC-0116 `safe_to_edit` added (1 new Three-Surface pair). **95/95 compliant.** `reachability` Skill covers the new pair. |
 | Phase 3.4 (v0.4.0 scope, **in develop**) | ✅ RFC-0115 `test_gap` added (1 new Three-Surface pair). **96/96 compliant.** `graph-structure` Skill covers the new pair. |
+| Phase 3.5 (v0.4.0 scope, **in develop**) | ✅ RFC-0117 `check_architecture` added (1 new Three-Surface pair). **97/97 compliant.** `graph-structure` Skill covers the new pair. |
 
 ## Proposed Skill categories for v0.2
 
@@ -140,6 +141,7 @@ authored in Phase 2 PRs, one PR per category.
 | `project_health` | `mycelium project-health` | `mycelium_project_health` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0114 Phase 2 — Store adapter + CLI + MCP + Skill) |
 | `safe_to_edit` | `mycelium safe-to-edit` | `mycelium_safe_to_edit` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0116 Phase 2 — Store adapter + CLI + MCP + Skill) |
 | `test_gap` | `mycelium test-gap` | `mycelium_test_gap` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0115 Phase 2 — Store adapter + CLI + MCP + Skill) |
+| `check_architecture` | `mycelium check-architecture` | `mycelium_check_architecture` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0117 Phase 2 — Store adapter + YAML loader + CLI + MCP + Skill) |
 
 **Status legend:** ✅ Three-Surface = all three surfaces shipped, parity-CI green. `EXCEPTION: MCP-only` = server-process state with no human-visible CLI verb, filed per RFC-0090 §Exceptions, BDFL sign-off on file. ⚠️ #153 = perf issue *fixed in v0.1.4*; annotation retained for history.
 

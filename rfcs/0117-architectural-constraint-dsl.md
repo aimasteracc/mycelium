@@ -1,6 +1,6 @@
 # RFC-0117: architectural-constraint DSL — forbid-rule layering checks over synapse edges (design)
 
-- **Status**: **Draft** (design — no implementation in this PR)
+- **Status**: **Implemented** (Phase 1 + Phase 2 complete)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
@@ -199,13 +199,13 @@ Three-Surface Rule (Charter §5.13):
 - [x] `clippy -D warnings`, `fmt --check`, ≥90% line coverage on the new module.
 
 **Phase 2 — adapter + surfaces:**
-- [ ] Store adapter projects synapse Calls+Imports edges → `EdgeRef`; integration
+- [x] Store adapter projects synapse Calls+Imports edges → `EdgeRef`; integration
       test on a fixture graph with a real forbidden import.
-- [ ] YAML loader for `.mycelium/constraints.yml` with fail-fast validation; rejects
+- [x] YAML loader for `.mycelium/constraints.yml` with fail-fast validation; rejects
       unknown keys, bad `version`, missing `id`/`from`/`to`.
-- [ ] `check-architecture` CLI ↔ MCP pair, byte-identical, JSON `Vec<Violation>`,
-      non-zero exit on `error` severity; covered by a category Skill `allowed-tools`.
-- [ ] Three-Surface parity asserted in the parity test harness.
+- [x] `check-architecture` CLI ↔ MCP pair, byte-identical, JSON `Vec<Violation>`,
+      non-zero exit on `error` severity; covered by `graph-structure` Skill `allowed-tools`.
+- [x] Three-Surface parity asserted in contract.rs (`EXPECTED_TOOL_COUNT` 96→97) and `skills/INDEX.md` (97/97).
 
 ## Alternatives considered
 

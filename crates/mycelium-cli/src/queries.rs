@@ -627,6 +627,39 @@ pub(crate) fn run_safe_to_edit(root: &Path, path: &str, format: Format) -> Resul
     Ok(())
 }
 
+/// Evaluate architectural forbid-rules (RFC-0117 Phase 2).
+/// Byte-identical JSON output with the MCP twin `mycelium_check_architecture`.
+pub(crate) fn run_check_architecture(root: &Path, format: Format) -> Result<()> {
+    let store = load_index(root)?;
+    let value = mycelium_core::queries::check_architecture_payload(&store, root);
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+        Format::Text => {
+            let count = value["violation_count"].as_u64().unwrap_or(0);
+            let errors = value["error_count"].as_u64().unwrap_or(0);
+            if count == 0 {
+                println!("No architectural violations.");
+            } else {
+                println!("Architectural violations: {count} ({errors} error-severity)");
+                if let Some(viols) = value["violations"].as_array() {
+                    for v in viols {
+                        let sev = v["severity"].as_str().unwrap_or("?");
+                        let rule = v["rule_id"].as_str().unwrap_or("?");
+                        let from = v["from_path"].as_str().unwrap_or("?");
+                        let to = v["to_path"].as_str().unwrap_or("?");
+                        println!("  [{sev}] {rule}: {from} → {to}");
+                    }
+                }
+            }
+            // Non-zero exit on any error-severity violation (CI use-case).
+            if errors > 0 {
+                anyhow::bail!("{errors} error-severity architectural violation(s) found");
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Rank untested symbols by graph reach (RFC-0115 Phase 2).
 /// Byte-identical JSON output with the MCP twin `mycelium_test_gap`.
 pub(crate) fn run_test_gap(

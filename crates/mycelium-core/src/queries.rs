@@ -436,6 +436,205 @@ pub fn test_gap_payload(
     })
 }
 
+// ─────────────────────────── RFC-0117 Phase 2 helpers ────────────────────────
+
+/// Deserialization model for `.mycelium/constraints.yml` (RFC-0117 §YAML schema).
+#[derive(serde::Deserialize)]
+struct ConstraintsFile {
+    #[serde(default = "constraints_default_version")]
+    version: u32,
+    #[serde(default)]
+    constraints: Vec<ConstraintEntry>,
+}
+
+const fn constraints_default_version() -> u32 {
+    1
+}
+
+#[derive(serde::Deserialize)]
+struct ConstraintEntry {
+    id: String,
+    #[serde(default)]
+    severity: SeverityYaml,
+    #[serde(rename = "from")]
+    from_glob: String,
+    #[serde(rename = "to")]
+    to_glob: String,
+    #[serde(default)]
+    reason: String,
+    #[serde(default)]
+    applies_to: AppliesToYaml,
+    #[serde(default)]
+    exceptions: Vec<String>,
+    #[serde(default = "forbid_default")]
+    rule: String,
+}
+
+fn forbid_default() -> String {
+    "forbid".to_owned()
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+enum SeverityYaml {
+    #[default]
+    Error,
+    Warn,
+    Info,
+}
+
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+enum AppliesToYaml {
+    #[default]
+    Any,
+    Calls,
+    Imports,
+}
+
+/// Load and validate `.mycelium/constraints.yml` from `workspace_root`.
+///
+/// Returns `None` if the file is missing, unreadable, malformed, or has an
+/// unsupported `version`. Skips entries whose `rule` is not `"forbid"` or
+/// whose `id`/`from`/`to` fields are empty (fail-fast per RFC-0117 §Phase-2).
+fn load_constraints_yml(
+    workspace_root: &std::path::Path,
+) -> Option<Vec<crate::constraints::Constraint>> {
+    use crate::constraints::{Constraint, EdgeKindFilter, Severity};
+
+    let path = workspace_root.join(".mycelium").join("constraints.yml");
+    let content = std::fs::read_to_string(path).ok()?;
+    let file: ConstraintsFile = serde_yaml::from_str(&content).ok()?;
+    if file.version != 1 {
+        return None;
+    }
+    let constraints: Vec<Constraint> = file
+        .constraints
+        .into_iter()
+        .filter(|e| {
+            e.rule == "forbid"
+                && !e.id.is_empty()
+                && !e.from_glob.is_empty()
+                && !e.to_glob.is_empty()
+        })
+        .map(|e| Constraint {
+            id: e.id,
+            severity: match e.severity {
+                SeverityYaml::Error => Severity::Error,
+                SeverityYaml::Warn => Severity::Warn,
+                SeverityYaml::Info => Severity::Info,
+            },
+            applies_to: match e.applies_to {
+                AppliesToYaml::Any => EdgeKindFilter::Any,
+                AppliesToYaml::Calls => EdgeKindFilter::Calls,
+                AppliesToYaml::Imports => EdgeKindFilter::Imports,
+            },
+            from_glob: e.from_glob,
+            to_glob: e.to_glob,
+            reason: e.reason,
+            exceptions: e.exceptions,
+        })
+        .collect();
+    Some(constraints)
+}
+
+/// Build the `{ violations, violation_count, error_count, warn_count }` payload
+/// for `check-architecture` (RFC-0117 Phase 2).
+///
+/// Reads `.mycelium/constraints.yml` from `workspace_root`; if absent returns an
+/// empty report. Enumerates all `Calls` and `Imports` edges in the `store`,
+/// projects them into [`crate::constraints::EdgeRef`]s, and runs the pure
+/// [`crate::constraints::evaluate`] function. Both CLI and MCP call this builder,
+/// so their JSON output is byte-identical (Charter §5.13 / RFC-0090).
+#[must_use]
+pub fn check_architecture_payload(store: &Store, workspace_root: &std::path::Path) -> Value {
+    use crate::constraints::{EdgeKindFilter, EdgeRef, Severity, evaluate};
+    use crate::types::EdgeKind;
+
+    let constraints = load_constraints_yml(workspace_root).unwrap_or_default();
+    if constraints.is_empty() {
+        return json!({
+            "violations": [],
+            "violation_count": 0,
+            "error_count": 0,
+            "warn_count": 0,
+        });
+    }
+
+    // Project all Calls+Imports edges into (owned) path strings before building
+    // EdgeRef borrows, to satisfy the borrow checker.
+    let mut edge_data: Vec<(String, String, u32, EdgeKindFilter)> = Vec::new();
+    for from_path in store.all_symbols(None, None) {
+        let Some(from_id) = store.lookup(&from_path) else {
+            continue;
+        };
+        let from_line = store.span_of(from_id).map_or(0, |s| s.start_line);
+        for kind in [EdgeKind::Calls, EdgeKind::Imports] {
+            let filter = if kind == EdgeKind::Calls {
+                EdgeKindFilter::Calls
+            } else {
+                EdgeKindFilter::Imports
+            };
+            for &to_id in store.outgoing(from_id, kind) {
+                let Some(to_path) = store.path_of(to_id) else {
+                    continue;
+                };
+                edge_data.push((from_path.clone(), to_path.to_owned(), from_line, filter));
+            }
+        }
+    }
+
+    let refs: Vec<EdgeRef<'_>> = edge_data
+        .iter()
+        .map(|(from, to, line, kind)| EdgeRef {
+            kind: *kind,
+            from_path: from.as_str(),
+            to_path: to.as_str(),
+            from_line: *line,
+        })
+        .collect();
+
+    let violations = evaluate(&constraints, &refs);
+    let violation_count = violations.len();
+    let error_count = violations
+        .iter()
+        .filter(|v| v.severity == Severity::Error)
+        .count();
+    let warn_count = violations
+        .iter()
+        .filter(|v| v.severity == Severity::Warn)
+        .count();
+
+    let viol_json: Vec<Value> = violations
+        .into_iter()
+        .map(|v| {
+            json!({
+                "rule_id": v.rule_id,
+                "severity": match v.severity {
+                    Severity::Error => "error",
+                    Severity::Warn => "warn",
+                    Severity::Info => "info",
+                },
+                "kind": match v.kind {
+                    EdgeKindFilter::Calls => "calls",
+                    EdgeKindFilter::Imports => "imports",
+                    EdgeKindFilter::Any => "any",
+                },
+                "from_path": v.from_path,
+                "to_path": v.to_path,
+                "from_line": v.from_line,
+            })
+        })
+        .collect();
+
+    json!({
+        "violations": viol_json,
+        "violation_count": violation_count,
+        "error_count": error_count,
+        "warn_count": warn_count,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -753,6 +952,45 @@ mod tests {
         let json = r#"{"files":{}}"#;
         let facts = parse_coverage_json(json).expect("should parse");
         assert!(facts.executed_lines.is_empty());
+    }
+
+    // ─────────────────────────────────── RFC-0117 Phase 2 ──────────────────────
+
+    #[test]
+    fn check_architecture_no_config_is_empty() {
+        let store = Store::new();
+        let result = check_architecture_payload(&store, std::path::Path::new("/nonexistent/dir"));
+        assert_eq!(result["violation_count"].as_u64().unwrap(), 0);
+        assert_eq!(result["error_count"].as_u64().unwrap(), 0);
+        assert_eq!(result["violations"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn check_architecture_detects_forbidden_import_edge() {
+        use std::io::Write as _;
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join(".mycelium")).unwrap();
+        let mut f = std::fs::File::create(tmp.path().join(".mycelium/constraints.yml")).unwrap();
+        writeln!(
+            f,
+            "version: 1\nconstraints:\n  - id: ui-no-db\n    from: src/ui/**\n    to: \
+             src/db/**\n    rule: forbid\n"
+        )
+        .unwrap();
+        drop(f);
+
+        let mut store = Store::new();
+        let ui = store.upsert_node(p("src/ui/page.rs>Page>render"));
+        let db = store.upsert_node(p("src/db/pool.rs>Pool>get"));
+        store.upsert_edge(crate::types::EdgeKind::Calls, ui, db);
+
+        let result = check_architecture_payload(&store, tmp.path());
+        assert_eq!(result["violation_count"].as_u64().unwrap(), 1);
+        assert_eq!(result["error_count"].as_u64().unwrap(), 1);
+        let v = &result["violations"].as_array().unwrap()[0];
+        assert_eq!(v["rule_id"].as_str().unwrap(), "ui-no-db");
+        assert_eq!(v["severity"].as_str().unwrap(), "error");
+        assert_eq!(v["kind"].as_str().unwrap(), "calls");
     }
 
     #[test]

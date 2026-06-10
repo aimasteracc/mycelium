@@ -1948,6 +1948,31 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "Evaluate architectural forbid-rules from `.mycelium/constraints.yml` \
+                       against the indexed Calls and Imports edges (RFC-0117 Phase 2). \
+                       Returns every rule violation with its severity, edge kind, source and \
+                       target paths; `error_count` > 0 signals a CI-blocking layering breach. \
+                       Returns { violations: [{rule_id, severity, kind, from_path, to_path, \
+                       from_line}], violation_count, error_count, warn_count }. \
+                       When no `.mycelium/constraints.yml` file exists, returns an empty report."
+    )]
+    async fn mycelium_check_architecture(
+        &self,
+        Parameters(req): Parameters<GetCheckArchitectureRequest>,
+    ) -> CallToolResult {
+        let root_guard = self.indexed_root.read().await;
+        let root = match root_guard.as_ref() {
+            Some(r) => r.clone(),
+            None => return success_str("{\"error\":\"workspace not indexed\"}".to_owned()),
+        };
+        drop(root_guard);
+        let store = self.store.read().await;
+        let value = mycelium_core::queries::check_architecture_payload(&store, &root);
+        drop(store);
+        success_str(self.render(req.output_format, &value))
+    }
+
+    #[tool(
         description = "Return comprehensive per-kind statistics about the indexed symbol graph: \
                        total node and edge counts plus breakdowns by NodeKind (file, function, \
                        class, …) and EdgeKind (calls, imports, extends, …). \
