@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0117 Phase 2 — `check-architecture` / `mycelium_check_architecture` (Three-Surface).** Architectural
+  forbid-rule evaluation over Calls+Imports edges. Reads `.mycelium/constraints.yml` (YAML forbid-rules DSL),
+  projects synapse edges into `EdgeRef`s, and runs the RFC-0117 pure evaluator. Returns `{violations, violation_count,
+  error_count, warn_count}`; CLI exits non-zero on any `error`-severity breach (CI use-case). 97/97 Three-Surface
+  compliant; covered by `graph-structure` Skill. `serde_yaml 0.9` added to workspace deps. (RFC-0117)
+
 - **RFC-0124 — Hyphae attribute filters after pseudo-classes.** Attribute filters
   (`[file=…]`, `[language=…]`, `[kind=…]`) and pseudo-classes may now appear in **any order**
   after the base of a simple selector — `*:calls(#Foo)[file=src/x.rs]` (previously

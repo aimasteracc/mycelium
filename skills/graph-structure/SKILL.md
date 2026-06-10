@@ -18,6 +18,7 @@ allowed-tools:
   - mcp__mycelium__find_cycle_members
   - mcp__mycelium__project_health
   - mcp__mycelium__test_gap
+  - mcp__mycelium__check_architecture
 category: analysis
 icon: 🕸️
 marketplace_examples:
@@ -31,6 +32,8 @@ marketplace_examples:
     tool: mcp__mycelium__project_health
   - query: "Which untested symbols have the highest blast radius?"
     tool: mcp__mycelium__test_gap
+  - query: "Are there any architectural layering violations in this codebase?"
+    tool: mcp__mycelium__check_architecture
 ---
 
 # `graph-structure` — what shape is this graph?
@@ -164,6 +167,29 @@ mycelium test-gap --top 20  # auto-discovers coverage.json in project root
 
 Prerequisite: generate the artifact first — `coverage run -m pytest && coverage json`.
 Mycelium never runs the test suite (ADR-0010: consume external artifacts, never execute).
+
+### `check_architecture` ⭐ — architectural forbid-rule enforcement (RFC-0117 Phase 2)
+
+Evaluates YAML forbid-rules from `.mycelium/constraints.yml` against the indexed Calls and Imports edges.
+Returns every rule violation; `error_count > 0` signals a CI-blocking layering breach. Exits non-zero
+(via CLI) on any `error`-severity violation. Prerequisite: create a `.mycelium/constraints.yml` with
+version-1 forbid-rules (see RFC-0117 §YAML schema).
+
+```
+mcp__mycelium__check_architecture({})
+→ { "violations": [{"rule_id": "ui-no-db", "severity": "error", "kind": "calls",
+                     "from_path": "src/ui/page.rs>Page>render", "to_path": "src/db/pool.rs>Pool>get",
+                     "from_line": 42}],
+    "violation_count": 1, "error_count": 1, "warn_count": 0 }
+```
+
+CLI:
+```bash
+mycelium check-architecture --format json
+mycelium check-architecture   # text mode: prints violations and exits non-zero on error severity
+```
+
+No `.mycelium/constraints.yml` → empty report (no violations).
 
 ## Common chains
 

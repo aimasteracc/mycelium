@@ -19,7 +19,7 @@ use rmcp::{
 
 /// Expected number of registered MCP tools.
 /// Update this constant when you add or remove a tool.
-const EXPECTED_TOOL_COUNT: usize = 96;
+const EXPECTED_TOOL_COUNT: usize = 97;
 
 /// Minimal no-op client handler — only needs to exist for the MCP handshake.
 #[derive(Debug, Clone, Default)]

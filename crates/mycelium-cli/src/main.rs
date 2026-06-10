@@ -394,6 +394,17 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Evaluate architectural forbid-rules from `.mycelium/constraints.yml`
+    /// against the indexed symbol graph (RFC-0117 Phase 2).
+    /// Reads Calls and Imports edges; returns every violation and exits non-zero
+    /// when any `error`-severity rule is broken.
+    /// Byte-identical twin of `mycelium_check_architecture`.
+    CheckArchitecture {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Return `imports` + `imported_by` for a file/module.
     GetImports {
         path: String,
@@ -1466,6 +1477,10 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_test_gap(&canonical, coverage.as_deref(), top, format.into())?;
+        }
+        Cmd::CheckArchitecture { root, format } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_check_architecture(&canonical, format.into())?;
         }
         Cmd::GetImports { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
