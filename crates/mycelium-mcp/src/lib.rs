@@ -4133,45 +4133,33 @@ impl MyceliumServer {
         let corpus = vec![
             FixtureCase {
                 name: "callee_tree".to_owned(),
-                value: serde_json::from_str(include_str!(
-                    "../tests/corpus/callee_tree.json"
-                ))
-                .expect("corpus callee_tree.json is valid JSON"),
+                value: serde_json::from_str(include_str!("../tests/corpus/callee_tree.json"))
+                    .expect("corpus callee_tree.json is valid JSON"),
             },
             FixtureCase {
                 name: "caller_tree".to_owned(),
-                value: serde_json::from_str(include_str!(
-                    "../tests/corpus/caller_tree.json"
-                ))
-                .expect("corpus caller_tree.json is valid JSON"),
+                value: serde_json::from_str(include_str!("../tests/corpus/caller_tree.json"))
+                    .expect("corpus caller_tree.json is valid JSON"),
             },
             FixtureCase {
                 name: "context".to_owned(),
-                value: serde_json::from_str(include_str!(
-                    "../tests/corpus/context.json"
-                ))
-                .expect("corpus context.json is valid JSON"),
+                value: serde_json::from_str(include_str!("../tests/corpus/context.json"))
+                    .expect("corpus context.json is valid JSON"),
             },
             FixtureCase {
                 name: "search_symbol".to_owned(),
-                value: serde_json::from_str(include_str!(
-                    "../tests/corpus/search_symbol.json"
-                ))
-                .expect("corpus search_symbol.json is valid JSON"),
+                value: serde_json::from_str(include_str!("../tests/corpus/search_symbol.json"))
+                    .expect("corpus search_symbol.json is valid JSON"),
             },
             FixtureCase {
                 name: "subclasses_tree".to_owned(),
-                value: serde_json::from_str(include_str!(
-                    "../tests/corpus/subclasses_tree.json"
-                ))
-                .expect("corpus subclasses_tree.json is valid JSON"),
+                value: serde_json::from_str(include_str!("../tests/corpus/subclasses_tree.json"))
+                    .expect("corpus subclasses_tree.json is valid JSON"),
             },
             FixtureCase {
                 name: "symbol_info".to_owned(),
-                value: serde_json::from_str(include_str!(
-                    "../tests/corpus/symbol_info.json"
-                ))
-                .expect("corpus symbol_info.json is valid JSON"),
+                value: serde_json::from_str(include_str!("../tests/corpus/symbol_info.json"))
+                    .expect("corpus symbol_info.json is valid JSON"),
             },
         ];
 
@@ -4189,7 +4177,10 @@ impl MyceliumServer {
         #[cfg(not(feature = "tiktoken"))]
         let (report, tokenizer) = {
             use crate::token_bench::WhitespaceTokenCounter;
-            (measure_corpus(&corpus, &WhitespaceTokenCounter), "whitespace-approximate")
+            (
+                measure_corpus(&corpus, &WhitespaceTokenCounter),
+                "whitespace-approximate",
+            )
         };
 
         // Secondary metric: JSON-vs-MessagePack byte ratio (wire-format, NOT token ratio).
