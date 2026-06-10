@@ -12,47 +12,58 @@
 
 (source_file) @definition.module
 
+; NOTE on @definition.* anchoring (live-QA fix, 2026-06-10): the
+; @definition capture must sit on the ITEM node, not the enclosing
+; source_file / mod_item / impl_item container. The extractor derives the
+; node PATH from @name (and, for methods, from the container anchor), but
+; the SPAN comes from the @definition anchor — anchoring on the container
+; made every top-level symbol's span cover the whole file (e.g.
+; `main.rs>main` → lines 1..2077). Method captures (@definition.method)
+; are the one exception: they stay anchored on the impl/trait container
+; because the extractor builds the `Type>method` path from that anchor and
+; recovers the precise span by walking up from @name (METHOD_DECL_KINDS).
+
 ; ── Free functions ───────────────────────────────────────────────────
 
 (source_file
   (function_item
-    name: (identifier) @name)) @definition.function
+    name: (identifier) @name) @definition.function)
 
 ; ── Structs ──────────────────────────────────────────────────────────
 
 (source_file
   (struct_item
-    name: (type_identifier) @name)) @definition.struct
+    name: (type_identifier) @name) @definition.struct)
 
 ; ── Enums ────────────────────────────────────────────────────────────
 
 (source_file
   (enum_item
-    name: (type_identifier) @name)) @definition.enum
+    name: (type_identifier) @name) @definition.enum)
 
 ; ── Traits ───────────────────────────────────────────────────────────
 
 (source_file
   (trait_item
-    name: (type_identifier) @name)) @definition.trait
+    name: (type_identifier) @name) @definition.trait)
 
 ; ── Type aliases ─────────────────────────────────────────────────────
 
 (source_file
   (type_item
-    name: (type_identifier) @name)) @definition.type_alias
+    name: (type_identifier) @name) @definition.type_alias)
 
 ; ── Const items ──────────────────────────────────────────────────────
 
 (source_file
   (const_item
-    name: (identifier) @name)) @definition.const
+    name: (identifier) @name) @definition.const)
 
 ; ── Inline module declarations ───────────────────────────────────────
 
 (source_file
   (mod_item
-    name: (identifier) @name)) @definition.mod
+    name: (identifier) @name) @definition.mod)
 
 ; ── Methods and associated functions inside impl blocks ─────────────
 
@@ -90,7 +101,7 @@
 
 (source_file
   (static_item
-    name: (identifier) @name)) @definition.static
+    name: (identifier) @name) @definition.static)
 
 ; ── Associated constants on impl blocks ─────────────────────────────
 ;
@@ -101,7 +112,7 @@
 (impl_item
   body: (declaration_list
     (const_item
-      name: (identifier) @name))) @definition.associated_const
+      name: (identifier) @name) @definition.associated_const))
 
 ; ── Associated types on impl blocks ─────────────────────────────────
 ;
@@ -111,7 +122,7 @@
 (impl_item
   body: (declaration_list
     (type_item
-      name: (type_identifier) @name))) @definition.associated_type
+      name: (type_identifier) @name) @definition.associated_type))
 
 ; ── Functions and items inside nested module blocks ─────────────────
 ;
@@ -126,17 +137,17 @@
 (mod_item
   body: (declaration_list
     (function_item
-      name: (identifier) @name))) @definition.function
+      name: (identifier) @name) @definition.function))
 
 (mod_item
   body: (declaration_list
     (struct_item
-      name: (type_identifier) @name))) @definition.struct
+      name: (type_identifier) @name) @definition.struct))
 
 (mod_item
   body: (declaration_list
     (const_item
-      name: (identifier) @name))) @definition.const
+      name: (identifier) @name) @definition.const))
 
 ; ── Use declarations (Synapse Imports edges) ─────────────────────────
 
