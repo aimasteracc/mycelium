@@ -14,18 +14,28 @@
 (translation_unit) @definition.module
 
 ; ── Free functions ───────────────────────────────────────────────────
+;
+; NOTE on @definition.* anchoring (PR #750 follow-up, 2026-06-11): the
+; @definition capture sits on the function_definition ITEM node, NOT on
+; the file-root `translation_unit` — the extractor takes the SPAN from
+; the @definition anchor, so anchoring on the root made every free
+; function's span cover the whole file. Paths derive from @name text
+; only, so re-anchoring changes spans only. @definition.method captures
+; stay anchored on the class/struct/union specifier (the extractor builds
+; the `Type>method` path from that anchor and recovers the precise span
+; via the issue-#657 METHOD_DECL_KINDS walk-up).
 
 (translation_unit
   (function_definition
     declarator: (function_declarator
-      declarator: (identifier) @name))) @definition.function
+      declarator: (identifier) @name)) @definition.function)
 
 ; Pointer-returning free functions: int *foo()
 (translation_unit
   (function_definition
     declarator: (pointer_declarator
       declarator: (function_declarator
-        declarator: (identifier) @name)))) @definition.function
+        declarator: (identifier) @name))) @definition.function)
 
 ; ── Namespaces ───────────────────────────────────────────────────────
 

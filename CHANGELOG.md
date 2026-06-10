@@ -89,6 +89,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Python/TypeScript/JavaScript/Go/C++ symbol spans now anchor on the item, not the file root**
+  (completes PR #750's audit). The same root-anchoring bug fixed for Rust/Ruby in #750 existed in
+  five more packs: `@definition.*` captures anchored on the file-root node (Python `module`, TS/JS
+  `program`, Go `source_file`, C++ `translation_unit`) made every top-level symbol's span cover the
+  WHOLE FILE — e.g. `editors/vscode/src/extension.ts>activate` returned 1–195 for a 19-line
+  function — poisoning `get_source_span` and `mycelium_context.code_blocks`. Fixed by re-anchoring
+  the captures on the item node: python (4 patterns: fn/decorated-fn/class/decorated-class),
+  typescript (10: fn/arrow-const/class/interface/type-alias × plain+exported), javascript (8:
+  fn/arrow-const/function-expression-const/class × plain+exported), go (4: fn plus the per-name
+  `type_spec`/`const_spec`/`var_spec` inside grouped declarations), cpp (2: free fn,
+  pointer-returning free fn). Node paths derive from `@name` text only and are unchanged;
+  `@definition.method` captures stay container-anchored (their precise spans already resolve via
+  the issue-#657 `METHOD_DECL_KINDS` walk-up — no extractor changes needed). All embedded pack
+  copies synced (`check_pack_parity.sh` green).
+
 - **Rust symbol spans now anchor on the item, not the file/impl container.** Live QA found
   every Rust span was container-level: top-level items (`fn`/`struct`/`enum`/`trait`/`const`/
   `static`/`mod`/`type`) anchored `@definition.*` on `source_file`, so `get_source_span` for
