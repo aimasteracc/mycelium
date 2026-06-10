@@ -103,6 +103,8 @@ mcp__mycelium__get_callee_tree({ "path": "src/auth/session.rs>AuthService>login"
 
 Returns a nested `{ path, children: [...] }` structure. Default depth 3, capped at 10. Cycles are detected and rendered as leaf nodes with empty `children` (at the JSON level they are indistinguishable from depth-limit leaves). Callees the resolver could not bind to a definition (stdlib calls, ambiguous names) are not listed as nodes — each node instead carries an `unresolved_callees: N` count (omitted when 0), so the tree contains only real, navigable symbols (ADR-0013).
 
+Both tree tools accept a `budget` parameter (`auto` default / `small` / `medium` / `large` / `disabled`, RFC-0102). When the tree exceeds the budget, the serialized node count is capped **breadth-first** — every direct child appears before any grandchild, so the near-root overview survives and only deep tails are cut. Each node whose direct children were cut carries `children_truncated: K`, and the payload root gains `truncated: true` / `total_available: <full node count>` / `budget {}` metadata. Pass `budget: "disabled"` (CLI `--budget disabled`) for the full tree.
+
 ### `get_caller_tree` — recursive caller tree
 
 **When**: "who transitively depends on my function?" — the refactor blast-radius view.

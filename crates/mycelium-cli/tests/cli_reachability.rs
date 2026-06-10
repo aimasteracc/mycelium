@@ -261,3 +261,70 @@ fn get_singly_referenced_calls() {
     assert!(v["symbols"].is_array());
     assert!(v["count"].is_number());
 }
+
+// ── RFC-0102 budget knob on get-cross-refs (live QA: 36.5 KB from one hub) ──
+
+#[test]
+fn get_cross_refs_json_default_budget_caps_groups() {
+    use std::fmt::Write as _;
+    // A hub with 35 callers (> small-tier max_edges fires at 30).
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let mut src = String::from("pub fn hub() {}\n");
+    for i in 0..35 {
+        let _ = writeln!(src, "pub fn caller{i:02}() {{ hub(); }}");
+    }
+    std::fs::write(root.join("src/lib.rs"), src).unwrap();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let status = std::process::Command::new(mycelium_bin())
+        .args(["index", root.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let v = json_out(
+        &["get-cross-refs", "src/lib.rs>hub", "--format", "json"],
+        root,
+    );
+    assert_eq!(
+        v["callers"].as_array().unwrap().len(),
+        30,
+        "default auto budget caps callers at max_edges in JSON mode: {v}"
+    );
+    assert_eq!(v["truncated"], true);
+    assert_eq!(v["budget"]["mode"], "small");
+    assert_eq!(v["budget"]["total_available"]["callers"], 35);
+
+    // --budget disabled returns the full group.
+    let v = json_out(
+        &[
+            "get-cross-refs",
+            "src/lib.rs>hub",
+            "--format",
+            "json",
+            "--budget",
+            "disabled",
+        ],
+        root,
+    );
+    assert_eq!(v["callers"].as_array().unwrap().len(), 35);
+    assert!(v.get("truncated").is_none());
+}
+
+#[test]
+fn get_cross_refs_budget_rejects_unknown_value() {
+    let p = prepare_diamond();
+    let out = std::process::Command::new(mycelium_bin())
+        .current_dir(p.path())
+        .args(["get-cross-refs", "src/lib.rs>d", "--budget", "huge"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "unknown budget value must fail");
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("huge"), "error should name the bad value");
+}

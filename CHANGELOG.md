@@ -92,6 +92,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   had the identical root-anchoring bug (`(program (method …)) @definition.function`) and is
   fixed the same way; Python/TypeScript/JavaScript/Go/C++ have the same whole-file-span bug
   for top-level symbols and are listed for follow-up.
+- **Output budget (RFC-0102) now covers `query`, `get_cross_refs`, and the callee/caller trees**
+  (CLI and MCP, byte-identical via shared core builders). Live QA found three budget holes:
+  a default `mycelium_get_callee_tree` call dumped ~373 KB (~90K tokens, pre-ADR-0013), and
+  `mycelium_query` / `mycelium_get_cross_refs` had no `budget` parameter at all while
+  `get_callers` politely truncates. All three tool families now accept `budget`
+  (`auto`/`small`/`medium`/`large`/`disabled`; CLI `--budget` twin):
+  - **`query` / `mycelium_query`**: `matches` is capped at the budget's `max_nodes`; the payload
+    gains a `total_count` field — `count` follows the returned page while `total_count` keeps the
+    full match total (the #746 count rule). The CLI `--format=json` output is now the same
+    `{ matches, count, total_count }` object as the MCP tool (was a bare JSON array of strings).
+  - **`get_cross_refs`**: every reference group (`callers`, `importers`, `extended_by`,
+    `implemented_by`) is capped at `max_edges` — previously only `callers` happened to match a
+    budgeted key, so the other groups silently escaped the cap.
+  - **`get_callee_tree` / `get_caller_tree`**: new tree-aware `apply_tree_budget` in
+    `mycelium-core::budget` caps the total serialized node count **breadth-first** (the near-root
+    overview survives; deep tails are cut). Each node with cut direct children carries
+    `children_truncated: K` (ADR-0013 `unresolved_callees` style); the root gains the standard
+    `truncated` / `total_available` / `budget {}` metadata. Tree serialization moved into shared
+    `mycelium_core::queries::{callee,caller}_tree_payload` builders so CLI ↔ MCP stay
+    byte-identical by construction (Charter §5.13).
+
+  Default text-mode CLI output is never silently truncated (RFC-0102 text-mode rule); budgeting
+  applies in `--format=json` (MCP parity) or when `--budget` is explicit. (RFC-0102)
 
 - **`count` now matches the returned array after budget truncation in `get_entry_points` /
   `get_all_symbols`** (CLI and MCP, shared core path). Previously a no-limit call on a large repo

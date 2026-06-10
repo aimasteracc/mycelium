@@ -81,7 +81,7 @@ class Mycelium:
         return self._text(self._bin, ["index", _guard_positional(target, "path")])
 
     def query(self, expr: str) -> Any:
-        """Execute a Hyphae selector; returns the parsed JSON result."""
+        """Execute a Hyphae selector; returns ``{matches, count, total_count}``."""
         return self._json(self._bin, self._json_args("query", [_guard_positional(expr, "query")]))
 
     def search_symbol(self, query: str, limit: Optional[int] = None) -> Any:

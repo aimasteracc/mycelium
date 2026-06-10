@@ -34,9 +34,10 @@ test("indexes a tiny project and round-trips JSON through the SDK", { skip }, as
     const status = await m.serverStatus();
     assert.ok(status.node_count > 0, "expected indexed nodes");
 
-    const functions = await m.query(".function");
-    assert.ok(Array.isArray(functions), "query returns a JSON array");
-    assert.ok(functions.length >= 2, "expected at least helper + main");
+    const result = await m.query(".function");
+    assert.ok(Array.isArray(result.matches), "query returns { matches: [...] }");
+    assert.ok(result.matches.length >= 2, "expected at least helper + main");
+    assert.equal(result.count, result.matches.length, "count is the returned page size");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

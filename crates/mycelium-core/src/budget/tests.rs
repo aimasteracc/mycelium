@@ -304,3 +304,174 @@ fn caps_dead_and_isolated_symbols_at_node_cap() {
         assert_eq!(v["budget"]["total_available"][key], 40);
     }
 }
+
+// ---- Budget holes (live QA, HIGH): `mycelium_query` emits `matches`,
+//      `get_cross_refs` emits `importers`/`extended_by`/`implemented_by` —
+//      none were in the cap lists, so those tools dumped unbounded output
+//      while their siblings truncated. These caps close the flat-array gap. ----
+
+#[test]
+fn caps_query_matches_at_node_cap() {
+    let mut v = json!({
+        "matches": (0..40).collect::<Vec<_>>(),
+        "count": 40,
+        "total_count": 40,
+    });
+    apply_budget(&mut v, &OutputBudget::for_project(100)); // max_nodes = 15
+    assert_eq!(v["matches"].as_array().unwrap().len(), 15);
+    assert_eq!(
+        v["count"], 15,
+        "count must equal the returned array length after budget truncation"
+    );
+    assert_eq!(v["total_count"], 40, "total_count carries the full total");
+    assert_eq!(v["truncated"], true);
+    assert_eq!(v["budget"]["total_available"]["matches"], 40);
+}
+
+#[test]
+fn caps_cross_ref_groups_at_edge_cap() {
+    let mut v = json!({
+        "callers": (0..200).collect::<Vec<_>>(),
+        "importers": (0..50).collect::<Vec<_>>(),
+        "extended_by": [1, 2],
+        "implemented_by": (0..31).collect::<Vec<_>>(),
+    });
+    apply_budget(&mut v, &OutputBudget::for_project(100)); // max_edges = 30
+    assert_eq!(v["callers"].as_array().unwrap().len(), 30);
+    assert_eq!(v["importers"].as_array().unwrap().len(), 30);
+    assert_eq!(
+        v["extended_by"].as_array().unwrap().len(),
+        2,
+        "groups under the cap stay whole"
+    );
+    assert_eq!(v["implemented_by"].as_array().unwrap().len(), 30);
+    assert_eq!(v["truncated"], true);
+    assert_eq!(
+        v["budget"]["truncated_fields"],
+        json!(["callers", "importers", "implemented_by"])
+    );
+    assert_eq!(v["budget"]["total_available"]["callers"], 200);
+    assert_eq!(v["budget"]["total_available"]["importers"], 50);
+    assert_eq!(v["budget"]["total_available"]["implemented_by"], 31);
+}
+
+// ---- Tree-aware budgeting (`apply_tree_budget`): callee/caller trees are
+//      nested, so the flat-key `apply_budget` cannot cap them. The tree
+//      variant walks the `{ "root": {...} }` payload breadth-first, keeps the
+//      first `max_nodes` nodes in BFS order, marks every node whose direct
+//      children were cut with `children_truncated: K`, and emits the standard
+//      root metadata (`truncated` / `total_available` / `budget {}`). ----
+
+use super::apply_tree_budget;
+
+/// Count nodes of a `{path, <children_key>: [...]}` tree.
+fn count_tree_nodes(node: &serde_json::Value, children_key: &str) -> usize {
+    1 + node[children_key].as_array().map_or(0, |c| {
+        c.iter()
+            .map(|child| count_tree_nodes(child, children_key))
+            .sum()
+    })
+}
+
+/// A root with `width` children, each having one grandchild:
+/// `1 + width + width` nodes total.
+fn wide_tree(width: usize, children_key: &str) -> serde_json::Value {
+    let children: Vec<serde_json::Value> = (0..width)
+        .map(|i| {
+            json!({
+                "path": format!("src/lib.rs>child{i}"),
+                children_key: [ { "path": format!("src/lib.rs>grandchild{i}"), children_key: [] } ],
+            })
+        })
+        .collect();
+    json!({ "root": { "path": "src/lib.rs>root", children_key: children } })
+}
+
+#[test]
+fn tree_budget_caps_node_count_breadth_first() {
+    // 1 root + 20 children + 20 grandchildren = 41 nodes; small cap = 15.
+    let mut v = wide_tree(20, "children");
+    apply_tree_budget(&mut v, "children", &OutputBudget::for_project(100));
+
+    assert_eq!(
+        count_tree_nodes(&v["root"], "children"),
+        15,
+        "serialized node count must equal max_nodes: {v}"
+    );
+    // BFS keeps the near-root overview: root + its first 14 children; no
+    // grandchild is kept while a direct child was cut.
+    let children = v["root"]["children"].as_array().unwrap();
+    assert_eq!(children.len(), 14);
+    for child in children {
+        assert!(
+            child["children"].as_array().unwrap().is_empty(),
+            "BFS must cut grandchildren before direct children: {child}"
+        );
+        assert_eq!(
+            child["children_truncated"], 1,
+            "each kept child lost its 1 grandchild: {child}"
+        );
+    }
+    assert_eq!(
+        v["root"]["children_truncated"], 6,
+        "root had 20 children, 14 kept"
+    );
+    // Standard root metadata, same shape as apply_budget.
+    assert_eq!(v["truncated"], true);
+    assert_eq!(v["total_available"], 41);
+    assert_eq!(v["budget"]["mode"], "small");
+    assert_eq!(v["budget"]["truncated"], true);
+    assert_eq!(v["budget"]["truncated_fields"], json!(["root"]));
+    assert_eq!(v["budget"]["total_available"]["root"], 41);
+    assert_eq!(v["budget"]["limits"]["max_nodes"], 15);
+}
+
+#[test]
+fn tree_budget_works_for_caller_trees_children_key() {
+    // Caller trees nest under "callers", not "children".
+    let mut v = wide_tree(20, "callers");
+    apply_tree_budget(&mut v, "callers", &OutputBudget::for_project(100));
+    assert_eq!(count_tree_nodes(&v["root"], "callers"), 15);
+    assert_eq!(v["truncated"], true);
+    assert_eq!(v["total_available"], 41);
+}
+
+#[test]
+fn tree_budget_no_op_under_cap() {
+    let mut v = wide_tree(3, "children"); // 7 nodes < 15
+    let before = v.clone();
+    apply_tree_budget(&mut v, "children", &OutputBudget::for_project(100));
+    assert_eq!(v, before, "payload under the cap must be byte-identical");
+}
+
+#[test]
+fn tree_budget_disabled_is_a_no_op() {
+    let mut v = wide_tree(50, "children"); // 101 nodes
+    let before = v.clone();
+    apply_tree_budget(
+        &mut v,
+        "children",
+        &OutputBudget::resolve(Some(BudgetOverride::Disabled), 50_000),
+    );
+    assert_eq!(v, before, "budget=disabled must return the full tree");
+}
+
+#[test]
+fn tree_budget_preserves_unresolved_callees_on_kept_nodes() {
+    // ADR-0013 counts on kept nodes survive truncation untouched.
+    let mut v = json!({
+        "root": {
+            "path": "src/lib.rs>root",
+            "unresolved_callees": 3,
+            "children": (0..20).map(|i| json!({
+                "path": format!("src/lib.rs>c{i}"),
+                "unresolved_callees": 1,
+                "children": [],
+            })).collect::<Vec<_>>(),
+        }
+    });
+    apply_tree_budget(&mut v, "children", &OutputBudget::for_project(100));
+    assert_eq!(v["root"]["unresolved_callees"], 3);
+    assert_eq!(v["root"]["children"][0]["unresolved_callees"], 1);
+    assert_eq!(v["root"]["children_truncated"], 6, "20 children, 14 kept");
+}

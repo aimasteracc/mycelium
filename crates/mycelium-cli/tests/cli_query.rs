@@ -82,7 +82,10 @@ fn query_by_kind_selector_text_output() {
 }
 
 #[test]
-fn query_json_format_is_valid_json_array_of_strings() {
+fn query_json_format_is_mcp_identical_object() {
+    // RFC-0102 budget knob landing: the CLI JSON shape moved from a bare
+    // array to the MCP twin's `{ matches, count, total_count }` object so the
+    // two surfaces are byte-identical (Charter §5.13 Three-Surface Rule).
     let project = prepare_indexed_project();
     let out = Command::new(mycelium_bin())
         .current_dir(project.path())
@@ -92,8 +95,14 @@ fn query_json_format_is_valid_json_array_of_strings() {
 
     assert!(out.status.success(), "mycelium query failed");
     let stdout = String::from_utf8(out.stdout).expect("utf8 stdout");
-    let parsed: Vec<String> =
-        serde_json::from_str(stdout.trim()).expect("stdout must be a JSON array of strings");
+    let value: serde_json::Value =
+        serde_json::from_str(stdout.trim()).expect("stdout must be a JSON object");
+    let parsed: Vec<String> = value["matches"]
+        .as_array()
+        .expect("matches array")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
     assert!(
         parsed.iter().any(|s| s.contains("login")),
         "JSON output should contain 'login', got: {parsed:?}"
@@ -102,6 +111,111 @@ fn query_json_format_is_valid_json_array_of_strings() {
         parsed.iter().any(|s| s.contains("logout")),
         "JSON output should contain 'logout', got: {parsed:?}"
     );
+    assert_eq!(value["count"], 2);
+    assert_eq!(value["total_count"], 2);
+}
+
+// ── RFC-0102 budget knob on `query` (live QA: 39.5 KB from one `.method`) ──
+
+/// A project with `n` top-level functions, indexed.
+fn prepare_wide_project(n: usize) -> tempfile::TempDir {
+    use std::fmt::Write as _;
+    let dir = tempfile::tempdir().expect("create tempdir");
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let mut src = String::new();
+    for i in 0..n {
+        let _ = writeln!(src, "pub fn f{i:03}() {{}}");
+    }
+    std::fs::write(root.join("src/lib.rs"), src).unwrap();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let status = Command::new(mycelium_bin())
+        .args(["index", root.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    dir
+}
+
+#[test]
+fn query_json_default_budget_caps_matches_with_metadata() {
+    let project = prepare_wide_project(40); // > small-tier max_nodes (15)
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["query", ".function", "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    assert_eq!(
+        value["matches"].as_array().unwrap().len(),
+        15,
+        "default auto budget caps matches in JSON mode: {value}"
+    );
+    assert_eq!(value["count"], 15, "count follows the returned page");
+    assert_eq!(value["total_count"], 40, "total_count keeps the full total");
+    assert_eq!(value["truncated"], true);
+    assert_eq!(value["budget"]["mode"], "small");
+    assert_eq!(value["budget"]["total_available"]["matches"], 40);
+}
+
+#[test]
+fn query_budget_disabled_returns_full_set() {
+    let project = prepare_wide_project(40);
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args([
+            "query",
+            ".function",
+            "--format",
+            "json",
+            "--budget",
+            "disabled",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    assert_eq!(value["matches"].as_array().unwrap().len(), 40);
+    assert_eq!(value["count"], 40);
+    assert!(value.get("truncated").is_none());
+}
+
+#[test]
+fn query_text_mode_default_prints_full_list() {
+    // RFC-0102 text-mode rule: no silent truncation of human-facing output.
+    let project = prepare_wide_project(40);
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["query", ".function"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    assert_eq!(
+        stdout.lines().count(),
+        40,
+        "text mode prints the full list by default"
+    );
+}
+
+#[test]
+fn query_budget_rejects_unknown_value() {
+    let project = prepare_indexed_project();
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["query", ".function", "--budget", "huge"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "unknown budget value must fail");
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("huge"), "error should name the bad value");
 }
 
 #[test]

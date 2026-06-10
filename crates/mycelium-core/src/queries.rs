@@ -104,6 +104,91 @@ pub fn callers_payload(
     json!({ "caller_paths": paths })
 }
 
+/// Build the `{ "matches": [...], "count": N, "total_count": N }` payload for
+/// `query` / `mycelium_query` from an already-evaluated Hyphae match set.
+///
+/// `count` is the returned page length; `total_count` is the full match count.
+/// Both start equal — budgeting (if any) is applied by the caller *after* this:
+/// [`apply_budget`](crate::budget::apply_budget) caps `matches` at `max_nodes`
+/// and rewrites `count` to the post-truncation length (the #746 rule), so
+/// `count` always equals the array actually returned while `total_count`
+/// keeps the true total.
+#[must_use]
+pub fn query_matches_payload(matches: &[String]) -> Value {
+    json!({ "matches": matches, "count": matches.len(), "total_count": matches.len() })
+}
+
+/// Build the `{ callers, importers, extended_by, implemented_by }` payload for
+/// `get_cross_refs` / `mycelium_get_cross_refs` from an already-computed
+/// [`crate::store::CrossRefs`].
+///
+/// Each group is a flat top-level key so
+/// [`apply_budget`](crate::budget::apply_budget) caps every group at
+/// `max_edges` (the flat-key lookup sees them all). Both surfaces call this
+/// builder (Charter §5.13 Three-Surface Rule).
+#[must_use]
+pub fn cross_refs_payload(refs: &crate::store::CrossRefs) -> Value {
+    json!({
+        "callers": refs.callers,
+        "importers": refs.importers,
+        "extended_by": refs.extended_by,
+        "implemented_by": refs.implemented_by,
+    })
+}
+
+/// Serialize a [`crate::store::CalleeNode`] subtree to the canonical
+/// `{ path, children, unresolved_callees? }` JSON shape (ADR-0013: the
+/// unresolved count is omitted when 0).
+fn callee_node_to_json(node: &crate::store::CalleeNode, store: &Store) -> Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let children: Vec<Value> = node
+        .children
+        .iter()
+        .map(|child| callee_node_to_json(child, store))
+        .collect();
+    let mut value = json!({ "path": path, "children": children });
+    if node.unresolved_callees > 0 {
+        value["unresolved_callees"] = json!(node.unresolved_callees);
+    }
+    value
+}
+
+/// Serialize a [`crate::store::CallerNode`] subtree to the canonical
+/// `{ path, callers }` JSON shape.
+fn caller_node_to_json(node: &crate::store::CallerNode, store: &Store) -> Value {
+    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
+    let callers: Vec<Value> = node
+        .callers
+        .iter()
+        .map(|caller| caller_node_to_json(caller, store))
+        .collect();
+    json!({ "path": path, "callers": callers })
+}
+
+/// Build the `{ "root": { path, children, … } }` payload for
+/// `get_callee_tree` / `mycelium_get_callee_tree`.
+///
+/// Tree budgeting (RFC-0102) is applied by the caller *after* this via
+/// [`apply_tree_budget`](crate::budget::apply_tree_budget) with children key
+/// `"children"`. Both surfaces call this builder (Charter §5.13).
+#[must_use]
+pub fn callee_tree_payload(store: &Store, root: NodeId, max_depth: usize) -> Value {
+    let tree = store.callee_tree(root, max_depth);
+    json!({ "root": callee_node_to_json(&tree, store) })
+}
+
+/// Build the `{ "root": { path, callers, … } }` payload for
+/// `get_caller_tree` / `mycelium_get_caller_tree`.
+///
+/// Tree budgeting (RFC-0102) is applied by the caller *after* this via
+/// [`apply_tree_budget`](crate::budget::apply_tree_budget) with children key
+/// `"callers"`. Both surfaces call this builder (Charter §5.13).
+#[must_use]
+pub fn caller_tree_payload(store: &Store, root: NodeId, max_depth: usize) -> Value {
+    let tree = store.caller_tree(root, max_depth);
+    json!({ "root": caller_node_to_json(&tree, store) })
+}
+
 /// Build the `{ "dead_symbols": [...], "count": N }` payload for
 /// `get_dead_symbols` from an already-computed list of dead symbols.
 ///

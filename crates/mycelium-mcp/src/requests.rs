@@ -144,6 +144,12 @@ pub struct GetCalleeTreeRequest {
     /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Caps the total serialized
+    /// node count (breadth-first). Unknown values are rejected. The CLI
+    /// `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_caller_tree`.
@@ -159,6 +165,12 @@ pub struct GetCallerTreeRequest {
     /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Caps the total serialized
+    /// node count (breadth-first). Unknown values are rejected. The CLI
+    /// `--budget` flag is the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_imports`.
@@ -643,6 +655,12 @@ pub struct GetCrossRefsRequest {
     /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Caps each reference group at
+    /// `max_edges`. Unknown values are rejected. The CLI `--budget` flag is
+    /// the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_outgoing_refs`.
@@ -1262,6 +1280,13 @@ pub struct QueryRequest {
     /// `"msgpack"` (hex-encoded binary).
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
+    /// `"medium"` / `"large"`, or `"disabled"`. Caps `matches` at `max_nodes`;
+    /// `count` follows the returned page while `total_count` keeps the full
+    /// match total. Unknown values are rejected. The CLI `--budget` flag is
+    /// the byte-identical twin.
+    #[serde(default)]
+    pub budget: Option<String>,
 }
 
 /// Input parameters for `mycelium_get_node_degree`.
