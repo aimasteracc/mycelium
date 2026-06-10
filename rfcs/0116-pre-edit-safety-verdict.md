@@ -1,6 +1,6 @@
 # RFC-0116: pre-edit safety verdict — "safe-to-edit" before you touch (design)
 
-- **Status**: **Draft** (design — no implementation in this PR)
+- **Status**: **Partially Implemented** (Phase 1 pure `edit_verdict` core done — `crates/mycelium-core/src/verdict.rs`; Phase 2 — Store adapter + `mycelium safe-to-edit` CLI/MCP surfaces pending)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0112](0112-ide-plugin-vscode-thin-client.md) (IDE plugin —

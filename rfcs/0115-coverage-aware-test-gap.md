@@ -1,6 +1,6 @@
 # RFC-0115: coverage-aware test-gap analysis — rank untested code by graph reach (design)
 
-- **Status**: **Draft** (design — no implementation in this PR)
+- **Status**: **Partially Implemented** (Phase 1 pure `test_gap` core done — `crates/mycelium-core/src/test_gap.rs`; Phase 2 — Store adapter + Three-Surface wiring pending)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**:
