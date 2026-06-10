@@ -3365,6 +3365,159 @@ fn method_span_is_method_not_class_ruby() {
     );
 }
 
+// ── Rust symbol span precision: item-level, not container-level ──────────────
+//
+// Rust spans were CONTAINER-level (live-QA found, 2026-06-10):
+//   1. Top-level items anchored `@definition.*` on `source_file`, so every
+//      free fn / struct / enum / const span covered the WHOLE FILE
+//      (`main.rs>main` → 1..2077).
+//   2. Impl methods walked down via METHOD_DECL_KINDS (issue #657), but the
+//      list lacked Rust's `function_item`, so the walk failed and the span
+//      fell back to the whole `impl` block (`Store>upsert_node` → 447..4989
+//      for a 3-line fn).
+//   3. Trait methods anchored on `trait_item`, which the span-selection
+//      branch did not treat as a container at all → whole-trait spans.
+//
+// RED before fix: spans cover the container (file / impl / trait).
+// GREEN after fix: spans cover exactly the declared item's lines.
+
+#[test]
+fn method_span_is_method_not_impl_rust() {
+    // Line 1: `struct Foo;`
+    // Line 2: `impl Foo {`            — impl_item span (wrong — old behaviour)
+    // Line 3: `    fn short(&self) {}` — function_item span (correct)
+    // Line 4: `    fn other(&self) {`
+    // Line 5: `        let _ = 1;`
+    // Line 6: `    }`
+    // Line 7: `}`
+    let source = "struct Foo;\nimpl Foo {\n    fn short(&self) {}\n    fn other(&self) {\n        let _ = 1;\n    }\n}\n";
+    let store = extract_rs(source);
+
+    let short_id = store
+        .lookup("test.rs>Foo>short")
+        .expect("Foo>short method node must exist (path must be unchanged)");
+    let span = store
+        .span_of(short_id)
+        .expect("Foo>short must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (3, 3),
+        "Foo>short span must cover only the `fn short` line, not the impl block"
+    );
+
+    let other_id = store
+        .lookup("test.rs>Foo>other")
+        .expect("Foo>other method node must exist (path must be unchanged)");
+    let span = store
+        .span_of(other_id)
+        .expect("Foo>other must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (4, 6),
+        "Foo>other span must cover `fn other` through its closing brace, not the impl block"
+    );
+}
+
+#[test]
+fn function_span_is_item_not_file_rust() {
+    // Line 1: `struct A;`
+    // Line 2: `const X: u32 = 1;`
+    // Line 3: ``
+    // Line 4: `fn main() {`          — function_item span (correct)
+    // Line 5: `    let _ = X;`
+    // Line 6: `}`
+    let source = "struct A;\nconst X: u32 = 1;\n\nfn main() {\n    let _ = X;\n}\n";
+    let store = extract_rs(source);
+
+    let main_id = store
+        .lookup("test.rs>main")
+        .expect("main fn node must exist (path must be unchanged)");
+    let span = store
+        .span_of(main_id)
+        .expect("main must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (4, 6),
+        "main span must cover the fn item, not the whole source_file"
+    );
+
+    let a_id = store
+        .lookup("test.rs>A")
+        .expect("struct A node must exist (path must be unchanged)");
+    let span = store.span_of(a_id).expect("A must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (1, 1),
+        "struct A span must cover only its declaration line, not the whole file"
+    );
+
+    let x_id = store
+        .lookup("test.rs>X")
+        .expect("const X node must exist (path must be unchanged)");
+    let span = store.span_of(x_id).expect("X must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (2, 2),
+        "const X span must cover only its declaration line, not the whole file"
+    );
+}
+
+#[test]
+fn method_span_is_method_not_trait_rust() {
+    // Line 1: `trait T {`             — trait_item span (wrong — old behaviour)
+    // Line 2: `    fn sig(&self);`    — function_signature_item span (correct)
+    // Line 3: `    fn dflt(&self) {}` — function_item span (correct)
+    // Line 4: `}`
+    let source = "trait T {\n    fn sig(&self);\n    fn dflt(&self) {}\n}\n";
+    let store = extract_rs(source);
+
+    let sig_id = store
+        .lookup("test.rs>T>sig")
+        .expect("T>sig trait-method node must exist (path must be unchanged)");
+    let span = store.span_of(sig_id).expect("T>sig must have a span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (2, 2),
+        "trait method signature span must cover only its line, not the trait block"
+    );
+
+    let dflt_id = store
+        .lookup("test.rs>T>dflt")
+        .expect("T>dflt trait-method node must exist (path must be unchanged)");
+    let span = store.span_of(dflt_id).expect("T>dflt must have a span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (3, 3),
+        "trait default-method span must cover only its line, not the trait block"
+    );
+}
+
+#[test]
+fn function_span_is_item_not_file_ruby() {
+    // Same container-anchoring bug as Rust, found in the 2026-06-10 audit:
+    // `(program (method ...)) @definition.function` anchored on the file root,
+    // so every top-level `def` span covered the whole file.
+    // Line 1: `X = 1`
+    // Line 2: ``
+    // Line 3: `def foo`   — method span (correct)
+    // Line 4: `  1`
+    // Line 5: `end`
+    let source = "X = 1\n\ndef foo\n  1\nend\n";
+    let ext = ruby_extractor();
+    let mut store = Store::new();
+    ext.extract("test.rb", source.as_bytes(), &mut store)
+        .expect("extraction should succeed");
+    let foo_id = store
+        .lookup("test.rb>foo")
+        .expect("top-level foo node must exist (path must be unchanged)");
+    let span = store.span_of(foo_id).expect("foo must have a source span");
+    assert_eq!(
+        (span.start_line, span.end_line),
+        (3, 5),
+        "top-level def span must cover the method, not the whole program"
+    );
+}
+
 // RFC-0122 AC-2/3/4/5: rule f — resolve `let s = get_store(); s.upsert_node()` via
 // fn_call_hint → return_type_of → enrich_context → infer_receiver_type rule c.
 #[test]

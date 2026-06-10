@@ -78,6 +78,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Rust symbol spans now anchor on the item, not the file/impl container.** Live QA found
+  every Rust span was container-level: top-level items (`fn`/`struct`/`enum`/`trait`/`const`/
+  `static`/`mod`/`type`) anchored `@definition.*` on `source_file`, so `get_source_span` for
+  `main.rs>main` returned the whole file (1–2077); impl methods fell back to the whole `impl`
+  block (`Store>upsert_node` → 447–4989 for a 3-line fn) because `METHOD_DECL_KINDS` lacked
+  Rust's `function_item`; trait methods returned the whole `trait` block. `mycelium_context`
+  shipped these spans in `code_blocks`, pulling thousands of lines per block. Fixed by
+  (1) re-anchoring all non-method `@definition.*` captures in `packs/rust/queries.scm` on the
+  item node (incl. nested-`mod` items and impl associated consts/types), (2) adding
+  `function_item` + `function_signature_item` to `METHOD_DECL_KINDS`, and (3) treating Rust's
+  `trait_item` as a span-walk container. Node paths are unchanged. Ruby's top-level `def`
+  had the identical root-anchoring bug (`(program (method …)) @definition.function`) and is
+  fixed the same way; Python/TypeScript/JavaScript/Go/C++ have the same whole-file-span bug
+  for top-level symbols and are listed for follow-up.
+
 - **`count` now matches the returned array after budget truncation in `get_entry_points` /
   `get_all_symbols`** (CLI and MCP, shared core path). Previously a no-limit call on a large repo
   reported the pre-budget total in the flat `count` field (e.g. `count: 2425` next to a 30-element

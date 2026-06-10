@@ -178,8 +178,12 @@ impl Extractor {
                             // Ruby's `class`/`module` are excluded from
                             // is_type_container() to avoid cross-language kind
                             // collisions, so they must be matched explicitly here.
+                            // Rust's `trait_item` is likewise not a type
+                            // container for path purposes, but it IS the anchor
+                            // for trait-method captures, so the precise-span
+                            // walk must trigger for it too.
                             let span_node = if is_type_container(anchor.kind())
-                                || matches!(anchor.kind(), "class" | "module")
+                                || matches!(anchor.kind(), "class" | "module" | "trait_item")
                             {
                                 m.captures
                                     .iter()
@@ -1592,6 +1596,8 @@ const METHOD_DECL_KINDS: &[&str] = &[
     "function_definition",     // Python / C++ (inside a specifier)
     "method_declaration",      // Java / C# / Go
     "constructor_declaration", // Java / C#
+    "function_item",           // Rust (impl / trait methods)
+    "function_signature_item", // Rust (trait method signatures, no body)
     "method",                  // Ruby
     "singleton_method",        // Ruby
 ];

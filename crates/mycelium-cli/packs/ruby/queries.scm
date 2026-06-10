@@ -60,9 +60,14 @@
       name: (identifier) @name))) @definition.method
 
 ; Top-level methods
+;
+; The @definition capture sits on the `method` node, NOT on `program`:
+; the extractor takes the SPAN from the @definition anchor, so anchoring on
+; the file root made every top-level def's span cover the whole file
+; (2026-06-10 container-span audit; same fix as packs/rust).
 (program
   (method
-    name: (identifier) @name)) @definition.function
+    name: (identifier) @name) @definition.function)
 
 ; ── require / require_relative (Synapse Imports edges) ──────────────────
 
