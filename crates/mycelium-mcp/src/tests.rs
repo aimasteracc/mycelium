@@ -1099,6 +1099,7 @@ async fn get_callee_tree_returns_nested_structure() {
             path: "src/lib.rs>foo".to_string(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1120,6 +1121,7 @@ async fn get_callee_tree_returns_error_for_unknown_path() {
             path: "no/such>path".to_string(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1143,6 +1145,7 @@ async fn get_callee_tree_leaf_at_max_depth() {
             path: "a.rs>a".to_string(),
             max_depth: Some(1),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1186,6 +1189,7 @@ async fn get_callee_tree_collapses_unresolved_into_count() {
             path: "a.rs>root".to_string(),
             max_depth: Some(3),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1232,6 +1236,7 @@ async fn get_caller_tree_returns_nested_structure() {
             path: "src/lib.rs>bar".to_string(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1253,6 +1258,7 @@ async fn get_caller_tree_returns_error_for_unknown_path() {
             path: "no/such>path".to_string(),
             max_depth: None,
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -1276,6 +1282,7 @@ async fn get_caller_tree_leaf_at_max_depth() {
             path: "c.rs>c".to_string(),
             max_depth: Some(1),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -2980,6 +2987,7 @@ async fn get_cross_refs_all_kinds() {
         .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
             path: "src/lib.rs>Base".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -3000,6 +3008,7 @@ async fn get_cross_refs_empty_lists_present() {
         .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
             path: "src/lone.rs>lone".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -3016,6 +3025,7 @@ async fn get_cross_refs_unknown_path_returns_error() {
         .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
             path: "no/such>path".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5502,6 +5512,7 @@ async fn query_name_selector_returns_matches() {
         .mycelium_query(Parameters(QueryRequest {
             expr: "#login".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5529,6 +5540,7 @@ async fn query_parse_error_returns_error_envelope() {
         .mycelium_query(Parameters(QueryRequest {
             expr: "this is not a selector >>".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5560,6 +5572,7 @@ async fn query_unsupported_selector_returns_error_envelope_not_empty() {
         .mycelium_query(Parameters(QueryRequest {
             expr: ".function[lang=rust]".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5583,6 +5596,7 @@ async fn query_lex_error_envelope_is_human_readable() {
         .mycelium_query(Parameters(QueryRequest {
             expr: "#a + #b".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -5612,6 +5626,7 @@ async fn query_unknown_kind_returns_error_envelope_with_suggestion() {
         .mycelium_query(Parameters(QueryRequest {
             expr: ".fn".to_owned(),
             output_format: None,
+            budget: None,
         }))
         .await;
     let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
@@ -6719,6 +6734,7 @@ async fn test_get_callee_tree_text_format() {
             path: "src/greet.rs>greet".to_owned(),
             max_depth: None,
             output_format: Some(OutputFormat::Text),
+            budget: None,
         }))
         .await;
     assert!(
@@ -7503,5 +7519,318 @@ async fn rfc0094_phase4_default_format_flip() {
     assert!(
         serde_json::from_str::<serde_json::Value>(result_str(&json_override)).is_ok(),
         "explicit output_format: json must override the Text default"
+    );
+}
+
+// ── RFC-0102 budget holes: query / cross-refs / callee-tree / caller-tree ──
+//
+// Live QA (HIGH): these tools dumped unbounded output (a default
+// get_callee_tree call measured ~373 KB) while siblings like get_callers
+// truncated honestly. They now take the same `budget` knob and emit the same
+// `truncated` / `total_available` / `budget {}` metadata.
+
+/// A store with `n` kinded functions under one file, plus the file node.
+async fn server_with_n_functions(n: usize) -> MyceliumServer {
+    use mycelium_core::types::NodeKind;
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        store.upsert_node_with_kind(TrunkPath::parse("src/lib.rs").unwrap(), NodeKind::File);
+        for i in 0..n {
+            store.upsert_node_with_kind(
+                TrunkPath::parse(&format!("src/lib.rs>fn{i:03}")).unwrap(),
+                NodeKind::Function,
+            );
+        }
+        drop(store);
+    }
+    server
+}
+
+#[tokio::test]
+async fn query_budget_small_caps_matches_with_metadata() {
+    let server = server_with_n_functions(40).await;
+    let raw = server
+        .mycelium_query(Parameters(QueryRequest {
+            expr: ".function".to_string(),
+            output_format: None,
+            budget: Some("small".to_string()),
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(
+        val["matches"].as_array().unwrap().len(),
+        15,
+        "small budget caps matches at max_nodes: {val}"
+    );
+    assert_eq!(val["count"], 15, "count follows the returned page");
+    assert_eq!(val["total_count"], 40, "total_count keeps the full total");
+    assert_eq!(val["truncated"], true);
+    assert_eq!(val["budget"]["mode"], "small");
+    assert_eq!(val["budget"]["total_available"]["matches"], 40);
+}
+
+#[tokio::test]
+async fn query_budget_disabled_returns_full_set() {
+    let server = server_with_n_functions(40).await;
+    let raw = server
+        .mycelium_query(Parameters(QueryRequest {
+            expr: ".function".to_string(),
+            output_format: None,
+            budget: Some("disabled".to_string()),
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(val["matches"].as_array().unwrap().len(), 40);
+    assert_eq!(val["count"], 40);
+    assert_eq!(val["total_count"], 40);
+    assert!(val.get("truncated").is_none());
+    assert!(val.get("budget").is_none());
+}
+
+#[tokio::test]
+async fn query_default_auto_small_payload_unchanged() {
+    // No-regression: a small match set under the cap gains total_count but no
+    // truncation metadata.
+    let server = server_with_n_functions(3).await;
+    let raw = server
+        .mycelium_query(Parameters(QueryRequest {
+            expr: ".function".to_string(),
+            output_format: None,
+            budget: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(val["matches"].as_array().unwrap().len(), 3);
+    assert_eq!(val["count"], 3);
+    assert_eq!(val["total_count"], 3);
+    assert!(val.get("truncated").is_none());
+}
+
+#[tokio::test]
+async fn query_budget_rejects_unknown_value() {
+    let server = server_with_n_functions(3).await;
+    let raw = server
+        .mycelium_query(Parameters(QueryRequest {
+            expr: ".function".to_string(),
+            output_format: None,
+            budget: Some("huge".to_string()),
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert!(
+        val["error"].as_str().unwrap().contains("huge"),
+        "error must name the bad value: {val}"
+    );
+}
+
+/// A hub symbol with `n` callers and `n` importers.
+async fn server_with_hub(n: usize) -> MyceliumServer {
+    use mycelium_core::types::NodeKind;
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        let hub = store.upsert_node_with_kind(
+            TrunkPath::parse("src/hub.rs>hub").unwrap(),
+            NodeKind::Function,
+        );
+        for i in 0..n {
+            let caller = store.upsert_node_with_kind(
+                TrunkPath::parse(&format!("src/c.rs>caller{i:03}")).unwrap(),
+                NodeKind::Function,
+            );
+            store.upsert_edge(EdgeKind::Calls, caller, hub);
+            let importer = store.upsert_node_with_kind(
+                TrunkPath::parse(&format!("src/i{i:03}.rs")).unwrap(),
+                NodeKind::File,
+            );
+            store.upsert_edge(EdgeKind::Imports, importer, hub);
+        }
+    }
+    server
+}
+
+#[tokio::test]
+async fn cross_refs_budget_small_caps_groups_with_metadata() {
+    let server = server_with_hub(40).await;
+    let raw = server
+        .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
+            path: "src/hub.rs>hub".to_string(),
+            output_format: None,
+            budget: Some("small".to_string()),
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(
+        val["callers"].as_array().unwrap().len(),
+        30,
+        "small budget caps callers at max_edges: {val}"
+    );
+    assert_eq!(val["importers"].as_array().unwrap().len(), 30);
+    assert_eq!(val["truncated"], true);
+    assert_eq!(val["budget"]["mode"], "small");
+    assert_eq!(val["budget"]["total_available"]["callers"], 40);
+    assert_eq!(val["budget"]["total_available"]["importers"], 40);
+}
+
+#[tokio::test]
+async fn cross_refs_budget_disabled_returns_full_groups() {
+    let server = server_with_hub(40).await;
+    let raw = server
+        .mycelium_get_cross_refs(Parameters(GetCrossRefsRequest {
+            path: "src/hub.rs>hub".to_string(),
+            output_format: None,
+            budget: Some("disabled".to_string()),
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(val["callers"].as_array().unwrap().len(), 40);
+    assert_eq!(val["importers"].as_array().unwrap().len(), 40);
+    assert!(val.get("truncated").is_none());
+}
+
+/// A root function calling `width` children, each calling 1 grandchild:
+/// `1 + 2*width` tree nodes.
+async fn server_with_wide_callee_tree(width: usize) -> MyceliumServer {
+    use mycelium_core::types::NodeKind;
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        let root = store.upsert_node_with_kind(
+            TrunkPath::parse("src/a.rs>root").unwrap(),
+            NodeKind::Function,
+        );
+        for i in 0..width {
+            let child = store.upsert_node_with_kind(
+                TrunkPath::parse(&format!("src/a.rs>child{i:03}")).unwrap(),
+                NodeKind::Function,
+            );
+            let grandchild = store.upsert_node_with_kind(
+                TrunkPath::parse(&format!("src/a.rs>grand{i:03}")).unwrap(),
+                NodeKind::Function,
+            );
+            store.upsert_edge(EdgeKind::Calls, root, child);
+            store.upsert_edge(EdgeKind::Calls, child, grandchild);
+        }
+    }
+    server
+}
+
+fn count_json_tree_nodes(node: &serde_json::Value, children_key: &str) -> usize {
+    1 + node[children_key].as_array().map_or(0, |c| {
+        c.iter()
+            .map(|child| count_json_tree_nodes(child, children_key))
+            .sum()
+    })
+}
+
+#[tokio::test]
+async fn callee_tree_default_auto_caps_node_count_with_metadata() {
+    // 41 tree nodes in a <500-node project → small tier, max_nodes = 15.
+    // DEFAULT args (budget omitted) must already cap — this is the QA hole
+    // where one default call returned ~90K tokens.
+    let server = server_with_wide_callee_tree(20).await;
+    let raw = server
+        .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+            path: "src/a.rs>root".to_string(),
+            max_depth: None,
+            output_format: None,
+            budget: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(
+        count_json_tree_nodes(&val["root"], "children"),
+        15,
+        "default auto budget must cap the tree at max_nodes: {val}"
+    );
+    assert_eq!(val["truncated"], true);
+    assert_eq!(val["total_available"], 41);
+    assert_eq!(val["budget"]["mode"], "small");
+    assert_eq!(
+        val["budget"]["truncated_fields"],
+        serde_json::json!(["root"])
+    );
+    assert_eq!(
+        val["root"]["children_truncated"], 6,
+        "root had 20 children, 14 kept (BFS): {val}"
+    );
+}
+
+#[tokio::test]
+async fn callee_tree_budget_disabled_returns_full_tree() {
+    let server = server_with_wide_callee_tree(20).await;
+    let raw = server
+        .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+            path: "src/a.rs>root".to_string(),
+            max_depth: None,
+            output_format: None,
+            budget: Some("disabled".to_string()),
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(count_json_tree_nodes(&val["root"], "children"), 41);
+    assert!(val.get("truncated").is_none());
+    assert!(val.get("budget").is_none());
+}
+
+#[tokio::test]
+async fn callee_tree_small_payload_unchanged_by_default_budget() {
+    // No-regression: a tree under the cap keeps its exact shape.
+    let server = server_with_wide_callee_tree(5).await; // 11 nodes < 15
+    let raw = server
+        .mycelium_get_callee_tree(Parameters(GetCalleeTreeRequest {
+            path: "src/a.rs>root".to_string(),
+            max_depth: None,
+            output_format: None,
+            budget: None,
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(count_json_tree_nodes(&val["root"], "children"), 11);
+    assert!(val.get("truncated").is_none());
+    assert!(val.get("budget").is_none());
+    let rendered = serde_json::to_string(&val).unwrap();
+    assert!(!rendered.contains("children_truncated"));
+}
+
+#[tokio::test]
+async fn caller_tree_budget_small_caps_node_count_with_metadata() {
+    use mycelium_core::types::NodeKind;
+    // 40 callers reaching one leaf: 41 tree nodes.
+    let server = MyceliumServer::new();
+    {
+        let mut store = server.store.write().await;
+        let leaf = store.upsert_node_with_kind(
+            TrunkPath::parse("src/a.rs>leaf").unwrap(),
+            NodeKind::Function,
+        );
+        for i in 0..40 {
+            let caller = store.upsert_node_with_kind(
+                TrunkPath::parse(&format!("src/a.rs>caller{i:03}")).unwrap(),
+                NodeKind::Function,
+            );
+            store.upsert_edge(EdgeKind::Calls, caller, leaf);
+        }
+    }
+    let raw = server
+        .mycelium_get_caller_tree(Parameters(GetCallerTreeRequest {
+            path: "src/a.rs>leaf".to_string(),
+            max_depth: None,
+            output_format: None,
+            budget: Some("small".to_string()),
+        }))
+        .await;
+    let val: serde_json::Value = serde_json::from_str(result_str(&raw)).unwrap();
+    assert_eq!(
+        count_json_tree_nodes(&val["root"], "callers"),
+        15,
+        "small budget caps the caller tree at max_nodes: {val}"
+    );
+    assert_eq!(val["truncated"], true);
+    assert_eq!(val["total_available"], 41);
+    assert_eq!(
+        val["root"]["children_truncated"], 26,
+        "40 callers, 14 kept: {val}"
     );
 }

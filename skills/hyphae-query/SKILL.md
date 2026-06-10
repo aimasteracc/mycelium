@@ -79,10 +79,10 @@ mycelium query ".class>.method" --root /path/to/project
 **Result shape:**
 
 ```json
-{ "matches": ["src/a.rs>login", "src/b.rs>login"], "count": 2 }
+{ "matches": ["src/a.rs>login", "src/b.rs>login"], "count": 2, "total_count": 2 }
 ```
 
-The CLI text format prints one match per line. The CLI `--format=json` is a JSON array of strings — equivalent to the MCP `matches` field, asserted byte-for-byte by `tests/parity.test.json`.
+The CLI text format prints one match per line. The CLI `--format=json` emits the same `{ matches, count, total_count }` object as the MCP tool, byte-identical via a shared core builder, asserted by `tests/parity.test.json`. Both surfaces accept a `budget` parameter (`auto` default / `small` / `medium` / `large` / `disabled`, RFC-0102): when the match set exceeds the budget, `matches` is capped, `count` follows the returned page, `total_count` keeps the full match total, and `truncated` / `budget {}` metadata is attached. Pass `budget: "disabled"` (CLI `--budget disabled`) for the full set.
 
 **Result on parse error:**
 

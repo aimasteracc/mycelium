@@ -104,10 +104,10 @@ Returns the symbol's direct neighbors across all four edge kinds (calls, imports
 
 ```
 mcp__mycelium__get_cross_refs({ "path": "src/auth/session.rs>AuthService>login" })
-→ { "callers": [...], "importers": [...], "subclasses": [...], "implementors": [...] }
+→ { "callers": [...], "importers": [...], "extended_by": [...], "implemented_by": [...] }
 ```
 
-Tied for top-10 most useful. One call replaces four separate `get_<edge>_to` calls.
+Tied for top-10 most useful. One call replaces four separate `get_<edge>_to` calls. Accepts a `budget` parameter (`auto` default / `small` / `medium` / `large` / `disabled`, RFC-0102): each reference group is capped at the budget's `max_edges`, with `truncated` / `total_available` / `budget {}` metadata attached when any group was cut. Pass `budget: "disabled"` (CLI `--budget disabled`) for the full lists.
 
 ### `get_outgoing_refs` — all outgoing references (any edge kind)
 

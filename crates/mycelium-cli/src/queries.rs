@@ -388,8 +388,12 @@ pub(crate) fn run_get_callees(
 
 /// Print a graph-list payload object: the full object in `--format json` (the
 /// byte-identical twin of the MCP tool), or just the named list, one item per
-/// line, in text mode (RFC-0109 Option A).
-fn print_object_with_list(value: &serde_json::Value, list_key: &str, format: Format) -> Result<()> {
+/// line, in text mode (RFC-0109 Option A). Shared with `query` (`crate::query`).
+pub(crate) fn print_object_with_list(
+    value: &serde_json::Value,
+    list_key: &str,
+    format: Format,
+) -> Result<()> {
     match format {
         Format::Json => println!("{}", serde_json::to_string(value)?),
         Format::Text => {
@@ -468,65 +472,68 @@ pub(crate) fn run_get_callers(
 }
 
 // ── call-graph: get-callee-tree / get-caller-tree ─────────────────────────────
-
-fn callee_node_to_json(node: &mycelium_core::CalleeNode, store: &Store) -> serde_json::Value {
-    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
-    let children: Vec<serde_json::Value> = node
-        .children
-        .iter()
-        .map(|c| callee_node_to_json(c, store))
-        .collect();
-    let mut value = serde_json::json!({ "path": path, "children": children });
-    // ADR-0013: collapsed unresolved callees surface as a count; omitted when 0
-    // to keep the payload lean (token economy).
-    if node.unresolved_callees > 0 {
-        value["unresolved_callees"] = serde_json::json!(node.unresolved_callees);
-    }
-    value
-}
-
-fn caller_node_to_json(node: &mycelium_core::CallerNode, store: &Store) -> serde_json::Value {
-    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
-    let callers: Vec<serde_json::Value> = node
-        .callers
-        .iter()
-        .map(|c| caller_node_to_json(c, store))
-        .collect();
-    serde_json::json!({ "path": path, "callers": callers })
-}
+//
+// Tree serialization lives in `mycelium_core::queries::{callee,caller}_tree_payload`
+// so the MCP twins share the same `{ "root": … }` builder (Charter §5.13), and
+// tree-aware budgeting (RFC-0102, breadth-first node cap) applies identically.
 
 pub(crate) fn run_get_callee_tree(
     root: &Path,
     path: &str,
     max_depth: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_tree_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
-    let tree = store.callee_tree(id, max_depth);
-    let value = callee_node_to_json(&tree, &store);
-    match format {
-        Format::Text => println!("{value}"),
-        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109).
+    let mut value = mycelium_core::queries::callee_tree_payload(&store, id, max_depth);
+    // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
+    // explicit. Default text mode prints the full tree — no silent truncation
+    // of human-facing output (RFC-0102 text-mode rule).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_tree_budget(
+            &mut value,
+            "children",
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
     }
-    Ok(())
+    print_tree_value(&value, format)
 }
 
 pub(crate) fn run_get_caller_tree(
     root: &Path,
     path: &str,
     max_depth: usize,
+    budget: Option<&str>,
     format: Format,
 ) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_tree_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
-    let tree = store.caller_tree(id, max_depth);
-    let value = caller_node_to_json(&tree, &store);
-    match format {
-        Format::Text => println!("{value}"),
-        Format::Json => println!("{}", serde_json::to_string(&value)?),
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109).
+    let mut value = mycelium_core::queries::caller_tree_payload(&store, id, max_depth);
+    // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
+    // explicit (see run_get_callee_tree).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_tree_budget(
+            &mut value,
+            "callers",
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
     }
-    Ok(())
+    print_tree_value(&value, format)
 }
 
 // ── call-graph: entry-points / dead-symbols / isolated-symbols ────────────────
@@ -1142,16 +1149,32 @@ pub(crate) fn run_get_symbol_neighborhood(
     print_tree_value(&value, format)
 }
 
-pub(crate) fn run_get_cross_refs(root: &Path, path: &str, format: Format) -> Result<()> {
+pub(crate) fn run_get_cross_refs(
+    root: &Path,
+    path: &str,
+    budget: Option<&str>,
+    format: Format,
+) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let store = load_index(root)?;
     let id = store.lookup(path).ok_or_else(|| path_not_found(path))?;
     let refs = store.cross_refs(id);
-    let value = serde_json::json!({
-        "callers": refs.callers,
-        "importers": refs.importers,
-        "extended_by": refs.extended_by,
-        "implemented_by": refs.implemented_by,
-    });
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109).
+    let mut value = mycelium_core::queries::cross_refs_payload(&refs);
+    // Budget in JSON mode (parity with the MCP tool) or when `--budget` is
+    // explicit. Default text mode prints the full groups (RFC-0102 text-mode
+    // rule — no silent truncation of human-facing output).
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, store.node_count()),
+        );
+    }
     print_tree_value(&value, format)
 }
 

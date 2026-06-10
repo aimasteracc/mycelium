@@ -40,15 +40,6 @@ enum QueryFormat {
     Json,
 }
 
-impl From<QueryFormat> for query::Format {
-    fn from(f: QueryFormat) -> Self {
-        match f {
-            QueryFormat::Text => Self::Text,
-            QueryFormat::Json => Self::Json,
-        }
-    }
-}
-
 impl From<QueryFormat> for queries::Format {
     fn from(f: QueryFormat) -> Self {
         match f {
@@ -107,11 +98,18 @@ enum Cmd {
         #[arg(long, default_value = ".")]
         root: PathBuf,
 
-        /// Output format. `text` writes one match per line. `json` writes a
-        /// JSON array of strings — the stable contract used by the MCP twin
-        /// tool `mycelium_query`.
+        /// Output format. `text` writes one match per line. `json` writes
+        /// the `{ matches, count, total_count }` object — byte-identical to
+        /// the MCP twin tool `mycelium_query`.
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Caps `matches`; `count` follows the returned
+        /// page while `total_count` keeps the full match total. Byte-identical
+        /// twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Find symbols by case-insensitive substring match on the final
     /// path segment.
@@ -280,6 +278,12 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Caps the total serialized node count
+        /// (breadth-first); cut nodes surface as `children_truncated`.
+        /// Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return the recursive caller tree rooted at a symbol.
     /// Nested tree (Calls edges only); for a flat blast-radius set use
@@ -292,6 +296,12 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Caps the total serialized node count
+        /// (breadth-first); cut nodes surface as `children_truncated`.
+        /// Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return symbols with no incoming `Calls` edges (call-graph roots).
     GetEntryPoints {
@@ -563,6 +573,11 @@ enum Cmd {
         root: PathBuf,
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
+        /// Per-call output budget (RFC-0102): auto (default), small / medium /
+        /// large, or disabled. Caps each reference group at `max_edges`.
+        /// Byte-identical twin of the MCP `budget` field.
+        #[arg(long)]
+        budget: Option<String>,
     },
     /// Return ALL outgoing references grouped by edge kind.
     GetOutgoingRefs {
@@ -1216,9 +1231,14 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             store.save(&snap)?;
             println!("Index saved to .mycelium/index.rmp");
         }
-        Cmd::Query { expr, root, format } => {
+        Cmd::Query {
+            expr,
+            root,
+            format,
+            budget,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            query::run(&canonical, &expr, format.into())?;
+            query::run(&canonical, &expr, budget.as_deref(), format.into())?;
         }
         Cmd::SearchSymbol {
             query,
@@ -1335,18 +1355,32 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             max_depth,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_callee_tree(&canonical, &path, max_depth, format.into())?;
+            queries::run_get_callee_tree(
+                &canonical,
+                &path,
+                max_depth,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetCallerTree {
             path,
             max_depth,
             root,
             format,
+            budget,
         } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_caller_tree(&canonical, &path, max_depth, format.into())?;
+            queries::run_get_caller_tree(
+                &canonical,
+                &path,
+                max_depth,
+                budget.as_deref(),
+                format.into(),
+            )?;
         }
         Cmd::GetEntryPoints {
             prefix,
@@ -1564,9 +1598,14 @@ fn dispatch(cmd: Cmd) -> Result<()> {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_get_symbol_neighborhood(&canonical, &path, &edge_kind, format.into())?;
         }
-        Cmd::GetCrossRefs { path, root, format } => {
+        Cmd::GetCrossRefs {
+            path,
+            root,
+            format,
+            budget,
+        } => {
             let canonical = root.canonicalize().unwrap_or(root);
-            queries::run_get_cross_refs(&canonical, &path, format.into())?;
+            queries::run_get_cross_refs(&canonical, &path, budget.as_deref(), format.into())?;
         }
         Cmd::GetOutgoingRefs { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);

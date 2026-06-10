@@ -94,9 +94,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use anyhow::Context as _;
 use mycelium_core::{
-    CalleeNode, CallerNode, CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode,
-    ImportNode, ImporterNode, NodeDegree, OutgoingRefs, SubclassNode, SymbolNeighborhood,
-    TopologicalOrder, cortex::Cortex, extractor::Extractor, store::Store, types::EdgeKind,
+    CrossRefs, ExtendsNode, GraphStats, ImplementorNode, ImplementsNode, ImportNode, ImporterNode,
+    NodeDegree, OutgoingRefs, SubclassNode, SymbolNeighborhood, TopologicalOrder, cortex::Cortex,
+    extractor::Extractor, store::Store, types::EdgeKind,
 };
 // notify is now used inside `mycelium_core::watch::WatchEngine` (RFC-0105).
 use rmcp::{
@@ -1469,22 +1469,35 @@ impl MyceliumServer {
                        Cycles are represented as leaf nodes. max_depth defaults to 4, capped at 10. \
                        Callees that could not be resolved to a definition (stdlib calls, ambiguous \
                        names) are collapsed into an unresolved_callees count per node instead of \
-                       being listed as placeholder leaves; the field is omitted when 0."
+                       being listed as placeholder leaves; the field is omitted when 0. \
+                       The per-call budget (auto by default) caps the total serialized node count \
+                       breadth-first; nodes with cut children carry children_truncated and the \
+                       root carries truncated/total_available/budget metadata. \
+                       Pass budget=\"disabled\" for the full tree."
     )]
     async fn mycelium_get_callee_tree(
         &self,
         Parameters(req): Parameters<GetCalleeTreeRequest>,
     ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
         let store_guard = self.store.read().await;
         let Some(root_id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
             return not_found(&req.path);
         };
-        let tree = store_guard.callee_tree(root_id, max_depth);
-        let json_tree = callee_node_to_json(&tree, &store_guard);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value =
+            mycelium_core::queries::callee_tree_payload(&store_guard, root_id, max_depth);
+        let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
         drop(store_guard);
-        let value = serde_json::json!({ "root": json_tree });
+        mycelium_core::budget::apply_tree_budget(&mut value, "children", &budget);
         success_str(self.render(req.output_format, &value))
     }
 
@@ -1493,6 +1506,10 @@ impl MyceliumServer {
                        given symbol, walking incoming Calls edges up to max_depth hops. Each \
                        node contains its path and a list of caller subtrees. Cycles are \
                        represented as leaf nodes. max_depth defaults to 4, capped at 10. \
+                       The per-call budget (auto by default) caps the total serialized node count \
+                       breadth-first; nodes with cut children carry children_truncated and the \
+                       root carries truncated/total_available/budget metadata. \
+                       Pass budget=\"disabled\" for the full tree. \
                        When to use vs alternatives: returns a NESTED TREE preserving each caller's \
                        path back to the symbol (Calls edges only). For a FLAT set of all callers \
                        (the blast radius, any edge kind) use mycelium_get_reachable_to; for a \
@@ -1503,15 +1520,24 @@ impl MyceliumServer {
         Parameters(req): Parameters<GetCallerTreeRequest>,
     ) -> CallToolResult {
         let max_depth = req.max_depth.unwrap_or(4).min(10);
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
         let store_guard = self.store.read().await;
         let Some(root_id) = store_guard.lookup(&req.path) else {
             drop(store_guard);
             return not_found(&req.path);
         };
-        let tree = store_guard.caller_tree(root_id, max_depth);
-        let json_tree = caller_node_to_json(&tree, &store_guard);
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value =
+            mycelium_core::queries::caller_tree_payload(&store_guard, root_id, max_depth);
+        let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
         drop(store_guard);
-        let value = serde_json::json!({ "root": json_tree });
+        mycelium_core::budget::apply_tree_budget(&mut value, "callers", &budget);
         success_str(self.render(req.output_format, &value))
     }
 
@@ -1893,6 +1919,9 @@ impl MyceliumServer {
                        implemented_by (Implements). This is the unified 'who references this?' \
                        primitive for impact analysis. All lists are sorted lexicographically. \
                        Empty lists are included. Unknown path returns { error }. \
+                       The per-call budget (auto by default) caps each group at max_edges and \
+                       attaches truncated/total_available/budget metadata; pass \
+                       budget=\"disabled\" for the full lists. \
                        When to use vs alternatives: SINGLE-HOP (direct references only). For the \
                        transitive blast radius of changing this symbol use \
                        mycelium_get_reachable_to; for the full unbounded closure use \
@@ -1902,19 +1931,29 @@ impl MyceliumServer {
         &self,
         Parameters(req): Parameters<GetCrossRefsRequest>,
     ) -> CallToolResult {
-        let refs_opt: Option<CrossRefs> = {
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
+        };
+        let (refs_opt, node_count): (Option<CrossRefs>, usize) = {
             let store = self.store.read().await;
-            store.lookup(&req.path).map(|id| store.cross_refs(id))
+            (
+                store.lookup(&req.path).map(|id| store.cross_refs(id)),
+                store.node_count(),
+            )
         };
         let Some(refs) = refs_opt else {
             return not_found(&req.path);
         };
-        let value = serde_json::json!({
-            "callers": refs.callers,
-            "importers": refs.importers,
-            "extended_by": refs.extended_by,
-            "implemented_by": refs.implemented_by,
-        });
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::cross_refs_payload(&refs);
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(self.render(req.output_format, &value))
     }
 
@@ -2114,7 +2153,10 @@ impl MyceliumServer {
                        `.class:has(.method)` (classes containing a method). \
                        Kind selectors take a leading dot (`.function`, `.class`); names take `#` (`#Foo`); \
                        `*` matches any kind; pseudo-classes (`:calls`, `:callers`, `:has`, `:not`) follow a base selector. \
-                       Returns { matches: [...], count: N } on success, { error: \"...\" } on parse failure. \
+                       Returns { matches: [...], count: N, total_count: M } on success, \
+                       { error: \"...\" } on parse failure. The per-call budget (auto by default) \
+                       caps matches at max_nodes — count follows the returned page, total_count \
+                       keeps the full match total; pass budget=\"disabled\" for the full set. \
                        Twin of the CLI `mycelium query <expr>` subcommand — same selector grammar, \
                        same match-set shape (RFC-0090 Three-Surface Rule)."
     )]
@@ -2130,6 +2172,13 @@ impl MyceliumServer {
                     "error": format!("hyphae parse error: {e}")
                 }));
             }
+        };
+        let budget_override = match req.budget.as_deref() {
+            None => None,
+            Some(s) => match s.parse::<BudgetOverride>() {
+                Ok(o) => Some(o),
+                Err(e) => return application_error(&serde_json::json!({ "error": e })),
+            },
         };
         let store = self.store.read().await;
         let evaluator = mycelium_hyphae::evaluator::Evaluator::new(&store);
@@ -2148,9 +2197,14 @@ impl MyceliumServer {
                 }));
             }
         };
+        let node_count = store.node_count();
         drop(store);
-        let count = matches.len();
-        let value = serde_json::json!({ "matches": matches, "count": count });
+        // Shared core builder → byte-identical with the CLI twin (RFC-0109).
+        let mut value = mycelium_core::queries::query_matches_payload(&matches);
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
         success_str(self.render(req.output_format, &value))
     }
 
@@ -4262,33 +4316,11 @@ impl ServerHandler for MyceliumServer {
     }
 }
 
-// ── callee tree serialization ─────────────────────────────────────────────────
-
-fn callee_node_to_json(node: &CalleeNode, store: &Store) -> serde_json::Value {
-    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
-    let children: Vec<serde_json::Value> = node
-        .children
-        .iter()
-        .map(|child| callee_node_to_json(child, store))
-        .collect();
-    let mut value = serde_json::json!({ "path": path, "children": children });
-    // ADR-0013: collapsed unresolved callees surface as a count; omitted when 0
-    // to keep the payload lean (token economy).
-    if node.unresolved_callees > 0 {
-        value["unresolved_callees"] = serde_json::json!(node.unresolved_callees);
-    }
-    value
-}
-
-fn caller_node_to_json(node: &CallerNode, store: &Store) -> serde_json::Value {
-    let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();
-    let callers: Vec<serde_json::Value> = node
-        .callers
-        .iter()
-        .map(|caller| caller_node_to_json(caller, store))
-        .collect();
-    serde_json::json!({ "path": path, "callers": callers })
-}
+// ── tree serialization ────────────────────────────────────────────────────────
+//
+// Callee/caller tree serialization moved to `mycelium_core::queries`
+// (`callee_tree_payload` / `caller_tree_payload`) so the CLI twins share the
+// same builder (Charter §5.13 Three-Surface Rule).
 
 fn import_node_to_json(node: &ImportNode, store: &Store) -> serde_json::Value {
     let path = store.path_of(node.id).unwrap_or("<unknown>").to_owned();

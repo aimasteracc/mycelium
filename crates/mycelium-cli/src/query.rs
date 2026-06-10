@@ -5,8 +5,10 @@
 //! the README's marquee feature but had no CLI surface).
 //!
 //! Three-Surface Rule (Charter §5.13 / RFC-0090): byte-identical contract
-//! with the MCP twin tool `mycelium_query`. Both call into this module's
-//! `execute` function so drift is impossible by construction.
+//! with the MCP twin tool `mycelium_query`. JSON output is the
+//! `{ matches, count, total_count }` object built by
+//! `mycelium_core::queries::query_matches_payload`, with the RFC-0102 output
+//! budget applied the same way on both surfaces.
 
 use std::path::Path;
 
@@ -14,18 +16,11 @@ use anyhow::{Context, Result, anyhow};
 use mycelium_core::store::Store;
 use mycelium_hyphae::{evaluator::Evaluator, parser::parse};
 
-/// Output format requested by the user (or by the MCP wrapper).
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Format {
-    /// One match per line, plain text. Default for human terminals.
-    Text,
-    /// A JSON array of strings. Stable contract for downstream tooling and
-    /// the MCP twin tool.
-    Json,
-}
+use crate::queries::{Format, print_object_with_list};
 
 /// Execute a Hyphae selector against the snapshot at `index_path` and return
-/// the matched symbol paths.
+/// the matched symbol paths together with the store's node count (the budget
+/// tier input — returned here so the snapshot is loaded exactly once).
 ///
 /// This is the single source of truth shared by the CLI subcommand and the
 /// MCP twin tool. Three-Surface Rule parity is built in.
@@ -35,7 +30,7 @@ pub(crate) enum Format {
 ///   `mycelium index`.
 /// - The selector fails to parse → returns the parser's `ParseError`
 ///   formatted with `mycelium-hyphae` prefix.
-pub(crate) fn execute(index_path: &Path, selector: &str) -> Result<Vec<String>> {
+pub(crate) fn execute(index_path: &Path, selector: &str) -> Result<(Vec<String>, usize)> {
     if !index_path.exists() {
         return Err(anyhow!(
             "no index found at {} — run `mycelium index <root>` first",
@@ -53,32 +48,41 @@ pub(crate) fn execute(index_path: &Path, selector: &str) -> Result<Vec<String>> 
     // returns an explicit `EvalError` here instead of a silent empty set that
     // an agent would misread as "no matches". `{e}` (Display) carries the
     // supported-name hint.
-    evaluator
+    let matches = evaluator
         .eval_checked(&ast)
-        .map_err(|e| anyhow!("hyphae query error: {e}"))
+        .map_err(|e| anyhow!("hyphae query error: {e}"))?;
+    Ok((matches, store.node_count()))
 }
 
 /// CLI entry point. Loads the snapshot from `.mycelium/index.rmp` at `root`,
 /// executes the selector, and writes results to stdout.
 ///
+/// The budget (RFC-0102) applies in JSON mode (parity with the MCP twin) or
+/// when `--budget` is explicit; default text mode prints the full list — no
+/// silent truncation of human-facing output (a truncation footer goes to
+/// stderr when an explicit budget cuts text output).
+///
 /// Returns `Err` (and the binary exits non-zero) on missing snapshot,
-/// malformed selector, or I/O failure. Matches the test contract in
-/// `tests/cli_query.rs`.
-pub(crate) fn run(root: &Path, selector: &str, format: Format) -> Result<()> {
+/// malformed selector, unknown budget value, or I/O failure. Matches the
+/// test contract in `tests/cli_query.rs`.
+pub(crate) fn run(root: &Path, selector: &str, budget: Option<&str>, format: Format) -> Result<()> {
+    use mycelium_core::budget::{BudgetOverride, OutputBudget, apply_budget};
+
+    let budget_override = budget
+        .map(str::parse::<BudgetOverride>)
+        .transpose()
+        .map_err(|e| anyhow!(e))?;
     let index_path = root.join(".mycelium").join("index.rmp");
-    let matches = execute(&index_path, selector)?;
-    match format {
-        Format::Text => {
-            for m in &matches {
-                println!("{m}");
-            }
-        }
-        Format::Json => {
-            let json = serde_json::to_string(&matches)?;
-            println!("{json}");
-        }
+    let (matches, node_count) = execute(&index_path, selector)?;
+    // Shared core builder → byte-identical with the MCP tool (RFC-0109).
+    let mut value = mycelium_core::queries::query_matches_payload(&matches);
+    if matches!(format, Format::Json) || budget_override.is_some() {
+        apply_budget(
+            &mut value,
+            &OutputBudget::resolve(budget_override, node_count),
+        );
     }
-    Ok(())
+    print_object_with_list(&value, "matches", format)
 }
 
 #[cfg(test)]

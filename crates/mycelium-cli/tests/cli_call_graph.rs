@@ -244,9 +244,12 @@ fn get_callee_tree_root_has_children() {
     assert!(out.status.success());
     let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
-    assert!(value["path"].as_str().unwrap().contains("entry"));
+    // RFC-0102 budget on trees: `{ "root": ... }` shape, byte-identical to the
+    // MCP tool (previously the CLI emitted the bare root node).
+    let root = &value["root"];
+    assert!(root["path"].as_str().unwrap().contains("entry"));
     assert!(
-        !value["children"].as_array().unwrap().is_empty(),
+        !root["children"].as_array().unwrap().is_empty(),
         "expected at least one child, got: {value}"
     );
 }
@@ -291,6 +294,7 @@ fn get_callee_tree_collapses_unresolved_into_count() {
     assert!(out.status.success());
     let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    let value = &value["root"]; // MCP-identical `{ "root": ... }` shape
     let children = value["children"].as_array().unwrap();
     assert_eq!(
         children.len(),
@@ -337,9 +341,10 @@ fn get_caller_tree_root_has_callers() {
     assert!(out.status.success());
     let value: serde_json::Value =
         serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
-    assert!(value["path"].as_str().unwrap().contains("leaf"));
+    let root = &value["root"]; // MCP-identical `{ "root": ... }` shape
+    assert!(root["path"].as_str().unwrap().contains("leaf"));
     assert!(
-        !value["callers"].as_array().unwrap().is_empty(),
+        !root["callers"].as_array().unwrap().is_empty(),
         "expected at least one caller"
     );
 }
@@ -422,4 +427,135 @@ fn get_isolated_symbols_runs_smoke() {
             .is_some(),
         "expected object with isolated_symbols array, got: {value}"
     );
+}
+
+// ── RFC-0102 budget on trees: get-callee-tree / get-caller-tree ──────────────
+//
+// Trees are nested, so the flat-array budget could not cap them — a default
+// MCP call measured ~373 KB (live QA, HIGH). Both surfaces now share
+// `mycelium_core::queries::{callee,caller}_tree_payload` (`{ "root": … }`
+// shape) plus breadth-first `apply_tree_budget`.
+
+fn count_tree_nodes(node: &serde_json::Value, children_key: &str) -> usize {
+    1 + node[children_key].as_array().map_or(0, |c| {
+        c.iter()
+            .map(|child| count_tree_nodes(child, children_key))
+            .sum()
+    })
+}
+
+#[test]
+fn get_callee_tree_json_default_budget_caps_nodes() {
+    // 1 entry + 35 callees = 36 tree nodes > small-tier max_nodes (15).
+    let project = prepare_wide_callee_project(35);
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-callee-tree", "src/lib.rs>entry", "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    assert!(
+        value["root"]["path"].as_str().unwrap().contains("entry"),
+        "MCP-identical {{ root: … }} shape: {value}"
+    );
+    assert_eq!(
+        count_tree_nodes(&value["root"], "children"),
+        15,
+        "default auto budget caps the JSON tree at max_nodes: {value}"
+    );
+    assert_eq!(
+        value["root"]["children_truncated"], 21,
+        "35 callees, 14 kept"
+    );
+    assert_eq!(value["truncated"], true);
+    assert_eq!(value["total_available"], 36);
+    assert_eq!(value["budget"]["mode"], "small");
+}
+
+#[test]
+fn get_callee_tree_budget_disabled_returns_full_tree() {
+    let project = prepare_wide_callee_project(35);
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args([
+            "get-callee-tree",
+            "src/lib.rs>entry",
+            "--format",
+            "json",
+            "--budget",
+            "disabled",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    assert_eq!(count_tree_nodes(&value["root"], "children"), 36);
+    assert!(value.get("truncated").is_none());
+}
+
+#[test]
+fn get_callee_tree_budget_rejects_unknown_value() {
+    let project = prepare_chain_project();
+    let out = Command::new(mycelium_bin())
+        .current_dir(project.path())
+        .args(["get-callee-tree", "src/lib.rs>entry", "--budget", "huge"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "unknown budget value must fail");
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(stderr.contains("huge"), "error should name the bad value");
+}
+
+#[test]
+fn get_caller_tree_budget_small_caps_nodes() {
+    // A hub with 35 callers: 36 caller-tree nodes > small-tier max_nodes (15).
+    use std::fmt::Write as _;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let mut src = String::from("pub fn hub() {}\n");
+    for i in 0..35 {
+        let _ = writeln!(src, "pub fn caller{i}() {{ hub(); }}");
+    }
+    std::fs::write(root.join("src/lib.rs"), src).unwrap();
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[package]\nname=\"q\"\nversion=\"0.0.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let status = Command::new(mycelium_bin())
+        .args(["index", root.to_str().unwrap()])
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let out = Command::new(mycelium_bin())
+        .current_dir(root)
+        .args([
+            "get-caller-tree",
+            "src/lib.rs>hub",
+            "--format",
+            "json",
+            "--budget",
+            "small",
+        ])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let value: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).unwrap();
+    assert_eq!(
+        count_tree_nodes(&value["root"], "callers"),
+        15,
+        "small budget caps the caller tree: {value}"
+    );
+    assert_eq!(
+        value["root"]["children_truncated"], 21,
+        "35 callers, 14 kept"
+    );
+    assert_eq!(value["truncated"], true);
+    assert_eq!(value["total_available"], 36);
 }

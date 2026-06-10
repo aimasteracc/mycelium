@@ -17,6 +17,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+mod tree;
+pub use tree::apply_tree_budget;
+
 /// The project-size tier a budget was derived from (RFC-0102 §"Response
 /// metadata"). Reported back to the caller in the nested `budget.mode` field so
 /// an agent can reason about *why* a response was capped.
@@ -190,11 +193,15 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
     // Node-shaped arrays. `dead_symbols` / `isolated_symbols` are the keys the
     // get_dead_symbols / get_isolated_symbols tools actually emit (they are not
     // `symbols`), so they must be listed explicitly or their budget no-ops.
+    // `matches` is the key both `mycelium_query` (Hyphae) and
+    // `mycelium_search_symbol` emit — absent from this list, their budget
+    // silently no-opped (live QA: 39.5 KB from one `.method` query).
     for key in [
         "nodes",
         "paths",
         "results",
         "symbols",
+        "matches",
         "dead_symbols",
         "isolated_symbols",
         "entry_points",
@@ -203,6 +210,8 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
     }
     // Edge-shaped arrays. `callee_paths` / `caller_paths` are the keys the
     // get_callees / get_callers tools actually emit (not `callees`/`callers`).
+    // `importers` / `extended_by` / `implemented_by` are the remaining
+    // `get_cross_refs` groups (its `callers` group was already covered).
     for key in [
         "edges",
         "callees",
@@ -210,6 +219,9 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
         "reachable",
         "callee_paths",
         "caller_paths",
+        "importers",
+        "extended_by",
+        "implemented_by",
     ] {
         cap(key, budget.max_edges);
     }
@@ -232,6 +244,19 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
         value["count"] = Value::Number(new_len.into());
     }
 
+    write_budget_metadata(value, budget, &capped);
+}
+
+/// Write the standard truncation metadata onto a payload: the flat
+/// `truncated: true` + `total_available: <first capped count>` fields (kept
+/// for backward compatibility) and the nested `budget` object (RFC-0102
+/// §"Response metadata"). Shared by [`apply_budget`] (flat arrays) and
+/// [`apply_tree_budget`] (nested trees) so both emit byte-identical shapes.
+fn write_budget_metadata(
+    value: &mut Value,
+    budget: &OutputBudget,
+    capped: &[(&'static str, usize)],
+) {
     // Flat fields (backward compatible): first capped field's pre-trunc count.
     value["truncated"] = Value::Bool(true);
     value["total_available"] = Value::Number(capped[0].1.into());
@@ -242,7 +267,7 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
         .map(|(key, _)| Value::String((*key).to_string()))
         .collect();
     let mut total_available = serde_json::Map::new();
-    for (key, count) in &capped {
+    for (key, count) in capped {
         total_available.insert((*key).to_string(), Value::Number((*count).into()));
     }
     value["budget"] = serde_json::json!({
