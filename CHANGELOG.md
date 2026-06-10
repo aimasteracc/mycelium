@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0123 (Draft) — MCP Facade Consolidation design.** New RFC proposing to consolidate the
+  95-tool MCP surface into 11 action facades (`mycelium_query`, `mycelium_context`,
+  `mycelium_symbols`, `mycelium_callgraph`, `mycelium_reach`, `mycelium_hierarchy`,
+  `mycelium_graph`, `mycelium_rank`, `mycelium_analyze`, `mycelium_admin`, `mycelium_subscribe`),
+  cutting the measured `tools/list` payload from 189,624 bytes (≈47.4K tokens) to an estimated
+  ≈35.6 KB (≈81% reduction) with byte-identical per-capability responses. Includes a proposed
+  amendment of the Three-Surface Rule (RFC-0090 / Charter §5.13) from tool-level to action-level
+  CLI ↔ MCP parity — governance change pending ratification; implementation is phased follow-up
+  work behind a `--tool-surface=facade|legacy|both` flag. (RFC-0123)
+
 - **RFC-0116 Phase 2 — `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP + Skill coverage.**
   New `mycelium safe-to-edit <symbol>` subcommand and `mycelium_safe_to_edit` MCP tool return a
   byte-identical `{ verdict, reasons, checklist, blast_radius, direct_callers }` payload.
