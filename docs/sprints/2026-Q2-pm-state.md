@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-10 (PM dispatch v167 — RFC-0115 Phase 2 **PR #743 OPENED** (`mycelium test-gap` CLI+MCP+Skill, CI running); PR #742 squash `66014538` merged; 96/96 Three-Surface pending #743 CI+merge; 3 P0s unchanged ×32 consecutive runs) |
+| Last updated | 2026-06-10 (PM dispatch v170 — PRs #743 (RFC-0115 Ph2 test-gap, squash `d984370a`) + #753 (multilang spans fix, squash `45204597`) merged; PR #751 (PM v169) closed superseded; 96/96 Three-Surface ✅ on develop; 3 P0s unchanged ×35 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -65,11 +65,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
+## 🔧 Post-v0.3.0 — Unreleased on develop (→ v0.3.1)
+
+> These commits landed on develop after `release/v0.3.0` was cut (2026-06-05) and are not in any released version yet.
+
+- [x] fix(core): entry-points count reflects returned array after budget truncation (PR #746, squash `2037b27`)
+- [x] docs(governance): RFC-0123 MCP facade consolidation draft — 95 tools → 11 action facades (PR #747, squash `9cd34d4`)
+- [x] fix(core): callee/caller trees collapse unresolved leaves into `{unresolved_count}` object (PR #748, squash `72086df`)
+- [x] fix(hyphae): validate kind selectors + human-readable lexer/parser errors (PR #749, squash `c39fd6c`)
+- [x] fix(core): Rust symbol spans anchor on the item declaration, not the file/impl container (PR #750, squash `aebd6a8`)
+- [x] fix(mcp): thread OutputBudget through query/cross-refs/tree tools (PR #752, squash `bab615a`)
+- [x] feat(test-gap): RFC-0115 Phase 2 — `mycelium test-gap` CLI + `mycelium_test_gap` MCP + Skill (96/96) (PR #743, squash `d984370a`)
+- [x] fix(core): item-level symbol spans for Python/TS/JS/Go/C++ — re-anchors @definition.* from file-root to item node (PR #753, squash `45204597`)
+
+---
+
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** RFC-0120 COMPLETE. RFC-0114 COMPLETE. RFC-0116 COMPLETE. RFC-0115 Phase 2 **PR #743 OPENED** (CI running — pending merge). Codex usage limits exhausted — see P0 #3. 96/96 Three-Surface pending #743 CI+merge.
+> ⚠️ **All three P0 items require founder action.** RFC-0120 COMPLETE. RFC-0114 COMPLETE. RFC-0116 COMPLETE. RFC-0115 Phase 2 ✅ **MERGED** (squash `d984370a`). Multilang spans fix ✅ **MERGED** (squash `45204597`). **96/96 Three-Surface on develop.** Codex usage limits exhausted — see P0 #3.
 
-**P0 (founder action required):**
+**P0 (founder action required — ×35 consecutive runs):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
 2. **RFC-0121** ([RFC file written](../../rfcs/0121-charter-hyphae-token-sla-amendment.md)): Charter §2 Hyphae token efficiency ratio measured at **0.753 vs target ≤0.30** — choose:
    - **Option A** (PM recommendation): Amend Charter §2 to per-class targets (tree ≤35% ✅ already met, list ≤70%, scalar ≤90%) — no engineering work, immediately satisfies CI gates
@@ -78,9 +93,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
    Full analysis with tradeoffs in [rfcs/0121-charter-hyphae-token-sla-amendment.md](../../rfcs/0121-charter-hyphae-token-sla-amendment.md). Prerequisite: RFC-0120 (`rfcs/0120-token-density-measurement-honesty.md`) implements real BPE measurement. Public SLA commitment (Charter §9 meta RFC); no autonomous actor can resolve it.
 3. **Codex usage limits exhausted** (surfaced v134): The `chatgpt-codex-connector` bot posted billing notice on PR #705 (2026-06-08T12:11:49Z). CLAUDE.md Hard Rule requires Codex findings to be addressed before any merge, but Codex cannot review while limits are exhausted. **Current open PR #568 is founder-gated separately** (not blocked by Codex). **Future PRs are at risk**: the Hard Rule becomes unenforceable until limits reset. Founder must upgrade Codex account / add credits, or explicitly suspend the Codex Hard Rule while limits are out. See: https://chatgpt.com/codex/cloud/settings/usage
 
-**P1 (PR #743 pending CI+merge):**
-2. ~~**RFC-0115 Phase 2**~~ **✅ COMPLETE (v167)** — **PR #743 OPENED** (`feature/RFC-0115-phase2-test-gap-surface`, CI running): `mycelium test-gap` CLI + `mycelium_test_gap` MCP + `graph-structure` Skill. 6 new tests (RED-first TDD), 865+ total pass. `EXPECTED_TOOL_COUNT` 95→96. RFC-0115 Status → Implemented.
-3. ~~**RFC-0116 Phase 2**~~ **✅ COMPLETE (v165/v166)** — PR #740 merged squash `500a2a1`: `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP + `reachability` Skill. 95/95 Three-Surface on develop. RFC-0116 Status → Implemented.
+**P1 (completed this run):**
+2. ~~**RFC-0115 Phase 2**~~ **✅ MERGED (v170)** — PR #743 squash `d984370a`: `mycelium test-gap` CLI + `mycelium_test_gap` MCP + `graph-structure` Skill. **96/96 Three-Surface on develop.** RFC-0115 Status → Implemented.
+3. ~~**multilang symbol spans fix**~~ **✅ MERGED (v170)** — PR #753 squash `45204597`: item-level spans for Python/TS/JS/Go/C++ (re-anchors @definition.* from file-root to item node). 875 core tests pass.
+4. ~~**RFC-0116 Phase 2**~~ **✅ COMPLETE (v165/v166)** — PR #740 merged squash `500a2a1`: `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP + `reachability` Skill. RFC-0116 Status → Implemented.
 
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
@@ -96,19 +112,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-10 v167)
+## Dispatch state (2026-06-10 v170)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required (P0 ×3, ×31 runs)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — CI 28/28 ✅; registries published; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v166 complete: PR #740 merged (`500a2a1`); PR #741 merged (`231a819`); 95/95 Three-Surface confirmed on develop HEAD `231a819`. RFC-0115 Phase 2 queued as next unblocked P1. |
+| founder | **action required (P0 ×3, ×35 runs)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — CI 28/28 ✅; registries published; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
+| PM | **DONE ✅** | v170 complete: PRs #743 + #753 merged; PR #751 closed superseded; 96/96 Three-Surface on develop; PM state v170 written. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
-| architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension fully IMPLEMENTED (PR #725 merged `27df3cdc`). |
+| architect | **DONE ✅** | RFC-0123 MCP facade consolidation draft on develop (`9cd34d4`). Awaiting founder ratification. |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **DONE ✅** | RFC-0115 Phase 2 COMPLETE: **PR #743 opened** (`feature/RFC-0115-phase2-test-gap-surface`, CI running). `mycelium test-gap` + `mycelium_test_gap` + `graph-structure` Skill. 865+ tests pass. |
+| rust-implementer | **DONE ✅** | RFC-0115 Phase 2 ✅ MERGED (`d984370a`); multilang spans fix ✅ MERGED (`45204597`). 96/96 Three-Surface on develop. |
 
 ---
 
@@ -138,6 +154,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-10 PM dispatch v170 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 via bash — last entries up to `2026-06-04T05:26:18Z` on local clone; fetched origin/develop `bab615a`→`4520459`), anti-patterns (domain hits: ci/release-governance/git-workflow/governance-rfc), PM state (v167 on develop — v168+v169 states were in closed PRs), v0.2 PRD. Local repo was at v0.2.0 release commit.
+
+**Assessment:**
+- 4 open PRs: #568 (release/v0.3.0, CI 28/28 ✅, founder-gated), #743 (RFC-0115 Ph2 test-gap, CI ✅ all green on rebased HEAD `af5f711`), #751 (PM v169, CI ✅ but merge conflict with current develop), #753 (multilang spans fix, CI 16:49Z run ✅ all green; 17:02Z run Parity+E2E ✅, main CI in_progress).
+- 0 open issues.
+- Develop CI: advancing — PRs #743 + #753 needed merging; develop HEAD was `bab615a` (post-PR #752).
+- 3 P0 escalations ×35 consecutive runs (unchanged since v134).
+- All 3 open feature PRs: Codex = billing notice only (no code findings) → Hard Rule vacuously satisfied per v134+ precedent.
+
+**Actions taken:**
+1. **Merged PR #743** (RFC-0115 Phase 2 test-gap, squash `d984370a`). CI 3/3 ✅ (16:09Z run). Codex = billing notice only. **96/96 Three-Surface on develop.** ✅
+2. **Merged PR #753** (multilang symbol spans fix, squash `45204597`). CI 3/3 ✅ (16:49Z run). Codex = billing notice only. ✅
+3. **Closed PR #751** (chore/pm-state-v169 — merge conflict in CHANGELOG.md after #743 merged; superseded by v170). ✅
+4. **PM state v170 written** — added post-v0.3.0 unreleased section (PRs #746–#753); updated live priorities (RFC-0115 + multilang spans both MERGED); corrected escalation count ×35; dispatch state updated. ✅
+5. **decisions.jsonl appended** (v170 entry). ✅
+
+**Escalations to founder (P0, unchanged ×35 consecutive runs):**
+1. **PR #568** — trigger `finalize` workflow_dispatch (one-click). CI 28/28 ✅; registries published 2026-06-05T17:59Z.
+2. **RFC-0121** — choose Option A/B/C for Charter §2 Hyphae token SLA. Full analysis in `rfcs/0121-charter-hyphae-token-sla-amendment.md`; PM recommends **A**.
+3. **Codex billing** — upgrade credits at https://chatgpt.com/codex/cloud/settings/usage, or explicitly suspend the CLAUDE.md Codex Hard Rule.
+
+---
 
 ### 2026-06-10 PM dispatch v167 (this run)
 
