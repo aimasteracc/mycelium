@@ -16,6 +16,7 @@
 | Phase 3.1 (v0.1.18 scope, **complete**) | ✅ RFC-0107 SUBSCRIBE added 3 tools (`mycelium_subscribe`, `mycelium_unsubscribe`, `mycelium_subscription_status`) + RFC-0108 `Interest::Query` variant. **93/93 compliant.** CLI surface for subscribe is `mycelium watch --subscribe` (EXCEPTION: RFC-0105 extended). Parity CI success on develop HEAD. |
 | Phase 3.2 (v0.4.0 scope, **in develop**) | ✅ RFC-0114 `project_health` added (1 new Three-Surface pair). **94/94 compliant.** `graph-structure` Skill covers the new pair. |
 | Phase 3.3 (v0.4.0 scope, **in develop**) | ✅ RFC-0116 `safe_to_edit` added (1 new Three-Surface pair). **95/95 compliant.** `reachability` Skill covers the new pair. |
+| Phase 3.4 (v0.4.0 scope, **in develop**) | ✅ RFC-0115 `test_gap` added (1 new Three-Surface pair). **96/96 compliant.** `graph-structure` Skill covers the new pair. |
 
 ## Proposed Skill categories for v0.2
 
@@ -138,6 +139,7 @@ authored in Phase 2 PRs, one PR per category.
 | `subscription_status` | _(MCP-only)_ | `mycelium_subscription_status` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — server-side subscription introspection; v0.1.18 RFC-0107 |
 | `project_health` | `mycelium project-health` | `mycelium_project_health` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0114 Phase 2 — Store adapter + CLI + MCP + Skill) |
 | `safe_to_edit` | `mycelium safe-to-edit` | `mycelium_safe_to_edit` | [`reachability`](reachability/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0116 Phase 2 — Store adapter + CLI + MCP + Skill) |
+| `test_gap` | `mycelium test-gap` | `mycelium_test_gap` | [`graph-structure`](graph-structure/SKILL.md) | ✅ Three-Surface v0.4.0 (RFC-0115 Phase 2 — Store adapter + CLI + MCP + Skill) |
 
 **Status legend:** ✅ Three-Surface = all three surfaces shipped, parity-CI green. `EXCEPTION: MCP-only` = server-process state with no human-visible CLI verb, filed per RFC-0090 §Exceptions, BDFL sign-off on file. ⚠️ #153 = perf issue *fixed in v0.1.4*; annotation retained for history.
 

@@ -1893,6 +1893,61 @@ impl MyceliumServer {
     }
 
     #[tool(
+        description = "Rank untested symbols by call-graph reach (RFC-0115 Phase 2). \
+                       Consumes a coverage.py coverage.json artifact (external, already produced \
+                       by the user's CI — Mycelium never runs the test suite) and joins it with \
+                       the call graph to answer 'which untested code matters most?'. \
+                       Returns { gaps: [{name, file, rank_score}, …], gap_count, total_symbols, \
+                       coverage_source, truncated }. Gaps are ordered by blast-radius descending: \
+                       highest-reach untested symbols first. When to use: after coverage.py run, \
+                       call this before writing new tests to get a ranked worklist rather than \
+                       picking gaps at random. Byte-identical twin of `mycelium test-gap` CLI \
+                       command (RFC-0115 Phase 2)."
+    )]
+    async fn mycelium_test_gap(
+        &self,
+        Parameters(req): Parameters<GetTestGapRequest>,
+    ) -> CallToolResult {
+        let root_guard = self.indexed_root.read().await;
+        let root = match root_guard.as_ref() {
+            Some(r) => r.clone(),
+            None => return success_str("{\"error\":\"workspace not indexed\"}".to_owned()),
+        };
+        drop(root_guard);
+
+        // Resolve coverage path relative to workspace root.
+        let cov_path = req
+            .coverage
+            .as_deref()
+            .map_or_else(|| root.join("coverage.json"), |p| root.join(p));
+        let coverage_source = cov_path
+            .strip_prefix(&root)
+            .unwrap_or(&cov_path)
+            .display()
+            .to_string();
+        let content = match std::fs::read_to_string(&cov_path) {
+            Ok(c) => c,
+            Err(e) => {
+                return success_str(format!(
+                    "{{\"error\":\"cannot read {}: {e}\"}}",
+                    cov_path.display()
+                ));
+            }
+        };
+        let facts = match mycelium_core::queries::parse_coverage_json(&content) {
+            Ok(f) => f,
+            Err(e) => return success_str(format!("{{\"error\":\"{e}\"}}")),
+        };
+        let top = req.top.unwrap_or(20);
+        let store = self.store.read().await;
+        // Shared core builder → byte-identical with the CLI twin (RFC-0115 Phase 2).
+        let value =
+            mycelium_core::queries::test_gap_payload(&store, &facts, Some(top), &coverage_source);
+        drop(store);
+        success_str(self.render(req.output_format, &value))
+    }
+
+    #[tool(
         description = "Return comprehensive per-kind statistics about the indexed symbol graph: \
                        total node and edge counts plus breakdowns by NodeKind (file, function, \
                        class, …) and EdgeKind (calls, imports, extends, …). \

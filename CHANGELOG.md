@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CLI ↔ MCP parity — governance change pending ratification; implementation is phased follow-up
   work behind a `--tool-surface=facade|legacy|both` flag. (RFC-0123)
 
+- **RFC-0115 Phase 2 — `mycelium test-gap` CLI + `mycelium_test_gap` MCP + Skill coverage.**
+  New `mycelium test-gap --coverage coverage.json` subcommand and `mycelium_test_gap` MCP tool
+  consume a coverage.py `coverage.json` artifact and return a ranked list of untested symbols
+  ordered by call-graph blast-radius. Output: `{ gaps: [{name, file, rank_score}], gap_count,
+  total_symbols, coverage_source, truncated }` — byte-identical across both surfaces. The pure
+  core (`test_gap::rank`) was already in Phase 1; Phase 2 adds the thin Store adapter
+  (`test_gap_payload()` in `mycelium-core::queries`), coverage.json parser
+  (`parse_coverage_json()`), CLI subcommand, MCP tool, and `skills/graph-structure/SKILL.md`
+  coverage. `EXPECTED_TOOL_COUNT` bumped to 96. Body-start uses the TSA `start_line + 1`
+  heuristic; a future ADR will extend the indexed span. (RFC-0115 Phase 2)
+
 - **RFC-0116 Phase 2 — `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP + Skill coverage.**
   New `mycelium safe-to-edit <symbol>` subcommand and `mycelium_safe_to_edit` MCP tool return a
   byte-identical `{ verdict, reasons, checklist, blast_radius, direct_callers }` payload.
