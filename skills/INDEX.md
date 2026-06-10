@@ -120,7 +120,7 @@ authored in Phase 2 PRs, one PR per category.
 | `watch_status` | _(MCP-only)_ | `mycelium_watch_status` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — live MCP server-process state, no CLI equivalent |
 | `sync_file` | `mycelium sync-file` | `mycelium_sync_file` | [`index-management`](index-management/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 | `set_compact_mode` | _(MCP-only)_ | `mycelium_set_compact_mode` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — MCP output-format toggle, no CLI equivalent |
-| `get_token_stats` | _(MCP-only)_ | `mycelium_get_token_stats` | [`index-management`](index-management/SKILL.md) | ✅ `EXCEPTION: MCP-only` — MCP server-state stats, no CLI equivalent |
+| `get_token_stats` | `mycelium get-token-stats` | `mycelium_get_token_stats` | [`index-management`](index-management/SKILL.md) | ✅ Three-Surface RFC-0120 Phase 3B — CLI twin added; `EXCEPTION: MCP-only` retracted |
 | `get_node_degree` | `mycelium get-node-degree` | `mycelium_get_node_degree` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 | `get_files` | `mycelium get-files` | `mycelium_get_files` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |
 | `get_symbol_count_by_kind` | `mycelium get-symbol-count-by-kind` | `mycelium_get_symbol_count_by_kind` | [`basic-queries`](basic-queries/SKILL.md) | ✅ Three-Surface v0.1.5 (CLI batch 10) |

@@ -9,6 +9,7 @@ allowed-tools:
   - mcp__mycelium__sync_file
   - mcp__mycelium__set_compact_mode
   - mcp__mycelium__get_token_stats
+  - cli:mycelium-get-token-stats
   - mcp__mycelium__subscribe
   - mcp__mycelium__unsubscribe
   - mcp__mycelium__subscription_status
@@ -329,7 +330,7 @@ mycelium serve --mcp --allowed-roots /workspace --allowed-roots /tmp/scratch
 
 ## Parity contract
 
-Per [RFC-0090](../../rfcs/0090-cli-mcp-skill-parity.md): each CLI ↔ MCP pair is byte-identical in name, description, argument schema, and JSON output. CLI subcommands `load-index`, `watch-status`, `set-compact-mode`, and `get-token-stats` are in the parity-backfill epic (v0.1.4).
+Per [RFC-0090](../../rfcs/0090-cli-mcp-skill-parity.md): each CLI ↔ MCP pair is byte-identical in name, description, argument schema, and JSON output. CLI subcommands `load-index`, `watch-status`, and `set-compact-mode` remain MCP-only exceptions (RFC-0090 §Exceptions). `get-token-stats` was converted from `EXCEPTION: MCP-only` to a full CLI ↔ MCP ↔ Skill triple by RFC-0120 Phase 3B.
 
 The `--allowed-roots` security boundary (RFC-0097, Issue #301, v0.1.12) is a server-launch flag; it has no MCP tool equivalent — it is intentionally configured at startup, not at call time.
 

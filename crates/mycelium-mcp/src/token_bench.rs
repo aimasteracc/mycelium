@@ -206,6 +206,109 @@ pub fn measure_corpus<C: TokenCounter>(corpus: &[FixtureCase], counter: &C) -> C
     }
 }
 
+/// Build the `mycelium_get_token_stats` / `mycelium get-token-stats` payload.
+///
+/// Shared by the MCP tool handler and the CLI subcommand so both surfaces emit
+/// structurally identical JSON (RFC-0120 Phase 3B byte-identity contract).
+///
+/// The corpus is embedded at compile time via `include_str!` from
+/// `crates/mycelium-mcp/tests/corpus/`.
+///
+/// # Panics
+///
+/// Panics if the embedded corpus JSON files are invalid (would indicate a broken
+/// build) or if `tiktoken-rs` fails to load `cl100k_base` when the `tiktoken`
+/// feature is enabled.
+#[must_use]
+#[allow(clippy::cast_precision_loss)]
+pub fn token_stats_payload() -> serde_json::Value {
+    let corpus = vec![
+        FixtureCase {
+            name: "callee_tree".to_owned(),
+            value: serde_json::from_str(include_str!("../tests/corpus/callee_tree.json"))
+                .expect("corpus callee_tree.json is valid JSON"),
+        },
+        FixtureCase {
+            name: "caller_tree".to_owned(),
+            value: serde_json::from_str(include_str!("../tests/corpus/caller_tree.json"))
+                .expect("corpus caller_tree.json is valid JSON"),
+        },
+        FixtureCase {
+            name: "context".to_owned(),
+            value: serde_json::from_str(include_str!("../tests/corpus/context.json"))
+                .expect("corpus context.json is valid JSON"),
+        },
+        FixtureCase {
+            name: "search_symbol".to_owned(),
+            value: serde_json::from_str(include_str!("../tests/corpus/search_symbol.json"))
+                .expect("corpus search_symbol.json is valid JSON"),
+        },
+        FixtureCase {
+            name: "subclasses_tree".to_owned(),
+            value: serde_json::from_str(include_str!("../tests/corpus/subclasses_tree.json"))
+                .expect("corpus subclasses_tree.json is valid JSON"),
+        },
+        FixtureCase {
+            name: "symbol_info".to_owned(),
+            value: serde_json::from_str(include_str!("../tests/corpus/symbol_info.json"))
+                .expect("corpus symbol_info.json is valid JSON"),
+        },
+    ];
+
+    #[cfg(feature = "tiktoken")]
+    let (report, tokenizer) = {
+        use crate::token_bench::BpeTokenCounter;
+        (
+            measure_corpus(&corpus, &BpeTokenCounter::cl100k_base()),
+            "cl100k_base",
+        )
+    };
+    #[cfg(not(feature = "tiktoken"))]
+    let (report, tokenizer) = {
+        (
+            measure_corpus(&corpus, &WhitespaceTokenCounter),
+            "whitespace-approximate",
+        )
+    };
+
+    // Secondary metric: JSON-vs-MessagePack byte ratio (wire-format, NOT the token ratio).
+    let wire_sample = serde_json::json!({"matches": ["a", "b", "c"]});
+    let wire_json_bytes = wire_sample.to_string().len();
+    let wire_msgpack_bytes = rmp_serde::to_vec_named(&wire_sample)
+        .unwrap_or_default()
+        .len();
+    let wire_format_byte_ratio = wire_msgpack_bytes as f64 / wire_json_bytes as f64;
+
+    let fixtures: Vec<serde_json::Value> = report
+        .fixtures
+        .iter()
+        .map(|f| {
+            let ratio = if f.json_tokens > 0 {
+                f.text_tokens as f64 / f.json_tokens as f64
+            } else {
+                1.0
+            };
+            serde_json::json!({
+                "name": f.name,
+                "json_tokens": f.json_tokens,
+                "text_tokens": f.text_tokens,
+                "ratio": ratio,
+            })
+        })
+        .collect();
+
+    serde_json::json!({
+        "tokenizer": tokenizer,
+        "corpus_version": "v2-ripgrep",
+        "fixtures": fixtures,
+        "aggregate_json_tokens": report.total_json_tokens,
+        "aggregate_text_tokens": report.total_text_tokens,
+        "text_to_json_token_ratio": report.text_to_json_token_ratio(),
+        "token_reduction_pct": report.token_reduction_pct(),
+        "wire_format_byte_ratio": wire_format_byte_ratio,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
