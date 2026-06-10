@@ -1,6 +1,6 @@
 # RFC-0119: Importance-Weighted Entry-Point Selection with Static Test-Code Demotion
 
-- **Status**: Draft
+- **Status**: Partially Implemented (Phase 1 pure-core scorer + Phase 2 Store adapter done — `context/ranking.rs` + `seed_entry_points` delegate complete; AC-12/AC-13 dogfood transcript pending e2e re-run after v0.3.0 back-merge)
 - **Created**: 2026-06-06
 - **Depends on / supersedes**: No hard RFC dependency. Builds on **RFC-0101** (Mycelium Context Tool — this RFC brings `seed_entry_points` into compliance with RFC-0101 §3-4's documented score-ordering, which the current implementation violates). Reuses the existing static stub-classification machinery from **RFC-0113** (`crates/mycelium-core/src/classify.rs`, `CalleeClass`). Stub-robustness of the in-degree signal is handled **in-scope** here (see Design §"Stub-robust in-degree"), not deferred to any external de-noising RFC.
 
