@@ -57,6 +57,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`count` now matches the returned array after budget truncation in `get_entry_points` /
+  `get_all_symbols`** (CLI and MCP, shared core path). Previously a no-limit call on a large repo
+  reported the pre-budget total in the flat `count` field (e.g. `count: 2425` next to a 30-element
+  `entry_points` array), contradicting the array the agent iterates. `apply_budget` now rewrites a
+  sibling `count` to the post-truncation length when the payload also carries `total_count` (the
+  full-total field) and `count` equaled the pre-truncation array length. Payloads without
+  `total_count` (`dead_symbols`, `isolated_symbols`, `reachable`) keep `count` as the documented
+  full pre-budget total.
+
 - **Method/function definition spans now point to the declaration, not the enclosing class (Issue #657).**
   When a `@definition.method` query anchors on the enclosing type container (e.g.
   `class_definition` in Python, `class_declaration` in TypeScript/JS/Java/C#), the

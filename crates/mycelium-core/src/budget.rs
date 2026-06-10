@@ -163,6 +163,16 @@ impl OutputBudget {
 ///
 /// The nested object is added without removing existing keys, per RFC-0102.
 /// Absent keys are ignored; when nothing is truncated, no metadata is written.
+///
+/// **Sibling `count` consistency** (issue: `get_entry_points` reported
+/// `count: 2425` next to a 30-element array): paginated payloads carry both
+/// `count` (the returned page size) and `total_count` (the full pre-pagination
+/// total). When exactly one array is truncated and the object has a
+/// `total_count` sibling and a `count` sibling equal to the pre-truncation
+/// array length, `count` is rewritten to the post-truncation length so it
+/// always matches the array the caller actually receives. Payloads *without*
+/// `total_count` (`dead_symbols`, `isolated_symbols`, `reachable`) document
+/// `count` as the full pre-budget total — their `count` is left untouched.
 pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
     // (field-key, pre-truncation count), in the deterministic order capping ran.
     let mut capped: Vec<(&'static str, usize)> = Vec::new();
@@ -206,6 +216,20 @@ pub fn apply_budget(value: &mut Value, budget: &OutputBudget) {
 
     if capped.is_empty() {
         return;
+    }
+
+    // Keep a sibling `count` consistent with the array it describes. Only
+    // paginated payloads (those with a `total_count` sibling) use `count` as
+    // "returned page size"; for them, a `count` that matched the pre-truncation
+    // array length must follow the truncation. Guards: exactly one capped
+    // field (otherwise `count`'s referent is ambiguous) and an exact
+    // pre-truncation match (a non-matching `count` means something else).
+    if let [(key, pre_count)] = capped.as_slice()
+        && value.get("total_count").and_then(Value::as_u64).is_some()
+        && value.get("count").and_then(Value::as_u64) == Some(*pre_count as u64)
+        && let Some(new_len) = value.get(*key).and_then(Value::as_array).map(Vec::len)
+    {
+        value["count"] = Value::Number(new_len.into());
     }
 
     // Flat fields (backward compatible): first capped field's pre-trunc count.

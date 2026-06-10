@@ -232,6 +232,64 @@ fn caps_callee_and_caller_paths_at_edge_cap() {
     }
 }
 
+// ---- Post-budget `count` consistency: a paginated payload carries both
+//      `count` (page size) and `total_count` (full total). When the budget
+//      truncates the page array, `count` must follow the array so an agent
+//      never reads a `count` that contradicts the array it iterates.
+//      Payloads WITHOUT `total_count` (dead/isolated/reachable) document
+//      `count` as the full pre-budget total — those must stay untouched. ----
+
+#[test]
+fn truncation_updates_count_when_total_count_sibling_present() {
+    // Mirrors the live bug: get-entry-points with no limit on a 2425-entry
+    // repo — page == full set, count == 2425, budget truncates to 30 but the
+    // old code left count at 2425, contradicting the 30-element array.
+    for key in ["entry_points", "symbols"] {
+        let mut v = json!({
+            key: (0..40).collect::<Vec<_>>(),
+            "count": 40,
+            "total_count": 2425,
+        });
+        apply_budget(&mut v, &OutputBudget::for_project(100)); // max_nodes = 15
+        assert_eq!(v[key].as_array().unwrap().len(), 15);
+        assert_eq!(
+            v["count"], 15,
+            "{key}: count must equal the returned array length after budget truncation"
+        );
+        assert_eq!(
+            v["total_count"], 2425,
+            "{key}: total_count carries the full total and must not change"
+        );
+        assert_eq!(v["budget"]["total_available"][key], 40);
+    }
+}
+
+#[test]
+fn truncation_leaves_count_alone_without_total_count_sibling() {
+    // dead_symbols/isolated_symbols/reachable payloads have no total_count;
+    // their `count` is documented as the full pre-budget total. Don't touch it.
+    let mut v = json!({ "dead_symbols": (0..40).collect::<Vec<_>>(), "count": 40 });
+    apply_budget(&mut v, &OutputBudget::for_project(100)); // max_nodes = 15
+    assert_eq!(v["dead_symbols"].as_array().unwrap().len(), 15);
+    assert_eq!(
+        v["count"], 40,
+        "without a total_count sibling, count is the only full-total carrier"
+    );
+}
+
+#[test]
+fn truncation_leaves_mismatched_count_alone() {
+    // Conservative guard: if `count` did not equal the pre-truncation array
+    // length, it means something else — leave it as-is.
+    let mut v = json!({
+        "entry_points": (0..40).collect::<Vec<_>>(),
+        "count": 7,
+        "total_count": 99,
+    });
+    apply_budget(&mut v, &OutputBudget::for_project(100));
+    assert_eq!(v["count"], 7);
+}
+
 #[test]
 fn caps_dead_and_isolated_symbols_at_node_cap() {
     for key in ["dead_symbols", "isolated_symbols"] {
