@@ -101,7 +101,7 @@ mcp__mycelium__get_callers({ "path": "src/models.rs>User", "edge_kind": "extends
 mcp__mycelium__get_callee_tree({ "path": "src/auth/session.rs>AuthService>login", "max_depth": 3 })
 ```
 
-Returns a nested `{ path, children: [...] }` structure. Default depth 3, capped at 10. Cycles are detected and rendered as `{ path, cycle: true }` leaves.
+Returns a nested `{ path, children: [...] }` structure. Default depth 3, capped at 10. Cycles are detected and rendered as `{ path, cycle: true }` leaves. Callees the resolver could not bind to a definition (stdlib calls, ambiguous names) are not listed as nodes — each node instead carries an `unresolved_callees: N` count (omitted when 0), so the tree contains only real, navigable symbols (ADR-0013).
 
 ### `get_caller_tree` — recursive caller tree
 

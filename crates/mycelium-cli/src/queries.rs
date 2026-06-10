@@ -476,7 +476,13 @@ fn callee_node_to_json(node: &mycelium_core::CalleeNode, store: &Store) -> serde
         .iter()
         .map(|c| callee_node_to_json(c, store))
         .collect();
-    serde_json::json!({ "path": path, "children": children })
+    let mut value = serde_json::json!({ "path": path, "children": children });
+    // ADR-0013: collapsed unresolved callees surface as a count; omitted when 0
+    // to keep the payload lean (token economy).
+    if node.unresolved_callees > 0 {
+        value["unresolved_callees"] = serde_json::json!(node.unresolved_callees);
+    }
+    value
 }
 
 fn caller_node_to_json(node: &mycelium_core::CallerNode, store: &Store) -> serde_json::Value {

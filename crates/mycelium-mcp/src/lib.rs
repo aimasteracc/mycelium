@@ -1466,7 +1466,10 @@ impl MyceliumServer {
     #[tool(
         description = "Return the transitive callee tree rooted at a given symbol, up to \
                        max_depth hops. Each node contains its path and a list of callee subtrees. \
-                       Cycles are represented as leaf nodes. max_depth defaults to 4, capped at 10."
+                       Cycles are represented as leaf nodes. max_depth defaults to 4, capped at 10. \
+                       Callees that could not be resolved to a definition (stdlib calls, ambiguous \
+                       names) are collapsed into an unresolved_callees count per node instead of \
+                       being listed as placeholder leaves; the field is omitted when 0."
     )]
     async fn mycelium_get_callee_tree(
         &self,
@@ -4264,7 +4267,13 @@ fn callee_node_to_json(node: &CalleeNode, store: &Store) -> serde_json::Value {
         .iter()
         .map(|child| callee_node_to_json(child, store))
         .collect();
-    serde_json::json!({ "path": path, "children": children })
+    let mut value = serde_json::json!({ "path": path, "children": children });
+    // ADR-0013: collapsed unresolved callees surface as a count; omitted when 0
+    // to keep the payload lean (token economy).
+    if node.unresolved_callees > 0 {
+        value["unresolved_callees"] = serde_json::json!(node.unresolved_callees);
+    }
+    value
 }
 
 fn caller_node_to_json(node: &CallerNode, store: &Store) -> serde_json::Value {

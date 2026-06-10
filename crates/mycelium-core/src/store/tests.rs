@@ -2414,6 +2414,79 @@ fn store_callee_tree_leaf_when_no_callees() {
     assert!(tree.children.is_empty(), "leaf node has no children");
 }
 
+// ADR-0013: unresolved-callee stubs are collapsed into a per-node count
+// instead of being emitted as individual placeholder leaves.
+#[test]
+fn store_callee_tree_collapses_unresolved_stub_callees() {
+    let mut store = Store::new();
+    let root = store.upsert_node_with_kind(path("a.rs>root"), NodeKind::Function);
+    let real1 = store.upsert_node_with_kind(path("b.rs>real1"), NodeKind::Function);
+    let real2 = store.upsert_node_with_kind(path("c.rs>real2"), NodeKind::Function);
+    let stub1 = store.upsert_node_with_kind(path("unwrap"), NodeKind::Unresolved);
+    let stub2 = store.upsert_node_with_kind(path("map"), NodeKind::Unresolved);
+    let stub3 = store.upsert_node_with_kind(path("collect"), NodeKind::Unresolved);
+    store.upsert_edge(EdgeKind::Calls, root, real1);
+    store.upsert_edge(EdgeKind::Calls, root, real2);
+    store.upsert_edge(EdgeKind::Calls, root, stub1);
+    store.upsert_edge(EdgeKind::Calls, root, stub2);
+    store.upsert_edge(EdgeKind::Calls, root, stub3);
+
+    let tree = store.callee_tree(root, 3);
+    assert_eq!(
+        tree.children.len(),
+        2,
+        "only the 2 resolved callees appear as children"
+    );
+    let child_ids: Vec<NodeId> = tree.children.iter().map(|c| c.id).collect();
+    assert!(child_ids.contains(&real1));
+    assert!(child_ids.contains(&real2));
+    assert!(
+        !child_ids.contains(&stub1) && !child_ids.contains(&stub2) && !child_ids.contains(&stub3),
+        "unresolved stubs must not appear as tree nodes"
+    );
+    assert_eq!(
+        tree.unresolved_callees, 3,
+        "the 3 dropped stubs are summarized as a count on the parent"
+    );
+    for child in &tree.children {
+        assert_eq!(child.unresolved_callees, 0, "resolved leaves count 0");
+    }
+}
+
+// ADR-0013: a Calls edge whose target id has no trunk path (dangling edge —
+// the `<unknown>` placeholder in the old payload) is also collapsed into the
+// count rather than emitted as a content-free leaf.
+#[test]
+fn store_callee_tree_counts_dangling_edge_targets_as_unresolved() {
+    let mut store = Store::new();
+    let root = store.upsert_node_with_kind(path("a.rs>root"), NodeKind::Function);
+    let real = store.upsert_node_with_kind(path("b.rs>real"), NodeKind::Function);
+    store.upsert_edge(EdgeKind::Calls, root, real);
+    // Dangling: an id never upserted into the trunk.
+    store.upsert_edge(EdgeKind::Calls, root, NodeId(0xDEAD_BEEF));
+
+    let tree = store.callee_tree(root, 3);
+    assert_eq!(tree.children.len(), 1, "only the real callee is a child");
+    assert_eq!(tree.children[0].id, real);
+    assert_eq!(tree.unresolved_callees, 1, "dangling target is counted");
+}
+
+// ADR-0013 back-compat: a kind-less programmatic store (no `set_kind` calls)
+// has no Unresolved phantoms, so every callee remains a child and the count
+// stays 0 — the legacy contract is unchanged.
+#[test]
+fn store_callee_tree_kindless_store_children_unchanged() {
+    let mut store = Store::new();
+    let root = store.upsert_node(path("a.rs>root"));
+    let child = store.upsert_node(path("b.rs>child"));
+    store.upsert_edge(EdgeKind::Calls, root, child);
+
+    let tree = store.callee_tree(root, 3);
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].id, child);
+    assert_eq!(tree.unresolved_callees, 0);
+}
+
 // ── RFC-0021: Store::caller_tree ─────────────────────────────────────
 
 #[test]
