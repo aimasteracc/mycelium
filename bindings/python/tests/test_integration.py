@@ -25,9 +25,11 @@ class IntegrationTests(unittest.TestCase):
             status = m.server_status()
             self.assertGreater(status["node_count"], 0)
 
-            functions = m.query(".function")
-            self.assertIsInstance(functions, list)
-            self.assertGreaterEqual(len(functions), 2)
+            result = m.query(".function")
+            self.assertIsInstance(result, dict)
+            self.assertIsInstance(result["matches"], list)
+            self.assertGreaterEqual(len(result["matches"]), 2)
+            self.assertEqual(result["count"], len(result["matches"]))
 
     def test_cli_failure_raises(self):
         m = Mycelium(root=".", bin=BIN)

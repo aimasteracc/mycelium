@@ -916,7 +916,10 @@ pub(crate) fn run_implementors_tree(
 
 fn print_tree_value(value: &serde_json::Value, format: Format) -> Result<()> {
     match format {
-        Format::Text => println!("{value}"),
+        // Text mode is the human view: print the bare root node (the pre-budget
+        // CLI shape), not the `{ "root": ..., budget metadata }` envelope the
+        // JSON surface carries (PR #752 review — text-mode regression).
+        Format::Text => println!("{}", value.get("root").unwrap_or(value)),
         Format::Json => println!("{}", serde_json::to_string(value)?),
     }
     Ok(())

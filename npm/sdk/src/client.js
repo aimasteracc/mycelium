@@ -67,7 +67,7 @@ class Mycelium {
     return this._text(this._bin, ["index", guardPositional(path, "path")]);
   }
 
-  /** Execute a Hyphae selector; returns the parsed JSON match array. */
+  /** Execute a Hyphae selector; returns `{ matches, count, total_count }`. */
   query(expr) {
     return this._json(this._bin, this._jsonArgs("query", [guardPositional(expr, "query")]));
   }
