@@ -1355,6 +1355,19 @@ pub struct GetContextRequest {
     pub budget: Option<String>,
 }
 
+/// Input parameters for `mycelium_safe_to_edit` (RFC-0116 Phase 2).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetSafeToEditRequest {
+    /// Symbol path to assess, e.g. `"src/auth.rs>Session>login"`.
+    pub path: String,
+    /// Response format override. Omit to use the transport default — `"text"`
+    /// (TOON, fewer tokens) on stdio MCP for LLM callers (RFC-0094 Phase 4),
+    /// `"json"` for programmatic/CLI callers. Explicit: `"json"`, `"text"`,
+    /// `"msgpack"` (hex-encoded binary).
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
+}
+
 /// Input parameters for `mycelium_project_health`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GetProjectHealthRequest {

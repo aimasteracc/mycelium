@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0116 Phase 2 — `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP + Skill coverage.**
+  New `mycelium safe-to-edit <symbol>` subcommand and `mycelium_safe_to_edit` MCP tool return a
+  byte-identical `{ verdict, reasons, checklist, blast_radius, direct_callers }` payload.
+  Verdict bands: blast_radius=0 → SAFE; 1–5 → CAUTION; 6–20 → REVIEW; 21+ → UNSAFE; NOT_FOUND for
+  unknown symbols. Core logic lives in `safe_to_edit_payload()` in `mycelium-core::queries`; both
+  surfaces share it without duplication. `skills/reachability/SKILL.md` updated to cover the new
+  pair. `EXPECTED_TOOL_COUNT` bumped to 95. (RFC-0116 Phase 2)
+
 - **RFC-0120 Phase 3B — `mycelium get-token-stats` CLI twin** (Three-Surface Rule completion).
   New `mycelium get-token-stats` subcommand produces byte-identical JSON to `mycelium_get_token_stats`
   by sharing the same `token_bench::token_stats_payload()` core function. A new

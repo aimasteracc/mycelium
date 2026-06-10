@@ -1,6 +1,6 @@
 # RFC-0116: pre-edit safety verdict — "safe-to-edit" before you touch (design)
 
-- **Status**: **Partially Implemented** (Phase 1 pure `edit_verdict` core done — `crates/mycelium-core/src/verdict.rs`; Phase 2 — Store adapter + `mycelium safe-to-edit` CLI/MCP surfaces pending)
+- **Status**: **Implemented** (Phase 1 pure `edit_verdict` core in `crates/mycelium-core/src/verdict.rs`; Phase 2 Store adapter + CLI + MCP + Skill complete; Phase 3 `health`/`test_gap` sequenced after RFC-0114/RFC-0115)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0112](0112-ide-plugin-vscode-thin-client.md) (IDE plugin —
@@ -184,11 +184,11 @@ it is a Phase-2 surfacing obligation, not an additive field:
       a snapshot test pins them against `context/mod.rs`'s set.
 
 **Phase 2 — adapter + surfaces:**
-- [ ] Thin Store adapter assembles `EditMetrics` from existing caller-count +
+- [x] Thin Store adapter assembles `EditMetrics` from existing caller-count +
       `mycelium_get_reachable_to`; `health`/`test_gap` left `None` until RFC-0114/0115 land.
-- [ ] `mycelium safe-to-edit` (CLI) + `mycelium_safe_to_edit` (MCP), byte-identical
+- [x] `mycelium safe-to-edit` (CLI) + `mycelium_safe_to_edit` (MCP), byte-identical
       (parity snapshot test).
-- [ ] ≥1 category Skill lists the new pair in `allowed-tools`.
+- [x] ≥1 category Skill lists the new pair in `allowed-tools`.
 
 **Phase 3 (sequenced after RFC-0114 + RFC-0115):**
 - [ ] Wire `health` + `test_gap` inputs; re-snapshot the escalation paths.

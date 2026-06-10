@@ -16,6 +16,7 @@ allowed-tools:
   - mcp__mycelium__get_singly_referenced
   - mcp__mycelium__get_mutual_reachability
   - mcp__mycelium__get_common_reachable
+  - mcp__mycelium__safe_to_edit
 category: analysis
 icon: 🔗
 marketplace_examples:
@@ -25,6 +26,8 @@ marketplace_examples:
     tool: mcp__mycelium__get_reachable
   - query: "What symbols are within 2 hops of AuthService?"
     tool: mcp__mycelium__get_two_hop_neighbors
+  - query: "Is it safe to edit Session::login?"
+    tool: mcp__mycelium__safe_to_edit
 ---
 
 # `reachability` — multi-hop navigation across edge kinds
@@ -126,12 +129,25 @@ Counterpart of `get_reachable_set` but path-prefix-scoped: "which symbols reach 
 
 Useful for identifying tightly-coupled callers — symbols whose sole consumer is one specific other symbol.
 
+### `safe_to_edit` — pre-edit safety verdict
+
+"Is it safe to touch this symbol?" Uses the backward reachable set (`reachable_to`) to compute blast radius, then returns a hard `SAFE | CAUTION | REVIEW | UNSAFE | NOT_FOUND` verdict with a human-readable checklist.
+
+```
+mcp__mycelium__safe_to_edit({ "path": "src/auth.rs>Session>login" })
+→ { "verdict": "CAUTION", "blast_radius": 3, "direct_callers": 2, "reasons": [...], "checklist": [...] }
+```
+
+Verdict bands: blast_radius=0 → SAFE; 1–5 → CAUTION; 6–20 → REVIEW; 21+ → UNSAFE.
+Byte-identical twin of `mycelium safe-to-edit` CLI command (RFC-0116 Phase 2).
+
 ## Common chains
 
 - **"Connect these two dots"** → `get_shortest_path` with the appropriate `edge_kind`.
 - **"What does this transitively touch?"** → `get_reachable` with depth bound.
 - **"What's the blast radius across all edge kinds?"** → `get_cross_refs` (incoming) + `get_outgoing_refs` (outgoing).
 - **"One-call neighborhood snapshot"** → `get_symbol_neighborhood`.
+- **"Is it safe to edit this symbol?"** → `safe_to_edit` (verdict + checklist in one call).
 
 ## Equivalent CLI
 
@@ -139,6 +155,7 @@ Useful for identifying tightly-coupled callers — symbols whose sole consumer i
 mycelium get-shortest-path --from "A" --to "B" --edge-kind calls --format=json
 mycelium get-reachable "src/main.rs>main" --edge-kind calls --max-depth 10
 mycelium get-cross-refs "src/auth/session.rs>AuthService>login" --format=json
+mycelium safe-to-edit "src/auth.rs>Session>login" --format=json
 ```
 
 ## Parity contract
