@@ -838,6 +838,83 @@ mod tests {
         }
     }
 
+    // ── RFC-0124: attribute filters after pseudo-classes ─────────────────────
+    //
+    // Normative rule: attribute filters and pseudo-classes compose by set
+    // intersection, so source order is NOT semantically significant —
+    // `a[x]:p` ≡ `a:p[x]`. Structural pseudos (`:first-child`, `:nth-child`,
+    // ...) rank against ALL store siblings, never the attribute-filtered
+    // candidate set, so they too are order-independent (CSS semantics).
+
+    #[test]
+    fn attr_after_pseudo_filters_and_is_order_independent() {
+        let mut store = Store::new();
+        let a = store.upsert_node(TrunkPath::parse("src/a.rs>caller_a").unwrap());
+        let b = store.upsert_node(TrunkPath::parse("src/b.rs>caller_b").unwrap());
+        let target = store.upsert_node(TrunkPath::parse("src/t.rs>Foo").unwrap());
+        store.upsert_edge(EdgeKind::Calls, a, target);
+        store.upsert_edge(EdgeKind::Calls, b, target);
+
+        // Unfiltered: callers in both files.
+        assert_eq!(ev(&store, "*:calls(#Foo)").len(), 2);
+        // Attribute AFTER the pseudo-class narrows to one file.
+        let after = ev(&store, "*:calls(#Foo)[file=src/a.rs]");
+        assert_eq!(after, vec!["src/a.rs>caller_a"]);
+        // Order-independence: identical to the attribute-first spelling.
+        let before = ev(&store, "*[file=src/a.rs]:calls(#Foo)");
+        assert_eq!(after, before, "a[x]:p must equal a:p[x]");
+    }
+
+    #[test]
+    fn interleaved_filters_evaluate_as_intersection() {
+        use mycelium_core::types::NodeKind;
+        let mut store = Store::new();
+        let a = store.upsert_node_with_kind(
+            TrunkPath::parse("src/a.rs>caller_a").unwrap(),
+            NodeKind::Function,
+        );
+        let b = store.upsert_node_with_kind(
+            TrunkPath::parse("src/b.rs>caller_b").unwrap(),
+            NodeKind::Function,
+        );
+        let target = store.upsert_node(TrunkPath::parse("src/t.rs>Foo").unwrap());
+        store.upsert_edge(EdgeKind::Calls, a, target);
+        store.upsert_edge(EdgeKind::Calls, b, target);
+
+        let result = ev(
+            &store,
+            ".function[language=rust]:calls(#Foo)[file=src/a.rs]",
+        );
+        assert_eq!(result, vec!["src/a.rs>caller_a"]);
+    }
+
+    #[test]
+    fn structural_pseudo_is_order_independent_of_attribute() {
+        // `:first-child` ranks against ALL siblings in the store — an
+        // attribute filter before or after it must not change which node is
+        // "first" (CSS semantics: structural position is a property of the
+        // tree, not of the filtered candidate set).
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>Outer>alpha").unwrap());
+        store.upsert_node(TrunkPath::parse("src/a.rs>Outer>beta").unwrap());
+        let pre = ev(&store, "*[file=src/a.rs]:first-child");
+        let post = ev(&store, "*:first-child[file=src/a.rs]");
+        assert_eq!(pre, post, "structural pseudo must commute with attributes");
+    }
+
+    #[test]
+    fn eval_checked_rejects_unknown_names_in_post_pseudo_positions() {
+        let mut store = Store::new();
+        store.upsert_node(TrunkPath::parse("src/a.rs>foo").unwrap());
+        // Unknown attribute AFTER a pseudo-class.
+        let err = ev_checked(&store, "*:calls(#foo)[lang=rust]").expect_err("must error");
+        assert!(err.to_string().contains("lang"), "{err}");
+        // Unknown pseudo AFTER an attr-after-pseudo sequence.
+        let err = ev_checked(&store, "*:calls(#foo)[file=src/a.rs]:frobnicate()")
+            .expect_err("must error");
+        assert!(err.to_string().contains("frobnicate"), "{err}");
+    }
+
     #[test]
     fn eval_checked_passes_working_combinators() {
         // No-regression: child + descendant combinators must validate cleanly.

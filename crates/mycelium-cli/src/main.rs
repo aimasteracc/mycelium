@@ -84,13 +84,16 @@ enum Cmd {
         ///
         /// Kind selectors take a leading dot (`.function`, `.class`); names
         /// take `#` (`#Foo`); `*` matches any kind; pseudo-classes (`:calls`,
-        /// `:callers`, `:has`, `:not`) follow a base selector. Examples:
+        /// `:callers`, `:has`, `:not`) and attribute filters (`[file=...]`,
+        /// `[language=...]`, `[kind=...]`) follow a base selector in any
+        /// order. Examples:
         ///   `#Foo`                   symbol named Foo
         ///   `.function`              all functions
         ///   `.class>.method`         direct-child methods of a class
         ///   `*:calls(#Foo)`          callers of Foo
         ///   `.function:calls(#Foo)`  functions that call Foo
         ///   `.class:has(.method)`    classes containing a method
+        ///   `*:calls(#Foo)[file=src/x.rs]`  callers of Foo defined in src/x.rs
         expr: String,
 
         /// Project root (defaults to current directory). The index is read

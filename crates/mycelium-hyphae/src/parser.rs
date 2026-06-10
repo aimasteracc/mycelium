@@ -6,6 +6,9 @@
 //! for the jQuery-inspired selector extensions (`:not`, `:has`, `:in`,
 //! `:implements`, `:first-child` / `:last-child` / `:only-child`,
 //! `:nth-child(N)`, and `[attr=value]`).
+//! [RFC-0124](https://github.com/aimasteracc/mycelium/blob/develop/rfcs/0124-hyphae-attr-after-pseudo.md)
+//! allows attribute filters and pseudo-classes in any order after the base
+//! (`simple ::= base (attribute_filter | pseudo_class)*`).
 
 use crate::{
     ast::{
@@ -21,7 +24,8 @@ use crate::{
 /// into the message a user or agent sees.
 const GRAMMAR_HINT: &str = "A Hyphae simple selector is `#Name` (by symbol name), `.kind` (e.g. \
      `.function`, `.class`), or `*` (any) — combined with `>` (child), \
-     `:pseudo(arg)`, and `[attr=value]`. To find a symbol named `Foo`, write \
+     `:pseudo(arg)`, and `[attr=value]` (pseudo-classes and attribute filters \
+     may appear in any order after the base). To find a symbol named `Foo`, write \
      `#Foo` (NOT `Foo`, `class.Foo`, or `class:name(Foo)`).\n  \
      Grammar: rfcs/0003-hyphae-query-language.md and rfcs/0091-hyphae-jquery-selectors.md";
 
@@ -202,15 +206,19 @@ impl<'src> Parser<'src> {
             None => return Err(ParseError::UnexpectedEof),
         };
 
-        // Attribute filters `[attr=value]*` come before pseudo-classes.
+        // Attribute filters `[attr=value]` and pseudo-classes `:pseudo(arg)`
+        // may appear in any order after the base (RFC-0124). Filters compose
+        // by set intersection, so source order carries no semantics —
+        // `a[x]:p` ≡ `a:p[x]`. Each kind is collected into its own list in
+        // source order; the AST shape is unchanged from RFC-0091.
         let mut attributes = Vec::new();
-        while matches!(self.peek(), Some(Token::LBracket)) {
-            attributes.push(self.parse_attribute()?);
-        }
-
         let mut pseudo_classes = Vec::new();
-        while matches!(self.peek(), Some(Token::Colon(_))) {
-            pseudo_classes.push(self.parse_pseudo_class()?);
+        loop {
+            match self.peek() {
+                Some(Token::LBracket) => attributes.push(self.parse_attribute()?),
+                Some(Token::Colon(_)) => pseudo_classes.push(self.parse_pseudo_class()?),
+                _ => break,
+            }
         }
 
         Ok(SimpleSelector {
@@ -482,6 +490,81 @@ mod tests {
             }],
             pseudo_classes: vec![],
         })]);
+        assert_eq!(ast, expected);
+    }
+
+    // ── RFC-0124: attribute filters after pseudo-classes ────────────────────
+
+    #[test]
+    fn attribute_after_pseudo_class() {
+        // Live agent QA: `*:calls(#upsert_node)[file=...]` — the natural
+        // "filter callers by file" query — hard-errored with
+        // UnexpectedToken("LBracket"). RFC-0124 makes attribute filters and
+        // pseudo-classes accepted in any order after the base.
+        let ast = parse("*:calls(#Foo)[file=src/x.rs]").unwrap();
+        let expected = selector_list(vec![Selector::Simple(SimpleSelector {
+            base: BaseSelector::Universal,
+            attributes: vec![AttributeSelector {
+                name: "file".to_owned(),
+                value: "src/x.rs".to_owned(),
+            }],
+            pseudo_classes: vec![PseudoClass {
+                name: "calls".to_owned(),
+                argument: Some(PseudoArg::Selector(Box::new(selector_list(vec![
+                    simple_name("Foo"),
+                ])))),
+            }],
+        })]);
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn interleaved_attributes_and_pseudo_classes() {
+        // attr, pseudo, attr — all interleavings parse into the same AST
+        // shape (attributes and pseudo-classes each collected in source
+        // order into their own list).
+        let ast = parse(".function[language=rust]:calls(#Foo)[file=src/x.rs]").unwrap();
+        let expected = selector_list(vec![Selector::Simple(SimpleSelector {
+            base: BaseSelector::Kind("function".to_owned()),
+            attributes: vec![
+                AttributeSelector {
+                    name: "language".to_owned(),
+                    value: "rust".to_owned(),
+                },
+                AttributeSelector {
+                    name: "file".to_owned(),
+                    value: "src/x.rs".to_owned(),
+                },
+            ],
+            pseudo_classes: vec![PseudoClass {
+                name: "calls".to_owned(),
+                argument: Some(PseudoArg::Selector(Box::new(selector_list(vec![
+                    simple_name("Foo"),
+                ])))),
+            }],
+        })]);
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn attr_after_pseudo_then_combinator_still_parses() {
+        // The any-order loop must not eat the `>` combinator that follows.
+        let ast = parse("*:first-child[file=src/x.rs]>.method").unwrap();
+        let expected = selector_list(vec![combined(
+            Selector::Simple(SimpleSelector {
+                base: BaseSelector::Universal,
+                attributes: vec![AttributeSelector {
+                    name: "file".to_owned(),
+                    value: "src/x.rs".to_owned(),
+                }],
+                pseudo_classes: vec![PseudoClass {
+                    name: "first-child".to_owned(),
+                    argument: None,
+                }],
+            }),
+            Combinator::Child,
+            simple_kind("method"),
+        )]);
         assert_eq!(ast, expected);
     }
 
