@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-10 (PM dispatch v164 — PR #738 merged (PM v163 chore, squash `7962097`); RFC-0115/0116 status corrected to Partially Implemented; RFC-0116 Phase 2 identified as **unblocked P1**; 3 P0s unchanged ×29 consecutive runs) |
+| Last updated | 2026-06-10 (PM dispatch v165 — RFC-0116 Phase 2 **COMPLETE**: PR #740 open (`feature/RFC-0116-safe-to-edit`); `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP + `reachability` Skill; 95/95 Three-Surface; RFC-0116 Status → Implemented; 3 P0s unchanged ×30 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -67,7 +67,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** RFC-0120 COMPLETE. RFC-0114 COMPLETE (94/94 Three-Surface). RFC-0113 Partially Implemented (Phase 1 done; corpus measurement = P1 post-#568). Codex usage limits exhausted — see P0 #3.
+> ⚠️ **All three P0 items require founder action.** RFC-0120 COMPLETE. RFC-0114 COMPLETE. RFC-0116 Phase 2 COMPLETE (95/95 Three-Surface, PR #740). RFC-0113 Partially Implemented (Phase 1 done; corpus measurement = P1 post-#568). Codex usage limits exhausted — see P0 #3.
 
 **P0 (founder action required):**
 1. **PR #568** (`release/v0.3.0`, open): Trigger `finalize` workflow_dispatch → completes git ceremony (Steps 1–4: merge main + tag + GitHub Release + back-merge). CI 28/28 green; crates.io/npm/PyPI already published. Back-merge (Step 4) unblocks develop for post-v0.3.0 work.
@@ -79,7 +79,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 3. **Codex usage limits exhausted** (surfaced v134): The `chatgpt-codex-connector` bot posted billing notice on PR #705 (2026-06-08T12:11:49Z). CLAUDE.md Hard Rule requires Codex findings to be addressed before any merge, but Codex cannot review while limits are exhausted. **Current open PR #568 is founder-gated separately** (not blocked by Codex). **Future PRs are at risk**: the Hard Rule becomes unenforceable until limits reset. Founder must upgrade Codex account / add credits, or explicitly suspend the Codex Hard Rule while limits are out. See: https://chatgpt.com/codex/cloud/settings/usage
 
 **🆕 P1 (unblocked NOW — no v0.3.0 dependency):**
-2. **RFC-0116 Phase 2** (`feature/RFC-0116-safe-to-edit`): `mycelium safe-to-edit <symbol>` (CLI) + `mycelium_safe_to_edit` (MCP) — thin Store adapter over existing `reachable_to` + callers APIs; pure `verdict.rs` core already on develop (`crates/mycelium-core/src/verdict.rs`, 14038 bytes). **Fully unblocked** — no v0.3.0 dependency. Three-Surface Rule: new capability → Phase 2 MUST deliver CLI ↔ MCP 1:1 + Skill coverage. TDD: write RED tests for Store adapter first (Phase 2 AC in RFC-0116). Health/test-gap inputs optional (pass `None`).
+2. ~~**RFC-0116 Phase 2**~~ **✅ COMPLETE (v165)** — PR #740 open (`feature/RFC-0116-safe-to-edit`): `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP + `reachability` Skill. 95/95 Three-Surface. RFC-0116 Status → Implemented. Phase 3 (health/test_gap wiring) sequenced after RFC-0114/RFC-0115.
 
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 3. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner)
@@ -95,19 +95,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-10 v163)
+## Dispatch state (2026-06-10 v165)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **action required (P0 ×3, ×29 runs)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — CI 28/28 ✅; registries published; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v164 complete: PR #738 merged (v163, `7962097`); RFC-0115/0116 confirmed Partially Implemented; RFC-0116 Phase 2 identified as unblocked P1; decisions.jsonl appended. |
+| PM | **DONE ✅** | v165 complete: RFC-0116 Phase 2 built (PR #740); 95/95 Three-Surface; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension fully IMPLEMENTED (PR #725 merged `27df3cdc`). |
 | e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (blocked until #568 back-merge on develop). |
 | bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark (blocked until #568 back-merge on develop). |
 | tech-writer | idle | Skill marketplace prep (P2). |
-| rust-implementer | **P1 (unblocked)** | **RFC-0116 Phase 2**: `mycelium safe-to-edit` CLI + `mycelium_safe_to_edit` MCP — thin Store adapter + Skill coverage (no v0.3.0 dependency). TDD: RED first per RFC-0116 Phase 2 AC. |
+| rust-implementer | **DONE ✅** | RFC-0116 Phase 2 complete: PR #740 open, all tests GREEN (95/95 Three-Surface). Next unblocked task: dogfood re-run or RFC-0113 Phase 2 (both blocked on #568 back-merge). |
 
 ---
 
