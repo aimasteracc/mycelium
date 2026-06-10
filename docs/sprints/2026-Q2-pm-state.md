@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-10 (PM dispatch v160 — PR #734 merged (PM v159 chore); P2 item 9 resolved (release.yml finalize is correctly workflow_dispatch-gated; no further fix needed); 3 P0s unchanged ×25 consecutive runs) |
+| Last updated | 2026-06-10 (PM dispatch v161 — PR #735 merged (PM v160 chore, squash `3b6d192`); confirmed PR #568 CI 28/28 ✅ + Codex thread resolved; RFC-0121 fully documented; 3 P0s unchanged ×26 consecutive runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -91,12 +91,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-10 v160)
+## Dispatch state (2026-06-10 v161)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — `dirty` merge state is expected gitflow artifact; ceremony script handles via `-X ours`; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v160 complete: PR #734 merged (v159 chore); P2 item 9 resolved (release.yml finalize correctly designed); PM state v160 written. |
+| founder | **action required (P0 ×3)** | **(1)** Trigger `finalize` workflow_dispatch on PR #568 — CI 28/28 ✅; registries published; Codex 1 thread resolved; **one-click action**. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits — upgrade/add credits at https://chatgpt.com/codex/cloud/settings/usage. |
+| PM | **DONE ✅** | v161 complete: PR #735 merged (v160 chore, squash `3b6d192`); PR #568 status fully verified (CI 28/28 ✅, Codex resolved, registries ✅); PM state v161 written. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then plan v0.3.1 scope. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0122 v2 merged on develop (`77aaa782`): pure-resolver extension fully IMPLEMENTED (PR #725 merged `27df3cdc`). |
@@ -134,7 +134,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-10 PM dispatch v160 (this run)
+### 2026-06-10 PM dispatch v161 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 via bash — last entry v160 `06:10Z`), anti-patterns (domain hits: release-governance/merge-discipline/ci), PM state v160 (from `origin/develop` HEAD `3b6d192` after #735 merged), v0.2 PRD, RFC-0121.
+
+**Assessment:**
+- Develop HEAD `3b6d192` (PM v160 chore, squash-merged this run).
+- 0 open issues (P0/P1 label search: 0; all-label search: 0).
+- 2 open PRs entering this run: #735 (PM v160, 22/22 CI ✅, 0 Codex findings) and #568 (release/v0.3.0, 28/28 CI ✅; 1 Codex thread resolved; finalize SKIPPED = workflow_dispatch-only by design; registries crates.io/npm/PyPI published 2026-06-05T17:59Z).
+- Codex billing exhausted since 2026-06-08 — no new findings on either PR; merges safe per v134+ precedent.
+- RFC-0121 read in full: Option A (per-class targets) is the correct call — tree ≤35% already met (RFC-0094 measured 28.5%), list ≤70% / scalar ≤90% match measured reality; no engineering work required; CI gates remain meaningful.
+- 3 P0 escalations unchanged (×26 consecutive runs). All founder-gated: (1) PR #568 finalize, (2) RFC-0121 Option, (3) Codex billing.
+
+**Actions taken:**
+1. **Merged PR #735** (chore PM v160, squash `3b6d192`). CI 22/22 ✅. Codex: 0 findings. ✅
+2. **Verified PR #568 fully**: CI 28/28 ✅; 1 Codex thread — is_resolved:true (aimasteracc reply posted); registries all published; only blocker is `finalize` workflow_dispatch. ✅
+3. **Read RFC-0121 in full**: Confirmed PM recommendation is Option A (honest, no engineering cost, CI-enforceable per-class). ✅
+4. **Appended decisions.jsonl** v161 entry. ✅
+5. **PM state v161 written**. ✅
+
+**Escalations to founder (P0, unchanged ×26 consecutive runs):**
+1. **PR #568** — trigger `finalize` workflow_dispatch (one-click). CI gate fully green. This is the only blocker to completing the v0.3.0 git ceremony and unblocking develop for post-v0.3.0 work.
+2. **RFC-0121** — choose Option A (PM-recommended), B, or C for Charter §2 Hyphae token SLA. Full analysis in `rfcs/0121-charter-hyphae-token-sla-amendment.md`.
+3. **Codex billing** — upgrade credits at https://chatgpt.com/codex/cloud/settings/usage, or explicitly suspend the CLAUDE.md Codex Hard Rule.
+
+### 2026-06-10 PM dispatch v160 (prior run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail via bash — last entry v159 `11:00Z`), anti-patterns (domain hits: release-governance/ci-portability/merge-discipline), PM state v159 (from `origin/develop`, now HEAD `acaddf5` after #734), v0.2 PRD.
 
