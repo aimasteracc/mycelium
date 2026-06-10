@@ -10,6 +10,7 @@
 use serde_json::{Value, json};
 
 use crate::store::Store;
+use crate::test_gap::CoverageFacts;
 use crate::types::{EdgeKind, NodeId};
 
 /// Build the `{ "callee_paths": [...], "callees": [{path, class}, ...] }` payload
@@ -217,6 +218,136 @@ pub fn safe_to_edit_payload(store: &Store, path: &str) -> Value {
         "checklist": ev.checklist,
         "blast_radius": blast_radius,
         "direct_callers": direct_callers,
+    })
+}
+
+/// Parse a `coverage.py coverage.json` content string into [`CoverageFacts`].
+///
+/// Accepts the coverage.py JSON schema (`files.<path>.executed_lines` array).
+/// Unknown extra fields (meta, totals, etc.) are ignored. Returns an error
+/// string if the content is not valid JSON or the `files` key is absent.
+///
+/// # Errors
+/// Returns a descriptive string if JSON is malformed or structurally unexpected.
+pub fn parse_coverage_json(content: &str) -> Result<CoverageFacts, String> {
+    use crate::test_gap::CoverageFacts;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    let root: serde_json::Value =
+        serde_json::from_str(content).map_err(|e| format!("invalid JSON: {e}"))?;
+    let files = root
+        .get("files")
+        .ok_or_else(|| "coverage.json missing 'files' key".to_owned())?
+        .as_object()
+        .ok_or_else(|| "'files' must be an object".to_owned())?;
+
+    let mut executed_lines: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
+    for (file, file_data) in files {
+        let lines: BTreeSet<u32> = file_data
+            .get("executed_lines")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|n| n.as_u64().and_then(|n| u32::try_from(n).ok()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        executed_lines.insert(file.clone(), lines);
+    }
+    Ok(CoverageFacts { executed_lines })
+}
+
+/// Build the `{gaps, gap_count, total_symbols, coverage_source, truncated}`
+/// payload for `test-gap` / `mycelium_test_gap` (RFC-0115 Phase 2).
+///
+/// Thin Store adapter: enumerates all non-file symbols, derives a
+/// [`crate::test_gap::SymbolSpan`] for each (using `start_line + 1` as
+/// `body_start` — the TSA heuristic; a future ADR will extend the indexed
+/// span to include an explicit `body_start`), then fills
+/// [`crate::test_gap::GraphReach`] from the existing call-graph surface
+/// (blast radius via [`Store::reachable_to`] + direct caller count). The
+/// pure [`crate::test_gap::rank`] core is then called.
+///
+/// `top` caps the returned list; `None` returns all gaps. `coverage_source`
+/// is echoed back verbatim in the output (the caller supplies the file path).
+///
+/// Output is byte-identical across CLI and MCP by construction (both call this
+/// builder), satisfying Charter §5.13 / RFC-0090.
+#[must_use]
+pub fn test_gap_payload(
+    store: &Store,
+    facts: &crate::test_gap::CoverageFacts,
+    top: Option<usize>,
+    coverage_source: &str,
+) -> Value {
+    use crate::test_gap::{GraphReach, SymbolSpan, rank};
+
+    let all_symbols = store.all_symbols(None, None);
+    let total_symbols = all_symbols.len();
+
+    // Build (SymbolSpan, GraphReach) pairs for the pure core.
+    // Body-start approximation: start_line + 1 (TSA heuristic).
+    // Symbols with no span use line 0/0 (body_start = 1, end_line = 0) — the
+    // inverted span causes is_covered() to return false (gap), which is the
+    // conservative/correct default for symbols the index has no span for.
+    let inputs: Vec<(SymbolSpan, GraphReach)> = all_symbols
+        .iter()
+        .filter_map(|path| {
+            let id = store.lookup(path)?;
+            // Extract file from "file>Class>method" trunk path.
+            let file = path.split('>').next()?.to_owned();
+            // body_start = start_line + 1 (TSA heuristic; RFC-0115 §Phase-2).
+            // No span → (0, 0): body_start ≤ end_line holds, and line-0 never
+            // appears in coverage.json (1-indexed), so the symbol reads as a gap.
+            let (body_start, end_line) = store.span_of(id).map_or((0, 0), |s| {
+                (s.start_line.saturating_add(1), s.end_line)
+            });
+            let blast_radius = u32::try_from(
+                store
+                    .reachable_to(id, crate::types::EdgeKind::Calls, 20)
+                    .len(),
+            )
+            .unwrap_or(u32::MAX);
+            let in_degree = u32::try_from(store.incoming(id, crate::types::EdgeKind::Calls).len())
+                .unwrap_or(u32::MAX);
+            Some((
+                SymbolSpan {
+                    name: path.clone(),
+                    file,
+                    body_start,
+                    end_line,
+                },
+                GraphReach {
+                    blast_radius,
+                    in_degree,
+                    degree_centrality: 0.0, // degree_centrality is a batch op; 0.0 keeps
+                                            // blast_radius as primary rank signal (RFC-0115).
+                },
+            ))
+        })
+        .collect();
+
+    let all_gaps = rank(&inputs, facts);
+    let gap_count = all_gaps.len();
+    let truncated = top.is_some_and(|t| gap_count > t);
+    let page: Vec<Value> = all_gaps
+        .into_iter()
+        .take(top.unwrap_or(usize::MAX))
+        .map(|g| {
+            json!({
+                "name": g.name,
+                "file": g.file,
+                "rank_score": g.rank_score,
+            })
+        })
+        .collect();
+
+    json!({
+        "gaps": page,
+        "gap_count": gap_count,
+        "total_symbols": total_symbols,
+        "coverage_source": coverage_source,
+        "truncated": truncated,
     })
 }
 
@@ -515,5 +646,74 @@ mod tests {
         assert!(v.get("checklist").is_some());
         assert!(v.get("blast_radius").is_some());
         assert!(v.get("direct_callers").is_some());
+    }
+
+    // ── RFC-0115 Phase 2: parse_coverage_json + test_gap_payload ─────────────
+
+    #[test]
+    fn parse_coverage_json_parses_executed_lines() {
+        let json = r#"{"files":{"src/main.py":{"executed_lines":[5,6,7]}}}"#;
+        let facts = parse_coverage_json(json).expect("should parse");
+        let lines = facts
+            .executed_lines
+            .get("src/main.py")
+            .expect("file present");
+        assert!(lines.contains(&5));
+        assert!(lines.contains(&7));
+        assert!(!lines.contains(&10));
+    }
+
+    #[test]
+    fn parse_coverage_json_empty_files() {
+        let json = r#"{"files":{}}"#;
+        let facts = parse_coverage_json(json).expect("should parse");
+        assert!(facts.executed_lines.is_empty());
+    }
+
+    #[test]
+    fn test_gap_payload_shape_has_required_fields() {
+        let store = Store::new();
+        let facts = crate::test_gap::CoverageFacts::default();
+        let v = test_gap_payload(&store, &facts, None, "coverage.json");
+        assert!(v.get("gaps").is_some());
+        assert!(v.get("gap_count").is_some());
+        assert!(v.get("total_symbols").is_some());
+        assert!(v.get("coverage_source").is_some());
+        assert!(v.get("truncated").is_some());
+    }
+
+    #[test]
+    fn test_gap_payload_empty_store_no_gaps() {
+        let store = Store::new();
+        let facts = crate::test_gap::CoverageFacts::default();
+        let v = test_gap_payload(&store, &facts, None, "coverage.json");
+        assert_eq!(v["gap_count"], 0);
+        assert_eq!(v["total_symbols"], 0);
+        let gaps = v["gaps"].as_array().unwrap();
+        assert!(gaps.is_empty());
+    }
+
+    #[test]
+    fn test_gap_payload_uncovered_symbol_appears_as_gap() {
+        let mut store = Store::new();
+        let _ = store.upsert_node(p("src/a.py>A>method"));
+        let facts = crate::test_gap::CoverageFacts::default(); // nothing executed
+        let v = test_gap_payload(&store, &facts, None, "cov.json");
+        assert_eq!(v["gap_count"], 1);
+        let gaps = v["gaps"].as_array().unwrap();
+        assert_eq!(gaps[0]["name"], "src/a.py>A>method");
+    }
+
+    #[test]
+    fn test_gap_payload_top_limits_gaps() {
+        let mut store = Store::new();
+        for i in 0..5u32 {
+            let _ = store.upsert_node(p(&format!("src/f{i}.py>C>m{i}")));
+        }
+        let facts = crate::test_gap::CoverageFacts::default();
+        let v = test_gap_payload(&store, &facts, Some(2), "cov.json");
+        let gaps = v["gaps"].as_array().unwrap();
+        assert_eq!(gaps.len(), 2);
+        assert_eq!(v["truncated"], true);
     }
 }

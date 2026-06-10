@@ -1,6 +1,6 @@
 ---
 name: graph-structure
-description: Structural graph analysis — cycles, SCCs, topological order, articulation points, bridges, k-core, dependency layers, and project health grade.
+description: Structural graph analysis — cycles, SCCs, topological order, articulation points, bridges, k-core, dependency layers, project health grade, and coverage-aware test-gap ranking.
 allowed-tools:
   - mcp__mycelium__get_stats
   - mcp__mycelium__get_graph_metrics
@@ -17,6 +17,7 @@ allowed-tools:
   - mcp__mycelium__get_degree_histogram
   - mcp__mycelium__find_cycle_members
   - mcp__mycelium__project_health
+  - mcp__mycelium__test_gap
 category: analysis
 icon: 🕸️
 marketplace_examples:
@@ -28,6 +29,8 @@ marketplace_examples:
     tool: mcp__mycelium__topological_sort
   - query: "What is the structural health grade of this project?"
     tool: mcp__mycelium__project_health
+  - query: "Which untested symbols have the highest blast radius?"
+    tool: mcp__mycelium__test_gap
 ---
 
 # `graph-structure` — what shape is this graph?
@@ -142,6 +145,25 @@ CLI:
 mycelium project-health --format json
 mycelium project-health  # text output: Grade B (83/100)
 ```
+
+### `test_gap` ⭐ — ranked test-gap worklist (RFC-0115 Phase 2)
+
+Joins an external `coverage.json` (coverage.py format) with the call graph to answer "which untested code matters most?". Returns symbols whose body lines were never executed, ranked by blast-radius (transitive callers). Coverage tells you *what* is untested; the graph tells you *which gap matters most*.
+
+```
+mcp__mycelium__test_gap({ "coverage": "coverage.json", "top": 10 })
+→ { "gaps": [{"name": "src/auth.py>Session>login", "file": "src/auth.py", "rank_score": 15000.0}, …],
+    "gap_count": 42, "total_symbols": 120, "coverage_source": "coverage.json", "truncated": true }
+```
+
+CLI:
+```bash
+mycelium test-gap --coverage coverage.json --top 10 --format json
+mycelium test-gap --top 20  # auto-discovers coverage.json in project root
+```
+
+Prerequisite: generate the artifact first — `coverage run -m pytest && coverage json`.
+Mycelium never runs the test suite (ADR-0010: consume external artifacts, never execute).
 
 ## Common chains
 

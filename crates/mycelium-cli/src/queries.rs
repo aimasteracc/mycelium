@@ -620,6 +620,61 @@ pub(crate) fn run_safe_to_edit(root: &Path, path: &str, format: Format) -> Resul
     Ok(())
 }
 
+/// Rank untested symbols by graph reach (RFC-0115 Phase 2).
+/// Byte-identical JSON output with the MCP twin `mycelium_test_gap`.
+pub(crate) fn run_test_gap(
+    root: &Path,
+    coverage: Option<&Path>,
+    top: usize,
+    format: Format,
+) -> Result<()> {
+    // Resolve coverage path: explicit → coverage.json in root → error.
+    let cov_path = if let Some(p) = coverage {
+        p.to_owned()
+    } else {
+        let candidate = root.join("coverage.json");
+        if !candidate.exists() {
+            anyhow::bail!(
+                "no coverage artifact found. Generate one with e.g. \
+                 `coverage run -m pytest && coverage json` then pass \
+                 `--coverage coverage.json`."
+            );
+        }
+        candidate
+    };
+    let content = std::fs::read_to_string(&cov_path)
+        .with_context(|| format!("reading {}", cov_path.display()))?;
+    let facts = mycelium_core::queries::parse_coverage_json(&content)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let cov_source = cov_path.display().to_string();
+    let store = load_index(root)?;
+    // Shared core builder → byte-identical with the MCP tool (RFC-0115 Phase 2).
+    let value = mycelium_core::queries::test_gap_payload(&store, &facts, Some(top), &cov_source);
+    match format {
+        Format::Json => println!("{}", serde_json::to_string(&value)?),
+        Format::Text => {
+            let gap_count = value["gap_count"].as_u64().unwrap_or(0);
+            let total = value["total_symbols"].as_u64().unwrap_or(0);
+            let truncated = value["truncated"].as_bool().unwrap_or(false);
+            println!(
+                "Test gaps: {gap_count} untested symbols out of {total} total \
+                 (coverage: {cov_source})"
+            );
+            if let Some(gaps) = value["gaps"].as_array() {
+                for (i, g) in gaps.iter().enumerate() {
+                    let name = g["name"].as_str().unwrap_or("?");
+                    let rank = g["rank_score"].as_f64().unwrap_or(0.0);
+                    println!("  {:>3}. {name}  (score={rank:.1})", i + 1);
+                }
+            }
+            if truncated {
+                println!("  … (truncated to top {top})");
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn run_get_dead_symbols(
     root: &Path,
     prefix: Option<&str>,

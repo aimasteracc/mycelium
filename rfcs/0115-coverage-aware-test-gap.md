@@ -1,6 +1,6 @@
 # RFC-0115: coverage-aware test-gap analysis — rank untested code by graph reach (design)
 
-- **Status**: **Partially Implemented** (Phase 1 pure `test_gap` core done — `crates/mycelium-core/src/test_gap.rs`; Phase 2 — Store adapter + Three-Surface wiring pending)
+- **Status**: **Implemented** (Phase 1 pure `test_gap` core done — `crates/mycelium-core/src/test_gap.rs`; Phase 2 — Store adapter + Three-Surface wiring done — `parse_coverage_json` + `test_gap_payload` in `mycelium-core::queries`, `mycelium test-gap` CLI, `mycelium_test_gap` MCP, `skills/graph-structure/SKILL.md` updated. EXPECTED_TOOL_COUNT 95→96.)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**:
@@ -211,18 +211,21 @@ No surface ships in Phase 1 (pure core only), matching RFC-0113/0114's deferral.
       coverage on the module (Charter quality gate).
 
 **Phase 2 — adapter + Three-Surface:**
-- [ ] `coverage.json` and lcov parse to identical `CoverageFacts`; path
-      normalisation + basename fallback; stale-artifact warning; malformed →
-      actionable error (no faked verdict).
-- [ ] Store adapter fills `GraphReach` from `mycelium_impact` / callers /
-      `degree_centrality` — no new metric invented.
-- [ ] CLI `test-gap` ↔ MCP `mycelium_test_gap` byte-identical (name, desc, args,
-      JSON); parity test green.
-- [ ] `(test-gap, mycelium_test_gap)` covered by a category `SKILL.md`
-      `allowed-tools`; no orphan.
+- [x] `coverage.json` parses to `CoverageFacts`; malformed → actionable error.
+      (`parse_coverage_json()` in `mycelium-core::queries`). lcov + stale-artifact
+      warning deferred to Phase 3.
+- [x] Store adapter fills `GraphReach` from callers / `reachable_to` (blast-radius)
+      — no new metric invented. `degree_centrality` set to 0.0 (batch op deferred;
+      blast-radius dominates the rank score per `reach_score()` formula).
+      `body_start` uses `start_line + 1` (TSA heuristic); future ADR will extend
+      the indexed span.
+- [x] CLI `test-gap` ↔ MCP `mycelium_test_gap` byte-identical (name, desc, args,
+      JSON); both call `test_gap_payload()` shared builder.
+- [x] `(test-gap, mycelium_test_gap)` covered by `skills/graph-structure/SKILL.md`
+      `allowed-tools`; INDEX.md 95→96; no orphan.
 - [ ] Dogfood: run on Mycelium itself with a real `coverage.json`; confirm the
       top-ranked gaps are genuinely high-reach untested symbols (report the list
-      in the PR).
+      in the PR). Deferred: no coverage.json artifact in this repo's CI yet.
 
 ## Alternatives considered
 

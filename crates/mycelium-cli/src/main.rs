@@ -364,6 +364,23 @@ enum Cmd {
         #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
         format: QueryFormat,
     },
+    /// Rank untested symbols by graph reach (RFC-0115 Phase 2).
+    /// Consumes a `coverage.json` (coverage.py format) artifact and returns
+    /// symbols whose body lines were never executed, ordered by blast-radius.
+    /// Byte-identical twin of `mycelium_test_gap`.
+    TestGap {
+        /// Path to `coverage.json` (coverage.py format). Defaults to
+        /// `coverage.json` in the project root.
+        #[arg(long)]
+        coverage: Option<PathBuf>,
+        /// Limit the output to the top-N gaps. Default: 20.
+        #[arg(long, default_value_t = 20)]
+        top: usize,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, value_enum, default_value_t = QueryFormat::Text)]
+        format: QueryFormat,
+    },
     /// Return `imports` + `imported_by` for a file/module.
     GetImports {
         path: String,
@@ -1403,6 +1420,15 @@ fn dispatch(cmd: Cmd) -> Result<()> {
         Cmd::SafeToEdit { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);
             queries::run_safe_to_edit(&canonical, &path, format.into())?;
+        }
+        Cmd::TestGap {
+            coverage,
+            top,
+            root,
+            format,
+        } => {
+            let canonical = root.canonicalize().unwrap_or(root);
+            queries::run_test_gap(&canonical, coverage.as_deref(), top, format.into())?;
         }
         Cmd::GetImports { path, root, format } => {
             let canonical = root.canonicalize().unwrap_or(root);

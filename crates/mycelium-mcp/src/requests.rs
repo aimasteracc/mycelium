@@ -1378,3 +1378,19 @@ pub struct GetProjectHealthRequest {
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
 }
+
+/// Input parameters for `mycelium_test_gap`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetTestGapRequest {
+    /// Path to a `coverage.json` (coverage.py format) artifact, relative to
+    /// the indexed workspace root. Omit to auto-discover `coverage.json` at
+    /// the workspace root.
+    #[serde(default)]
+    pub coverage: Option<String>,
+    /// Cap the returned gap list to the top-N symbols. Default: 20.
+    #[serde(default)]
+    pub top: Option<usize>,
+    /// Response format override. Omit to use the transport default.
+    #[serde(default)]
+    pub output_format: Option<OutputFormat>,
+}
