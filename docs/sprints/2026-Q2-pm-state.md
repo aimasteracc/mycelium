@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v177 — 0 open issues · PR #762 merged (v176 PM state) · PR #763 opened (RFC-0121 Option A Charter amendment, DRAFT) · PR #568 50/50 CI ✅ unchanged · develop CI GREEN · P0 escalation ×42 for #568) |
+| Last updated | 2026-06-11 (PM dispatch v178 — PR #764 merged (v177 PM state, Codex P2 rejected) · PR #763 DRAFT unchanged · PR #568 50/50 CI ✅ unchanged · develop CI GREEN · P0 escalation ×43 for #568) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize awaiting founder `finalize` workflow_dispatch on PR #568. RFC-0121 Option A now staged as DRAFT PR #763 (un-draft + merge = one action). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -80,11 +80,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** Develop HEAD `7b062c8` (dispatch v176, merged). Codex usage limits exhausted ×v134+ — billing notices only, no code findings. RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763.
-> **v177 update (2026-06-11):** PR #568 CI still 50/50 SUCCESS/SKIPPED. Develop CI GREEN. PR #762 merged (squash `7b062c8`). PR #763 opened (DRAFT — RFC-0121 Option A Charter §2 amendment, zero engineering needed, ready for founder to un-draft + merge).
+> ⚠️ **All three P0 items require founder action.** Develop HEAD `7c7a38c` (dispatch v177, merged). Codex usage limits exhausted ×v134+ — billing notices only, no code findings. RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763.
+> **v178 update (2026-06-11):** PR #568 CI still 50/50 SUCCESS/SKIPPED. Develop CI GREEN. PR #764 merged (squash `7c7a38c`, Codex P2 rejected — `bpe_charter_sla_binding` phantom test, 0 results in code search). PR #763 DRAFT unchanged (founder action required).
 
 **P0 (founder action required):**
-1. **PR #568** [×42 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×43 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — **🆕 DRAFT PR #763 ready**: Charter §2 Option A amendment staged. To adopt: **un-draft PR #763 + merge** (no engineering, CI will gate normally). Full analysis in [RFC-0121](../../rfcs/0121-charter-hyphae-token-sla-amendment.md). Option A = per-class targets (tree ≤35% ✅ already met, list ≤70%, scalar ≤90%).
 3. **Codex usage limits exhausted** (surfaced v134): CLAUDE.md Hard Rule requires Codex findings addressed before merge, but Codex cannot review while limits exhausted. Founder must upgrade credits or explicitly suspend the Hard Rule. See: https://chatgpt.com/codex/cloud/settings/usage
 
@@ -100,12 +100,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-11 v176)
+## Dispatch state (2026-06-11 v178)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×3)** | **(1) READY**: PR #568 CI 50/50 ✅ (×42 runs) — trigger `finalize` workflow_dispatch. **(2) 🆕 READY**: un-draft + merge PR #763 (RFC-0121 Option A Charter §2, zero engineering). **(3)** Resolve Codex limits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v177 complete: PR #762 merged (squash `7b062c8`, Codex P2 rejected); PR #763 opened (RFC-0121 Option A DRAFT); PM state v177 written; decisions.jsonl appended. |
+| founder | **🚨 action required (P0 ×3)** | **(1) READY**: PR #568 CI 50/50 ✅ (×43 runs) — trigger `finalize` workflow_dispatch. **(2) 🆕 READY**: un-draft + merge PR #763 (RFC-0121 Option A Charter §2, zero engineering). **(3)** Resolve Codex limits at https://chatgpt.com/codex/cloud/settings/usage. |
+| PM | **DONE ✅** | v178 complete: PR #764 merged (squash `7c7a38c`, Codex P2 rejected — phantom test); PM state v178 written; decisions.jsonl appended. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -143,7 +143,26 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-11 PM dispatch v177 (this run)
+### 2026-06-11 PM dispatch v178 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 from origin/chore/pm-state-v177: last entry v177 2026-06-11T03:20Z), anti-patterns (domain hits: ci/release-governance/merge-discipline/async), PM state v177 (branch `chore/pm-state-v177`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (`release/v0.3.0` → main; 50/50 CI SUCCESS/SKIPPED, registries published), #763 (DRAFT RFC-0121 Option A, 22/22 CI ✅), #764 (`chore/pm-state-v177` → develop; 22/22 CI ✅; 1 Codex P2 finding). 0 open issues.
+- PR #764 Codex P2: "Do not mark Option A ready without gate updates — `bpe_charter_sla_binding` test still asserts ratio ≤ 0.30." Investigated: `bpe_charter_sla_binding` does NOT exist in codebase (GitHub code search: 0 results). Phantom test. Existing `get_token_stats_token_ratio_vs_byte_ratio` asserts `0.0 < ratio < 1.0` only.
+- 0 autonomous code tasks available (all post-v0.3.0 blocked on ceremony; Codex billing exhausted).
+
+**Actions taken:**
+1. Replied to Codex P2 on PR #764 (rejected with justification: `bpe_charter_sla_binding` phantom test, 0 GitHub code search hits; existing test correct; RFC-0121 post-merge fixtures are deferred by design). ✅
+2. Admin-merged PR #764 (squash `7c7a38c`). ✅
+3. PM state v178 written; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×43: trigger `finalize` workflow_dispatch.
+- **(2) PR #763** (RFC-0121 Option A DRAFT): un-draft + merge.
+- **(3) Codex billing**: upgrade or suspend Hard Rule.
+
+### 2026-06-11 PM dispatch v177 (archived)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 from origin/develop after PR #762 merge: last entry 2026-06-11T03:00Z v176), anti-patterns (domain hits: ci/release-governance/merge-discipline), PM state v176 (merged commit `7b062c8`), v0.2 PRD.
 
