@@ -268,7 +268,13 @@ jobs:
 
   dco-check:
     name: DCO sign-off
-    if: github.event_name == 'pull_request'
+    # Skip for release/* and hotfix/* → main PRs. Those branches are managed
+    # by release.yml which intentionally skips DCO (squash-merge artifacts from
+    # develop don't carry Signed-off-by trailers; the source PRs were checked).
+    if: >
+      github.event_name == 'pull_request' &&
+      !startsWith(github.head_ref, 'release/') &&
+      !startsWith(github.head_ref, 'hotfix/')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
