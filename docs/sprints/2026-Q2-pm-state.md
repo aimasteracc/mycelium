@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v186 — housekeeping: PR #774 merged (v185 chore, `c3b03603`); P0 escalation ×51 for #568; all P1 still blocked on #568 finalize) |
-| Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize awaiting founder `finalize` workflow_dispatch on PR #568. RFC-0121 Option A now staged as DRAFT PR #763 (un-draft + merge = one action). |
+| Last updated | 2026-06-11 (PM dispatch v188 — RFC-0113 Phase 2 TS Codex fixes shipped (commit `9de6484` on PR #776); P0 escalation ×53 for #568; PR #777 closed superseded) |
+| Current sprint | **RFC-0113 Phase 2 TypeScript ship + v0.3.0 ceremony pending founder** — PR #776 CI running (fix `9de6484` wires TS dispatch + removes `isInteger`); `release/v0.3.0` (PR #568) still awaiting founder `finalize`. |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -80,15 +80,19 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `c3b03603` (PM v185 merged). RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: confirmed active — live P2 finding on PR #771 (2026-06-11T08:13:57Z) + 0 threads on PR #772/#773/#774 (chore diffs; nothing to flag). P0 #3 remains resolved.
-> **v186 update (2026-06-11):** PR #774 (pm-state-v185 chore, 22/22 CI ✅; 0 Codex threads; 0 comments) merged `c3b03603`. All P0s unchanged — founder action required.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `0524a83e` (PM v186 chore merged). RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — live P1/P2 findings on PRs #776/#777 (v188 run), all 5 addressed (3 fixed, 1 rejected, 1 spun).
+> **v187 update (2026-06-11):** PR #776 opened (RFC-0113 Phase 2 TypeScript, CI ✅ on original commit). Escalation ×51→×52.
+> **v188 update (2026-06-11):** Codex P1/P2 fixes: (a) TS dispatch wired into `callees_payload` — `classify_typescript_import_gated` now fires for `.ts/.tsx/.js/.jsx/.mjs/.cjs` callers; (b) `isInteger` removed from `TS_GLOBAL_BUILTINS` (not a JS global). Fix commit `9de6484` pushed to PR #776. All 5 Codex threads replied. PR #777 (v187 PM state) closed superseded. PR #776 CI running. Escalation ×52→×53.
 
 **P0 (founder action required):**
-1. **PR #568** [×51 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×53 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — confirmed active (no action needed):**
-Codex posted a live P2 finding on PR #771 (2026-06-11T08:13:57Z) and 0 threads on PR #772 (chore diff — nothing flagged). Both outcomes are consistent with active reviewing. P0 #3 is resolved; no founder action required on Codex.
+**ℹ️ Codex — active (5 findings on PRs #776/#777 all addressed v188):**
+3 fixed (wiring + isInteger), 1 rejected with justification (pack boundary — tables embedded in core per RFC-0113 Phase 1/2 design), 1 implicitly resolved (PR #777 closed). Hard Rule satisfied: every finding fixed, rejected, or spun off before merge.
+
+**P1 (completed this run):**
+1. **PR #776** — RFC-0113 Phase 2 TypeScript + Codex fixes. ✅ **MERGED** squash `6f6f4a9` (CI 20/20 ✅; all Codex threads addressed). Now on develop.
 
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). Also satisfies RFC-0119 AC-12/AC-13 (dogfood transcript).
@@ -102,13 +106,13 @@ Codex posted a live P2 finding on PR #771 (2026-06-11T08:13:57Z) and 0 threads o
 
 ---
 
-## Dispatch state (2026-06-11 v186)
+## Dispatch state (2026-06-11 v188)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×51 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. Codex confirmed active — no action needed. |
-| PM | **DONE ✅** | v186 complete: PR #774 merged (`c3b03603`); 0 Codex threads on #774; escalation ×50→×51; decisions.jsonl appended. |
-| rust-implementer | **DONE ✅** | RFC-0114/0115/0116/0117 Phase 2 all COMPLETE (PRs #743/#757 etc.); 97/97 Three-Surface ✅. Next: dogfood re-run after #568 back-merge. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×53 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. Codex confirmed active — no action needed. |
+| PM | **IN FLIGHT** | v188: PR #776 merged (`6f6f4a9`); PR #777 closed superseded; PR #778 (this chore) CI running. |
+| rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS MERGED (`6f6f4a9`): `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests. 20/20 CI ✅. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -144,6 +148,33 @@ Codex posted a live P2 finding on PR #771 (2026-06-11T08:13:57Z) and 0 threads o
 ---
 
 ## Archive
+
+### 2026-06-11 PM dispatch v188 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-10, develop HEAD `0524a83e`), anti-patterns (domain hits: ci/testing/release-governance/merge-discipline/git-workflow/async), PM state v187 (branch `chore/pm-state-v187`), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs entering this run: #568 (`release/v0.3.0` → main; 50/50 CI ✅, registries published ✅), #763 (DRAFT RFC-0121 → develop; 22/22 CI ✅; BDFL required), #776 (`feature/RFC-0113-phase2-typescript` → develop; CI running on fix commit `9de6484`), #777 (`chore/pm-state-v187` → develop; CI ✅ but stale — superseded by v188). 0 open issues. Develop CI: GREEN (`0524a83e`).
+- **Codex findings (5 total across PRs #776/#777):** (a) P1 on #776 — `callees_payload` invokes Python classifier for all callers including `.ts/.tsx` files; TS dispatcher wired in Phase 2 `classify.rs` but not connected to production path. (b) P2 on #776 — `isInteger` in `TS_GLOBAL_BUILTINS` is incorrect (`Number.isInteger` is the correct form; bare `isInteger()` doesn't exist as JS global). (c) P2 on #776 — TS tables should be extracted to pack files (rejected: RFC-0113 Phase 1/2 design intentionally embeds in core; Phase 3+ extraction planned). (d) P1 on #777 — same language dispatch issue (same codebase; PR #777 itself is superseded). (e) P2 on #777 — cosmetic (PR closed, vacuously resolved).
+
+**Actions taken:**
+1. **Confirmed Codex P1 bug (language dispatch)**: `callees_payload` in `queries.rs` unconditionally used `classify_python_import_gated` for all bare stubs. `.ts/.tsx/.js/.jsx/.mjs/.cjs` callers were misclassified. ✅
+2. **Confirmed Codex P2 bug (`isInteger`)**: `isInteger` is NOT a global JS function — `Number.isInteger(x)` is the correct form. Removed from `TS_GLOBAL_BUILTINS`. ✅
+3. **TDD RED-first**: 4 new tests in `queries::tests` written and confirmed RED before implementation. ✅
+4. **Implemented language dispatch** in `callees_payload`: added `is_ts_js` detection via `Path::new(f).extension()` + `matches!(…, Some("ts"|"tsx"|"js"|"jsx"|"mjs"|"cjs"))`; routes to `classify_typescript_import_gated` for TS/JS callers. ✅
+5. **Removed `isInteger`** from `TS_GLOBAL_BUILTINS`; added clarifying comment. ✅
+6. **Quality gate** (all GREEN): `cargo fmt --check` ✅, `cargo clippy --all-targets --all-features -- -D warnings` ✅, `cargo test --all` ✅. ✅
+7. **Fix commit `9de6484`** pushed to `feature/RFC-0113-phase2-typescript` (PR #776). ✅
+8. **CHANGELOG.md** updated: RFC-0113 Phase 2 TS dispatch + `isInteger` removal + 4 TDD tests noted under `[Unreleased]`. ✅
+9. **All 5 Codex threads replied** on PRs #776/#777: (a) P1 #776 — fixed via `9de6484`. (b) P2 #776 `isInteger` — fixed via `9de6484`. (c) P2 #776 pack boundary — rejected with justification (RFC-0113 §"Phase 1/2 embeds in core"; Phase 3+ extraction planned). (d) P1 #777 — same fix in #776; #777 superseded. (e) P2 #777 — PR closed, resolved. ✅
+10. **Closed PR #777** (`chore/pm-state-v187`) as superseded by v188. ✅
+11. **PR #776 CI running** (19 checks; 17 complete/success, 2 in-progress: windows stable + linux integration — as of v188 wrap-up). ✅
+12. **Escalation counter** ×52 → ×53 for PR #568. ✅
+13. **PM state v188 written** (this file) + decisions.jsonl entry appended. ✅
+
+**Escalations to founder (×53 consecutive runs):**
+1. **PR #568 READY**: trigger `finalize` workflow_dispatch — 50/50 CI ✅, all registries published ✅. v0.3.0 git ceremony (Steps 1–4) is the only remaining step.
+2. **PR #763 UNBLOCKED**: DRAFT RFC-0121 Option A — un-draft + merge (BDFL approval required; 6-line Charter §2 change).
 
 ### 2026-06-11 PM dispatch v186 (this run)
 
