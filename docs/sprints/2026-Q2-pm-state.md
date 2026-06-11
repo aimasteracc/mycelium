@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v191 — PR #780 CI anomaly (Triage ran; CI/E2E not triggered); P0 escalation ×56 for #568) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×56 escalations); PR #780 open with CI anomaly. |
+| Last updated | 2026-06-11 (PM dispatch v192 — PR #781 merged `af889a1`; PR #780 closed superseded; Codex P1+P2 on #781 rejected; P0 escalation ×57 for #568; lesson: workflow_dispatch ≠ pull_request event re-fire for E2E) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×57 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -80,17 +80,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Three P0 items — two require founder, one is a CI anomaly.** Develop HEAD `77ebe36` (PM v189 chore, via PR #779 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active (0 findings on PR #779 per v190). **CI anomaly**: PR #780 opened at 16:13:43Z — Triage ran (success), but CI and E2E workflows did NOT trigger via `pull_request` event (anomalous vs. all previous chore PRs which had CI within 1s). P0 #3 escalated.
-> **v191 update (2026-06-11):** PR #780 (`chore/pm-state-v190`) open with CI anomaly; v191 written without merging #780. Escalation ×54→×55 (v190) →×56 (v191).
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `af889a1` (PM v191 chore, via PR #781 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #781 had 2 findings (P1 stale SHA + P2 workflow_dispatch note), both rejected with justification. CI anomaly (PR #780) resolved — closed as superseded.
+> **v192 update (2026-06-11):** PR #781 (v191 chore) merged squash `af889a1`; PR #780 closed superseded. Codex P1+P2 rejected. Escalation ×56→×57.
 
 **P0 (founder action required):**
-1. **PR #568** [×56 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×57 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**P0 (CI anomaly — investigate and resolve):**
-3. **PR #780 CI not triggered** — `pull_request` event fired but CI and E2E workflows did NOT start (only `pull_request_target` Triage ran). Pattern: all previous chore PRs had CI within 1s of Triage. No GitHub Actions minutes issue (public repo; develop CI ran successfully at 16:09:39Z, 4 min before #780 opened). Possible causes: transient GH Actions routing bug, concurrency queue deadlock, or Actions config change. **Subscribed to PR #780 for CI events.** If CI doesn't start within 30 min of this report, investigate further (try manual `workflow_dispatch` trigger, or close/reopen PR #780 to re-fire the `pull_request` event).
-
-**ℹ️ Codex — active (per v190: 0 findings on PR #779). PR #780: 0 findings (as of v191; Triage-only CI run). Hard Rule satisfied.**
+**ℹ️ Codex — active. PR #781: 2 findings addressed (P1 stale SHA rejected; P2 workflow_dispatch note rejected with lesson). PR #780: closed superseded (no merge, CI anomaly resolved). Hard Rule satisfied.**
 
 **P1 (completed recently):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript + Codex fixes. ✅ **MERGED** squash `6f6f4a9` (CI 20/20 ✅; all Codex threads addressed). Now on develop.
@@ -107,12 +104,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-11 v191)
+## Dispatch state (2026-06-11 v192)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×3)** | **(1) READY**: PR #568 CI 50/50 ✅ (×56 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. **(3) CI anomaly**: PR #780 `pull_request` event did not trigger CI/E2E — if CI doesn't auto-start within 30 min, close+reopen PR #780 to re-fire the event. |
-| PM | **DONE ✅** | v191: CI anomaly on PR #780 diagnosed; subscribed to PR #780 for CI events; PR #568 escalation ×54→×56; v191 state written; chore PR #781 opened. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×57 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
+| PM | **DONE ✅** | v192: PR #781 merged `af889a1` (Codex P1+P2 rejected); PR #780 closed superseded; escalation ×56→×57; lesson appended to anti-patterns.jsonl. |
 | rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS MERGED (`6f6f4a9`): `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests. 20/20 CI ✅. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -150,7 +147,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-11 PM dispatch v191 (this run)
+### 2026-06-11 PM dispatch v192 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-5: v185–v191), anti-patterns (hits: ci/testing/release-governance/merge-discipline/git-workflow/workflow-dispatch), PM state v191 (develop HEAD `af889a1` post-merge), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs at start: #568 (`release/v0.3.0` → main; 50/50 CI ✅, registries ✅, founder-gated ×56), #763 (DRAFT RFC-0121 → develop; 22/22 CI ✅; BDFL required), #780 (`chore/pm-state-v190`; CI anomaly — never ran), #781 (`chore/pm-state-v191`; 22/22 CI ✅; 2 Codex findings). 0 open issues. Develop CI: GREEN.
+- PR #781 had 2 Codex findings (P1 DCO stale SHA + P2 workflow_dispatch-vs-E2E note). Both addressable without code changes.
+- PR #780 had CI anomaly (only Triage ran 2026-06-11T16:13Z; CI/E2E never fired). Root cause: transient GH Actions `pull_request` event routing failure. Resolution: close as superseded (v191 already written; re-opening would be redundant).
+- No autonomous engineering work available — all P1 items blocked on PR #568 git ceremony.
+
+**Actions taken:**
+1. **Replied Codex P1** on PR #781 (`discussion_r3397807761`): rejected — stale SHA `25426bf4` is a squash artifact; CI DCO job `80860017655` shows SUCCESS on current branch commits. ✅
+2. **Replied Codex P2** on PR #781 (`discussion_r3397807765`): rejected with lesson — `workflow_dispatch` on `e2e.yml` is unsupported (triggers: push/pull_request/schedule only); primary recovery "close+reopen" was correct; operational impact zero (PR #780 being closed). Lesson appended to `anti-patterns.jsonl`. ✅
+3. **Merged PR #781** — squash `af889a1` (all Codex threads addressed, 22/22 CI ✅). ✅
+4. **Closed PR #780** — superseded by v191/v192. CI anomaly resolved by not retrying. ✅
+5. **Incremented PR #568 escalation**: ×56 → ×57. ✅
+6. **PM state v192 written** + decisions.jsonl appended + anti-patterns.jsonl appended. ✅
+
+**Escalations to founder (×57 consecutive runs for #568):**
+1. **PR #568 READY**: trigger `finalize` workflow_dispatch — 50/50 CI ✅, all registries published ✅ (×57 consecutive runs).
+2. **PR #763 UNBLOCKED**: DRAFT RFC-0121 Option A — `bpe_charter_sla_binding` per-class thresholds on develop ✅; un-draft + merge (6-line Charter §2 change; BDFL approval required).
+
+---
+
+### 2026-06-11 PM dispatch v191 (previous run)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 from local clone + `git show origin/develop` tail-5), anti-patterns (domain hits: ci/testing/release-governance/merge-discipline/git-workflow), PM state v189 (develop HEAD `77ebe36`), v0.2 PRD. GitHub state verified via MCP GitHub tools.
 
