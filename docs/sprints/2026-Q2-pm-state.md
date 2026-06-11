@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v179 — PR #765 merged (v178 PM state) · PR #767 merged (issue #766 closed: bpe_charter_sla_binding per-class SLA thresholds) · PR #763 UNBLOCKED · PR #568 50/50 CI ✅ · develop CI GREEN · P0 escalation ×44 for #568) |
+| Last updated | 2026-06-11 (PM dispatch v180 — issue #766 manually closed (auto-close didn't trigger) · PR #763 item (2) corrected to UNBLOCKED in dispatch table · PR #568 50/50 CI ✅ · develop CI GREEN · P0 escalation ×45 for #568) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize awaiting founder `finalize` workflow_dispatch on PR #568. RFC-0121 Option A now staged as DRAFT PR #763 (un-draft + merge = one action). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -80,11 +80,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** Develop HEAD `b2515263` (PR #767 merged). Codex usage limits exhausted ×v134+ — billing notices only, no code findings. RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **now unblocked** (issue #766 closed via PR #767).
-> **v179 update (2026-06-11):** PR #568 CI 50/50 SUCCESS/SKIPPED. Develop CI GREEN. PR #765 merged (squash `c9836688`), PR #767 merged (squash `b2515263`, issue #766 closed). PR #763 unblocked: `bpe_charter_sla_binding` now asserts per-class RFC-0121 Option A thresholds.
+> ⚠️ **All three P0 items require founder action.** Develop HEAD `ac9aeb2` (PM v179 merged). Codex usage limits exhausted ×v134+ — billing notices only, no code findings. RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked** (issue #766 closed via `b2515263` + manually closed v180).
+> **v180 update (2026-06-11):** Develop CI GREEN (50/50 on PR #568; CI on develop ✅). Issue #766 manually closed (GitHub auto-close didn't trigger from squash). Dispatch table item (2) corrected: PR #763 is UNBLOCKED. All P0s unchanged — founder action required.
 
 **P0 (founder action required):**
-1. **PR #568** [×43 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×44 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged. ✅ **UNBLOCKED**: issue #766 closed via PR #767 (squash `b2515263`) — `bpe_charter_sla_binding` now asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 3. **Codex usage limits exhausted** (surfaced v134): CLAUDE.md Hard Rule requires Codex findings addressed before merge, but Codex cannot review while limits exhausted. Founder must upgrade credits or explicitly suspend the Hard Rule. See: https://chatgpt.com/codex/cloud/settings/usage
 
@@ -100,12 +100,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-11 v179)
+## Dispatch state (2026-06-11 v180)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×3)** | **(1) READY**: PR #568 CI 50/50 ✅ (×43 runs) — trigger `finalize` workflow_dispatch. **(2) BLOCKED**: PR #763 requires issue #766 resolved first (bpe_charter_sla_binding test update). **(3)** Resolve Codex limits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v179 complete: PR #765 merged (c9836688); PR #767 merged (b2515263, issue #766 closed); decisions.jsonl appended; PM state v179 updated. |
+| founder | **🚨 action required (P0 ×3)** | **(1) READY**: PR #568 CI 50/50 ✅ (×44 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — issue #766 closed (`b2515263` + manual close v180); `bpe_charter_sla_binding` asserts per-class thresholds. Un-draft + merge. **(3)** Resolve Codex limits at https://chatgpt.com/codex/cloud/settings/usage. |
+| PM | **DONE ✅** | v180 complete: issue #766 manually closed; dispatch table item (2) corrected to UNBLOCKED; decisions.jsonl appended; PM state v180 updated. |
 | rust-implementer | **DONE ✅** | Issue #766: bpe_charter_sla_binding updated to RFC-0121 per-class thresholds — merged in PR #767. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -144,7 +144,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-11 PM dispatch v179 (this run)
+### 2026-06-11 PM dispatch v180 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 — last entry v179 2026-06-11T05:15Z), anti-patterns (domain hits: ci/release-governance/merge-discipline), PM state v179 (develop HEAD `ac9aeb2`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (`release/v0.3.0` → main; 50/50 CI SUCCESS/SKIPPED, all registries published), #763 (DRAFT RFC-0121 Option A → develop; 1 file, 6+/2-; no conflicts with develop; requires founder approval). 1 open issue: #766 (P1 — auto-close from squash didn't trigger; fix `b2515263` already on develop).
+- Develop CI: GREEN (CI + E2E both success at 2026-06-11T05:48Z). Codex billing exhausted ×v134+.
+- v179 dispatch state inconsistency: Live priorities said PR #763 UNBLOCKED but dispatch table still showed "(2) BLOCKED". Corrected in v180.
+
+**Actions taken:**
+1. **Closed issue #766** manually via GitHub API — auto-close from squash merge `b2515263` (PR #767) didn't trigger; fix is on develop HEAD (`b251526`). ✅
+2. **Corrected dispatch table item (2)**: founder entry was inconsistent (Live priorities said UNBLOCKED; table still said BLOCKED). Updated to UNBLOCKED with correct status. ✅
+3. **Incremented PR #568 escalation counter**: ×43 → ×44 in Live priorities; ×44 → ×45 in header. ✅
+4. **Updated PM state v180** (this file) + decisions.jsonl entry appended. ✅
+
+**Escalations to founder (P0, ×45 consecutive runs for PR #568):**
+- **(1) PR #568 — 🚨 READY NOW**: 50/50 CI SUCCESS/SKIPPED. All registries published (crates.io, npm, PyPI). Charter §5.12 gate MET. Trigger `finalize` workflow_dispatch.
+- **(2) PR #763 — ✅ UNBLOCKED**: Un-draft + merge (6-line Charter §2 amendment). `bpe_charter_sla_binding` already asserts per-class thresholds. Issue #766 closed.
+- **(3) Codex limits**: Upgrade at https://chatgpt.com/codex/cloud/settings/usage or explicitly suspend Hard Rule.
+
+### 2026-06-11 PM dispatch v179 (archived)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (217 entries on develop HEAD `b2515263`), anti-patterns, PM state v178 (develop HEAD), v0.2 PRD.
 
