@@ -6,7 +6,7 @@
 
 **Version:** 1.0  
 **Status:** Active  
-**Last amended:** 2026-05-28  
+**Last amended:** 2026-06-11 *(§2 AI token efficiency rows, per [RFC-0121](rfcs/0121-charter-hyphae-token-sla-amendment.md) Option A — pending founder approval)*  
 **Amendment process:** Open a `meta` RFC.
 
 ---
@@ -41,7 +41,9 @@ it does not ship. CI gates them.
 | Cold small query (single symbol lookup) | < 5 ms |
 | 3-hop graph traversal (callers, depth 3) | < 1 ms |
 | Reactive re-query after file change | < 10 ms |
-| AI token efficiency (Hyphae DSL vs JSON) | ≤ 30% of JSON token count for the same payload |
+| AI token efficiency — tree responses (`callee_tree`, `reachable_set`, `hub_symbols`, et al.) | ≤ 35% of JSON token count |
+| AI token efficiency — list responses (`get_callees`, `get_callers`, `all_symbols`, `page_rank`, et al.) | ≤ 70% of JSON token count |
+| AI token efficiency — scalar / status responses | ≤ 90% of JSON token count |
 | New language onboarding | ≤ 3 files, 0 core-code lines changed |
 | Public API documentation coverage | 100% of pub items have rustdoc |
 | Test coverage (line) | ≥ 90% |
@@ -52,6 +54,8 @@ it does not ship. CI gates them.
 | Heavy-graph tools (leaf_symbols, degree_histogram, graph_metrics, page_rank, wcc, find_call_path) on 1 K-node graph | < 2 s |
 | Heavy-graph tools (same six) on 10 K-node graph | < 10 s |
 | Heavy-graph tools (same six) on 100 K-node graph | < 30 s |
+
+> **Response-class definitions ([RFC-0121](rfcs/0121-charter-hyphae-token-sla-amendment.md)).** *Tree*: response contains nested `callees`, `nodes`, `reachable_set`, or similar hierarchical structure. *List*: response is a flat or single-depth list of symbol paths / counts. *Scalar*: response is a single value, boolean, or short status object.
 
 ## 3. Tech Stack (locked)
 
