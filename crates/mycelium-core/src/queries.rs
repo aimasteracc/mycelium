@@ -19,23 +19,29 @@ use crate::types::{EdgeKind, NodeId};
 /// `callee_paths` is kept for backward compatibility. `callees` is the additive
 /// array where each entry carries the trunk path **and** a static classification:
 /// - Paths containing `>` are project-defined symbols → `"project"`.
-/// - Bare stub paths (no `>`) are classified against the Python stdlib/builtin/
-///   external allowlists ([`crate::classify::classify_python`]). Callers must
-///   apply the project-ownership shadow first (only unresolved stubs reach here),
-///   which `resolve_bare_call_stubs` already ensures.
+/// - Bare stub paths (no `>`) are classified against the language-appropriate
+///   allowlists: TypeScript/JS classifier for `.ts/.tsx/.js/.jsx/.mjs/.cjs`
+///   callers (RFC-0113 Phase 2); Python classifier otherwise. Callers must apply
+///   the project-ownership shadow first (only unresolved stubs reach here), which
+///   `resolve_bare_call_stubs` already ensures.
 ///
 /// Both arrays are sorted lexicographically by path and deduplicated.
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
-    use crate::classify::{CalleeClass, classify_python_import_gated};
+    use crate::classify::{
+        CalleeClass, classify_python_import_gated, classify_typescript_import_gated,
+    };
     use std::collections::HashSet;
 
     // RFC-0113 Phase 3: build the caller file's import-module set for gating.
     // Extract the file prefix of the caller's path, look up its NodeId, then
     // collect the module-name stems of all its Imports edges.
-    let caller_imports: HashSet<String> = store
+    let caller_file = store
         .path_of(id)
-        .map(|p| p.split('>').next().unwrap_or(p))
+        .map(|p| p.split('>').next().unwrap_or(p).to_owned());
+
+    let caller_imports: HashSet<String> = caller_file
+        .as_deref()
         .and_then(|file_path| store.lookup(file_path))
         .map(|file_id| {
             store
@@ -49,6 +55,14 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
         })
         .unwrap_or_default();
 
+    // RFC-0113 Phase 2: dispatch to language-appropriate classifier.
+    let is_ts_js = caller_file.as_deref().is_some_and(|f| {
+        matches!(
+            std::path::Path::new(f).extension().and_then(|e| e.to_str()),
+            Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs")
+        )
+    });
+
     let mut entries: Vec<(String, &'static str)> = store
         .outgoing(id, kind)
         .iter()
@@ -56,6 +70,8 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
             store.path_of(dst).map(|path| {
                 let class = if path.contains('>') {
                     CalleeClass::Project.as_str()
+                } else if is_ts_js {
+                    classify_typescript_import_gated(path, &caller_imports).as_str()
                 } else {
                     classify_python_import_gated(path, &caller_imports).as_str()
                 };
@@ -1038,5 +1054,73 @@ mod tests {
         let gaps = v["gaps"].as_array().unwrap();
         assert_eq!(gaps.len(), 2);
         assert_eq!(v["truncated"], true);
+    }
+
+    // ── RFC-0113 Phase 2: language dispatch for TypeScript/JS callers ─────────
+    // Codex P1/P2 fix: callees_payload must dispatch to the TS classifier for
+    // .ts/.js callers instead of always using the Python classifier.
+
+    #[test]
+    fn callees_payload_ts_builtin_classified_for_ts_caller() {
+        // TypeScript caller → bare stub "parseInt" must be "builtin" (TS global).
+        // Before the dispatch fix the Python classifier returns "unknown".
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/app.ts>App>run"));
+        let stub = store.upsert_node(p("parseInt"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "parseInt");
+        assert_eq!(entries[0]["class"], "builtin");
+    }
+
+    #[test]
+    fn callees_payload_ts_stdlib_with_fs_import_is_stdlib() {
+        // TypeScript caller + `import { readFileSync } from 'fs'` → "stdlib".
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let file = store.upsert_node_with_kind(p("src/app.ts"), NodeKind::File);
+        let src = store.upsert_node(p("src/app.ts>App>run"));
+        let stub = store.upsert_node(p("readFileSync"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+        let fs_mod = store.upsert_node_with_kind(p("fs"), NodeKind::Module);
+        store.upsert_edge(EdgeKind::Imports, file, fs_mod);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "readFileSync");
+        assert_eq!(entries[0]["class"], "stdlib");
+    }
+
+    #[test]
+    fn callees_payload_is_integer_is_unknown_for_ts_caller() {
+        // `isInteger` is NOT a JS/TS global (Number.isInteger is qualified).
+        // Codex P2: after removing from TS_GLOBAL_BUILTINS → "unknown".
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/app.ts>App>run"));
+        let stub = store.upsert_node(p("isInteger"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "isInteger");
+        assert_eq!(entries[0]["class"], "unknown");
+    }
+
+    #[test]
+    fn callees_payload_js_file_also_uses_ts_classifier() {
+        // .js extension also routes to TypeScript classifier.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/util.js>util>helper"));
+        let stub = store.upsert_node(p("setTimeout"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["class"], "builtin");
     }
 }

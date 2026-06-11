@@ -1262,7 +1262,7 @@ static TS_GLOBAL_BUILTINS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
         "parseFloat",
         "isNaN",
         "isFinite",
-        "isInteger",
+        // isInteger is NOT a global — the correct form is Number.isInteger(...)
         // URI encoding
         "encodeURI",
         "encodeURIComponent",
