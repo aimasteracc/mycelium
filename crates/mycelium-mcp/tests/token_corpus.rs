@@ -103,14 +103,15 @@ fn per_fixture_totals_sum_to_aggregate() {
 //
 // These tests are gated behind `--features tiktoken` so normal CI stays
 // hermetic. They are the binding measurement for Charter §2 "AI token
-// efficiency (Hyphae DSL vs JSON) ≤ 30% of JSON token count" SLA.
+// efficiency" SLA (amended by RFC-0121 Option A to per-class thresholds).
 // ---------------------------------------------------------------------------
 
 /// Measures `TextFormatter` vs `JsonFormatter` BPE token ratio over the committed corpus.
 ///
 /// **Current corpus is Phase 1a scaffolding** (small Mycelium self-index fixtures).
 /// Phase 1b captures real ripgrep outputs via `scripts/capture_token_corpus.sh`.
-/// The Charter §2 binding assertion (≤ 30% ratio) activates after real corpus lands.
+/// The Charter §2 binding assertion (per-class thresholds per RFC-0121 Option A)
+/// activates after real corpus lands.
 ///
 /// This test always passes — it prints the measured ratio and fails loudly only when
 /// the ratio exceeds 1.0 (`TextFormatter` makes things *larger* than `JsonFormatter`).
@@ -141,17 +142,25 @@ fn bpe_text_to_json_ratio_informational() {
     );
 }
 
-/// Charter §2 binding assertion: `TextFormatter` ≤ 30% of `JsonFormatter` tokens
-/// over the **real** ripgrep corpus (captured via `scripts/capture_token_corpus.sh`).
+/// Charter §2 per-class binding assertion (RFC-0121 Option A).
 ///
-/// This test is gated behind the `MYCELIUM_REAL_CORPUS` environment variable so it
-/// does NOT run on the Phase 1a synthetic corpus (which produces a ~77% ratio on
-/// small fixtures — not representative of large real-world tool outputs).
-/// It activates when:
-///   (a) the corpus has been regenerated from real ripgrep output, AND
-///   (b) `MYCELIUM_REAL_CORPUS=1` is set (done automatically by capture script).
+/// Replaces the single `≤ 30%` aggregate with three per-response-class targets:
+///
+/// | Class  | Threshold | Matched by                                   |
+/// |--------|-----------|----------------------------------------------|
+/// | tree   | ≤ 35%     | fixture names ending in `_tree`              |
+/// | list   | ≤ 70%     | all other fixtures (default)                 |
+/// | scalar | ≤ 90%     | names ending in `_info`, `_status`, `_count` |
+///
+/// Classification uses fixture name conventions so no JSON metadata changes are needed.
+/// Gated on `MYCELIUM_REAL_CORPUS=1` (unchanged) — skip on the Phase 1a synthetic corpus
+/// (which produces ~77% ratio on small fixtures — not representative of large real outputs).
+///
+/// See [RFC-0121](../../rfcs/0121-charter-hyphae-token-sla-amendment.md) for rationale,
+/// measured production averages (75.3% overall), and Option A vs B vs C analysis.
 #[cfg(feature = "tiktoken")]
 #[test]
+#[allow(clippy::cast_precision_loss)]
 fn bpe_charter_sla_binding() {
     if std::env::var("MYCELIUM_REAL_CORPUS").is_err() {
         println!(
@@ -163,14 +172,46 @@ fn bpe_charter_sla_binding() {
     let corpus = load_corpus();
     let counter = BpeTokenCounter::cl100k_base();
     let report = measure_corpus(&corpus, &counter);
-    let ratio = report.text_to_json_token_ratio();
-    assert!(
-        ratio <= 0.30,
-        "Charter §2 SLA requires TextFormatter tokens ≤ 30% of JsonFormatter tokens \
-         (cl100k_base over real ripgrep corpus). Measured ratio = {ratio:.4} ({pct:.1}%). \
-         If the honest number exceeds 30%, update Charter §2 and README per RFC-0120 §Decision.",
-        pct = ratio * 100.0,
-    );
+
+    // Accumulate per-class token totals using fixture name conventions.
+    let mut tree = (0usize, 0usize); // (json_tokens, text_tokens)
+    let mut list = (0usize, 0usize);
+    let mut scalar = (0usize, 0usize);
+
+    for r in &report.fixtures {
+        let bucket = if r.name.ends_with("_tree") || r.name.contains("_tree_") {
+            &mut tree
+        } else if r.name.ends_with("_info")
+            || r.name.ends_with("_status")
+            || r.name.ends_with("_count")
+        {
+            &mut scalar
+        } else {
+            &mut list
+        };
+        bucket.0 += r.json_tokens;
+        bucket.1 += r.text_tokens;
+    }
+
+    // Assert RFC-0121 Option A per-class thresholds.
+    for (class, (json, text), limit) in [
+        ("tree", tree, 0.35_f64),
+        ("list", list, 0.70_f64),
+        ("scalar", scalar, 0.90_f64),
+    ] {
+        if json == 0 {
+            continue;
+        }
+        let ratio = text as f64 / json as f64;
+        assert!(
+            ratio <= limit,
+            "Charter §2 SLA (RFC-0121 Option A): {class} responses must use \
+             ≤{limit_pct:.0}% of JSON tokens; measured {ratio:.4} ({measured_pct:.1}%). \
+             Regenerate corpus: scripts/capture_token_corpus.sh",
+            limit_pct = limit * 100.0,
+            measured_pct = ratio * 100.0,
+        );
+    }
 }
 
 /// Sanity: BPE also reduces tokens vs JSON (same direction as whitespace counter).
