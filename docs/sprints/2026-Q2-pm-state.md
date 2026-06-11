@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v175 — PR #568 CI CONFIRMED GREEN 50/50 all checks SUCCESS/SKIPPED; PR #760 (v174 state) merged; P0 escalation ×40 runs — founder `finalize` workflow_dispatch is the ONLY remaining step for v0.3.0) |
+| Last updated | 2026-06-11 (PM dispatch v176 — 0 open issues · 1 open PR (#568, 50/50 CI ✅ unchanged) · develop CI GREEN · RFC-0120 Implemented ✅ · all remaining work founder-gated · P0 escalation ×41 runs) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize (merge main + tag + GitHub Release + back-merge) awaiting founder `finalize` workflow_dispatch on PR #568 |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -80,10 +80,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** Develop HEAD `45fd3c6` (dispatch v174 merged). Codex usage limits exhausted ×v134+ — billing notices only, no code findings.
-> **v175 update:** PR #568 CI CONFIRMED GREEN 50/50 (all SUCCESS or SKIPPED incl. crates.io ✅, npm ✅, PyPI ✅, 5-platform binaries ✅, Quality Gate ✅). Dirty state fixed in v174. **PR #568 is now fully ready — only `finalize` workflow_dispatch remains.**
+> ⚠️ **All three P0 items require founder action.** Develop HEAD `40d47a5` (dispatch v175). Codex usage limits exhausted ×v134+ — billing notices only, no code findings. RFC-0120 is **Implemented ✅**; RFC-0121 awaits founder Option A/B/C.
+> **v176 update:** PR #568 CI still 50/50 SUCCESS/SKIPPED (latest run 2026-06-11T00:34Z). Develop CI GREEN (latest run 2026-06-11T01:12Z). Zero open issues. Zero new PRs. No autonomous code work available — all three P0 escalations remain founder-gated.
 
-**P0 (founder action required — ×40 consecutive runs):**
+**P0 (founder action required — ×41 consecutive runs):**
 1. **PR #568** (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** ([RFC file written](../../rfcs/0121-charter-hyphae-token-sla-amendment.md)): Charter §2 Hyphae token efficiency ratio measured at **0.753 vs target ≤0.30** — choose:
    - **Option A** (PM recommendation): Amend Charter §2 to per-class targets (tree ≤35% ✅ already met, list ≤70%, scalar ≤90%) — no engineering work, immediately satisfies CI gates
@@ -103,12 +103,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-11 v175)
+## Dispatch state (2026-06-11 v176)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×3, ×40 runs)** | **(1) READY NOW**: PR #568 CI 50/50 ✅ — trigger `finalize` workflow_dispatch to complete v0.3.0 ceremony. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v175 complete: PR #760 (v174 state) admin-merged squash `45fd3c6`; PR #568 CI confirmed 50/50 SUCCESS/SKIPPED; PM state v175 written. |
+| founder | **🚨 action required (P0 ×3, ×41 runs)** | **(1) READY NOW**: PR #568 CI 50/50 ✅ — trigger `finalize` workflow_dispatch to complete v0.3.0 ceremony. **(2)** Choose RFC-0121 Option A/B/C — [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md), PM recommends A. **(3)** Resolve Codex usage limits at https://chatgpt.com/codex/cloud/settings/usage. |
+| PM | **DONE ✅** | v176 complete: CI confirmed unchanged (50/50 on #568, develop GREEN); RFC-0120 status verified Implemented; 0 new issues/PRs; PM state v176 written. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -146,7 +146,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-11 PM dispatch v175 (this run)
+### 2026-06-11 PM dispatch v176 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 from origin/develop: last entry 2026-06-11T00:45Z v175), anti-patterns (domain hits: ci/release-governance/merge-discipline), PM state v175 (origin/develop HEAD `40d47a5`), v0.2 PRD.
+
+**Assessment:**
+- 1 open PR: #568 (`release/v0.3.0` → `main`; 50/50 CI SUCCESS/SKIPPED, unchanged from v175 confirmation). 0 open issues (P0, P1, all labels). Develop CI GREEN (latest run 2026-06-11T01:12Z).
+- RFC-0120 status verified: **Implemented** (Phase 3B complete — CLI twin + byte-identity harness). No code work needed there.
+- RFC-0121 status: Draft — still awaiting founder Option A/B/C. Blocked autonomously.
+- Codex billing exhausted ×v134+ — no new inline findings possible; Hard Rule vacuously satisfied.
+- All post-v0.3.0 code items (RFC-0117 Phase 2 ✅, RFC-0115 Phase 2 ✅, RFC-0124 ✅, pack span fixes ✅) already on develop. Zero unblocked autonomous code tasks.
+
+**Actions taken:**
+1. **Confirmed PR #568 CI**: 50/50 checks SUCCESS/SKIPPED (latest release.yml run `27315018025`, completed 2026-06-11T00:34Z). Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate MET. ✅
+2. **Confirmed develop CI**: GREEN (CI run `27317083077` + E2E `27317083106`, completed 2026-06-11T01:12Z). ✅
+3. **Verified RFC-0120**: Status = Implemented. No action needed. ✅
+4. **Scanned for unblocked work**: 0 open issues, 0 non-#568 PRs, all code tasks done or blocked. ✅
+5. **Updated PM state v176** (this file) + decisions.jsonl entry. ✅
+
+**Escalations to founder (P0, ×41 consecutive runs):**
+- **(1) PR #568 — 🚨 READY NOW**: 50/50 CI SUCCESS/SKIPPED. Registries published. Charter gate MET. **One action needed**: trigger `finalize` workflow_dispatch on PR #568 to complete v0.3.0 ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop). This unblocks all P1 items (e2e dogfood, bench, v0.3.1 scoping).
+- **(2) RFC-0121**: Charter §2 Hyphae token SLA — choose Option A/B/C. PM recommends **A** (per-class targets; no engineering work; immediately satisfies CI gates). [RFC written](rfcs/0121-charter-hyphae-token-sla-amendment.md).
+- **(3) Codex limits**: Upgrade or explicitly suspend CLAUDE.md Hard Rule at https://chatgpt.com/codex/cloud/settings/usage.
+
+### 2026-06-11 PM dispatch v175
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20: last entry 2026-06-04 v29 + release prep), anti-patterns (domain hits: ci/release-governance/merge-discipline), PM state v174 (fetched origin/develop after merging PR #760), v0.2 PRD.
 
