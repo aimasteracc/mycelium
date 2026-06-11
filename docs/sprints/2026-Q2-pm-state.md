@@ -159,7 +159,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 2. **Incremented PR #568 escalation counter**: ×44 → ×45 in Live priorities. ✅
 3. **Updated PM state v181** (this file) + decisions.jsonl entry appended. ✅
 
-**Escalations to founder (P0, ×46 consecutive runs for PR #568):**
+**Escalations to founder (P0, ×45 consecutive runs for PR #568):**
 - **(1) PR #568 — 🚨 READY NOW**: 50/50 CI SUCCESS/SKIPPED. Registries published (crates.io, npm, PyPI). Charter §5.12 gate MET. Trigger `finalize` workflow_dispatch on PR #568.
 - **(2) PR #763 — ✅ UNBLOCKED**: Un-draft + merge (6-line Charter §2 amendment). `bpe_charter_sla_binding` already asserts per-class thresholds. Issue #766 closed.
 - **(3) Codex limits**: Upgrade at https://chatgpt.com/codex/cloud/settings/usage or explicitly suspend Hard Rule.
