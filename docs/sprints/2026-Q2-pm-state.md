@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v188 — RFC-0113 Phase 2 TS Codex fixes shipped (commit `9de6484` on PR #776); P0 escalation ×53 for #568; PR #777 closed superseded) |
-| Current sprint | **RFC-0113 Phase 2 TypeScript ship + v0.3.0 ceremony pending founder** — PR #776 CI running (fix `9de6484` wires TS dispatch + removes `isInteger`); `release/v0.3.0` (PR #568) still awaiting founder `finalize`. |
+| Last updated | 2026-06-11 (PM dispatch v189 — PR #778 merged (`f948cef`); Codex P1 on #778 rejected (stale SHA); P0 escalation ×54 for #568) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×54 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -80,16 +80,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `0524a83e` (PM v186 chore merged). RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — live P1/P2 findings on PRs #776/#777 (v188 run), all 5 addressed (3 fixed, 1 rejected, 1 spun).
-> **v187 update (2026-06-11):** PR #776 opened (RFC-0113 Phase 2 TypeScript, CI ✅ on original commit). Escalation ×51→×52.
-> **v188 update (2026-06-11):** Codex P1/P2 fixes: (a) TS dispatch wired into `callees_payload` — `classify_typescript_import_gated` now fires for `.ts/.tsx/.js/.jsx/.mjs/.cjs` callers; (b) `isInteger` removed from `TS_GLOBAL_BUILTINS` (not a JS global). Fix commit `9de6484` pushed to PR #776. All 5 Codex threads replied. PR #777 (v187 PM state) closed superseded. PR #776 CI running. Escalation ×52→×53.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `f948cef` (PM v188 chore merged). RFC-0120 is **Implemented ✅**; RFC-0113 Phase 2 TS on develop (`6f6f4a9`); RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — 1 P1 finding on PR #778 (stale SHA, rejected with justification; CI DCO ✅ confirmed current commits signed).
+> **v189 update (2026-06-11):** PR #778 (PM v188 chore) merged squash `f948cef`. Codex P1 on #778 rejected (stale SHA `5a4bc871` not on branch; current commits `d4b03c55`/`254ebaa4` both signed; CI DCO check SUCCESS). Escalation ×53→×54.
 
 **P0 (founder action required):**
-1. **PR #568** [×53 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×54 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active (5 findings on PRs #776/#777 all addressed v188):**
-3 fixed (wiring + isInteger), 1 rejected with justification (pack boundary — tables embedded in core per RFC-0113 Phase 1/2 design), 1 implicitly resolved (PR #777 closed). Hard Rule satisfied: every finding fixed, rejected, or spun off before merge.
+**ℹ️ Codex — active (1 finding on PR #778, rejected v189; 5 findings on PRs #776/#777 all addressed v188):**
+#778 P1 rejected (stale SHA); #776/#777: 3 fixed (wiring + isInteger), 1 rejected (pack boundary), 1 implicitly resolved. Hard Rule satisfied every run.
 
 **P1 (completed this run):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript + Codex fixes. ✅ **MERGED** squash `6f6f4a9` (CI 20/20 ✅; all Codex threads addressed). Now on develop.
@@ -106,12 +105,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-11 v188)
+## Dispatch state (2026-06-11 v189)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×53 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. Codex confirmed active — no action needed. |
-| PM | **IN FLIGHT** | v188: PR #776 merged (`6f6f4a9`); PR #777 closed superseded; PR #778 (this chore) CI running. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×54 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. Codex confirmed active — no action needed. |
+| PM | **DONE ✅** | v189: PR #778 merged (`f948cef`); Codex P1 on #778 rejected (stale SHA); escalation ×54; PM state v189 PR opened. |
 | rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS MERGED (`6f6f4a9`): `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests. 20/20 CI ✅. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -149,7 +148,29 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-11 PM dispatch v188 (this run)
+### 2026-06-11 PM dispatch v189 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20, origin/develop `6f6f4a9`), anti-patterns (domain hits: ci/testing/release-governance/merge-discipline/tdd/rfc), PM state v186 (develop)/v188 (PR #778 branch), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (`release/v0.3.0` → main; 50/50 CI ✅, registries published ✅, founder-gated ×53), #763 (DRAFT RFC-0121 → develop; 22/22 CI ✅; BDFL required), #778 (`chore/pm-state-v188` → develop; 20/20 CI ✅). 0 open issues. Develop CI: GREEN (`6f6f4a9` = RFC-0113 Phase 2 TS).
+- **Codex finding on PR #778**: 1 P1 — "no DCO sign-off on commit `5a4bc8714`". Stale SHA; current HEAD commits `d4b03c55` + `254ebaa4` both have valid `Signed-off-by` trailers. CI `DCO sign-off` job PASSED.
+- All P1 work remains blocked on PR #568 ceremony. No autonomous code tasks available.
+
+**Actions taken:**
+1. **Verified PR #778** (pm-state-v188): 20/20 CI ✅; 1 Codex P1 finding (stale SHA). ✅
+2. **Replied to Codex P1 on PR #778** (comment `3396753702`) — rejected with justification: current commits have valid DCO sign-offs; CI DCO check SUCCESS; SHA `5a4bc871` no longer on branch. ✅
+3. **Merged PR #778** (squash `f948cef`). ✅
+4. **Incremented PR #568 escalation counter**: ×53 → ×54. ✅
+5. **PM state v189 written** (this file) + decisions.jsonl appended. ✅
+
+**Escalations to founder (×54 consecutive runs):**
+1. **PR #568 READY**: trigger `finalize` workflow_dispatch — 50/50 CI ✅, all registries published ✅ (×54 consecutive runs). Every CI check is SUCCESS or SKIPPED. v0.3.0 git ceremony (Steps 1–4) is the only remaining step.
+2. **PR #763 UNBLOCKED**: DRAFT RFC-0121 Option A — `bpe_charter_sla_binding` per-class thresholds on develop ✅; un-draft + merge (6-line Charter §2 change). BDFL approval required.
+
+---
+
+### 2026-06-11 PM dispatch v188
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-10, develop HEAD `0524a83e`), anti-patterns (domain hits: ci/testing/release-governance/merge-discipline/git-workflow/async), PM state v187 (branch `chore/pm-state-v187`), v0.2 PRD.
 
