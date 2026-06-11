@@ -2,7 +2,7 @@
 
 - **RFC**: 0108
 - **Title**: Subscribe to a *query result* — receive a notification only when its value actually changes
-- **Status**: **Implemented** *(autonomous-mode build on branch `feature/rfc-0108-impl`; all 4 founder recommendations applied; awaiting founder review for merge)*
+- **Status**: **Implemented** *(merged to develop via PR #480, 2026-06-03; shipped in v0.1.18. Salsa Phase 2 reactive query subscriptions live in `crates/mycelium-mcp/src/subscription.rs` + `crates/mycelium-core/src/cortex.rs`.)*
 - **Author**: rust-implementer (autonomous-mode draft)
 - **Created**: 2026-06-03
 - **Depends on**:

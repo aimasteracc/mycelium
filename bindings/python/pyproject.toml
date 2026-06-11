@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mycelium-rcig"
+version = "0.0.0.dev0"
+description = "Thin, typed Python SDK for the Mycelium code-intelligence engine. Wraps the prebuilt mycelium CLI — no Rust/Cargo toolchain required."
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [{ name = "aimasteracc" }]
+keywords = [
+  "code-intelligence",
+  "code-graph",
+  "mcp",
+  "ai",
+  "sdk",
+  "static-analysis",
+  "tree-sitter",
+  "mycelium",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Quality Assurance",
+]
+
+# The PyPI distribution is `mycelium-rcig` (the short name `mycelium` is taken
+# by an unrelated package), mirroring the crates.io `mycelium-rcig-*` prefix.
+# The import package is `mycelium_rcig` to avoid shadowing that package.
+[project.urls]
+Homepage = "https://github.com/aimasteracc/mycelium"
+Repository = "https://github.com/aimasteracc/mycelium"
+Issues = "https://github.com/aimasteracc/mycelium/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mycelium_rcig"]

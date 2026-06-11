@@ -103,13 +103,11 @@ use rmcp::{
     model::Implementation, model::ServerCapabilities, model::ServerInfo, tool, tool_handler,
     tool_router,
 };
-use schemars::JsonSchema;
-use serde::Deserialize;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
 use crate::error::{application_error, not_found, success_str};
-use crate::formatter::{OutputFormat, formatter_for};
+use crate::formatter::formatter_for;
 
 fn legacy_index_path(root: &Path) -> PathBuf {
     root.join(".mycelium").join("index.rmp")
@@ -324,1175 +322,8 @@ const CSHARP_QUERIES: &str = include_str!("../packs/csharp/queries.scm");
 
 // ── request schemas ───────────────────────────────────────────────────────────
 
-/// Input parameters for `mycelium_index_workspace`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct IndexWorkspaceRequest {
-    /// Absolute or relative path to the workspace root to index.
-    pub path: String,
-}
-
-/// Input parameters for `mycelium_search_symbol`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct SearchSymbolRequest {
-    /// Name prefix or substring to search for (case-insensitive).
-    pub query: String,
-    /// Maximum number of results to return (default: 20).
-    #[serde(default)]
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_ancestors`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetAncestorsRequest {
-    /// Trunk path to look up, e.g. `"src/main.rs>greet"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_descendants`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetDescendantsRequest {
-    /// Trunk path to look up, e.g. `"src/lib.rs"`.
-    pub path: String,
-    /// When `true`, also return methods inherited from base classes via
-    /// Extends edges. Inherited methods appear in an `inherited_descendants`
-    /// array, each entry as `{"path": "...", "from": "..."}`. Methods
-    /// overridden by the class are excluded from the inherited list.
-    /// Defaults to `false` for backward compatibility.
-    #[serde(default)]
-    pub include_inherited: Option<bool>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_load_index`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct LoadIndexRequest {
-    /// Workspace root that contains a `.mycelium/index.rmp` snapshot.
-    pub path: String,
-}
-
-/// Input parameters for `mycelium_get_callees`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetCalleesRequest {
-    /// Trunk path to look up callees for, e.g. `"src/lib.rs>process"`.
-    pub path: String,
-    /// Edge kind to traverse: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
-    #[serde(default)]
-    pub edge_kind: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
-    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
-    /// The CLI `--budget` flag is the byte-identical twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
-
-/// Input parameters for `mycelium_get_callers`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetCallersRequest {
-    /// Trunk path to look up callers for, e.g. `"src/lib.rs>helper"`.
-    pub path: String,
-    /// Edge kind to traverse: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
-    #[serde(default)]
-    pub edge_kind: Option<String>,
-    /// When true, also include callers that reach this symbol via virtual dispatch —
-    /// i.e., callers that call an ancestor (base class) method of the same name.
-    /// Only applies when `edge_kind` is `"calls"` (the default). Default: false.
-    #[serde(default)]
-    pub include_virtual: Option<bool>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
-    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
-    /// The CLI `--budget` flag is the byte-identical twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
-
-/// Input parameters for `mycelium_get_symbol_info`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSymbolInfoRequest {
-    /// Trunk path to query, e.g. `"src/lib.rs>AuthService>login"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_callee_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetCalleeTreeRequest {
-    /// Root symbol path, e.g. `"src/main.rs>main"`.
-    pub path: String,
-    /// Maximum traversal depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_caller_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetCallerTreeRequest {
-    /// Root symbol path, e.g. `"src/db.rs>query"`.
-    pub path: String,
-    /// Maximum traversal depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_imports`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetImportsRequest {
-    /// Trunk path to query, e.g. `"src/auth.rs"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_import_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetImportTreeRequest {
-    /// Root path, e.g. `"src/auth.rs"`.
-    pub path: String,
-    /// Maximum traversal depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_batch_symbol_info`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BatchSymbolInfoRequest {
-    /// List of trunk paths to query (maximum 50).
-    pub paths: Vec<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_find_import_path`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindImportPathRequest {
-    /// Start of the import chain, e.g. `"src/main.rs"`.
-    pub from_path: String,
-    /// End of the import chain, e.g. `"src/db.rs"`.
-    pub to_path: String,
-    /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_extends_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetExtendsTreeRequest {
-    /// Root symbol path, e.g. `"src/child.ts>Child"`.
-    pub path: String,
-    /// Maximum DFS depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_subclasses_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSubclassesTreeRequest {
-    /// Root symbol path, e.g. `"src/base.ts>Base"`.
-    pub path: String,
-    /// Maximum DFS depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_find_extends_path`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindExtendsPathRequest {
-    /// Start of the extends chain, e.g. `"src/io.ts>ReadStream"`.
-    pub from_path: String,
-    /// End of the extends chain, e.g. `"src/base.ts>EventEmitter"`.
-    pub to_path: String,
-    /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_implements_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetImplementsTreeRequest {
-    /// Root symbol path, e.g. `"src/cls.ts>Cls"`.
-    pub path: String,
-    /// Maximum DFS depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_implementors_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetImplementorsTreeRequest {
-    /// Root symbol path (interface), e.g. `"src/iface.ts>IFace"`.
-    pub path: String,
-    /// Maximum DFS depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_importers_tree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetImportersTreeRequest {
-    /// Root symbol path (module), e.g. `"src/utils.ts>utils"`.
-    pub path: String,
-    /// Maximum DFS depth. Defaults to 4, capped at 10.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_find_implements_path`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindImplementsPathRequest {
-    /// Start symbol path, e.g. `"src/foo.ts>Foo"`.
-    pub from_path: String,
-    /// End symbol path (interface), e.g. `"src/iface.ts>IFace"`.
-    pub to_path: String,
-    /// Maximum traversal depth (hops). Defaults to 8, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_node_kind`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetNodeKindRequest {
-    /// Trunk path to query, e.g. `"src/auth.rs>login"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_symbols_by_kind`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSymbolsByKindRequest {
-    /// `NodeKind` wire string, e.g. `"function"`, `"class"`, `"method"`.
-    pub kind: String,
-    /// Optional path prefix to restrict results, e.g. `"src/"`.
-    pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_source_span`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSourceSpanRequest {
-    /// Trunk path to query, e.g. `"src/auth.rs>login"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_extends`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetExtendsRequest {
-    /// Trunk path to query, e.g. `"src/shapes.py>Rectangle"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_implements`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetImplementsRequest {
-    /// Trunk path to query, e.g. `"src/io.ts>FileReader"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_entry_points`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetEntryPointsRequest {
-    /// Optional path prefix to restrict results (e.g. `"src/handlers/"`).
-    pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_rank_symbols`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct RankSymbolsRequest {
-    /// Maximum results to return (default 10, capped at 100).
-    pub limit: Option<usize>,
-    /// Edge kind to rank by incoming-edge count: `"calls"` (default), `"imports"`, `"extends"`, `"implements"`.
-    #[serde(default)]
-    pub edge_kind: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_top_files`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetTopFilesRequest {
-    /// Maximum results to return (default 10, capped at 100).
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_most_connected`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetMostConnectedRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum results to return (default 10, capped at 100).
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_leaf_symbols`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetLeafSymbolsRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum results to return (default 10, capped at 100).
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_shortest_path`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetShortestPathRequest {
-    /// Source node path (e.g. `"src/a.rs>main"`).
-    pub from: String,
-    /// Target node path (e.g. `"src/b.rs>helper"`).
-    pub to: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_symbol_count_by_kind` (no parameters).
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSymbolCountByKindRequest {
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_common_callers`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetCommonCallersRequest {
-    /// Target node paths to intersect (1–20 entries).
-    pub paths: Vec<String>,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_common_callees`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetCommonCalleesRequest {
-    /// Source node paths to intersect (1–20 entries).
-    pub paths: Vec<String>,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_fan_out_rank`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetFanOutRankRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum results to return (default 10, capped at 100).
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_fan_in_rank`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetFanInRankRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum results to return (default 10, capped at 100).
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_files`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetFilesRequest {
-    /// Optional path prefix to filter results (e.g. `"src/"`).
-    pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_dead_symbols`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetDeadSymbolsRequest {
-    /// Optional path prefix to filter results (e.g. `"src/"`).
-    pub path_prefix: Option<String>,
-    /// When set, return symbols with no incoming edges of this specific kind
-    /// (`"calls"`, `"imports"`, `"extends"`, `"implements"`).
-    /// When omitted (default), returns symbols with no incoming Calls AND no incoming Imports
-    /// — the classic "unreachable" definition.
-    #[serde(default)]
-    pub edge_kind: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
-    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
-    /// The CLI `--budget` flag is the byte-identical twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
-
-/// Input parameters for `mycelium_get_isolated_symbols`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetIsolatedSymbolsRequest {
-    /// Optional path prefix to filter results (e.g. `"src/"`).
-    pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
-    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
-    /// The CLI `--budget` flag is the byte-identical twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
-
-/// Input parameters for `mycelium_get_stats`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetStatsRequest {
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_cross_refs`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetCrossRefsRequest {
-    /// Symbol path to look up, e.g. `"src/lib.rs>MyClass"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_outgoing_refs`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetOutgoingRefsRequest {
-    /// Symbol path to look up, e.g. `"src/app.rs>App"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_scc_groups`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSccGroupsRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_dependency_layers`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetDependencyLayersRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_two_hop_neighbors`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetTwoHopNeighborsRequest {
-    /// Symbol path, e.g. `"src/service.rs>Service"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_symbol_neighborhood`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSymbolNeighborhoodRequest {
-    /// Symbol path, e.g. `"src/service.rs>Service"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_hub_symbols`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetHubSymbolsRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Minimum in-degree. Defaults to 1 if omitted.
-    pub min_in: Option<usize>,
-    /// Minimum out-degree. Defaults to 1 if omitted.
-    pub min_out: Option<usize>,
-    /// Maximum results returned. Defaults to 10, capped at 100.
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_singly_referenced`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSinglyReferencedRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum results returned. Defaults to 10, capped at 100.
-    pub limit: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_batch_reachable_to`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BatchReachableToRequest {
-    /// Symbol paths to find dependents of (up to 20 entries).
-    pub paths: Vec<String>,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum BFS depth per source. Defaults to 10, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_batch_reachable_from`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BatchReachableFromRequest {
-    /// Symbol paths to start from (up to 20 entries).
-    pub paths: Vec<String>,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum BFS depth per source. Defaults to 10, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_batch_node_degree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BatchNodeDegreeRequest {
-    /// Symbol paths to query (up to 50 entries).
-    pub paths: Vec<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_wcc`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetWccRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Only return components with at least this many symbols. Defaults to 1.
-    pub min_size: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_find_articulation_points`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindArticulationPointsRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_find_bridge_edges`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindBridgeEdgesRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_biconnected_components`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BiconnectedComponentsRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_degree_histogram`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DegreeHistogramRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_graph_metrics`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GraphMetricsRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_neighbor_similarity`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct NeighborSimilarityRequest {
-    /// First symbol path.
-    pub path1: String,
-    /// Second symbol path.
-    pub path2: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_clustering_coefficient`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ClusteringCoefficientRequest {
-    /// Symbol path, e.g. `"src/a.rs>MyStruct"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_eccentricity`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct EccentricityRequest {
-    /// Symbol path, e.g. `"src/a.rs>MyStruct"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_harmonic_centrality`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct HarmonicCentralityRequest {
-    /// Symbol path, e.g. `"src/a.rs>MyStruct"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_mutual_reachability`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct MutualReachabilityRequest {
-    /// First symbol path, e.g. `"src/a.rs>A"`.
-    pub path1: String,
-    /// Second symbol path, e.g. `"src/b.rs>B"`.
-    pub path2: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_betweenness_centrality`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BetweennessCentralityRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// How many top entries to return; defaults to 10 if absent.
-    pub top_n: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_sync_file`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct SyncFileRequest {
-    /// Relative path of the file to re-index (e.g. `"src/auth.rs"`).
-    pub path: String,
-}
-
-/// Input parameters for `mycelium_get_dependency_depth`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DependencyDepthRequest {
-    /// Symbol path, e.g. `"src/a.rs>A"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_closeness_centrality`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ClosenessCentralityRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// How many top entries to return; defaults to 10 if absent.
-    pub top_n: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_degree_centrality`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DegreeCentralityRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// How many top entries to return; defaults to 10 if absent.
-    pub top_n: Option<usize>,
-    /// Sort order: `"in"` (default, by in-degree centrality) or `"out"` (by out-degree centrality).
-    pub sort_by: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_strongly_connected_components`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct StronglyConnectedComponentsRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Minimum component size to include; defaults to 1 (all components).
-    /// Use `2` to return only non-trivial SCCs (circular dependencies).
-    pub min_size: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_k_hop_neighbors`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct KHopNeighborsRequest {
-    /// Symbol path, e.g. `"src/a.rs>A"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Number of hops (k ≥ 1; k = 0 returns empty).
-    pub k: usize,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_common_reachable`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CommonReachableRequest {
-    /// First symbol path, e.g. `"src/a.rs>A"`.
-    pub path1: String,
-    /// Second symbol path, e.g. `"src/b.rs>B"`.
-    pub path2: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_page_rank`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct PageRankRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Damping factor ∈ [0.0, 1.0]; defaults to 0.85 if absent.
-    pub damping: Option<f64>,
-    /// Number of power iterations; defaults to 20 if absent.
-    pub iterations: Option<usize>,
-    /// How many top entries to return; defaults to 10 if absent.
-    pub top_n: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_reaches_into`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ReachesIntoRequest {
-    /// Symbol path, e.g. `"src/a.rs>A"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_reachable_set`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ReachableSetRequest {
-    /// Symbol path, e.g. `"src/a.rs>A"`.
-    pub path: String,
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_topological_sort`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TopologicalSortRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_find_cycle_members`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindCycleMembersRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_k_core`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetKCoreRequest {
-    /// Edge kind: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Minimum total degree (in + out) within the induced subgraph. Defaults to 2.
-    pub k: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_all_symbols`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetAllSymbolsRequest {
-    /// Optional path prefix to restrict results, e.g. `"src/"`.
-    pub path_prefix: Option<String>,
-    /// Optional kind filter: `"function"`, `"class"`, `"method"`, etc.
-    pub kind: Option<String>,
-    /// Maximum number of symbols to return. `0` or omitted means no limit.
-    #[serde(default)]
-    pub limit: Option<usize>,
-    /// Number of symbols to skip before returning results. Defaults to 0.
-    #[serde(default)]
-    pub offset: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
-    /// `"medium"` / `"large"`, or `"disabled"`. Caps the paginated page.
-    /// Unknown values are rejected. The CLI `--budget` flag is the twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
-
-/// Input parameters for `mycelium_get_reachable`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetReachableRequest {
-    /// Starting symbol path, e.g. `"src/app.rs>App"`.
-    pub path: String,
-    /// Edge kind to follow: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum BFS depth. Defaults to 10, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
-    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
-    /// The CLI `--budget` flag is the byte-identical twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
-
-/// Input parameters for `mycelium_get_reachable_to`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetReachableToRequest {
-    /// Target symbol path, e.g. `"src/utils.rs>helper"`.
-    pub path: String,
-    /// Edge kind to follow backwards: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Maximum BFS depth. Defaults to 10, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default), `"small"` /
-    /// `"medium"` / `"large"`, or `"disabled"`. Unknown values are rejected.
-    /// The CLI `--budget` flag is the byte-identical twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
-
-/// Input parameters for `mycelium_get_siblings`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetSiblingsRequest {
-    /// Symbol path whose siblings to look up, e.g. `"src/app.rs>App>render"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_query` — the MCP twin of the CLI
-/// `mycelium query <expr>` subcommand (Three-Surface Rule, RFC-0090, #151).
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct QueryRequest {
-    /// A Hyphae DSL selector. See RFC-0003 for the grammar.
-    ///
-    /// Examples: `#login` (name selector), `.function` (kind selector),
-    /// `.class>.method` (direct-child combinator),
-    /// `.function:calls(.function)` (pseudo-class — when executor supports it).
-    pub expr: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_get_node_degree`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetNodeDegreeRequest {
-    /// Symbol or file path to analyse, e.g. `"src/app.rs>App"`.
-    pub path: String,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_detect_cycles`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DetectCyclesRequest {
-    /// Edge kind to analyze: `"calls"`, `"imports"`, `"extends"`, or `"implements"`.
-    pub edge_kind: String,
-    /// Optional path prefix to filter returned cycle nodes (e.g. `"src/"`).
-    pub path_prefix: Option<String>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_find_call_path`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindCallPathRequest {
-    /// Start of the call chain, e.g. `"src/main.rs>main"`.
-    pub from_path: String,
-    /// End of the call chain, e.g. `"src/db.rs>query"`.
-    pub to_path: String,
-    /// Maximum traversal depth (hops). Defaults to 10, capped at 20.
-    pub max_depth: Option<usize>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-}
-
-/// Input parameters for `mycelium_set_compact_mode`.
-///
-/// When compact mode is `true`, tools that support it (currently
-/// `mycelium_search_symbol`) return a MessagePack-encoded payload encoded as
-/// a lowercase hexadecimal string wrapped in
-/// `{ "fmt": "msgpack_hex", "data": "<hex>" }` instead of plain JSON.  This
-/// typically reduces token consumption to ≤ 30 % of the equivalent JSON
-/// payload (Charter §2 SLA).
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct SetCompactModeRequest {
-    /// Set to `true` to enable compact `MessagePack` output, `false` to revert
-    /// to human-readable JSON.
-    pub enabled: bool,
-}
-
-/// Input parameters for `mycelium_context`.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GetContextRequest {
-    /// Natural-language task, for example "how does request routing work"
-    /// or "trace `handle_request` to `get_user`".
-    pub task: String,
-    /// Maximum graph nodes to return (default: 30).
-    #[serde(default)]
-    pub max_nodes: Option<usize>,
-    /// Maximum source snippets to return (default: 6).
-    #[serde(default)]
-    pub max_code_blocks: Option<usize>,
-    /// Edge kinds to expand during one-hop graph traversal, e.g.
-    /// `["calls", "imports", "extends"]`. Omit or empty ⇒ `["calls"]`
-    /// (RFC-0101 `edge_kinds`). Unknown names are ignored.
-    #[serde(default)]
-    pub edge_kinds: Option<Vec<String>>,
-    /// Response format: `"json"` (default), `"text"` (TOON, fewer tokens),
-    /// `"msgpack"` (hex-encoded binary). Omit for JSON.
-    #[serde(default)]
-    pub output_format: Option<OutputFormat>,
-    /// Per-call output budget (RFC-0102): `"auto"` (default, follows project
-    /// size), `"small"` / `"medium"` / `"large"` (pin a tier), or `"disabled"`
-    /// (no truncation). Unknown values are rejected. The CLI `--budget` flag is
-    /// the byte-identical twin.
-    #[serde(default)]
-    pub budget: Option<String>,
-}
+pub mod requests;
+pub use requests::*;
 
 // ── server ────────────────────────────────────────────────────────────────────
 
@@ -1536,6 +367,12 @@ pub struct MyceliumServer {
     /// When `true`, symbol-search results are returned as `MessagePack` hex
     /// instead of JSON, achieving the Charter §2 AI token-efficiency SLA.
     compact_mode: Arc<AtomicBool>,
+    /// Default output format applied when a tool call omits `output_format`
+    /// (RFC-0094 Phase 4). `new()` / `new_with_allowed_roots()` keep `Json`
+    /// for byte-stable programmatic and test output; `serve_stdio` (real LLM
+    /// callers) flips this to `Text` via [`Self::with_default_format`] to cut
+    /// ~72% of output tokens for tree-shaped responses.
+    default_format: OutputFormat,
     /// Salsa reactive database for incremental file indexing (Cortex / RFC-0003).
     ///
     /// Wraps file content as [`Cortex`] inputs; the watch loop updates these
@@ -1581,12 +418,43 @@ impl MyceliumServer {
             watch_state: Arc::new(WatchState::default()),
             watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
             compact_mode: Arc::new(AtomicBool::new(false)),
+            default_format: OutputFormat::Json,
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(vec![]),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
             notifier: Arc::new(tokio::sync::Mutex::new(None)),
             subscriptions: subscription::new_store(),
             eviction_abort: Arc::new(tokio::sync::Mutex::new(None)),
+        }
+    }
+
+    /// Set the default output format used when a tool call omits `output_format`
+    /// (RFC-0094 Phase 4). Consuming builder. `serve_stdio` flips the default to
+    /// [`OutputFormat::Text`] for LLM callers; `new()` keeps `Json` so existing
+    /// programmatic/test callers get byte-stable JSON.
+    #[must_use]
+    pub const fn with_default_format(mut self, fmt: OutputFormat) -> Self {
+        self.default_format = fmt;
+        self
+    }
+
+    /// Render a tool result `value`, honoring the per-call `output_format` and
+    /// otherwise falling back to the server default (RFC-0094 Phase 4).
+    ///
+    /// - `Some(fmt)` → that explicit format.
+    /// - `None` + compact mode → `MessagePack` hex (legacy RFC-0090 behaviour).
+    /// - `None` + default `Json` → compact `value.to_string()` (byte-identical
+    ///   to the pre-Phase-4 default, so existing callers/tests are unaffected).
+    /// - `None` + default `Text` → the token-efficient TOON text format (the
+    ///   stdio LLM-caller default).
+    fn render(&self, fmt: Option<OutputFormat>, value: &serde_json::Value) -> String {
+        match fmt {
+            Some(f) => formatter_for(f).format(value),
+            None if self.compact_mode.load(Ordering::Relaxed) => encode_msgpack_hex(value),
+            None => match self.default_format {
+                OutputFormat::Json => value.to_string(),
+                other => formatter_for(other).format(value),
+            },
         }
     }
 
@@ -1607,6 +475,7 @@ impl MyceliumServer {
             watch_state: Arc::new(WatchState::default()),
             watch_abort: Arc::new(tokio::sync::Mutex::new(None)),
             compact_mode: Arc::new(AtomicBool::new(false)),
+            default_format: OutputFormat::Json,
             cortex: Arc::new(tokio::sync::Mutex::new(Cortex::default())),
             allowed_roots: Arc::new(canonical_roots),
             output_budget: Arc::new(tokio::sync::Mutex::new(OutputBudget::for_project(0))),
@@ -2117,13 +986,7 @@ impl MyceliumServer {
         let matches = self.store.read().await.search_symbol(&req.query, limit);
         let mut value = serde_json::json!({ "matches": matches });
         apply_budget(&mut value, &self.current_budget().await);
-        match req.output_format {
-            Some(fmt) => success_str(formatter_for(fmt).format(&value)),
-            None if self.compact_mode.load(Ordering::Relaxed) => {
-                success_str(encode_msgpack_hex(&value))
-            }
-            None => success_str(value.to_string()),
-        }
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2141,10 +1004,7 @@ impl MyceliumServer {
             .ancestors_of_path(&req.path)
             .unwrap_or_default();
         let value = serde_json::json!({ "ancestors": ancestors });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2175,10 +1035,7 @@ impl MyceliumServer {
                 .collect::<Vec<_>>();
             value["inherited_descendants"] = serde_json::Value::Array(inherited);
         }
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2381,10 +1238,7 @@ impl MyceliumServer {
         let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
         drop(store_guard);
         apply_budget(&mut value, &budget);
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2427,10 +1281,7 @@ impl MyceliumServer {
         let budget = OutputBudget::resolve(budget_override, store_guard.node_count());
         drop(store_guard);
         apply_budget(&mut value, &budget);
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2485,10 +1336,7 @@ impl MyceliumServer {
             "callers": callers,
             "callees": callees,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2550,10 +1398,7 @@ impl MyceliumServer {
             .collect();
         drop(store_guard);
         let value = serde_json::json!({ "symbols": symbols });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2575,10 +1420,7 @@ impl MyceliumServer {
         let json_tree = callee_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2601,10 +1443,7 @@ impl MyceliumServer {
         let json_tree = caller_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(description = "Return the direct import neighbors for a trunk path: \
@@ -2624,10 +1463,7 @@ impl MyceliumServer {
         let imported_by = store_guard.imported_by(id);
         drop(store_guard);
         let value = serde_json::json!({ "imports": imports, "imported_by": imported_by });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2650,10 +1486,7 @@ impl MyceliumServer {
         let json_tree = import_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json_tree });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2678,10 +1511,7 @@ impl MyceliumServer {
             });
         drop(store_guard);
         let value = serde_json::json!({ "path": req.path, "kind": kind_str });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2706,10 +1536,7 @@ impl MyceliumServer {
             .await
             .symbols_of_kind(kind, req.path_prefix.as_deref());
         let value = serde_json::json!({ "symbols": symbols });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2741,11 +1568,11 @@ impl MyceliumServer {
                 "start_byte": span.start_byte,
                 "end_byte": span.end_byte,
             });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         } else {
             drop(store_guard);
             let value = serde_json::json!({ "path": req.path, "span": serde_json::Value::Null });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         }
     }
 
@@ -2778,10 +1605,7 @@ impl MyceliumServer {
         extended_by.sort_unstable();
         drop(store_guard);
         let value = serde_json::json!({ "extends": extends, "extended_by": extended_by });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2815,10 +1639,7 @@ impl MyceliumServer {
         drop(store_guard);
         let value =
             serde_json::json!({ "implements": implements, "implemented_by": implemented_by });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2837,10 +1658,7 @@ impl MyceliumServer {
             .await
             .entry_points(req.path_prefix.as_deref());
         let value = serde_json::json!({ "entry_points": eps });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2876,10 +1694,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2911,10 +1726,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2935,10 +1747,7 @@ impl MyceliumServer {
             "nodes_by_kind": stats.nodes_by_kind,
             "edges_by_kind": stats.edges_by_kind,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2965,10 +1774,7 @@ impl MyceliumServer {
             "extended_by": refs.extended_by,
             "implemented_by": refs.implemented_by,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -2995,10 +1801,7 @@ impl MyceliumServer {
             "extends": refs.extends,
             "implements": refs.implements,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3048,10 +1851,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3092,10 +1892,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3136,10 +1933,7 @@ impl MyceliumServer {
             &mut value,
             &OutputBudget::resolve(budget_override, node_count),
         );
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3161,10 +1955,7 @@ impl MyceliumServer {
         };
         let count = siblings.len();
         let value = serde_json::json!({ "siblings": siblings, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3190,10 +1981,7 @@ impl MyceliumServer {
         drop(store);
         let count = matches.len();
         let value = serde_json::json!({ "matches": matches, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3224,10 +2012,7 @@ impl MyceliumServer {
             "in_implements": deg.in_implements,
             "out_implements": deg.out_implements,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3251,10 +2036,7 @@ impl MyceliumServer {
             .nodes_in_cycles(kind, req.path_prefix.as_deref());
         let count = nodes.len();
         let value = serde_json::json!({ "cycle_nodes": nodes, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3282,10 +2064,7 @@ impl MyceliumServer {
             "group_count": group_count,
             "total_symbols": total_symbols,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3321,10 +2100,7 @@ impl MyceliumServer {
             "total_symbols": total_symbols,
             "cycle_excluded_count": cycle_excluded_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3353,10 +2129,7 @@ impl MyceliumServer {
         drop(store);
         let count = neighbors.len();
         let value = serde_json::json!({ "neighbors": neighbors, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3394,10 +2167,7 @@ impl MyceliumServer {
             "incoming_count": incoming_count,
             "outgoing_count": outgoing_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3434,10 +2204,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "hubs": hubs_json, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3471,10 +2238,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3507,10 +2271,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3545,10 +2306,7 @@ impl MyceliumServer {
         };
         let count = reachable.len();
         let value = serde_json::json!({ "reachable": reachable, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3591,10 +2349,7 @@ impl MyceliumServer {
         let count = degrees.len();
         drop(store);
         let value = serde_json::json!({ "degrees": degrees, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3630,10 +2385,7 @@ impl MyceliumServer {
             "ordered_count": ordered_count,
             "cycle_count": cycle_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3660,10 +2412,7 @@ impl MyceliumServer {
         };
         let count = points.len();
         let value = serde_json::json!({ "points": points, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3694,10 +2443,7 @@ impl MyceliumServer {
             .map(|(from, to)| serde_json::json!({ "from": from, "to": to }))
             .collect();
         let value = serde_json::json!({ "bridges": bridge_list, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3730,10 +2476,7 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3773,10 +2516,7 @@ impl MyceliumServer {
             "out_degrees": out_list,
             "total_symbols": total_symbols
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3808,10 +2548,7 @@ impl MyceliumServer {
             "max_in_degree": m.max_in_degree,
             "max_out_degree": m.max_out_degree,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3848,10 +2585,7 @@ impl MyceliumServer {
             "shared": shared,
             "total": total,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3885,10 +2619,7 @@ impl MyceliumServer {
             "neighbor_count": neighbor_count,
             "neighbor_edge_count": neighbor_edge_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3918,10 +2649,7 @@ impl MyceliumServer {
             "eccentricity": eccentricity,
             "reachable_count": reachable_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3954,10 +2682,7 @@ impl MyceliumServer {
             "reachable_count": reachable_count,
             "symbol_count": symbol_count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -3996,10 +2721,7 @@ impl MyceliumServer {
             "forward_distance": result.forward_distance,
             "backward_distance": result.backward_distance,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4030,10 +2752,7 @@ impl MyceliumServer {
             "reachable": reachable,
             "count": count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4064,10 +2783,7 @@ impl MyceliumServer {
             "callers": callers,
             "count": count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4104,10 +2820,7 @@ impl MyceliumServer {
             "common": common,
             "count": count,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4139,10 +2852,7 @@ impl MyceliumServer {
             "count": count,
             "k": req.k,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4176,10 +2886,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4215,10 +2922,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4248,10 +2952,7 @@ impl MyceliumServer {
             "component_count": component_count,
             "total_symbols": total_symbols,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4277,10 +2978,7 @@ impl MyceliumServer {
         };
         let count = members.len();
         let value = serde_json::json!({ "members": members, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4307,10 +3005,7 @@ impl MyceliumServer {
         };
         let count = core.len();
         let value = serde_json::json!({ "core": core, "count": count, "k": k });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4340,10 +3035,7 @@ impl MyceliumServer {
             .map(|(path, count)| serde_json::json!({ "path": path, "caller_count": count }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4365,10 +3057,7 @@ impl MyceliumServer {
             })
             .collect();
         let value = serde_json::json!({ "files": files, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4394,10 +3083,7 @@ impl MyceliumServer {
             .map(|(path, degree)| serde_json::json!({ "path": path, "degree": degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4420,10 +3106,7 @@ impl MyceliumServer {
         let symbols = self.store.read().await.leaf_symbols(kind, limit);
         let count = symbols.len();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4460,16 +3143,12 @@ impl MyceliumServer {
         path_opt.unwrap().map_or_else(
             || {
                 let value = serde_json::json!({ "path": null, "length": null });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |p| {
                 let length = p.len() - 1;
                 let value = serde_json::json!({ "path": p, "length": length });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -4490,10 +3169,7 @@ impl MyceliumServer {
             .map(|(kind, count)| serde_json::json!({ "kind": kind, "count": count }))
             .collect();
         let value = serde_json::json!({ "kinds": kinds, "total": total });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4531,10 +3207,7 @@ impl MyceliumServer {
         let callers = callers_opt.unwrap();
         let count = callers.len();
         let value = serde_json::json!({ "callers": callers, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4572,10 +3245,7 @@ impl MyceliumServer {
         let callees = callees_opt.unwrap();
         let count = callees.len();
         let value = serde_json::json!({ "callees": callees, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4602,10 +3272,7 @@ impl MyceliumServer {
             .map(|(path, out_degree)| serde_json::json!({ "path": path, "out_degree": out_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4632,10 +3299,7 @@ impl MyceliumServer {
             .map(|(path, in_degree)| serde_json::json!({ "path": path, "in_degree": in_degree }))
             .collect();
         let value = serde_json::json!({ "symbols": symbols, "count": count });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4656,10 +3320,7 @@ impl MyceliumServer {
                 .collect(),
         };
         let value = serde_json::json!({ "files": files });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4702,16 +3363,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no call path found within depth {max_depth}"),
                 });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -4755,16 +3412,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no import path found within max_depth={max_depth}"),
                 });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -4809,16 +3462,12 @@ impl MyceliumServer {
                     "hops": serde_json::Value::Null,
                     "message": format!("no extends path found within max_depth={max_depth}"),
                 });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
             |path| {
                 let hops = path.len().saturating_sub(1);
                 let value = serde_json::json!({ "path": path, "hops": hops });
-                success_str(
-                    fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)),
-                )
+                success_str(self.render(fmt, &value))
             },
         )
     }
@@ -4843,10 +3492,7 @@ impl MyceliumServer {
         let json = extends_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4869,10 +3515,7 @@ impl MyceliumServer {
         let json = subclass_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4908,7 +3551,7 @@ impl MyceliumServer {
             let hops = path.len() - 1;
             drop(store_guard);
             let value = serde_json::json!({ "path": path, "hops": hops });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         } else {
             drop(store_guard);
             let value = serde_json::json!({
@@ -4916,7 +3559,7 @@ impl MyceliumServer {
                 "hops": null,
                 "message": format!("no implements path found within max_depth={max_depth}")
             });
-            success_str(fmt.map_or_else(|| value.to_string(), |f| formatter_for(f).format(&value)))
+            success_str(self.render(fmt, &value))
         }
     }
 
@@ -4941,10 +3584,7 @@ impl MyceliumServer {
         let json = implements_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4968,10 +3608,7 @@ impl MyceliumServer {
         let json = implementor_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -4995,10 +3632,7 @@ impl MyceliumServer {
         let json = importer_node_to_json(&tree, &store_guard);
         drop(store_guard);
         let value = serde_json::json!({ "root": json });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -5031,10 +3665,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "top_n": top_n,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -5063,10 +3694,7 @@ impl MyceliumServer {
             "depth": depth,
             "edge_kind": req.edge_kind,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -5128,10 +3756,7 @@ impl MyceliumServer {
             "top_n": top_n,
             "sort_by": sort_by,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -5166,10 +3791,7 @@ impl MyceliumServer {
             "symbol_count": symbol_count,
             "min_size": min_size,
         });
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -5341,10 +3963,7 @@ impl MyceliumServer {
         );
         drop(store);
 
-        success_str(req.output_format.map_or_else(
-            || value.to_string(),
-            |fmt| formatter_for(fmt).format(&value),
-        ))
+        success_str(self.render(req.output_format, &value))
     }
 
     #[tool(
@@ -5836,7 +4455,14 @@ pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> 
                 MyceliumServer::new_with_allowed_roots(allowed_roots)
             }
         }
-    };
+    }
+    // RFC-0094 Phase 4: stdio is the LLM-caller transport, so when a tool call
+    // omits `output_format` we default to the token-efficient Text (TOON)
+    // format instead of JSON — ~72% fewer output tokens for tree-shaped
+    // responses. Per-call `output_format` overrides still apply. This is a
+    // BREAKING change for stdio callers that previously relied on the JSON
+    // default; programmatic consumers should pass `output_format: "json"`.
+    .with_default_format(OutputFormat::Text);
     let transport = rmcp::transport::stdio();
     let running = server.serve(transport).await?;
     // PUSH (RFC-0106): capture the client peer now that the rmcp service is
@@ -5857,192 +4483,3 @@ pub async fn serve_stdio(root: Option<PathBuf>, allowed_roots: Vec<PathBuf>) -> 
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-mod server_info_tests {
-    use super::*;
-    use mycelium_core::trunk::TrunkPath;
-
-    #[test]
-    fn get_info_includes_routing_instructions() {
-        let server = MyceliumServer::default();
-        let info = server.get_info();
-        let instructions = info
-            .instructions
-            .expect("get_info() must expose MCP server instructions for agent routing");
-        assert!(!instructions.is_empty(), "instructions must be non-empty");
-        assert!(
-            instructions.contains("mycelium_search_symbol"),
-            "routing table must mention mycelium_search_symbol; got: {instructions}"
-        );
-        assert!(
-            instructions.contains("mycelium_get_callers"),
-            "routing table must mention mycelium_get_callers; got: {instructions}"
-        );
-        assert!(
-            instructions.contains("mycelium_index_workspace"),
-            "routing table must mention mycelium_index_workspace as setup step; got: {instructions}"
-        );
-    }
-
-    #[test]
-    fn get_info_includes_primary_tool_selection_rules() {
-        let server = MyceliumServer::default();
-        let instructions = server
-            .get_info()
-            .instructions
-            .expect("instructions must be present");
-
-        assert!(
-            instructions.contains("Primary Tool Selection"),
-            "instructions must include an explicit decision tree; got: {instructions}"
-        );
-        assert!(
-            instructions.contains("\"How does X work?\""),
-            "decision tree must name architecture-understanding prompts; got: {instructions}"
-        );
-        assert!(
-            instructions.contains("mycelium_query"),
-            "decision tree must route complex multi-hop prompts to Hyphae; got: {instructions}"
-        );
-    }
-
-    #[test]
-    fn get_info_includes_agent_anti_patterns() {
-        let server = MyceliumServer::default();
-        let instructions = server
-            .get_info()
-            .instructions
-            .expect("instructions must be present");
-
-        assert!(
-            instructions.contains("Anti-patterns"),
-            "instructions must include an anti-pattern section; got: {instructions}"
-        );
-        assert!(
-            instructions.contains("Do NOT chain"),
-            "instructions must discourage broad multi-tool chains; got: {instructions}"
-        );
-        assert!(
-            instructions.contains("Do NOT re-verify"),
-            "instructions must discourage routine grep/file re-verification; got: {instructions}"
-        );
-    }
-
-    #[test]
-    fn get_info_includes_small_project_mode_for_empty_server() {
-        let server = MyceliumServer::default();
-        let instructions = server
-            .get_info()
-            .instructions
-            .expect("instructions must be present");
-
-        assert!(
-            instructions.contains("Small Project Mode"),
-            "empty or tiny indexes must get small-project guidance; got: {instructions}"
-        );
-    }
-
-    #[test]
-    fn get_info_omits_small_project_mode_for_large_index() {
-        let server = MyceliumServer::default();
-        {
-            let mut store = server.store.try_write().expect("store lock must be free");
-            for i in 0..500 {
-                let path = TrunkPath::parse(&format!("src/file_{i}.rs")).unwrap();
-                store.upsert_node(path);
-            }
-        }
-
-        let instructions = server
-            .get_info()
-            .instructions
-            .expect("instructions must be present");
-
-        assert!(
-            !instructions.contains("Small Project Mode"),
-            "large indexes must not receive small-project guidance; got: {instructions}"
-        );
-    }
-}
-
-#[cfg(test)]
-mod output_budget_tests {
-    use super::*;
-
-    #[test]
-    fn output_budget_small_project() {
-        let budget = OutputBudget::for_project(100);
-        assert_eq!(budget.max_nodes, 15);
-        assert_eq!(budget.max_edges, 30);
-    }
-
-    #[test]
-    fn output_budget_medium_project() {
-        let budget = OutputBudget::for_project(1000);
-        assert_eq!(budget.max_nodes, 30);
-        assert_eq!(budget.max_edges, 60);
-    }
-
-    #[test]
-    fn output_budget_large_project() {
-        let budget = OutputBudget::for_project(10_000);
-        assert_eq!(budget.max_nodes, 50);
-        assert_eq!(budget.max_edges, 100);
-    }
-
-    #[test]
-    fn apply_budget_truncates_node_array() {
-        let budget = OutputBudget::for_project(100);
-        let mut value = serde_json::json!({
-            "nodes": (0..30).map(|i| format!("node_{i}")).collect::<Vec<_>>(),
-            "count": 30
-        });
-        apply_budget(&mut value, &budget);
-        let nodes = value["nodes"].as_array().expect("nodes must be array");
-        assert_eq!(nodes.len(), 15);
-        assert_eq!(value["truncated"], true);
-        assert_eq!(value["total_available"], 30);
-    }
-
-    #[test]
-    fn apply_budget_no_truncation_when_under_limit() {
-        let budget = OutputBudget::for_project(100);
-        let mut value = serde_json::json!({
-            "nodes": vec!["a", "b", "c"],
-            "count": 3
-        });
-        apply_budget(&mut value, &budget);
-        let nodes = value["nodes"].as_array().expect("nodes must be array");
-        assert_eq!(nodes.len(), 3);
-        assert!(
-            value.get("truncated").is_none(),
-            "should not have truncated flag"
-        );
-    }
-
-    #[test]
-    fn apply_budget_truncates_edges_array() {
-        let budget = OutputBudget::for_project(100);
-        let mut value = serde_json::json!({
-            "edges": (0..50).map(|i| format!("edge_{i}")).collect::<Vec<_>>(),
-            "count": 50
-        });
-        apply_budget(&mut value, &budget);
-        let edges = value["edges"].as_array().expect("edges must be array");
-        assert_eq!(edges.len(), 30);
-        assert_eq!(value["truncated"], true);
-        assert_eq!(value["total_available"], 50);
-    }
-
-    #[test]
-    fn is_core_tool_identifies_core_tools() {
-        assert!(is_core_tool("mycelium_context"));
-        assert!(is_core_tool("mycelium_search_symbol"));
-        assert!(is_core_tool("mycelium_get_symbol_info"));
-        assert!(is_core_tool("mycelium_query"));
-        assert!(is_core_tool("mycelium_server_status"));
-        assert!(!is_core_tool("mycelium_get_all_symbols"));
-        assert!(!is_core_tool("mycelium_get_callees"));
-    }
-}

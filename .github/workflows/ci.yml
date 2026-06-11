@@ -179,6 +179,17 @@ jobs:
       - name: npm launcher unit tests
         run: node --test
         working-directory: npm/mycelium
+      # RFC-0111: SDK thin-wrapper. Unit tests are hermetic (injected spawn);
+      # the integration test then round-trips real JSON through the SDK using
+      # the release binary just built above, proving the --format json contract.
+      - name: SDK unit tests
+        run: node --test
+        working-directory: npm/sdk
+      - name: SDK integration test (against built binary)
+        run: node --test
+        working-directory: npm/sdk
+        env:
+          MYCELIUM_BIN: ${{ github.workspace }}/target/release/mycelium
       - name: npm packaging smoke test (assemble → install → run)
         run: |
           set -euo pipefail
@@ -190,6 +201,37 @@ jobs:
           OUT="$(node_modules/.bin/mycelium --version)"
           echo "launcher output: $OUT"
           echo "$OUT" | grep -qi mycelium
+      # RFC-0111: prove the assembled SDK resolves the prebuilt binary from its
+      # pinned optionalDependency (no MYCELIUM_BIN, no PATH) — the exact
+      # no-Cargo install path a fresh `npm i @aimasteracc/mycelium-sdk` takes.
+      - name: SDK packaging smoke test (assemble → install → resolve binary → query)
+        run: |
+          set -euo pipefail
+          mkdir -p sdk-smoke && cd sdk-smoke && npm init -y >/dev/null
+          npm install --install-links \
+            ../dist-npm/mycelium-linux-x64-gnu ../dist-npm/mycelium-sdk >/dev/null
+          node -e '
+            const { Mycelium } = require("@aimasteracc/mycelium-sdk");
+            const m = new Mycelium({ root: "." });
+            m.version().then((v) => {
+              console.log("sdk resolved binary →", v);
+              if (!/^mycelium /.test(v)) process.exit(1);
+            }).catch((e) => { console.error(e); process.exit(1); });
+          '
+      # RFC-0111 Phase 2: Python SDK (mycelium-rcig). Unit tests are hermetic
+      # (injected spawn, stdlib unittest — no pip install); the integration run
+      # round-trips real JSON through the SDK using the release binary above.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Python SDK unit tests
+        run: python -m unittest discover -s tests
+        working-directory: bindings/python
+      - name: Python SDK integration test (against built binary)
+        run: python -m unittest discover -s tests
+        working-directory: bindings/python
+        env:
+          MYCELIUM_BIN: ${{ github.workspace }}/target/release/mycelium
 
   doc-build:
     name: docs (rustdoc + mdbook)
@@ -226,7 +268,13 @@ jobs:
 
   dco-check:
     name: DCO sign-off
-    if: github.event_name == 'pull_request'
+    # Skip for release/* and hotfix/* → main PRs. Those branches are managed
+    # by release.yml which intentionally skips DCO (squash-merge artifacts from
+    # develop don't carry Signed-off-by trailers; the source PRs were checked).
+    if: >
+      github.event_name == 'pull_request' &&
+      !startsWith(github.head_ref, 'release/') &&
+      !startsWith(github.head_ref, 'hotfix/')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -239,8 +287,13 @@ jobs:
           # --no-merges so historical PR merge commits (which never carried
           # sign-off and predate DCO enforcement) don't fail back-merge PRs
           # like release/* → develop. Authored commits must still sign off.
+          #
+          # Use full body grep instead of %(trailers:key=...) because GitHub
+          # squash-merge embeds Signed-off-by lines in the middle of the body
+          # (between individual commit entries) rather than as trailing lines,
+          # so the trailer parser misses them and false-fails those commits.
           for sha in $(git rev-list --no-merges ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
-            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' $sha | grep -q .; then
+            if ! git log -1 --format='%B' "$sha" | grep -qiE '^Signed-off-by: .+ <.+>'; then
               echo "::error::Commit $sha lacks Signed-off-by trailer (DCO)."
               MISSING=$((MISSING+1))
             fi

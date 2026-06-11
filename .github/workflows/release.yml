@@ -88,7 +88,7 @@ jobs:
     # Gate the first irreversible publish on the CLI binaries building
     # successfully (RFC-0110 / Codex #519 P1): if any platform build fails we
     # must NOT publish to a registry, or the release is partial (crates live but
-    # binaries missing). npm/pypi are gated on publish-crates.
+    # binaries missing). npm/pypi need publish-crates, so they are gated too.
     needs: [validate, quality-recheck, build-cli-binaries]
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -220,47 +220,71 @@ jobs:
               return 0
             fi
             if ! ( cd "$dir" && npm publish --access public --provenance ) 2>/tmp/npm_pub_err.log; then
-              npm_err=$(cat /tmp/npm_pub_err.log)
-              # Graceful degradation: scope not yet registered on npmjs.com
-              # (E404 "Scope not found"). Token is present and valid; the @aimasteracc
-              # scope simply needs to be created once via the npmjs.com UI.
-              # Allow ceremony to proceed; npm distribution re-enabled next release.
-              if echo "$npm_err" | grep -qE "E404|Scope not found"; then
-                echo "::warning::npm publish skipped for $name — @aimasteracc scope not yet registered on npmjs.com. See Issue #525."
-                return 0
-              fi
-              echo "$npm_err" >&2
+              # Issue #534: the @aimasteracc scope is registered and NPM_TOKEN
+              # authenticates (npm whoami -> aimasteracc), so ANY publish failure
+              # is a real error — fail the release loudly. The prior E404
+              # graceful-skip (PR #533) masked a non-authenticating token and
+              # produced false-green releases (the v0.2.0 saga). Never again.
+              cat /tmp/npm_pub_err.log >&2
               return 1
             fi
           }
-          # Platform packages must exist before the main package (whose
-          # optionalDependencies reference them).
+          # Platform packages must exist before the main package and the SDK
+          # (whose optionalDependencies reference them). The SDK is published
+          # explicitly after the main package, so skip it in the platform glob.
           for dir in dist-npm/mycelium-*; do
-            [ -d "$dir" ] && publish_one "$dir"
+            [ -d "$dir" ] || continue
+            [ "$dir" = "dist-npm/mycelium-sdk" ] && continue
+            publish_one "$dir"
           done
           publish_one "dist-npm/mycelium"
+          # RFC-0111: thin-CLI-wrapper SDK, published from the same release.
+          publish_one "dist-npm/mycelium-sdk"
 
   publish-pypi:
     name: publish to PyPI
-    needs: [validate, quality-recheck, publish-crates]
+    # GITFLOW registry order is crates.io → npm → PyPI: depend on publish-npm so
+    # a failed/incomplete npm release blocks PyPI (no partial registry release).
+    needs: [validate, quality-recheck, publish-crates, publish-npm]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: pypi
-    permissions:
-      id-token: write  # for Trusted Publishers
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: |
-          if [ -d "bindings/python" ]; then
-            pip install maturin
-            cd bindings/python
-            maturin publish
-          else
+      # RFC-0111 Phase 2: the Python SDK (mycelium-rcig) is a pure-Python thin
+      # CLI wrapper — built with the standard `build` backend, not maturin
+      # (there is no Rust extension). The version is pinned to the release
+      # version.
+      - name: Build the pure-Python SDK wheel
+        id: build
+        run: |
+          set -euo pipefail
+          if [ ! -d "bindings/python" ]; then
             echo "no bindings/python yet — skipping"
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          cd bindings/python
+          sed -i -E "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          sed -i -E "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" mycelium_rcig/__init__.py
+          python -m pip install --upgrade build twine
+          python -m build
+      # Token auth (TSA-style: TWINE_USERNAME=__token__ + PYPI_API_TOKEN), not
+      # Trusted Publishers — an account/project-scoped API token publishes a
+      # brand-new package with no pre-configured "pending publisher". Idempotent
+      # via --skip-existing so re-runs never fail on an already-published version.
+      - name: Publish to PyPI (token auth, idempotent)
+        if: steps.build.outputs.built != 'false'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_NON_INTERACTIVE: "true"
+        run: twine upload --skip-existing bindings/python/dist/*
 
   build-cli-binaries:
     # RFC-0110: cross-compile the `mycelium` CLI for each distributed platform,

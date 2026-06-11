@@ -104,14 +104,15 @@ cargo install mycelium-rcig-cli
 cargo install --git https://github.com/aimasteracc/mycelium mycelium-rcig-cli
 ```
 
-**No Rust toolchain?** Install the prebuilt binary with `npm` or `bun`
+**No Rust toolchain?** Install the prebuilt CLI from npm/bun
 ([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)) — no `cargo` required:
 
 ```bash
-npm install -g @aimasteracc/mycelium     # npm
-bun  add     -g @aimasteracc/mycelium     # bun
-bunx @aimasteracc/mycelium --version      # or run without installing
+npm install -g @aimasteracc/mycelium   # or: bun add -g @aimasteracc/mycelium
 ```
+
+Or download a prebuilt binary from the
+[GitHub Releases](https://github.com/aimasteracc/mycelium/releases) page.
 
 ### Use
 
@@ -135,6 +136,32 @@ mycelium serve --mcp --root ./my-project
 
 # Find callers of login, up to depth 3
 { "query": "*:callers(#login)" }
+```
+
+### Use as a library — Node / TS & Python SDKs
+
+Embed Mycelium in any Node/TS or Python app with **no Rust toolchain**
+([RFC-0111](rfcs/0111-node-py-bindings-thin-cli-wrapper.md)). Both SDKs are thin,
+typed wrappers over the prebuilt CLI — they inherit the CLI↔MCP parity for free.
+
+**Node / TypeScript** — [`@aimasteracc/mycelium-sdk`](npm/sdk/README.md):
+
+```js
+const { Mycelium } = require("@aimasteracc/mycelium-sdk"); // npm i @aimasteracc/mycelium-sdk
+const m = new Mycelium({ root: "." });
+await m.index();
+const fns = await m.query("function:calls(#AuthService)"); // parsed JSON
+const ctx = await m.context("trace ServeHTTP to HandlerFunc", { maxNodes: 30 });
+```
+
+**Python** — [`mycelium-rcig`](bindings/python/README.md) (import `mycelium_rcig`):
+
+```python
+from mycelium_rcig import Mycelium  # pip install mycelium-rcig
+m = Mycelium(root=".")
+m.index()
+fns = m.query("function:calls(#AuthService)")  # parsed JSON
+ctx = m.context("trace ServeHTTP to HandlerFunc", max_nodes=30)
 ```
 
 ## Performance SLA (the bar we ship against)

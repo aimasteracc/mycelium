@@ -1155,7 +1155,8 @@ impl Store {
     pub fn resolve_bare_call_stubs(&mut self) -> usize {
         let base = self.resolve_bare_call_stubs_simple();
         let aware = self.resolve_import_aware_stubs();
-        base + aware
+        let extends_aware = self.resolve_import_aware_extends_stubs();
+        base + aware + extends_aware
     }
 
     fn resolve_bare_call_stubs_simple(&mut self) -> usize {
@@ -1274,6 +1275,124 @@ impl Store {
                 self.synapse.redirect_node(stub_id, def_id);
                 self.trunk.remove(stub_id);
                 resolved += 1;
+            }
+        }
+        resolved
+    }
+
+    /// RFC-0103: resolve ambiguous bare `Extends` target stubs using import
+    /// evidence.
+    ///
+    /// The simple pass already redirects a bare inheritance target (e.g.
+    /// `LanguagePlugin`) when its name has exactly one definition. When the
+    /// name is defined in *several* files the simple pass leaves the stub, and
+    /// the call-aware pass ignores it because an `Extends`-only stub has no
+    /// `Calls` callers. This pass closes that gap: for each such stub it
+    /// inspects the subclasses (incoming `Extends` edges) and favours the
+    /// candidate definition whose file is imported by the subclass's file.
+    ///
+    /// Conservative by RFC-0103 mandate, and safe for the whole-node redirect:
+    /// the stub is redirected **only** when a single candidate is imported by
+    /// **every** subclass (unanimous). That guarantees redirecting all of the
+    /// stub's `Extends` edges to that one definition is correct for each source.
+    /// Zero candidates, ties, and **mixed-import sites** (subclasses importing
+    /// different definitions) stay unresolved rather than being guessed or
+    /// wrongly collapsed — per-edge resolution of mixed sites is a tracked
+    /// RFC-0103 follow-up (needs an edge-level rewrite primitive).
+    fn resolve_import_aware_extends_stubs(&mut self) -> usize {
+        let all_paths: Vec<String> = self.trunk.all_paths().map(str::to_owned).collect();
+
+        let stubs: Vec<(NodeId, String)> = all_paths
+            .iter()
+            .filter(|p| !p.contains('>'))
+            .filter_map(|p| self.trunk.lookup_path(p).map(|id| (id, p.clone())))
+            .collect();
+
+        if stubs.is_empty() {
+            return 0;
+        }
+
+        let suffix_map: HashMap<String, Vec<NodeId>> = {
+            let mut m: HashMap<String, Vec<NodeId>> = HashMap::new();
+            for path in &all_paths {
+                if let Some(gt) = path.rfind('>') {
+                    if let Some(id) = self.trunk.lookup_path(path) {
+                        m.entry(path[gt..].to_owned()).or_default().push(id);
+                    }
+                }
+            }
+            m
+        };
+
+        let mut resolved = 0;
+        for (stub_id, stub_name) in stubs {
+            let suffix = format!(">{stub_name}");
+            let Some(defs) = suffix_map.get(&suffix) else {
+                continue;
+            };
+
+            let subclasses: Vec<NodeId> =
+                self.synapse.incoming(stub_id, EdgeKind::Extends).to_vec();
+            if subclasses.is_empty() {
+                continue;
+            }
+
+            // A candidate qualifies only if EVERY subclass of this stub imports
+            // it (unanimous). `redirect_node` rewrites *all* of the stub's edges
+            // to one target, so collapsing is correct only when every incoming
+            // `Extends` source agrees on the same definition. Mixed-import sites
+            // — different subclasses importing different definitions — are left
+            // unresolved here rather than wrongly collapsed to one def; resolving
+            // each edge independently needs an edge-level rewrite primitive and
+            // is tracked as the RFC-0103 per-edge follow-up.
+            let n_subclasses = subclasses.len();
+            let mut winner: Option<NodeId> = None;
+            let mut unanimous_candidates = 0usize;
+
+            for &def_id in defs {
+                let Some(def_path) = self.trunk.path_of(def_id).map(str::to_owned) else {
+                    continue;
+                };
+                let Some(file_path) = def_path.split('>').next() else {
+                    continue;
+                };
+                let Some(file_id) = self.trunk.lookup_path(file_path) else {
+                    continue;
+                };
+
+                let mut match_count = 0usize;
+                for &sub_id in &subclasses {
+                    let Some(sub_path) = self.trunk.path_of(sub_id).map(str::to_owned) else {
+                        continue;
+                    };
+                    let Some(sub_file) = sub_path.split('>').next() else {
+                        continue;
+                    };
+                    let Some(sub_file_id) = self.trunk.lookup_path(sub_file) else {
+                        continue;
+                    };
+
+                    let imports = self.synapse.outgoing(sub_file_id, EdgeKind::Imports);
+                    if imports.contains(&file_id) || imports.contains(&def_id) {
+                        match_count += 1;
+                    }
+                }
+
+                if match_count == n_subclasses {
+                    unanimous_candidates += 1;
+                    winner = Some(def_id);
+                }
+            }
+
+            // Resolve only on a single unanimous candidate (every subclass
+            // imports exactly this one definition). Zero, or ties (≥2 defs all
+            // imported by every subclass), stay unresolved — conservative.
+            if unanimous_candidates == 1 {
+                if let Some(def_id) = winner {
+                    self.synapse.redirect_node(stub_id, def_id);
+                    self.trunk.remove(stub_id);
+                    resolved += 1;
+                }
             }
         }
         resolved

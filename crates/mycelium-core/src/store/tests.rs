@@ -692,6 +692,124 @@ fn store_resolve_bare_stubs_no_match_left_unchanged() {
     );
 }
 
+// ── RFC-0103: import-aware Extends-stub resolution ────────────────────
+
+#[test]
+fn store_resolve_extends_stub_via_import_evidence() {
+    // a.py>Sub extends `Base` (bare stub). `Base` is defined in BOTH b.py and
+    // c.py (ambiguous for the simple resolver). a.py imports b.py only, so the
+    // Extends edge must resolve to b.py>Base.
+    let mut store = Store::new();
+    let a_file = store.upsert_node(path("a.py"));
+    let subclass = store.upsert_node(path("a.py>Sub"));
+    let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
+    let b_file = store.upsert_node(path("b.py"));
+    let b_base = store.upsert_node(path("b.py>Base"));
+    let _c_file = store.upsert_node(path("c.py"));
+    let _c_base = store.upsert_node(path("c.py>Base"));
+    store.upsert_edge(EdgeKind::Extends, subclass, stub);
+    store.upsert_edge(EdgeKind::Imports, a_file, b_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 1,
+        "ambiguous Extends stub should resolve via unique import evidence"
+    );
+    assert!(
+        store.lookup("Base").is_none(),
+        "bare stub must be removed after resolution"
+    );
+    assert!(
+        store
+            .outgoing(subclass, EdgeKind::Extends)
+            .contains(&b_base),
+        "Extends edge must point to the imported b.py>Base"
+    );
+}
+
+#[test]
+fn store_resolve_extends_stub_no_import_evidence_left_unchanged() {
+    // Ambiguous `Base` (b.py + c.py) but a.py imports NEITHER — conservative:
+    // the stub must stay unresolved rather than be guessed.
+    let mut store = Store::new();
+    let _a_file = store.upsert_node(path("a.py"));
+    let subclass = store.upsert_node(path("a.py>Sub"));
+    let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
+    store.upsert_node(path("b.py"));
+    store.upsert_node(path("b.py>Base"));
+    store.upsert_node(path("c.py"));
+    store.upsert_node(path("c.py>Base"));
+    store.upsert_edge(EdgeKind::Extends, subclass, stub);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(resolved, 0, "no import evidence → stub stays unresolved");
+    assert!(
+        store.lookup("Base").is_some(),
+        "ambiguous stub without evidence must remain"
+    );
+}
+
+#[test]
+fn store_resolve_extends_stub_tie_left_unchanged() {
+    // a.py imports BOTH b.py and c.py → both candidates tie on evidence →
+    // conservative: stub stays unresolved (RFC-0103 ambiguity rule).
+    let mut store = Store::new();
+    let a_file = store.upsert_node(path("a.py"));
+    let subclass = store.upsert_node(path("a.py>Sub"));
+    let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
+    let b_file = store.upsert_node(path("b.py"));
+    store.upsert_node(path("b.py>Base"));
+    let c_file = store.upsert_node(path("c.py"));
+    store.upsert_node(path("c.py>Base"));
+    store.upsert_edge(EdgeKind::Extends, subclass, stub);
+    store.upsert_edge(EdgeKind::Imports, a_file, b_file);
+    store.upsert_edge(EdgeKind::Imports, a_file, c_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 0,
+        "tie on import evidence → stub stays unresolved"
+    );
+    assert!(store.lookup("Base").is_some(), "tied stub must remain");
+}
+
+#[test]
+fn store_resolve_extends_stub_mixed_import_sites_left_unchanged() {
+    // Two subclasses extend the same bare `Base` but import DIFFERENT defs:
+    // a.py>Sub imports b.py>Base, c.py>Sub2 imports d.py>Base. A whole-node
+    // redirect would wrongly collapse both edges to one def (Codex P1 on #554).
+    // Conservative: no unanimous candidate → stub stays unresolved (per-edge
+    // rewrite is a tracked RFC-0103 follow-up).
+    let mut store = Store::new();
+    let a_file = store.upsert_node(path("a.py"));
+    let sub1 = store.upsert_node(path("a.py>Sub"));
+    let c_file = store.upsert_node(path("c.py"));
+    let sub2 = store.upsert_node(path("c.py>Sub2"));
+    let stub = store.upsert_node(TrunkPath::parse("Base").unwrap());
+    let b_file = store.upsert_node(path("b.py"));
+    store.upsert_node(path("b.py>Base"));
+    let d_file = store.upsert_node(path("d.py"));
+    store.upsert_node(path("d.py>Base"));
+    store.upsert_edge(EdgeKind::Extends, sub1, stub);
+    store.upsert_edge(EdgeKind::Extends, sub2, stub);
+    store.upsert_edge(EdgeKind::Imports, a_file, b_file);
+    store.upsert_edge(EdgeKind::Imports, c_file, d_file);
+
+    let resolved = store.resolve_bare_call_stubs();
+
+    assert_eq!(
+        resolved, 0,
+        "mixed-import sites must not be collapsed to one def"
+    );
+    assert!(
+        store.lookup("Base").is_some(),
+        "stub must remain when subclasses disagree on the import target"
+    );
+}
+
 // ── RFC-0010: Store::edge_count ───────────────────────────────────────
 
 #[test]

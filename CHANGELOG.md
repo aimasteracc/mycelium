@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-05
+
+### Added
+
+- **Python SDK — `mycelium-rcig` (RFC-0111, Phase 2).** A thin, typed Python
+  client that embeds Mycelium in any Python app **without a Rust toolchain** —
+  the same thin-CLI-wrapper contract as the Node SDK (locate binary → spawn with
+  an argv list, no shell → parse JSON). Pythonic surface
+  (`from mycelium_rcig import Mycelium`; `version`/`index`/`query`/
+  `search_symbol`/`get_symbol_info`/`get_callers`/`get_callees`/`context`/
+  `server_status` + raw `run(args)`); typed (`py.typed` + inline hints);
+  `MyceliumError` on failure. 32 stdlib-`unittest` tests (30 hermetic + 2
+  integration) wired into CI against the release binary. Distributed as a
+  pure-Python wheel via `release.yml` (`python -m build` + Trusted Publishers,
+  idempotent). The PyPI distribution is **`mycelium-rcig`** (the short
+  `mycelium` is taken; import package `mycelium_rcig`), mirroring the crates
+  prefix; Charter §3 updated accordingly. Binary bundling via platform wheels is
+  a deferred follow-up.
+- **Node/TypeScript SDK — `@aimasteracc/mycelium-sdk` (RFC-0111, Phase 1).** A
+  thin, typed client that embeds Mycelium in any Node/TS app **without a Rust
+  toolchain**. It wraps the prebuilt CLI ([RFC-0110](rfcs/0110-npm-bun-cli-distribution.md)):
+  locates the binary (`MYCELIUM_BIN` → platform package → `PATH`), spawns it
+  with an argv array (no shell — no injection surface) and `--format json`, and
+  returns parsed objects. Typed methods (`version`, `index`, `query`,
+  `searchSymbol`, `getSymbolInfo`, `getCallers`, `getCallees`, `context`,
+  `serverStatus`) plus a raw `run(args)` escape hatch covering every subcommand.
+  Ships TS types (`index.d.ts`) with no build step. Because it wraps the CLI it
+  **inherits CLI↔MCP parity for free** (Charter §5.13). Errors surface as
+  `MyceliumError`. Hermetic unit tests (injected spawn) + a live integration
+  test wired into CI against the release binary, plus an SDK packaging smoke
+  test (assemble → install → resolve binary from its pinned platform
+  optionalDependency → query). Release packaging assembles and publishes
+  `@aimasteracc/mycelium-sdk` alongside the existing npm packages, with its
+  platform-binary `optionalDependencies` pinned to the release version. Python
+  SDK is Phase 2 of the same RFC. **Charter §3 bindings row amended** from
+  native FFI (napi-rs/pyo3) to thin CLI-wrapper SDKs; native FFI reserved for a
+  future performance RFC.
+- **Import-aware `Extends` stub resolution (RFC-0103, initial target).** When a
+  class inherits from a base whose simple name is defined in *several* files
+  (ambiguous for the existing unique-match resolver), the post-index pass now
+  redirects the `Extends` edge to the correct definition using import evidence.
+  Conservative by design — the stub is redirected only when a single candidate
+  is imported by **every** subclass (unanimous), so the whole-node redirect is
+  always correct; ties, zero-evidence, and **mixed-import sites** (subclasses
+  importing different definitions) stay unresolved rather than wrongly collapsed.
+  Improves cross-file inheritance accuracy (`mycelium_get_extends` /
+  extends-tree tools). Per-edge resolution of mixed sites is a tracked follow-up.
+
+### Changed
+
+- **BREAKING (MCP stdio): default output format flipped to `text` (RFC-0094
+  Phase 4).** When a tool call omits `output_format`, the stdio MCP server (the
+  LLM-caller transport) now returns the token-efficient TOON `text` format
+  instead of JSON — ~72% fewer output tokens for tree-shaped responses. A
+  per-call `output_format: "json"` still overrides it, and the CLI plus
+  `MyceliumServer::new()` keep the JSON default (so programmatic/test callers
+  are unaffected). All 77 tool format sites now route through one `render()`
+  helper that resolves the per-call override against the server default.
+- **refactor(mcp): Issue #428 god-file split slice 3** — extracted all 93 MCP
+  request schema types from `lib.rs` into `crates/mycelium-mcp/src/requests.rs`
+  (public module, re-exported via `pub use requests::*`). Moved two inline test
+  modules (`server_info_tests`, `output_budget_tests`) from `lib.rs` into the
+  existing `tests.rs`. `lib.rs` reduced from 6,048 → 4,694 lines (−22.4%);
+  no public API change.
+
+### Fixed
+
+- **ci(dco-check): use full body grep instead of trailer parser** — GitHub
+  squash-merge embeds `Signed-off-by` lines in the middle of the commit body
+  rather than as terminal trailers, so `%(trailers:key=Signed-off-by,valueonly)`
+  would false-fail those commits. Switched to `grep -qiE '^Signed-off-by:'` on
+  `%B` which correctly detects the sign-off regardless of position.
+
+- **npm launcher signal exit codes (Issue #525)**: `mycelium.cjs` now exits with
+  `128 + signal_number` (e.g. SIGTERM → 143, SIGINT → 130) instead of always `1`
+  when the child binary is killed by a signal, following POSIX/shell convention.
+
+- **Mutation testing kill-rate (Issue #526)**: Added exact-count `assert_eq!` assertions to 6
+  previously mutation-weak MCP tests (`get_callees`, `get_callers`, `get_dead_symbols` ×2,
+  `get_all_symbols_excludes_file_nodes`, error `is_error` flag). Mutants that silently add/remove
+  results or drop the `is_error: true` flag will now fail CI rather than survive.
+
 ## [0.2.0] - 2026-06-04
 
 ### Added
