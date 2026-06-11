@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0113 Phase 2 — TypeScript/JS stdlib callee classification.**
+  `classify_typescript`, `classify_typescript_import_gated`, and
+  `classify_typescript_qualified` added to `mycelium-rcig-core::classify`.
+  Global builtins (`parseInt`, `Error`, …), Node.js built-in modules (`fs`,
+  `path`, `os`, `crypto`, …), Array/String/Promise stdlib methods, Node.js
+  module-level functions (`readFileSync`, `dirname`, `randomUUID`, …), and
+  test-framework matchers (jest/vitest/mocha/chai/jasmine). Import-gated with
+  `node:` prefix tolerance. 21 TDD tests. (RFC-0113)
+
 - **RFC-0117 Phase 2 — `check-architecture` / `mycelium_check_architecture` (Three-Surface).** Architectural
   forbid-rule evaluation over Calls+Imports edges. Reads `.mycelium/constraints.yml` (YAML forbid-rules DSL),
   projects synapse edges into `EdgeRef`s, and runs the RFC-0117 pure evaluator. Returns `{violations, violation_count,

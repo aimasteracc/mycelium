@@ -1097,3 +1097,881 @@ mod tests {
         );
     }
 }
+
+// ── RFC-0113 Phase 2: TypeScript / JavaScript ─────────────────────────────────
+
+/// Classify a bare TypeScript/JavaScript callee against the static allowlists.
+///
+/// Precedence: global builtin → stdlib method → Node.js module name → Node.js
+/// module-level function → external test → unknown. Callers MUST apply the
+/// project-ownership shadow first (only pass names project resolution left
+/// unresolved).
+#[must_use]
+pub fn classify_typescript(name: &str) -> CalleeClass {
+    if TS_GLOBAL_BUILTINS.contains(name) {
+        CalleeClass::Builtin
+    } else if TS_STDLIB_METHODS.contains(name)
+        || TS_NODE_MODULES.contains(name)
+        || TS_STDLIB_FUNCTIONS.contains(name)
+    {
+        CalleeClass::Stdlib
+    } else if TS_EXTERNAL_TEST_METHODS.contains(name) {
+        CalleeClass::External
+    } else {
+        CalleeClass::Unknown
+    }
+}
+
+/// Classify a bare TypeScript/JavaScript callee name with import-context gating
+/// (RFC-0113 Phase 2).
+///
+/// - **Global builtins** (`parseInt`, `setTimeout`, `Error`, …) fire without any import.
+/// - **Node.js module names** (`fs`, `path`, `os`, …): fire only when
+///   `caller_imports` contains that module name (with or without `node:` prefix).
+/// - **Node.js module-level functions** (`readFileSync`, `join`, `randomUUID`, …):
+///   fire only when `caller_imports` contains one of the owning modules. See
+///   [`TS_FUNCTION_MODULES`] for the ownership map.
+/// - **Stdlib methods** (Array/String/Promise/Object methods): conservative gate —
+///   any Node.js module import enables classification.
+/// - **External** names (jest/vitest/mocha/chai matchers): fire only when
+///   `caller_imports` contains a test framework name.
+///
+/// `caller_imports` is the set of module-specifier stems from the caller
+/// file's `Imports` + `TypeImports` edges — e.g. `{"path", "fs"}` from
+/// `import * as path from 'path'; import { readFileSync } from 'fs'`.
+#[must_use]
+pub fn classify_typescript_import_gated<S: std::hash::BuildHasher>(
+    name: &str,
+    caller_imports: &std::collections::HashSet<String, S>,
+) -> CalleeClass {
+    if TS_GLOBAL_BUILTINS.contains(name) {
+        return CalleeClass::Builtin;
+    }
+
+    // Node.js module name: require that exact module imported.
+    if TS_NODE_MODULES.contains(name) {
+        return if ts_imports_contains(caller_imports, name) {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    // Node.js module-level function: require owning module imported.
+    if let Some(owners) = TS_FUNCTION_MODULES.get(name) {
+        let imported = owners
+            .iter()
+            .any(|&m| ts_imports_contains(caller_imports, m));
+        return if imported {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    // Stdlib method: conservative gate — any Node.js module import enables it.
+    if TS_STDLIB_METHODS.contains(name) {
+        let has_stdlib = caller_imports.iter().any(|m| {
+            let canonical = m.strip_prefix("node:").unwrap_or(m.as_str());
+            TS_NODE_MODULES.contains(canonical)
+        });
+        return if has_stdlib {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    if TS_STDLIB_FUNCTIONS.contains(name) && !TS_FUNCTION_MODULES.contains_key(name) {
+        // A stdlib function that has no explicit module ownership map entry: keep
+        // conservative and check for any Node.js import.
+        let has_stdlib = caller_imports.iter().any(|m| {
+            let canonical = m.strip_prefix("node:").unwrap_or(m.as_str());
+            TS_NODE_MODULES.contains(canonical)
+        });
+        return if has_stdlib {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    if TS_EXTERNAL_TEST_METHODS.contains(name) {
+        const TEST_ROOTS: &[&str] = &[
+            "jest",
+            "vitest",
+            "mocha",
+            "chai",
+            "jasmine",
+            "@jest/globals",
+            "@vitest/snapshot",
+        ];
+        let has_test = caller_imports.iter().any(|m| {
+            TEST_ROOTS
+                .iter()
+                .any(|root| m == root || m.starts_with(&format!("{root}/")))
+        });
+        return if has_test {
+            CalleeClass::External
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    CalleeClass::Unknown
+}
+
+/// Helper: checks whether `imports` contains `module`, tolerating a `node:`
+/// prefix on either side (i.e. `"node:fs"` matches `"fs"` and vice-versa).
+fn ts_imports_contains<S: std::hash::BuildHasher>(
+    imports: &std::collections::HashSet<String, S>,
+    module: &str,
+) -> bool {
+    imports.iter().any(|m| {
+        let canonical = m.strip_prefix("node:").unwrap_or(m.as_str());
+        canonical == module || m.as_str() == module
+    })
+}
+
+/// Classify a module-qualified TypeScript call `receiver.method()`.
+///
+/// If the `receiver` is a known Node.js module or a well-known global namespace
+/// object (`Math`, `JSON`, `console`, `process`, …), the call is **stdlib**
+/// regardless of the method name — `readFileSync`/`floor`/`stringify` are not
+/// always in the bare tables, but the receiver is unambiguous. Otherwise fall
+/// back to classifying the `method` name alone.
+///
+/// Like [`classify_typescript`], callers must apply the project-ownership shadow
+/// first and, for the module-receiver case, gate on actual import evidence.
+#[must_use]
+pub fn classify_typescript_qualified(receiver: &str, method: &str) -> CalleeClass {
+    let canonical = receiver.strip_prefix("node:").unwrap_or(receiver);
+    if TS_NODE_MODULES.contains(canonical) || TS_GLOBAL_NAMESPACE_OBJECTS.contains(canonical) {
+        CalleeClass::Stdlib
+    } else {
+        classify_typescript(method)
+    }
+}
+
+/// JavaScript / Node.js global builtin callables — available without any
+/// import in both browser and Node.js contexts.
+static TS_GLOBAL_BUILTINS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // type-conversion / parsing
+        "parseInt",
+        "parseFloat",
+        "isNaN",
+        "isFinite",
+        "isInteger",
+        // URI encoding
+        "encodeURI",
+        "encodeURIComponent",
+        "decodeURI",
+        "decodeURIComponent",
+        // timers (browser + Node.js)
+        "setTimeout",
+        "clearTimeout",
+        "setInterval",
+        "clearInterval",
+        "setImmediate",
+        "clearImmediate",
+        "queueMicrotask",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        // intrinsic error types (used as `throw new TypeError(...)` → bare callee)
+        "Error",
+        "TypeError",
+        "RangeError",
+        "SyntaxError",
+        "ReferenceError",
+        "URIError",
+        "EvalError",
+        "AggregateError",
+        // typed arrays / binary data
+        "ArrayBuffer",
+        "SharedArrayBuffer",
+        "DataView",
+        "Float32Array",
+        "Float64Array",
+        "Int8Array",
+        "Int16Array",
+        "Int32Array",
+        "Uint8Array",
+        "Uint16Array",
+        "Uint32Array",
+        "BigInt64Array",
+        "BigUint64Array",
+        // special callables
+        "eval",
+        "require",
+        // structural builtins
+        "structuredClone",
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Node.js built-in module names. When a bare callee stub matches one of
+/// these, it is most likely an aliased module call (`const os = require('os');
+/// os(...)` — rare but valid) or an `import * as fs from 'fs'` usage where
+/// tree-sitter extracted the module name. The overwhelming common case is
+/// the receiver-qualified path (handled by [`classify_typescript_qualified`]).
+static TS_NODE_MODULES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        "fs",
+        "path",
+        "os",
+        "http",
+        "https",
+        "crypto",
+        "stream",
+        "child_process",
+        "events",
+        "url",
+        "util",
+        "buffer",
+        "net",
+        "tls",
+        "dns",
+        "readline",
+        "zlib",
+        "assert",
+        "cluster",
+        "dgram",
+        "domain",
+        "module",
+        "perf_hooks",
+        "string_decoder",
+        "timers",
+        "worker_threads",
+        "v8",
+        "process",
+        "repl",
+        "vm",
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Well-known global namespace objects that appear as receivers in qualified
+/// calls (`Math.floor(x)`, `JSON.parse(s)`, `console.log(...)`, …).
+static TS_GLOBAL_NAMESPACE_OBJECTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        "Math",
+        "JSON",
+        "console",
+        "process",
+        "Buffer",
+        "Array",
+        "Object",
+        "String",
+        "Number",
+        "Boolean",
+        "Symbol",
+        "BigInt",
+        "Promise",
+        "Map",
+        "Set",
+        "WeakMap",
+        "WeakSet",
+        "Reflect",
+        "Proxy",
+        "globalThis",
+        "global",
+        "Atomics",
+        "Intl",
+        "Date",
+        "RegExp",
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Well-known Array / String / Promise / Object *method* names. Ported from
+/// the ECMAScript specification method tables. Conservative: only names that
+/// are overwhelmingly stdlib. Ambiguous names a project routinely defines
+/// (`get`, `set`, `update`, `clear`, `init`, `run`) are deliberately EXCLUDED.
+static TS_STDLIB_METHODS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // Array iteration
+        "forEach",
+        "map",
+        "filter",
+        "reduce",
+        "reduceRight",
+        "find",
+        "findIndex",
+        "findLast",
+        "findLastIndex",
+        "some",
+        "every",
+        "flatMap",
+        "flat",
+        // Array mutation
+        "splice",
+        "fill",
+        "copyWithin",
+        "toReversed",
+        "toSorted",
+        "toSpliced",
+        // Array access
+        "includes",
+        "indexOf",
+        "lastIndexOf",
+        "at",
+        // Array shape
+        "concat",
+        "join",
+        "slice",
+        "entries",
+        "reverse",
+        "sort",
+        // Array stack / queue
+        "pop",
+        "push",
+        "shift",
+        "unshift",
+        // String manipulation
+        "trim",
+        "trimStart",
+        "trimEnd",
+        "trimLeft",
+        "trimRight",
+        "padStart",
+        "padEnd",
+        "repeat",
+        "replace",
+        "replaceAll",
+        "split",
+        "startsWith",
+        "endsWith",
+        "substring",
+        "substr",
+        "charAt",
+        "charCodeAt",
+        "codePointAt",
+        "fromCharCode",
+        "fromCodePoint",
+        "normalize",
+        "toUpperCase",
+        "toLowerCase",
+        "toLocaleUpperCase",
+        "toLocaleLowerCase",
+        "localeCompare",
+        "match",
+        "matchAll",
+        "search",
+        // Promise / async
+        "then",
+        "catch",
+        "finally",
+        // Object proto
+        "hasOwnProperty",
+        "isPrototypeOf",
+        "propertyIsEnumerable",
+        "toLocaleString",
+        "toJSON",
+        // Map / Set
+        "has",
+        "delete",
+        "forEach",
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Distinctive Node.js module-level function names — the bare-stub equivalent
+/// of `fs.readFileSync(...)`, `path.join(...)`, etc., after the receiver is
+/// dropped by tree-sitter. Conservative: only names overwhelmingly from a
+/// single Node.js module. Genuinely ambiguous names (`parse`, `resolve`,
+/// `format`) are EXCLUDED — the receiver-qualified [`classify_typescript_qualified`]
+/// handles them correctly.
+static TS_STDLIB_FUNCTIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // fs
+        "readFileSync",
+        "writeFileSync",
+        "existsSync",
+        "mkdirSync",
+        "readdirSync",
+        "statSync",
+        "lstatSync",
+        "unlinkSync",
+        "renameSync",
+        "copyFileSync",
+        "appendFileSync",
+        "createReadStream",
+        "createWriteStream",
+        "watchFile",
+        "unwatchFile",
+        // path — `join`/`resolve`/`normalize` are in TS_FUNCTION_MODULES
+        "dirname",
+        "basename",
+        "extname",
+        "isAbsolute",
+        "relative",
+        // os
+        "platform",
+        "arch",
+        "cpus",
+        "freemem",
+        "totalmem",
+        "homedir",
+        "tmpdir",
+        "hostname",
+        "userInfo",
+        "networkInterfaces",
+        // crypto
+        "randomBytes",
+        "randomUUID",
+        "createHash",
+        "createHmac",
+        "createCipheriv",
+        "createDecipheriv",
+        // util
+        "promisify",
+        "callbackify",
+        // url
+        "pathToFileURL",
+        "fileURLToPath",
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Maps each name in [`TS_STDLIB_FUNCTIONS`] (and some from
+/// [`TS_STDLIB_METHODS`]) to the Node.js module(s) that own it. Used by
+/// [`classify_typescript_import_gated`] to enforce module-specific import
+/// evidence.
+static TS_FUNCTION_MODULES: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            // fs
+            ("readFileSync", vec!["fs"]),
+            ("writeFileSync", vec!["fs"]),
+            ("existsSync", vec!["fs"]),
+            ("mkdirSync", vec!["fs"]),
+            ("readdirSync", vec!["fs"]),
+            ("statSync", vec!["fs"]),
+            ("lstatSync", vec!["fs"]),
+            ("unlinkSync", vec!["fs"]),
+            ("renameSync", vec!["fs"]),
+            ("copyFileSync", vec!["fs"]),
+            ("appendFileSync", vec!["fs"]),
+            ("createReadStream", vec!["fs"]),
+            ("createWriteStream", vec!["fs"]),
+            ("watchFile", vec!["fs"]),
+            ("unwatchFile", vec!["fs"]),
+            // path (also in TS_STDLIB_METHODS join/slice — ownership map takes precedence)
+            ("join", vec!["path"]),
+            ("dirname", vec!["path"]),
+            ("basename", vec!["path"]),
+            ("extname", vec!["path"]),
+            ("isAbsolute", vec!["path"]),
+            ("relative", vec!["path"]),
+            // os
+            ("platform", vec!["os"]),
+            ("arch", vec!["os"]),
+            ("cpus", vec!["os"]),
+            ("freemem", vec!["os"]),
+            ("totalmem", vec!["os"]),
+            ("homedir", vec!["os"]),
+            ("tmpdir", vec!["os"]),
+            ("hostname", vec!["os"]),
+            ("userInfo", vec!["os"]),
+            ("networkInterfaces", vec!["os"]),
+            // crypto
+            ("randomBytes", vec!["crypto"]),
+            ("randomUUID", vec!["crypto"]),
+            ("createHash", vec!["crypto"]),
+            ("createHmac", vec!["crypto"]),
+            ("createCipheriv", vec!["crypto"]),
+            ("createDecipheriv", vec!["crypto"]),
+            // util
+            ("promisify", vec!["util"]),
+            ("callbackify", vec!["util"]),
+            // url
+            ("pathToFileURL", vec!["url"]),
+            ("fileURLToPath", vec!["url"]),
+        ])
+    });
+
+/// Well-known test-framework method names (jest, vitest, mocha, chai).
+/// Conservative: only names distinctive enough to be unambiguous test API
+/// calls. Names that collide with common application code (`before`, `after`,
+/// `it`, `test`, `describe`) are deliberately EXCLUDED.
+static TS_EXTERNAL_TEST_METHODS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // jest / vitest expect matchers
+        "toBe",
+        "toEqual",
+        "toStrictEqual",
+        "toBeNull",
+        "toBeUndefined",
+        "toBeDefined",
+        "toBeTruthy",
+        "toBeFalsy",
+        "toThrow",
+        "toThrowError",
+        "toHaveBeenCalled",
+        "toHaveBeenCalledWith",
+        "toHaveBeenCalledTimes",
+        "toHaveBeenNthCalledWith",
+        "toHaveBeenLastCalledWith",
+        "toMatchSnapshot",
+        "toMatchInlineSnapshot",
+        "toMatchObject",
+        "toContain",
+        "toContainEqual",
+        "toHaveLength",
+        "toHaveProperty",
+        "toBeGreaterThan",
+        "toBeGreaterThanOrEqual",
+        "toBeLessThan",
+        "toBeLessThanOrEqual",
+        "toBeCloseTo",
+        // jest spy / mock
+        "mockReturnValue",
+        "mockReturnValueOnce",
+        "mockResolvedValue",
+        "mockResolvedValueOnce",
+        "mockRejectedValue",
+        "mockImplementation",
+        "mockImplementationOnce",
+        "mockClear",
+        "mockReset",
+        "mockRestore",
+        "spyOn",
+        // chai
+        "deepEqual",
+        "strictEqual",
+        "notStrictEqual",
+        "doesNotThrow",
+        "isAbove",
+        "isBelow",
+        "isAtLeast",
+        "isAtMost",
+        "isOk",
+        "isNotOk",
+        // jasmine
+        "createSpy",
+        "createSpyObj",
+        "jasmine",
+    ]
+    .into_iter()
+    .collect()
+});
+
+#[cfg(test)]
+mod ts_tests {
+    use super::*;
+
+    fn ts_imports(modules: &[&str]) -> std::collections::HashSet<String> {
+        modules.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    // ── classify_typescript (name-only) ──────────────────────────────────────
+
+    #[test]
+    fn ts_classifies_global_builtins() {
+        assert_eq!(classify_typescript("parseInt"), CalleeClass::Builtin);
+        assert_eq!(classify_typescript("parseFloat"), CalleeClass::Builtin);
+        assert_eq!(classify_typescript("isNaN"), CalleeClass::Builtin);
+        assert_eq!(classify_typescript("setTimeout"), CalleeClass::Builtin);
+        assert_eq!(classify_typescript("Error"), CalleeClass::Builtin);
+        assert_eq!(classify_typescript("TypeError"), CalleeClass::Builtin);
+    }
+
+    #[test]
+    fn ts_classifies_stdlib_array_methods() {
+        assert_eq!(classify_typescript("map"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("filter"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("reduce"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("forEach"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("includes"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("flatMap"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn ts_classifies_stdlib_string_methods() {
+        assert_eq!(classify_typescript("trim"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("replace"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("startsWith"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("toUpperCase"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("padStart"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn ts_classifies_node_module_names() {
+        assert_eq!(classify_typescript("fs"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("path"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("os"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("crypto"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn ts_classifies_node_module_functions() {
+        assert_eq!(classify_typescript("readFileSync"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("writeFileSync"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("promisify"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("randomUUID"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("dirname"), CalleeClass::Stdlib);
+        assert_eq!(classify_typescript("basename"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn ts_classifies_test_matchers() {
+        assert_eq!(classify_typescript("toBe"), CalleeClass::External);
+        assert_eq!(classify_typescript("toEqual"), CalleeClass::External);
+        assert_eq!(
+            classify_typescript("toHaveBeenCalled"),
+            CalleeClass::External
+        );
+        assert_eq!(
+            classify_typescript("toMatchSnapshot"),
+            CalleeClass::External
+        );
+        assert_eq!(classify_typescript("spyOn"), CalleeClass::External);
+    }
+
+    #[test]
+    fn ts_unknown_names_stay_unknown() {
+        assert_eq!(classify_typescript("myProjectHelper"), CalleeClass::Unknown);
+        assert_eq!(classify_typescript("frobnicate"), CalleeClass::Unknown);
+        // Ambiguous names deliberately excluded
+        assert_eq!(classify_typescript("run"), CalleeClass::Unknown);
+        assert_eq!(classify_typescript("init"), CalleeClass::Unknown);
+    }
+
+    // ── classify_typescript_import_gated ─────────────────────────────────────
+
+    #[test]
+    fn ts_import_gate_builtins_fire_without_imports() {
+        let none = ts_imports(&[]);
+        assert_eq!(
+            classify_typescript_import_gated("parseInt", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(
+            classify_typescript_import_gated("setTimeout", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(
+            classify_typescript_import_gated("TypeError", &none),
+            CalleeClass::Builtin
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_stdlib_method_blocked_without_import() {
+        let none = ts_imports(&[]);
+        assert_eq!(
+            classify_typescript_import_gated("map", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_typescript_import_gated("trim", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_stdlib_method_allowed_with_any_node_import() {
+        let with_path = ts_imports(&["path"]);
+        assert_eq!(
+            classify_typescript_import_gated("map", &with_path),
+            CalleeClass::Stdlib
+        );
+        let with_fs = ts_imports(&["fs"]);
+        assert_eq!(
+            classify_typescript_import_gated("trim", &with_fs),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_module_function_requires_exact_module() {
+        // readFileSync belongs to fs — needs fs import.
+        let none = ts_imports(&[]);
+        assert_eq!(
+            classify_typescript_import_gated("readFileSync", &none),
+            CalleeClass::Unknown
+        );
+        let with_fs = ts_imports(&["fs"]);
+        assert_eq!(
+            classify_typescript_import_gated("readFileSync", &with_fs),
+            CalleeClass::Stdlib
+        );
+        // Wrong module: path import does NOT enable readFileSync (fs function).
+        let with_path = ts_imports(&["path"]);
+        assert_eq!(
+            classify_typescript_import_gated("readFileSync", &with_path),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_path_functions_require_path_import() {
+        let with_fs = ts_imports(&["fs"]);
+        assert_eq!(
+            classify_typescript_import_gated("dirname", &with_fs),
+            CalleeClass::Unknown
+        );
+        let with_path = ts_imports(&["path"]);
+        assert_eq!(
+            classify_typescript_import_gated("dirname", &with_path),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_import_gated("basename", &with_path),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_import_gated("join", &with_path),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_node_prefix_is_tolerated() {
+        // `import * as fs from 'node:fs'` — canonical strip must match.
+        let with_node_fs = ts_imports(&["node:fs"]);
+        assert_eq!(
+            classify_typescript_import_gated("readFileSync", &with_node_fs),
+            CalleeClass::Stdlib
+        );
+        let with_node_path = ts_imports(&["node:path"]);
+        assert_eq!(
+            classify_typescript_import_gated("dirname", &with_node_path),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_test_methods_blocked_without_test_import() {
+        let none = ts_imports(&[]);
+        assert_eq!(
+            classify_typescript_import_gated("toBe", &none),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_typescript_import_gated("toHaveBeenCalled", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_test_methods_allowed_with_jest_import() {
+        let with_jest = ts_imports(&["jest"]);
+        assert_eq!(
+            classify_typescript_import_gated("toBe", &with_jest),
+            CalleeClass::External
+        );
+        assert_eq!(
+            classify_typescript_import_gated("toMatchSnapshot", &with_jest),
+            CalleeClass::External
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_test_methods_allowed_with_vitest_import() {
+        let with_vitest = ts_imports(&["vitest"]);
+        assert_eq!(
+            classify_typescript_import_gated("toEqual", &with_vitest),
+            CalleeClass::External
+        );
+        assert_eq!(
+            classify_typescript_import_gated("spyOn", &with_vitest),
+            CalleeClass::External
+        );
+    }
+
+    #[test]
+    fn ts_import_gate_unknown_names_stay_unknown_regardless_of_imports() {
+        let lots = ts_imports(&["fs", "path", "os", "jest"]);
+        assert_eq!(
+            classify_typescript_import_gated("frobnicate", &lots),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_typescript_import_gated("myProjectFn", &lots),
+            CalleeClass::Unknown
+        );
+    }
+
+    // ── classify_typescript_qualified ────────────────────────────────────────
+
+    #[test]
+    fn ts_qualified_node_module_is_stdlib() {
+        assert_eq!(
+            classify_typescript_qualified("fs", "readFileSync"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("path", "join"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("os", "platform"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("crypto", "randomUUID"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn ts_qualified_global_namespace_is_stdlib() {
+        assert_eq!(
+            classify_typescript_qualified("Math", "floor"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("JSON", "parse"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("console", "log"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("Promise", "all"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("Object", "keys"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn ts_qualified_node_prefix_is_stdlib() {
+        // `import * as fs from 'node:fs'` → receiver is `fs`, method is `readFileSync`.
+        assert_eq!(
+            classify_typescript_qualified("node:fs", "readFileSync"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("node:path", "join"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn ts_qualified_falls_back_to_method_name() {
+        // Unknown receiver → classify the method alone.
+        assert_eq!(
+            classify_typescript_qualified("arr", "map"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_typescript_qualified("obj", "frobnicate"),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_typescript_qualified("suite", "toBe"),
+            CalleeClass::External
+        );
+    }
+}
