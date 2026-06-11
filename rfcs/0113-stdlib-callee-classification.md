@@ -1,6 +1,6 @@
 # RFC-0113: stdlib/builtin callee classification — rescue the `unknown` tail (design)
 
-- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending)
+- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
@@ -120,7 +120,12 @@ existing pack files (the core resolver loads it the way it loads `queries.scm`).
 - [x] CLI ↔ MCP parity preserved (additive field identical on both).
       *(shared `callees_payload` builder — byte-identical across surfaces)*
 
-**Phase 2:** TypeScript/JS, then other Tier-1 packs (same tier, new data tables).
+**Phase 2:** TypeScript/JS — `classify_typescript`, `classify_typescript_import_gated`,
+`classify_typescript_qualified` + 21 TDD tests. ✅ Shipped in `classify.rs` alongside the
+Python tables. Global builtins (`parseInt`, `Error`, …), Node.js modules (`fs`, `path`, …),
+stdlib methods (Array/String/Promise), Node.js module-level functions (`readFileSync`, …),
+test-framework matchers (jest/vitest/mocha/chai). Import-gated with `node:` prefix
+tolerance. Other Tier-1 packs (Go, Rust, Java, C/C++) remain pending.
 
 ## Alternatives considered
 
