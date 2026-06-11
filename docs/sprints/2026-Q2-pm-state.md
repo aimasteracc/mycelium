@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v186 — housekeeping: PR #774 merged (v185 chore, `c3b03603`); P0 escalation ×51 for #568; all P1 still blocked on #568 finalize) |
+| Last updated | 2026-06-11 (PM dispatch v187 — RFC-0113 Phase 2 TypeScript/JS stdlib classification shipped (PR #776, 21 TDD tests); P0 escalation ×52 for #568) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize awaiting founder `finalize` workflow_dispatch on PR #568. RFC-0121 Option A now staged as DRAFT PR #763 (un-draft + merge = one action). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -68,6 +68,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - [x] feat(hyphae): attribute filters after pseudo-classes — RFC-0124 (PR #754, squash `56bc4b7`)
 - [x] chore(pm): PM dispatch v171 — PRs #743–#754 documented; RFC-0117/0119 status corrected (PR #756, squash `4d7e681`)
 - [x] feat(constraints): RFC-0117 Phase 2 — `check-architecture` CLI + `mycelium_check_architecture` MCP + graph-structure Skill + YAML loader + Store adapter; 97/97 Three-Surface ✅ (PR #757, squash `98636e0`)
+- [ ] feat(classify): RFC-0113 Phase 2 — TypeScript/JS stdlib callee classification; `classify_typescript`, `classify_typescript_import_gated`, `classify_typescript_qualified`; 21 TDD tests; import-gated with `node:` prefix tolerance (**PR #776 open** — feature/RFC-0113-phase2-typescript → develop)
 
 **v0.3.0 ceremony status — REGISTRIES ✅, GIT ⏳ PENDING:**
 - [x] **Registries published** 2026-06-05T17:59Z — crates.io ✅, npm ✅, PyPI ✅
@@ -80,11 +81,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `c3b03603` (PM v185 merged). RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: confirmed active — live P2 finding on PR #771 (2026-06-11T08:13:57Z) + 0 threads on PR #772/#773/#774 (chore diffs; nothing to flag). P0 #3 remains resolved.
-> **v186 update (2026-06-11):** PR #774 (pm-state-v185 chore, 22/22 CI ✅; 0 Codex threads; 0 comments) merged `c3b03603`. All P0s unchanged — founder action required.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `c3b03603` (PM v185 merged; v187 PR #776 open). RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: confirmed active — live P2 finding on PR #771 (2026-06-11T08:13:57Z). P0 #3 remains resolved.
+> **v187 update (2026-06-11):** RFC-0113 Phase 2 — TypeScript/JS stdlib callee classification shipped. PR #776 open (feature/RFC-0113-phase2-typescript → develop). 21 TDD tests, 49/49 passing. `cargo fmt` + `cargo clippy -D warnings` clean. CHANGELOG [Unreleased] updated. RFC-0113 AC Phase 2 marked done. P0s unchanged — founder action required on PR #568 + PR #763.
 
 **P0 (founder action required):**
-1. **PR #568** [×51 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×52 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
 **ℹ️ Codex — confirmed active (no action needed):**
@@ -93,7 +94,7 @@ Codex posted a live P2 finding on PR #771 (2026-06-11T08:13:57Z) and 0 threads o
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). Also satisfies RFC-0119 AC-12/AC-13 (dogfood transcript).
 3. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench).
-4. **RFC-0113 Phase 2**: corpus measurement — `unknown`-tail reduction benchmark on dogfood corpus.
+4. **RFC-0113 Phase 2 PR #776** — awaiting CI + review, then merge. Corpus measurement (`unknown`-tail reduction benchmark) is the remaining open AC.
 
 **P2:**
 5. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -107,8 +108,8 @@ Codex posted a live P2 finding on PR #771 (2026-06-11T08:13:57Z) and 0 threads o
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×51 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. Codex confirmed active — no action needed. |
-| PM | **DONE ✅** | v186 complete: PR #774 merged (`c3b03603`); 0 Codex threads on #774; escalation ×50→×51; decisions.jsonl appended. |
-| rust-implementer | **DONE ✅** | RFC-0114/0115/0116/0117 Phase 2 all COMPLETE (PRs #743/#757 etc.); 97/97 Three-Surface ✅. Next: dogfood re-run after #568 back-merge. |
+| PM | **DONE ✅** | v187 complete: RFC-0113 Phase 2 shipped (PR #776 open); escalation ×51→×52; decisions.jsonl appended. |
+| rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TypeScript/JS classification shipped (PR #776, 21 tests). Next: wait CI + merge; then dogfood re-run after #568 back-merge. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -144,6 +145,28 @@ Codex posted a live P2 finding on PR #771 (2026-06-11T08:13:57Z) and 0 threads o
 ---
 
 ## Archive
+
+### 2026-06-11 PM dispatch v187 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 from develop HEAD `c3b03603`), anti-patterns (domain hits: ci/testing/release/governance/git-workflow), PM state v186 (`c3b03603`), RFC-0113.
+
+**Assessment:**
+- Develop HEAD `c3b03603`. 4 open PRs before this run: #568 (`release/v0.3.0` → main; 50/50 CI ✅, registries published ✅), #763 (DRAFT RFC-0121 → develop; BDFL required), #775 (safe-to-edit chore — now merged per prior context), #776 (RFC-0113 Phase 2 — this run). 0 open issues.
+- v186 claimed "all P1 blocked on #568 finalize" — FALSE. RFC-0113 Phase 2 TypeScript classification was unblocked: additive code in `classify.rs`, no dependency on version numbers or PR #568. This anti-pattern (incorrect blanket blocked claim) corrected.
+- Codex: confirmed active. P0 #3 remains resolved.
+
+**Actions taken:**
+1. **Read classify.rs** to understand Phase 1 Python structure. ✅
+2. **Implemented RFC-0113 Phase 2**: `classify_typescript`, `classify_typescript_import_gated`, `classify_typescript_qualified` + 7 static tables + 21 TDD tests. Quality gate: `cargo fmt` + `cargo clippy -D warnings` + 49/49 tests passing. ✅
+3. **Updated RFC-0113 acceptance criteria**: Phase 2 item marked `[x]` in `rfcs/0113-stdlib-callee-classification.md`. ✅
+4. **Updated CHANGELOG [Unreleased]**: RFC-0113 Phase 2 entry added. ✅
+5. **Committed** (`feat(classify): RFC-0113 Phase 2 — TypeScript/JS stdlib classification`, DCO signed, SHA `f352ea4`). ✅
+6. **Pushed** `feature/RFC-0113-phase2-typescript` and **opened PR #776** → develop. ✅
+7. **Updated PM state v187** (this file) + decisions.jsonl appended. ✅
+
+**Escalations to founder (×52 consecutive runs on PR #568):**
+1. **PR #568 READY**: trigger `finalize` workflow_dispatch — 50/50 CI ✅, all registries published ✅. v0.3.0 git ceremony (Steps 1–4) is the only remaining step.
+2. **PR #763 UNBLOCKED**: DRAFT RFC-0121 Option A — `bpe_charter_sla_binding` per-class thresholds on develop ✅; un-draft + merge (6-line Charter §2 change). BDFL approval required.
 
 ### 2026-06-11 PM dispatch v186 (this run)
 
