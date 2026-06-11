@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v192 — PR #781 merged `af889a1`; PR #780 closed superseded; Codex P1+P2 on #781 rejected; P0 escalation ×57 for #568; lesson: workflow_dispatch ≠ pull_request event re-fire for E2E) |
+| Last updated | 2026-06-11 (PM dispatch v193 — PR #782 merged `9a601c1`; Codex P1 on #782 rejected (stale SHA DCO, CI DCO job 80871837930 ✅); P0 escalation ×58 for #568) |
 | Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×57 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -80,14 +80,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `af889a1` (PM v191 chore, via PR #781 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #781 had 2 findings (P1 stale SHA + P2 workflow_dispatch note), both rejected with justification. CI anomaly (PR #780) resolved — closed as superseded.
-> **v192 update (2026-06-11):** PR #781 (v191 chore) merged squash `af889a1`; PR #780 closed superseded. Codex P1+P2 rejected. Escalation ×56→×57.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `9a601c1` (PM v192 chore, via PR #782 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #782 had 1 finding (P1 stale SHA DCO, rejected with justification; CI DCO job 80871837930 ✅). No autonomous engineering tasks available — all P1 items blocked on PR #568 git ceremony.
+> **v193 update (2026-06-11):** PR #782 (v192 chore) merged squash `9a601c1`; Codex P1 rejected. Escalation ×57→×58.
 
 **P0 (founder action required):**
-1. **PR #568** [×57 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×58 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active. PR #781: 2 findings addressed (P1 stale SHA rejected; P2 workflow_dispatch note rejected with lesson). PR #780: closed superseded (no merge, CI anomaly resolved). Hard Rule satisfied.**
+**ℹ️ Codex — active. PR #782: 1 finding addressed (P1 stale SHA DCO rejected — CI DCO job 80871837930 ✅). Hard Rule satisfied.**
 
 **P1 (completed recently):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript + Codex fixes. ✅ **MERGED** squash `6f6f4a9` (CI 20/20 ✅; all Codex threads addressed). Now on develop.
@@ -104,12 +104,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-11 v192)
+## Dispatch state (2026-06-11 v193)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×57 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
-| PM | **DONE ✅** | v192: PR #781 merged `af889a1` (Codex P1+P2 rejected); PR #780 closed superseded; escalation ×56→×57; lesson appended to anti-patterns.jsonl. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×58 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
+| PM | **DONE ✅** | v193: PR #782 merged `9a601c1` (Codex P1 rejected); escalation ×57→×58. |
 | rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS MERGED (`6f6f4a9`): `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests. 20/20 CI ✅. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -146,6 +146,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-11 PM dispatch v193 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v189/v191/v192), anti-patterns (hits: ci/release-governance/merge-discipline/git-workflow/dco), PM state v192 (develop HEAD `9a601c1` post-merge), v0.2 PRD. GitHub state verified via MCP GitHub tools.
+
+**Assessment:**
+- 3 open PRs at start: #568 (`release/v0.3.0` → main; 50/50 CI ✅, registries ✅, founder-gated ×57), #763 (DRAFT RFC-0121 → develop; 22/22 CI ✅; BDFL required), #782 (`chore/pm-state-v192` → develop; 22/22 CI ✅; 1 Codex P1). 0 open P0/P1 issues.
+- PR #782 had 1 Codex P1 (DCO missing on intermediate commit SHA `a3bdfa37`) — same recurring stale-SHA false-positive pattern. CI DCO job 80871837930 shows SUCCESS on current branch HEAD `5abfeda`.
+- No autonomous engineering work available — all P1 items blocked on PR #568 git ceremony.
+
+**Actions taken:**
+1. **Replied Codex P1** on PR #782 (`discussion_r3398142386`): rejected — CI DCO job `80871837930` SUCCESS; stale-SHA squash-merge anti-pattern (same as PR #781 P1). Reply posted (`PRRC_kwDOSq56sc7KkHAY`). ✅
+2. **Merged PR #782** — squash `9a601c1` (Codex P1 addressed, 22/22 CI ✅). ✅
+3. **Incremented PR #568 escalation**: ×57 → ×58. ✅
+4. **PM state v193 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (×58 consecutive runs for #568):**
+1. **PR #568 READY**: trigger `finalize` workflow_dispatch — 50/50 CI ✅, all registries published ✅ (×58 consecutive runs).
+2. **PR #763 UNBLOCKED**: DRAFT RFC-0121 Option A — `bpe_charter_sla_binding` per-class thresholds on develop ✅; un-draft + merge (6-line Charter §2 change; BDFL approval required).
+
+---
 
 ### 2026-06-11 PM dispatch v192 (this run)
 
