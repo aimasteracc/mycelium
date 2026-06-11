@@ -91,8 +91,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 **ℹ️ Codex — active (5 findings on PRs #776/#777 all addressed v188):**
 3 fixed (wiring + isInteger), 1 rejected with justification (pack boundary — tables embedded in core per RFC-0113 Phase 1/2 design), 1 implicitly resolved (PR #777 closed). Hard Rule satisfied: every finding fixed, rejected, or spun off before merge.
 
-**P1 (in flight this run):**
-1. **PR #776** — RFC-0113 Phase 2 TypeScript + Codex fixes. CI running on fix commit `9de6484`. Once CI ✅ → admin-merge. Then merge PM v188 chore.
+**P1 (completed this run):**
+1. **PR #776** — RFC-0113 Phase 2 TypeScript + Codex fixes. ✅ **MERGED** squash `6f6f4a9` (CI 20/20 ✅; all Codex threads addressed). Now on develop.
 
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). Also satisfies RFC-0119 AC-12/AC-13 (dogfood transcript).
@@ -111,8 +111,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×53 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. Codex confirmed active — no action needed. |
-| PM | **IN FLIGHT** | v188: Codex P1/P2 fixes committed on PR #776 (`9de6484`); PM state v188 chore in progress. PR #777 closed superseded. |
-| rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS: `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests added. Fix commit `9de6484` on PR #776 (CI running). |
+| PM | **IN FLIGHT** | v188: PR #776 merged (`6f6f4a9`); PR #777 closed superseded; PR #778 (this chore) CI running. |
+| rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS MERGED (`6f6f4a9`): `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests. 20/20 CI ✅. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
