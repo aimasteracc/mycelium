@@ -5,7 +5,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-11 (PM dispatch v182 — housekeeping: PR #770 merged (v181 chore, `d9aa509`); all P0s unchanged; P0 escalation ×47 for #568; all P1 still blocked on #568 finalize; discovered 97/97 Three-Surface on develop) |
+| Last updated | 2026-06-11 (PM dispatch v183 — housekeeping: PR #771 merged (v182 chore, `ea20c12`); P0 escalation ×48 for #568; Codex live finding on PR #771 → limits possibly restored (P0 #3 status updated); all P1 still blocked on #568 finalize) |
 | Current sprint | **v0.3.0 ceremony in progress** — registries ✅ published 2026-06-05; git finalize awaiting founder `finalize` workflow_dispatch on PR #568. RFC-0121 Option A now staged as DRAFT PR #763 (un-draft + merge = one action). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
@@ -80,13 +80,15 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **All three P0 items require founder action.** Develop HEAD `d9aa509` (PM v181 merged). Codex usage limits exhausted ×v134+ — billing notices only, no code findings. RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked** (issue #766 closed via `b2515263` + manually closed v180). Skills: **97/97 Three-Surface compliant** (4 new v0.4.0 tools on develop: `project_health`, `safe_to_edit`, `test_gap`, `check_architecture` — RFC-0114/0115/0116/0117).
-> **v182 update (2026-06-11):** PR #770 (pm-state-v181 chore, 20/20 CI ✅) merged `d9aa509`. All P0s unchanged — founder action required.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `ea20c12` (PM v182 merged). RFC-0120 is **Implemented ✅**; RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex update**: limits appeared exhausted since v134; however Codex posted a live P2 code-review finding on PR #771 at 2026-06-11T08:13:57Z — limits may be restored. P0 #3 reclassified to "monitor" (not a blocking escalation if Codex is now operational).
+> **v183 update (2026-06-11):** PR #771 (pm-state-v182 chore, 22/22 CI ✅; Codex P2 rejected with justification) merged `ea20c12`. All P0s unchanged — founder action required.
 
 **P0 (founder action required):**
-1. **PR #568** [×47 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
-2. **RFC-0121** — DRAFT PR #763 staged. ✅ **UNBLOCKED**: issue #766 closed via PR #767 (squash `b2515263`) — `bpe_charter_sla_binding` now asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
-3. **Codex usage limits exhausted** (surfaced v134): CLAUDE.md Hard Rule requires Codex findings addressed before merge, but Codex cannot review while limits exhausted. Founder must upgrade credits or explicitly suspend the Hard Rule. See: https://chatgpt.com/codex/cloud/settings/usage
+1. **PR #568** [×48 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
+
+**⚠️ Codex limits — monitor (possibly restored):**
+Codex posted a live P2 code-review finding on PR #771 at 2026-06-11T08:13:57Z — this is a genuine review comment, not a billing notice, suggesting per-PR review capacity may have been restored. If confirmed: P0 #3 resolves automatically. If still limited: founder must upgrade or suspend the Hard Rule at https://chatgpt.com/codex/cloud/settings/usage
 
 **P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
 2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). Also satisfies RFC-0119 AC-12/AC-13 (dogfood transcript).
@@ -100,12 +102,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-11 v182)
+## Dispatch state (2026-06-11 v183)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×3)** | **(1) READY**: PR #568 CI 50/50 ✅ (×47 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — issue #766 closed; `bpe_charter_sla_binding` asserts per-class thresholds. Un-draft + merge. **(3)** Resolve Codex limits at https://chatgpt.com/codex/cloud/settings/usage. |
-| PM | **DONE ✅** | v182 complete: PR #770 merged (`d9aa509`); escalation counter ×46→×47; 97/97 Three-Surface discovered on develop; decisions.jsonl appended; PM state v182 updated. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×48 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. **(3 monitor)**: Codex may be restored (live finding on PR #771 today). |
+| PM | **DONE ✅** | v183 complete: PR #771 merged (`ea20c12`); Codex P2 rejected; escalation ×47→×48; Codex status updated to "monitor"; decisions.jsonl appended. |
 | rust-implementer | **DONE ✅** | RFC-0114/0115/0116/0117 Phase 2 all COMPLETE (PRs #743/#757 etc.); 97/97 Three-Surface ✅. Next: dogfood re-run after #568 back-merge. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -125,7 +127,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 - Skill marketplace listing metadata sign-off.
 - **RFC-0104 cold SLA measurement**: Charter §2 warm/cold SLA table amendment requires measured nightly data.
 - **RFC-0121 SLA amendment**: DRAFT PR #763 staged. ✅ **UNBLOCKED** — issue #766 closed via PR #767 (`bpe_charter_sla_binding` per-class thresholds on develop). Founder action: un-draft + merge PR #763. [RFC-0121](../../rfcs/0121-charter-hyphae-token-sla-amendment.md) | [PR #763 (DRAFT)](https://github.com/aimasteracc/mycelium/pull/763).
-- **Codex usage limits**: CLAUDE.md Hard Rule (Codex review mandatory pre-merge) is unenforceable while limits are exhausted. **Founder must** upgrade account or explicitly suspend the rule. See https://chatgpt.com/codex/cloud/settings/usage
+- **Codex usage limits**: Possibly restored — Codex posted a live P2 finding on PR #771 (2026-06-11T08:13:57Z). If Codex is reviewing normally: no action needed. If still limited: founder must upgrade or explicitly suspend the Hard Rule at https://chatgpt.com/codex/cloud/settings/usage
 - ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED by founder 2026-06-03T12:30Z.
 - ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED — retro-tag at `6aa1bed`; main jumps v0.1.16→v0.1.18→v0.1.19.
 - ~~**Systemic**: `release.yml` finalize merge step~~  **✅ RESOLVED (v160)** — `finalize` job is `workflow_dispatch`-gated with `RELEASE_BOT_TOKEN` + `git push origin main`. Design is correct; no further CI changes needed.
@@ -143,7 +145,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Archive
 
-### 2026-06-11 PM dispatch v182 (this run)
+### 2026-06-11 PM dispatch v183 (this run)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 from develop HEAD `ea20c12`), anti-patterns (domain hits: ci/testing/release/rfc/async), PM state v182 (`ea20c12`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (`release/v0.3.0` → main; 50/50 CI ✅, all registries published ✅), #763 (DRAFT RFC-0121 → develop; 22/22 CI ✅; BDFL required), #771 (`chore/pm-state-v182` → develop; 22/22 CI ✅ — merged this run).
+- 0 open issues. Develop CI: GREEN (22/22 on PR #771 HEAD). Project health: excellent.
+- **New finding**: Codex posted a live P2 code-review finding on PR #771 at 08:13:57Z — not a billing notice, a genuine finding. Limits may be restored since the "exhausted" escalation (v134). P0 #3 reclassified from "active escalation" to "monitor".
+- All P1 work (dogfood, RFC-0104, RFC-0113 Phase 2) remains blocked on PR #568 back-merge. 0 autonomous coding opportunities.
+
+**Actions taken:**
+1. **Replied to Codex P2 finding on PR #771** — rejected with justification (×46→×47 is a single-step increment; Codex compared against stale v181 ancestor). ✅
+2. **Merged PR #771** (squash `ea20c12`): PM dispatch v182 chore — 22/22 CI ✅. ✅
+3. **Incremented PR #568 escalation counter**: ×47 → ×48 in Live priorities. ✅
+4. **Updated Codex P0 #3 status**: reclassified from "exhausted escalation" to "monitor — possibly restored". ✅
+5. **Updated PM state v183** (this file) + decisions.jsonl entry appended. ✅
+
+**Escalations to founder (P0 ×2):**
+1. **PR #568 READY**: trigger `finalize` workflow_dispatch — 50/50 CI ✅, registries ✅ (×48 consecutive runs).
+2. **PR #763 UNBLOCKED**: un-draft + merge — RFC-0121 Charter §2 amendment, 22/22 CI ✅, zero engineering work remaining.
+
+### 2026-06-11 PM dispatch v182 (archived)
 
 **Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl (tail-20 from develop HEAD `d9aa509`), anti-patterns (domain hits: ci/release-governance/merge-discipline/governance/rfc), PM state v181 (`d9aa509`), v0.2 PRD.
 
