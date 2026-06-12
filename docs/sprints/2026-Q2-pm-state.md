@@ -113,7 +113,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 7. **PR #810** — PM state v214 chore. ✅ **MERGED** `7600b9db`. Codex P2 self-resolved by merge ordering (#809 first).
 
 **P1 (unblocked — next items):**
-7. **RFC-0125 JavaScript callee classification** — extend RFC-0113 approach to pure JS files (53.8% classified in corpus, worst of Tier 1 langs). Phase 1: `classify_javascript` in `callees_payload`; Phase 2: import-gated stdlib lookup. Bounded, TDD-compatible, no core changes. Draft RFC + implement.
+7. **RFC-0125 Phase 1** → **PR #814 (CI ✅, ready to merge)** — CJS `require()` → `@reference.import` extractor patterns; 2 TDD tests RED→GREEN. Phase 2 (browser-global classifier for DOM/Fetch API calls) queued for after #814 merges.
 8. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
 9. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
 
