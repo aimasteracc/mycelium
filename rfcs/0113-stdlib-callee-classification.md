@@ -1,6 +1,6 @@
 # RFC-0113: stdlib/builtin callee classification — rescue the `unknown` tail (design)
 
-- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped; Phase 3 Go tables shipped; Phase 3b Go qualified-call fix shipped; Phase 4 Rust tables shipped)
+- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped; Phase 3 Go tables shipped; Phase 3b Go qualified-call fix shipped; Phase 4 Rust tables shipped; Phase 5 Rust qualified-call fix shipped)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
@@ -156,6 +156,19 @@ dispatches `.rs` callers here. 21 new TDD tests (14 in `classify::rust_tests`, 7
 - [x] 4 new TDD tests (2 extractor integration, 2 `callees_payload` unit tests) all GREEN.
 - [x] Embedded pack copy `crates/mycelium-core/packs/go/queries.scm` synced; verified by
       `cortex::tests::embedded_core_pack_queries_match_canonical_root`.
+
+**Phase 5:** Rust qualified-call fix (Issue #800). ✅ Shipped (PR #802).
+- [x] `packs/rust/queries.scm` + `extractor/mod.rs` — single-segment Rust scoped calls
+      (e.g., `fs::read_to_string()`, `std::io::stdout()`) now emit `scope>name` stubs
+      instead of bare unresolved stubs, eliminating the duplicate bare-stub edge class
+      for qualified Rust callees.
+- [x] `callees_payload` in `queries.rs` dispatches `scope>name` Rust paths to
+      `classify_rust_qualified`, enabling precise stdlib/builtin classification for all
+      scoped calls (previously only handled when the scope was pre-resolved).
+- [x] Embedded pack copy `crates/mycelium-core/packs/rust/queries.scm` synced; verified
+      by `cortex::tests::embedded_core_pack_queries_match_canonical_root`.
+- [x] 3 new TDD tests (extractor integration + `callees_payload` unit tests), all GREEN.
+      Total: 957/957 tests pass. Issue #800 CLOSED.
 
 ## Alternatives considered
 

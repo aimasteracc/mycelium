@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v210 — PR #804 MERGED `2961bd3` (PM v209 chore); issue #800 EXPLICITLY CLOSED (GitHub skips auto-close on non-default branches); 0 open issues; P0 escalation ×75) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 ALL 5 PHASES DONE; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×75 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v211 — PR #805 MERGED `a20f64e` (PM v210 chore); RFC-0113 Phase 5 status updated in RFC doc; P0 escalation ×76) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 ALL 5 PHASES DONE + docs updated; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×76 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -158,6 +158,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v211 (PR #805 merged `a20f64e`; RFC-0113 Phase 5 docs updated; escalation ×75→×76)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (governance/verification/three-surface domains), PM state v210 (develop HEAD `a20f64e`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #805 (PM v210 chore, 20/20 CI ✅), #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×75), #763 (DRAFT RFC-0121, BDFL required).
+- 0 open issues.
+- Develop CI GREEN at `a20f64e` (PM v210 chore, all 20/20 checks pass).
+- RFC-0113 Phase 5 was shipped (PR #802) but RFC doc Status line still said "Phase 4 Rust tables shipped" — missing Phase 5 mention + acceptance criteria section.
+
+**Actions taken:**
+1. **Merged PR #805** (squash `a20f64e`) — PM v210 chore; CI 20/20 ✅; 0 Codex findings. ✅
+2. **Updated RFC-0113**: Status line updated to include "Phase 5 Rust qualified-call fix shipped"; Phase 5 acceptance criteria section added (`scope>name` stubs, pack parity, 3 TDD tests, 957/957 pass, issue #800 closed). ✅
+3. **PM state v211 written** (this file) + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×76 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 SLA amendment. CI 22/22 ✅.
+
+---
 
 ### 2026-06-12 PM dispatch v210 (PR #804 merged `2961bd3`; issue #800 explicitly closed; 0 open issues; escalation ×74→×75)
 
