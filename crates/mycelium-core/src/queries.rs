@@ -21,15 +21,16 @@ use crate::types::{EdgeKind, NodeId};
 /// - Paths containing `>` are project-defined symbols → `"project"`.
 /// - Bare stub paths (no `>`) are classified against the language-appropriate
 ///   allowlists: TypeScript/JS (RFC-0113 Phase 2) for `.ts/.tsx/.js/.jsx/.mjs/.cjs`;
-///   Go (RFC-0113 Phase 3) for `.go`; Python otherwise. Callers must apply the
-///   project-ownership shadow first (only unresolved stubs reach here).
+///   Go (RFC-0113 Phase 3) for `.go`; Rust (RFC-0113 Phase 4) for `.rs`;
+///   Python otherwise. Callers must apply the project-ownership shadow first
+///   (only unresolved stubs reach here).
 ///
 /// Both arrays are sorted lexicographically by path and deduplicated.
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
     use crate::classify::{
         CalleeClass, classify_go_import_gated, classify_go_qualified, classify_python_import_gated,
-        classify_typescript_import_gated,
+        classify_rust_import_gated, classify_rust_qualified, classify_typescript_import_gated,
     };
     use std::collections::HashSet;
 
@@ -61,6 +62,7 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
         .and_then(|f| std::path::Path::new(f).extension().and_then(|e| e.to_str()));
     let is_ts_js = matches!(ext, Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs"));
     let is_go = matches!(ext, Some("go"));
+    let is_rust = matches!(ext, Some("rs"));
 
     let mut entries: Vec<(String, &'static str)> = store
         .outgoing(id, kind)
@@ -90,6 +92,15 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
                                 known => known.as_str(),
                             }
                         }
+                    } else if is_rust {
+                        // RFC-0113 Phase 4: qualified Rust stdlib calls like
+                        // `fs>read_to_string` or `std::io>stdout`. Receiver is
+                        // the path component before the first `>`.
+                        let (receiver, method) = path.split_once('>').unwrap_or((path, ""));
+                        match classify_rust_qualified(receiver, method) {
+                            CalleeClass::Unknown => CalleeClass::Project.as_str(),
+                            known => known.as_str(),
+                        }
                     } else {
                         CalleeClass::Project.as_str()
                     }
@@ -97,6 +108,8 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
                     classify_typescript_import_gated(path, &caller_imports).as_str()
                 } else if is_go {
                     classify_go_import_gated(path, &caller_imports).as_str()
+                } else if is_rust {
+                    classify_rust_import_gated(path, &caller_imports).as_str()
                 } else {
                     classify_python_import_gated(path, &caller_imports).as_str()
                 };
@@ -1220,6 +1233,131 @@ mod tests {
         assert_eq!(
             entries[0]["class"], "project",
             "Go project callee `src/server.go>Server>Run` must remain `project`"
+        );
+    }
+
+    // ── RFC-0113 Phase 4: Rust stdlib classification ──────────────────────────
+
+    #[test]
+    fn callees_payload_rust_macro_builtin_classified() {
+        // Rust caller with bare stub "println" — builtin macro, no import needed.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.rs>main"));
+        let stub = store.upsert_node(p("println"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "println");
+        assert_eq!(
+            entries[0]["class"], "builtin",
+            "Rust macro `println` must be `builtin` for .rs caller"
+        );
+    }
+
+    #[test]
+    fn callees_payload_rust_drop_builtin_classified() {
+        // `drop(x)` is always available, no import required.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/lib.rs>Module>method"));
+        let stub = store.upsert_node(p("drop"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["path"], "drop");
+        assert_eq!(
+            entries[0]["class"], "builtin",
+            "Rust `drop` must be `builtin` for .rs caller"
+        );
+    }
+
+    #[test]
+    fn callees_payload_rust_stdlib_module_with_import_is_stdlib() {
+        // Rust caller + `use std::fs` import → "fs" bare stub → stdlib.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let file = store.upsert_node_with_kind(p("src/main.rs"), NodeKind::File);
+        let src = store.upsert_node(p("src/main.rs>main"));
+        let stub = store.upsert_node(p("fs"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+        let fs_mod = store.upsert_node_with_kind(p("std::fs"), NodeKind::Module);
+        store.upsert_edge(EdgeKind::Imports, file, fs_mod);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["path"], "fs");
+        assert_eq!(
+            entries[0]["class"], "stdlib",
+            "Rust `fs` with `use std::fs` import must be `stdlib`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_rust_stdlib_module_without_import_is_unknown() {
+        // No `use std::fs` → bare `fs` stub stays unknown.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.rs>main"));
+        let stub = store.upsert_node(p("fs"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(
+            entries[0]["class"], "unknown",
+            "Rust `fs` without import must be `unknown`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_rust_qualified_fs_is_stdlib() {
+        // Rust caller with `fs>read_to_string` qualified path → stdlib.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.rs>main"));
+        let method = store.upsert_node_with_kind(p("fs>read_to_string"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, method);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(entries[0]["path"], "fs>read_to_string");
+        assert_eq!(
+            entries[0]["class"], "stdlib",
+            "Rust `fs>read_to_string` must be `stdlib` for .rs caller"
+        );
+    }
+
+    #[test]
+    fn callees_payload_rust_project_path_stays_project() {
+        // Rust project callee path stays "project".
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.rs>main"));
+        let proj = store.upsert_node(p("src/lib.rs>MyStruct>method"));
+        store.upsert_edge(EdgeKind::Calls, src, proj);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(
+            entries[0]["class"], "project",
+            "Rust project callee must remain `project`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_rust_qualified_unknown_receiver_stays_project() {
+        // Unknown receiver for .rs callee stays "project" (no stdlib match).
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.rs>main"));
+        let method = store.upsert_node_with_kind(p("my_crate>MyType>method"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, method);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(
+            entries[0]["class"], "project",
+            "Unknown qualified Rust receiver must fall back to `project`"
         );
     }
 }

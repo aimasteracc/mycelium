@@ -2365,3 +2365,350 @@ mod go_tests {
         assert_eq!(classify_go_qualified("myPkg", "len"), CalleeClass::Unknown);
     }
 }
+
+// ── RFC-0113 Phase 4: Rust stdlib / builtin classification ────────────────────
+
+/// Classify a bare Rust callee name without import context.
+///
+/// - **Builtins** (macros + `drop`): always `Builtin` — no import required.
+/// - **Stdlib module local names** (`fs`, `io`, `env`, …): `Stdlib` when the
+///   name matches a known standard-library module. Callers that need import
+///   gating should use [`classify_rust_import_gated`] instead.
+/// - Everything else: `Unknown`.
+#[must_use]
+pub fn classify_rust(name: &str) -> CalleeClass {
+    if RUST_BUILTINS.contains(name) {
+        CalleeClass::Builtin
+    } else if RUST_STDLIB_MODULES.contains(name) {
+        CalleeClass::Stdlib
+    } else {
+        CalleeClass::Unknown
+    }
+}
+
+/// Classify a bare Rust callee name with **import-context gating** (RFC-0113 Phase 4).
+///
+/// - **Builtins** never need an import — they fire unconditionally.
+/// - **Stdlib module local names** (`fs`, `io`, `env`, …): require that
+///   `caller_imports` contains an import path that starts with `std::<name>` or
+///   `core::<name>`, covering patterns such as:
+///   - `use std::fs;` → stored as `"std::fs"`
+///   - `use std::fs::File;` → stored as `"std::fs::File"` (starts with `"std::fs"`)
+/// - Everything else: `Unknown`.
+///
+/// `caller_imports` is the set of import path strings from the caller file's
+/// `Imports` edges — e.g. `{"std::fs", "std::io::BufReader"}`.
+#[must_use]
+pub fn classify_rust_import_gated<S: std::hash::BuildHasher>(
+    name: &str,
+    caller_imports: &std::collections::HashSet<String, S>,
+) -> CalleeClass {
+    if RUST_BUILTINS.contains(name) {
+        return CalleeClass::Builtin;
+    }
+
+    if RUST_STDLIB_MODULES.contains(name) {
+        let std_prefix = format!("std::{name}");
+        let core_prefix = format!("core::{name}");
+        let imported = caller_imports.iter().any(|imp| {
+            imp == &std_prefix
+                || imp.starts_with(&format!("{std_prefix}::"))
+                || imp == &core_prefix
+                || imp.starts_with(&format!("{core_prefix}::"))
+        });
+        return if imported {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    CalleeClass::Unknown
+}
+
+/// Classify a module-qualified Rust call `receiver::Method()`.
+///
+/// If the `receiver` is a known Rust stdlib module local name (e.g. `fs`,
+/// `io`, `env`), the Rust stdlib root (`std`, `core`, `alloc`), or a
+/// qualified path whose last `::` component is a stdlib module (e.g.
+/// `std::fs`), the call is **stdlib**. Otherwise returns `Unknown`.
+#[must_use]
+pub fn classify_rust_qualified(receiver: &str, _method: &str) -> CalleeClass {
+    // Direct stdlib module local name: fs, io, env, process, …
+    if RUST_STDLIB_MODULES.contains(receiver) {
+        return CalleeClass::Stdlib;
+    }
+    // Stdlib roots qualify everything underneath them.
+    if matches!(receiver, "std" | "core" | "alloc") {
+        return CalleeClass::Stdlib;
+    }
+    // Full-path receiver like "std::fs" or "core::mem" — take the last segment.
+    let local = receiver.rsplit("::").next().unwrap_or(receiver);
+    if local != receiver && RUST_STDLIB_MODULES.contains(local) {
+        return CalleeClass::Stdlib;
+    }
+    CalleeClass::Unknown
+}
+
+/// Rust macro builtins and always-available functions — no import required.
+static RUST_BUILTINS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // macros available in every Rust file via the prelude
+        "println",
+        "print",
+        "eprintln",
+        "eprint",
+        "format",
+        "format_args",
+        "panic",
+        "todo",
+        "unimplemented",
+        "unreachable",
+        "assert",
+        "assert_eq",
+        "assert_ne",
+        "debug_assert",
+        "debug_assert_eq",
+        "debug_assert_ne",
+        "vec",
+        "dbg",
+        "write",
+        "writeln",
+        "concat",
+        "include",
+        "include_str",
+        "include_bytes",
+        "env",
+        "option_env",
+        "cfg",
+        "compile_error",
+        "matches",
+        "log",
+        // always-available prelude functions
+        "drop",
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Rust stdlib module local names — the identifiers used after `use std::<name>`.
+static RUST_STDLIB_MODULES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // I/O and filesystem
+        "fs",
+        "io",
+        "path",
+        "net",
+        // environment and process
+        "env",
+        "process",
+        // concurrency
+        "sync",
+        "thread",
+        "atomic",
+        // data structures
+        "collections",
+        "vec",
+        "slice",
+        "str",
+        "string",
+        // algorithms and utilities
+        "cmp",
+        "ops",
+        "iter",
+        "num",
+        "convert",
+        "borrow",
+        // formatting and error
+        "fmt",
+        "error",
+        // memory
+        "mem",
+        "ptr",
+        "alloc",
+        // time
+        "time",
+        // hashing
+        "hash",
+        // reference-counting
+        "rc",
+        "cell",
+        // marker types
+        "marker",
+        // misc
+        "char",
+        "f32",
+        "f64",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "i128",
+        "u8",
+        "u16",
+        "u32",
+        "u64",
+        "u128",
+        "usize",
+        "isize",
+    ]
+    .into_iter()
+    .collect()
+});
+
+#[cfg(test)]
+mod rust_tests {
+    use super::*;
+
+    fn rust_imports(mods: &[&str]) -> std::collections::HashSet<String> {
+        mods.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    // ── classify_rust (name-only) ─────────────────────────────────────────────
+
+    #[test]
+    fn rust_classifies_macro_builtins() {
+        assert_eq!(classify_rust("println"), CalleeClass::Builtin);
+        assert_eq!(classify_rust("eprintln"), CalleeClass::Builtin);
+        assert_eq!(classify_rust("format"), CalleeClass::Builtin);
+        assert_eq!(classify_rust("panic"), CalleeClass::Builtin);
+        assert_eq!(classify_rust("assert"), CalleeClass::Builtin);
+        assert_eq!(classify_rust("assert_eq"), CalleeClass::Builtin);
+        assert_eq!(classify_rust("vec"), CalleeClass::Builtin);
+        assert_eq!(classify_rust("dbg"), CalleeClass::Builtin);
+    }
+
+    #[test]
+    fn rust_classifies_drop_as_builtin() {
+        assert_eq!(classify_rust("drop"), CalleeClass::Builtin);
+    }
+
+    #[test]
+    fn rust_classifies_stdlib_module_names() {
+        assert_eq!(classify_rust("fs"), CalleeClass::Stdlib);
+        assert_eq!(classify_rust("io"), CalleeClass::Stdlib);
+        assert_eq!(classify_rust("env"), CalleeClass::Builtin); // env! macro in RUST_BUILTINS wins over std::env module
+        assert_eq!(classify_rust("process"), CalleeClass::Stdlib);
+        assert_eq!(classify_rust("sync"), CalleeClass::Stdlib);
+        assert_eq!(classify_rust("thread"), CalleeClass::Stdlib);
+        assert_eq!(classify_rust("collections"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn rust_unknown_names_stay_unknown() {
+        assert_eq!(classify_rust("frobnicate"), CalleeClass::Unknown);
+        assert_eq!(classify_rust("my_function"), CalleeClass::Unknown);
+    }
+
+    // ── classify_rust_import_gated ────────────────────────────────────────────
+
+    #[test]
+    fn rust_import_gate_builtins_fire_without_imports() {
+        assert_eq!(
+            classify_rust_import_gated("println", &rust_imports(&[])),
+            CalleeClass::Builtin
+        );
+        assert_eq!(
+            classify_rust_import_gated("drop", &rust_imports(&[])),
+            CalleeClass::Builtin
+        );
+    }
+
+    #[test]
+    fn rust_import_gate_stdlib_module_blocked_without_import() {
+        assert_eq!(
+            classify_rust_import_gated("fs", &rust_imports(&[])),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_rust_import_gated("io", &rust_imports(&[])),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn rust_import_gate_stdlib_module_allowed_with_std_import() {
+        assert_eq!(
+            classify_rust_import_gated("fs", &rust_imports(&["std::fs"])),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn rust_import_gate_sub_import_enables_module_name() {
+        // `use std::fs::File;` → import string "std::fs::File" → starts with "std::fs" → fs enabled
+        assert_eq!(
+            classify_rust_import_gated("fs", &rust_imports(&["std::fs::File"])),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn rust_import_gate_unknown_names_stay_unknown() {
+        assert_eq!(
+            classify_rust_import_gated("frobnicate", &rust_imports(&["std::fs"])),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn rust_import_gate_wrong_module_does_not_enable() {
+        // std::io does NOT enable "fs"
+        assert_eq!(
+            classify_rust_import_gated("fs", &rust_imports(&["std::io"])),
+            CalleeClass::Unknown
+        );
+    }
+
+    // ── classify_rust_qualified ───────────────────────────────────────────────
+
+    #[test]
+    fn rust_qualified_stdlib_module_is_stdlib() {
+        assert_eq!(
+            classify_rust_qualified("fs", "read_to_string"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(classify_rust_qualified("io", "stdin"), CalleeClass::Stdlib);
+        assert_eq!(
+            classify_rust_qualified("process", "exit"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_rust_qualified("thread", "spawn"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(classify_rust_qualified("sync", "Arc"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn rust_qualified_std_root_is_stdlib() {
+        assert_eq!(classify_rust_qualified("std", "mem"), CalleeClass::Stdlib);
+        assert_eq!(classify_rust_qualified("core", "mem"), CalleeClass::Stdlib);
+        assert_eq!(classify_rust_qualified("alloc", "vec"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn rust_qualified_full_path_receiver_is_stdlib() {
+        // "std::fs" as receiver → last "::" segment is "fs" → Stdlib
+        assert_eq!(
+            classify_rust_qualified("std::fs", "read_to_string"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_rust_qualified("std::io", "stdout"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn rust_qualified_unknown_receiver_falls_back_to_unknown() {
+        assert_eq!(
+            classify_rust_qualified("my_module", "helper"),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_rust_qualified("third_party", "run"),
+            CalleeClass::Unknown
+        );
+    }
+}

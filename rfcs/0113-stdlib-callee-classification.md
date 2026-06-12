@@ -1,6 +1,6 @@
 # RFC-0113: stdlib/builtin callee classification — rescue the `unknown` tail (design)
 
-- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped; Phase 3 Go tables shipped; Phase 3b Go qualified-call fix shipped)
+- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped; Phase 3 Go tables shipped; Phase 3b Go qualified-call fix shipped; Phase 4 Rust tables shipped)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
@@ -133,7 +133,14 @@ Go builtins (`make`, `len`, `append`, `cap`, `copy`, `delete`, `close`, `panic`,
 all common standard library packages (`fmt`, `os`, `io`, `http`, `json`, `filepath`, `sync`,
 `context`, `regexp`, `testing`, …). Import-gated via last-component matching: `"net/http"` →
 local name `"http"`, `"encoding/json"` → local name `"json"`. `callees_payload` dispatches
-`.go` callers here. 11 TDD tests. Other Tier-1 packs (Rust, Java, C/C++) remain pending.
+`.go` callers here. 11 TDD tests. Other Tier-1 packs (Java, C/C++) remain pending.
+
+**Phase 4:** Rust — `classify_rust`, `classify_rust_import_gated`, `classify_rust_qualified`. ✅ Shipped.
+Builtin macros (`println`, `panic`, `assert`, `vec`, `dbg`, …) + `drop` classify unconditionally as
+`Builtin`. Stdlib module local names (`fs`, `io`, `env`, `sync`, `thread`, `collections`, …) are
+import-gated: `use std::<name>` or any sub-import (`std::fs::File`) enables the module. Qualified
+paths (`fs>read_to_string`, `std::io>stdout`) classified via `classify_rust_qualified`. `callees_payload`
+dispatches `.rs` callers here. 21 new TDD tests (14 in `classify::rust_tests`, 7 in `queries::tests`).
 
 **Phase 3b:** Go qualified-call fix (Issue #795). ✅ Shipped.
 - [x] `packs/go/queries.scm` — removed the `selector_expression` arm from the first
