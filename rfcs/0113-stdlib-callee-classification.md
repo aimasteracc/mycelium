@@ -159,7 +159,7 @@ dispatches `.rs` callers here. 21 new TDD tests (14 in `classify::rust_tests`, 7
 
 **Phase 5:** Rust qualified-call fix (Issue #800). ✅ Shipped (PR #802).
 - [x] `packs/rust/queries.scm` + `extractor/mod.rs` — single-segment Rust scoped calls
-      (e.g., `fs::read_to_string()`, `std::io::stdout()`) now emit `scope>name` stubs
+      (e.g., `fs::read_to_string()`, `io::stdout()`) now emit `scope>name` stubs
       instead of bare unresolved stubs, eliminating the duplicate bare-stub edge class
       for qualified Rust callees.
 - [x] `callees_payload` in `queries.rs` dispatches `scope>name` Rust paths to
