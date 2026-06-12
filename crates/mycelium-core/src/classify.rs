@@ -1253,6 +1253,54 @@ pub fn classify_typescript_qualified(receiver: &str, method: &str) -> CalleeClas
     }
 }
 
+/// Browser-only DOM/Web API globals — available without any import in a
+/// browser JS context. Used as a fallback tier for `.js` files after
+/// `classify_typescript_import_gated` returns `Unknown`.
+static JS_BROWSER_GLOBALS: std::sync::LazyLock<std::collections::HashSet<&'static str>> =
+    std::sync::LazyLock::new(|| {
+        [
+            // DOM / BOM top-level objects
+            "document",
+            "window",
+            "navigator",
+            "location",
+            "history",
+            // Web APIs (fetch is also in TS_GLOBAL_BUILTINS for Node 18+)
+            "fetch",
+            "XMLHttpRequest",
+            "localStorage",
+            "sessionStorage",
+            "indexedDB",
+            "Worker",
+            "WebSocket",
+            // Event handling
+            "addEventListener",
+            "removeEventListener",
+            "dispatchEvent",
+            "CustomEvent",
+            // UI dialogs
+            "alert",
+            "confirm",
+            "prompt",
+        ]
+        .into_iter()
+        .collect()
+    });
+
+/// Classify a bare callee name as a browser-global stdlib call for `.js` files.
+///
+/// Fires after `classify_typescript_import_gated` returns `Unknown` — covers
+/// DOM and Web API globals that are always in scope in browser contexts without
+/// any import statement.
+#[must_use]
+pub fn classify_javascript_browser_global(name: &str) -> CalleeClass {
+    if JS_BROWSER_GLOBALS.contains(name) {
+        CalleeClass::Stdlib
+    } else {
+        CalleeClass::Unknown
+    }
+}
+
 /// JavaScript / Node.js global builtin callables — available without any
 /// import in both browser and Node.js contexts.
 static TS_GLOBAL_BUILTINS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -1278,6 +1326,8 @@ static TS_GLOBAL_BUILTINS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
         "queueMicrotask",
         "requestAnimationFrame",
         "cancelAnimationFrame",
+        // Fetch API (browser + Node.js 18+)
+        "fetch",
         // intrinsic error types (used as `throw new TypeError(...)` → bare callee)
         "Error",
         "TypeError",
@@ -2708,6 +2758,35 @@ mod rust_tests {
         );
         assert_eq!(
             classify_rust_qualified("third_party", "run"),
+            CalleeClass::Unknown
+        );
+    }
+
+    // ── classify_javascript_browser_global (RFC-0125 Phase 2) ────────────────
+
+    #[test]
+    fn js_browser_global_fetch_is_stdlib() {
+        // AC-6: fetch is a browser global → Stdlib
+        assert_eq!(
+            classify_javascript_browser_global("fetch"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn js_browser_global_document_is_stdlib() {
+        // AC-7: document is a DOM global → Stdlib
+        assert_eq!(
+            classify_javascript_browser_global("document"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn js_browser_global_unknown_name_is_unknown() {
+        // AC-8: arbitrary function name → Unknown
+        assert_eq!(
+            classify_javascript_browser_global("myCustomFn"),
             CalleeClass::Unknown
         );
     }

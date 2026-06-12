@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0125 Phase 2 — JavaScript browser-global classifier.**
+  `classify_javascript_browser_global` fires as a fallback for `.js`/`.jsx` files
+  after `classify_typescript_import_gated` returns `Unknown`. Covers DOM and Web
+  API globals (`document`, `window`, `navigator`, `location`, `history`,
+  `localStorage`, `XMLHttpRequest`, `Worker`, `WebSocket`, `addEventListener`, etc.)
+  that are always in scope in browser contexts without any import. `fetch` added to
+  `TS_GLOBAL_BUILTINS` (universal, browser + Node 18+). 6 new tests: 3 unit (AC-6/7/8)
+  + 3 integration (AC-9 variants). Zero config/API changes. (RFC-0125 Phase 2)
 - **RFC-0125 Phase 1 — JavaScript CJS `require()` extraction.**
   `packs/javascript/queries.scm` now captures `const X = require('mod')` and
   `const { X } = require('mod')` as `@reference.import` nodes, producing Imports

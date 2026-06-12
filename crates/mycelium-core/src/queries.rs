@@ -29,7 +29,8 @@ use crate::types::{EdgeKind, NodeId};
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
     use crate::classify::{
-        CalleeClass, classify_go_import_gated, classify_go_qualified, classify_python_import_gated,
+        CalleeClass, classify_go_import_gated, classify_go_qualified,
+        classify_javascript_browser_global, classify_python_import_gated,
         classify_rust_import_gated, classify_rust_qualified, classify_typescript_import_gated,
     };
     use std::collections::HashSet;
@@ -105,7 +106,14 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
                         CalleeClass::Project.as_str()
                     }
                 } else if is_ts_js {
-                    classify_typescript_import_gated(path, &caller_imports).as_str()
+                    let cls = classify_typescript_import_gated(path, &caller_imports);
+                    // RFC-0125 Phase 2: for bare .js/.jsx files, fall through to the
+                    // browser-global tier when the import-gated pass returns Unknown.
+                    if cls != CalleeClass::Unknown || !matches!(ext, Some("js" | "jsx")) {
+                        cls.as_str()
+                    } else {
+                        classify_javascript_browser_global(path).as_str()
+                    }
                 } else if is_go {
                     classify_go_import_gated(path, &caller_imports).as_str()
                 } else if is_rust {
@@ -1358,6 +1366,59 @@ mod tests {
         assert_eq!(
             entries[0]["class"], "project",
             "Unknown qualified Rust receiver must fall back to `project`"
+        );
+    }
+
+    // ── RFC-0125 Phase 2: browser-global fallback for .js files ──────────────
+
+    #[test]
+    fn callees_payload_js_browser_global_without_import_is_stdlib() {
+        // AC-9 (RFC-0125 Phase 2): .js file calling document (DOM global) with no
+        // imports → stdlib via browser-global fallback tier.
+        // document is not in TS_GLOBAL_BUILTINS (browser-only, not Node.js), so the
+        // fallback fires. fetch is in TS_GLOBAL_BUILTINS → "builtin"; document is not.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/app.js>main"));
+        let stub = store.upsert_node(p("document"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "document");
+        assert_eq!(
+            entries[0]["class"], "stdlib",
+            "document in .js should be stdlib via browser-global tier"
+        );
+    }
+
+    #[test]
+    fn callees_payload_js_browser_global_unknown_fn_is_unknown() {
+        // Browser-global fallback must not fire for arbitrary names.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/app.js>main"));
+        let stub = store.upsert_node(p("myCustomHelper"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["class"], "unknown");
+    }
+
+    #[test]
+    fn callees_payload_ts_fetch_is_builtin_via_ts_global_builtins() {
+        // fetch is in TS_GLOBAL_BUILTINS (browser + Node 18+) → classified as builtin
+        // for .ts files. The browser-global fallback only fires for .js/.jsx extensions.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/app.ts>main"));
+        let stub = store.upsert_node(p("fetch"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(
+            entries[0]["class"], "builtin",
+            "fetch() in .ts should be builtin via TS_GLOBAL_BUILTINS"
         );
     }
 }
