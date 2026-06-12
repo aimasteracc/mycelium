@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0125 Phase 1 — JavaScript CJS `require()` extraction.**
+  `packs/javascript/queries.scm` now captures `const X = require('mod')` and
+  `const { X } = require('mod')` as `@reference.import` nodes, producing Imports
+  edges identical to ESM `import_statement` captures. This feeds `caller_imports`
+  for `classify_typescript_import_gated`, lifting JavaScript callee classification
+  from 53.8% (worst Tier-1 language) toward parity with Python/TypeScript/Rust.
+  Zero changes to `classify.rs` or `queries.rs` — existing RFC-0113 infrastructure
+  handles the rest. All four embedded pack copies synced. (RFC-0125)
+
 - **RFC-0113 corpus measurement complete.** Dogfood corpus (Mycelium self-index,
   3,601 symbols, 1,026 sampled callee edges across Rust/Python/TypeScript/JavaScript):
   overall **66.4% classified**, 33.6% unknown tail. RFC-0113 acceptance criteria

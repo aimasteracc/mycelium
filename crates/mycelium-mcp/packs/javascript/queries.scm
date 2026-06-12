@@ -94,6 +94,33 @@
   source: (string
     (string_fragment) @name)) @reference.import
 
+; ── CJS require() imports (RFC-0125 Phase 1) ────────────────────────────
+;
+; CommonJS `require('module')` is a call_expression, not an import_statement,
+; so without these patterns CJS files produce no @reference.import captures.
+; With empty caller_imports, classify_typescript_import_gated silently falls
+; through to "unknown" for every callee regardless of allowlist match.
+;
+; Both forms produce an Imports edge feeding caller_imports for the existing
+; classify_typescript_import_gated — zero changes to classify.rs or queries.rs.
+
+; `const fs = require('fs')` — whole-module assignment
+(lexical_declaration
+  (variable_declarator
+    value: (call_expression
+      function: (identifier) @_req (#eq? @_req "require")
+      arguments: (arguments
+        (string (string_fragment) @name))))) @reference.import
+
+; `const { readFileSync } = require('fs')` — destructured assignment
+(lexical_declaration
+  (variable_declarator
+    name: (object_pattern)
+    value: (call_expression
+      function: (identifier) @_req2 (#eq? @_req2 "require")
+      arguments: (arguments
+        (string (string_fragment) @name))))) @reference.import
+
 ; ── Alias bindings (RFC-0092 Phase 2 — feeds the per-file alias table) ──────
 ;
 ; Same patterns as the TypeScript pack. The module specifier is NOT captured
