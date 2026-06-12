@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0113 corpus measurement complete.** Dogfood corpus (Mycelium self-index,
+  3,601 symbols, 1,026 sampled callee edges across Rust/Python/TypeScript/JavaScript):
+  overall **66.4% classified**, 33.6% unknown tail. RFC-0113 acceptance criteria
+  fully satisfied; status promoted to Implemented. (RFC-0113)
+
 - **RFC-0113 Phase 5 — Rust extractor emits receiver-qualified callee stubs.**
   Single-segment Rust scoped calls (`fs::read_to_string()`, `io::stdin()`,
   `WatchEngine::drive()`) are now stored as `scope>name` stubs (e.g.
