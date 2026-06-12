@@ -151,11 +151,11 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ### 2026-06-12 PM dispatch v198 (this run)
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v197 (develop HEAD `3586948` post-merge), v0.2 PRD. GitHub state verified via MCP GitHub tools.
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v197 (develop HEAD `1052fc8a` at pre-flight — post PR #786 squash; PR #787 not yet merged), v0.2 PRD. GitHub state verified via MCP GitHub tools.
 
 **Assessment:**
 - 3 open PRs at start: #568 (`release/v0.3.0` → main; 50/50 CI ✅, registries ✅, founder-gated ×62), #763 (DRAFT RFC-0121 → develop; 22/22 CI ✅; BDFL required), #787 (`chore/pm-state-v197` → develop; 22/22 CI ✅; **0 Codex review threads** — clean). 0 P0/P1 issues.
-- Develop CI GREEN (HEAD `3586948`). No autonomous engineering work available — all P1 items blocked on PR #568 git ceremony.
+- Develop CI GREEN (HEAD `1052fc8a`). No autonomous engineering work available — all P1 items blocked on PR #568 git ceremony.
 
 **Actions taken:**
 1. **Merged PR #787** — squash `3586948` (0 Codex findings, 22/22 CI ✅). ✅
