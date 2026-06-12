@@ -28,7 +28,7 @@ use crate::types::{EdgeKind, NodeId};
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
     use crate::classify::{
-        CalleeClass, classify_go_import_gated, classify_python_import_gated,
+        CalleeClass, classify_go_import_gated, classify_go_qualified, classify_python_import_gated,
         classify_typescript_import_gated,
     };
     use std::collections::HashSet;
@@ -68,7 +68,20 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
         .filter_map(|&dst| {
             store.path_of(dst).map(|path| {
                 let class = if path.contains('>') {
-                    CalleeClass::Project.as_str()
+                    // RFC-0113 Phase 3b: for Go, a qualified path like `fmt>Println`
+                    // may be a stdlib call stored via the import-alias mechanism.
+                    // `classify_go_qualified` returns Stdlib for known stdlib package
+                    // receivers and Unknown for everything else, so non-stdlib qualified
+                    // paths (e.g. `src/server.go>Server>Run`) safely fall through to Project.
+                    if is_go {
+                        let (pkg, method) = path.split_once('>').unwrap_or((path, ""));
+                        match classify_go_qualified(pkg, method) {
+                            CalleeClass::Unknown => CalleeClass::Project.as_str(),
+                            known => known.as_str(),
+                        }
+                    } else {
+                        CalleeClass::Project.as_str()
+                    }
                 } else if is_ts_js {
                     classify_typescript_import_gated(path, &caller_imports).as_str()
                 } else if is_go {
@@ -1123,5 +1136,60 @@ mod tests {
         let v = callees_payload(&store, src, EdgeKind::Calls);
         let entries = v["callees"].as_array().expect("callees must be an array");
         assert_eq!(entries[0]["class"], "builtin");
+    }
+
+    // ── RFC-0113 Phase 3b: Go qualified stdlib call classification ────────────
+
+    #[test]
+    fn callees_payload_go_qualified_fmt_println_is_stdlib() {
+        // `fmt>Println` in a .go caller must be `stdlib`, not `project`.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.go>main"));
+        let println = store.upsert_node_with_kind(p("fmt>Println"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, println);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "fmt>Println");
+        assert_eq!(
+            entries[0]["class"], "stdlib",
+            "Go qualified stdlib callee `fmt>Println` must be `stdlib`, not `project`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_go_qualified_http_get_is_stdlib() {
+        // `import "net/http"` → local name `http`; `http>Get` → stdlib.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("fetch.go>fetch"));
+        let get = store.upsert_node_with_kind(p("http>Get"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, get);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(
+            entries[0]["class"], "stdlib",
+            "`http>Get` callee for .go file must be `stdlib`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_go_qualified_project_path_stays_project() {
+        // A .go callee whose receiver is not a stdlib package name must stay `project`.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.go>handleRequest"));
+        let run = store.upsert_node(p("src/server.go>Server>Run"));
+        store.upsert_edge(EdgeKind::Calls, src, run);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(
+            entries[0]["class"], "project",
+            "Go project callee `src/server.go>Server>Run` must remain `project`"
+        );
     }
 }

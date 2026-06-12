@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0113 Phase 3b — Go qualified-call classification fix (Issue #795).**
+  `fmt.Println()` / `http.Get()` now correctly classify as `stdlib` instead of landing
+  as bare-stub `unknown` callees. Fix covers three layers: (1) `packs/go/queries.scm`
+  removes the duplicate `selector_expression` arm so RFC-0118 Part B is the sole handler
+  for qualified calls; (2) extractor Pass 1b-go populates `alias_table` from
+  `@reference.import` captures so the receiver lookup succeeds; (3) `callees_payload`
+  dispatches `pkg>Method` paths to `classify_go_qualified`. 4 new TDD tests. (RFC-0113)
+
 - **RFC-0113 Phase 3 — Go stdlib callee classification.**
   `classify_go`, `classify_go_import_gated`, and `classify_go_qualified` added to
   `mycelium-rcig-core::classify`. Covers Go builtins (`make`, `len`, `append`, …),

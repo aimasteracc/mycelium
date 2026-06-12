@@ -290,6 +290,53 @@ impl Extractor {
             }
         }
 
+        // ─── Pass 1b-go: Go import-path → alias table (RFC-0113 Phase 3b) ──────
+        // For `.go` files, `import "net/http"` makes `http` the local package name.
+        // Go has no `@reference.alias_binding`, so populate the alias table here from
+        // `@reference.import` captures. This lets RFC-0118 Part B's `@call.receiver`
+        // resolve `http.Get()` → `http>Get` instead of a bare-stub `Get`.
+        if matches!(
+            std::path::Path::new(file_path)
+                .extension()
+                .and_then(|e| e.to_str()),
+            Some("go")
+        ) {
+            let mut cursor = QueryCursor::new();
+            let mut matches = cursor.matches(&self.query, root, source);
+            while let Some(m) = matches.next() {
+                let is_import = m
+                    .captures
+                    .iter()
+                    .any(|c| names[c.index as usize] == "reference.import");
+                if !is_import {
+                    continue;
+                }
+                let name_node = m
+                    .captures
+                    .iter()
+                    .find_map(|c| (names[c.index as usize] == "name").then_some(c.node));
+                let Some(name_node) = name_node else {
+                    continue;
+                };
+                let raw = name_node.utf8_text(source).unwrap_or("");
+                // `interpreted_string_literal` text includes surrounding double-quotes.
+                let import_path = raw.trim_matches('"');
+                if import_path.is_empty() {
+                    continue;
+                }
+                // "net/http" → local name "http"; "fmt" → local name "fmt".
+                // The alias table maps local-name → local-name so the callee path
+                // is `http>Get` (the form `callees_payload` expects), not the raw
+                // import path `net/http>Get`.
+                let local = import_path.rsplit('/').next().unwrap_or(import_path);
+                // `entry().or_insert` keeps an explicit alias (`import io "io/fs"`)
+                // that alias_binding may have already written.
+                alias_table
+                    .entry(local.to_string())
+                    .or_insert_with(|| local.to_string());
+            }
+        }
+
         // ─── Pass 1c: per-function local constructor bindings (RFC-0118 B) ──
         // `let x = Type::new()` → record (x → Type) under the enclosing function,
         // so Pass 2's method-call handler can attach a ReceiverContext and the
