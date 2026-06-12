@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v210 — PR #804 MERGED `2961bd3` (PM v209 chore); issue #800 EXPLICITLY CLOSED (GitHub skips auto-close on non-default branches); 0 open issues; P0 escalation ×75) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 ALL 5 PHASES DONE; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×75 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v212 — Codex P2 on PR #806 fixed (commit `9581552`); PR #806 CI running (18/22 ✅); merge pending Quality Gate; P0 escalation ×76 ongoing) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 ALL 5 PHASES DONE; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×76 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -94,8 +94,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 1. **PR #568** [×75 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #804: chore-only, no code findings expected. MERGED `2961bd3`.**
+**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #806: 1 Codex P2 FIXED (commit `9581552`); CI 18/22 ✅ running.**
 > **v210 update (2026-06-12):** PR #804 **MERGED** `2961bd3` (PM v209 chore; 20/20 CI ✅). Issue #800 **EXPLICITLY CLOSED** (GitHub does not auto-close on non-default branch merge; closed via API in v210). 0 open issues. Escalation ×74→×75.
+> **v211 update (2026-06-12):** PR #806 opened (PM v211 chore + RFC-0113 Phase 5 docs). Codex P2 on RFC-0113 line 162 (`std::io::stdout()` multi-segment example): **FIXED** — commit `9581552` replaces with `io::stdout()`. CI re-running. Escalation ×75→×76.
+> **v212 update (2026-06-12):** CI on PR #806 18/22 ✅ (platform tests + coverage pending). Merge deferred to next session once Quality Gate green.
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
@@ -116,12 +118,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-12 v210)
+## Dispatch state (2026-06-12 v212)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×75 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
-| PM | **DONE ✅** | v210: PR #804 merged `2961bd3`; issue #800 explicitly closed (0 open issues); PM state v210 pushed. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×76 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
+| PM | **⏳ CI pending** | v212: Codex P2 fixed on PR #806 (commit `9581552`); CI 18/22 ✅; merge deferred to next session once Quality Gate green. |
 | rust-implementer | **DONE ✅** | PR #802 MERGED `8b14ecd` — RFC-0113 Phase 5 on develop. Next: dogfood corpus measurement (RFC-0113 unknown-tail reduction). |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -158,6 +160,30 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v212 (RFC-0113 Codex P2 fixed on PR #806; CI 18/22 ✅ running; merge pending Quality Gate)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/tdd/async/git-workflow), PM state v210 (origin/develop `a20f64e`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #806 (PM v211 chore, CI 22/22 ✅ on initial commit + 1 Codex P2 finding), #568 (release/v0.3.0, founder-gated ×76), #763 (DRAFT RFC-0121, BDFL required).
+- 0 open issues.
+- Develop CI GREEN at `a20f64e` (PM v210 chore).
+- P0 items both founder-gated (×76 consecutive escalations). No unblocked P1 implementation tasks (RFC-0113 all 5 phases done; dogfood/cold-SLA/corpus require the binary). Only autonomous action: fix Codex P2 on PR #806.
+
+**Actions taken:**
+1. **Fixed Codex P2 on PR #806** — RFC-0113 Phase 5 acceptance criteria listed `std::io::stdout()` as "single-segment" but `std::io::stdout()` is multi-segment (`std::io` has two path segments). Fixed via commit `9581552`: replaced with `io::stdout()` (correctly single-segment). Reply posted to Codex thread. ✅
+2. **CI re-run triggered** on new commit `9581552`. As of session end: 18/22 checks ✅ (platform tests + coverage still running — no failures). ✅ (in progress)
+3. **PM state v212 written** + decisions.jsonl appended. ✅
+4. **Merge of PR #806 deferred** — Quality Gate not yet shown (depends on all jobs completing). Next session: check Quality Gate → admin-merge PR #806 → rebase chore/pm-state-v212 → push PR #807.
+
+**Escalations to founder (P0, ×76 consecutive runs unchanged):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅. Unchanged ×76 runs.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 SLA amendment.
+
+### 2026-06-12 PM dispatch v211 (PR #805 merged `a20f64e`; RFC-0113 Phase 5 docs updated; escalation ×75→×76)
+
+*(Documented in PR #806 squash commit. Actions: PR #805 merged; RFC-0113 Phase 5 acceptance criteria section added (Phase 5 was shipped in PR #802 but RFC doc was missing the section). Escalation ×75→×76.)*
 
 ### 2026-06-12 PM dispatch v210 (PR #804 merged `2961bd3`; issue #800 explicitly closed; 0 open issues; escalation ×74→×75)
 
