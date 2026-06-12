@@ -6,7 +6,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 |---|---|
 | PM | orchestrator (Hive AI agent) |
 | Last updated | 2026-06-12 (PM dispatch v201 — PR #790 merged `6b68fa77`; Codex P2 fixed+outdated; P0 escalation ×66) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×65 escalations). |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×66 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
