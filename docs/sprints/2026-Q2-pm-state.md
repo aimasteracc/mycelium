@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v204 — PR #793 merged `3b46ba2` (RFC-0113 Phase 3 Go); Phase 3b issue #795 opened; PR #794 Codex P2 fixed; P0 escalation ×69) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 3 Go MERGED; Phase 3b (#795) + Phase 4 Rust next; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×69 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v205 — PR #796 merged `b052bcc` (RFC-0113 Phase 3b Go qualified-call fix); issue #795 closed; P0 escalation ×70) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 3b Go qualified-call fix MERGED; Phase 4 Rust next; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×70 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -80,22 +80,23 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `3b46ba2` (RFC-0113 Phase 3 Go squash). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `b052bcc` (RFC-0113 Phase 3b Go qualified-call fix squash). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active.
 > **v203 update (2026-06-12):** PR #792 (PM v202 chore) merged `22da0e3`; RFC-0113 Phase 3 Go implemented and PR #793 opened (CI pending at end of v203). Previous "all P1 blocked" assessment corrected. Escalation ×67→×68.
 > **v204 update (2026-06-12):** PR #793 **MERGED** `3b46ba2` (22/22 CI ✅; Codex P1 spun off to issue #795 Phase 3b). PM state v203 Codex P2 findings fixed. Escalation ×68→×69.
+> **v205 update (2026-06-12):** PR #796 **MERGED** `b052bcc` (RFC-0113 Phase 3b Go qualified-call fix; Codex P2 fixed in-PR). Issue #795 closed. Escalation ×69→×70.
 
 **P0 (founder action required):**
-1. **PR #568** [×69 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×70 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments (Codex does not review DRAFTs). PR #568: 1 finding (outdated, replied + issue #560 tracked, Hard Rule satisfied). PR #793: Codex P1 → spun off to issue #795 (Hard Rule option c — justified + tracking issue linked).**
+**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments (Codex does not review DRAFTs). PR #568: 1 finding (outdated, replied + issue #560 tracked, Hard Rule satisfied). PR #796: Codex P2 fixed in-PR (commit `9f8e1c1`) + replied. MERGED.**
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
-2. **PR #793** — RFC-0113 Phase 3 Go stdlib classification. ✅ **MERGED** `3b46ba2`. `classify_go` + `classify_go_import_gated` + `classify_go_qualified`; 11 TDD tests; Go dispatch wired into `callees_payload`. Codex P1 (qualified calls) spun off to issue #795.
+2. **PR #793** — RFC-0113 Phase 3 Go stdlib classification. ✅ **MERGED** `3b46ba2`. `classify_go` + `classify_go_import_gated` + `classify_go_qualified`; 11 TDD tests; Go dispatch wired into `callees_payload`.
+3. **PR #796** — RFC-0113 Phase 3b Go qualified-call fix. ✅ **MERGED** `b052bcc`. Pass 1b-go alias table (`local → full_import_path`); domain-prefix guard for third-party packages; explicit alias support (`import h "net/http"`); `fmt.Println()`/`http.Get()` → `"stdlib"`. Issue #795 **CLOSED**. Codex P2 addressed in-PR.
 
 **P1 (unblocked — next items):**
-3. **Issue #795** — RFC-0113 Phase 3b Go qualified call classification (`@call.receiver` + Go import alias pass). Depends on Go pack + extractor changes.
 4. **RFC-0113 Phase 4** (Rust stdlib) — follows same pattern as Go/TS/Python builtin + import-gated tables; no #568 dependency.
 5. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries — not blocked on ceremony.
 6. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
@@ -108,13 +109,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-12 v204)
+## Dispatch state (2026-06-12 v205)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×69 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
-| PM | **DONE ✅** | v204: PR #793 merged `3b46ba2`; issue #795 opened (Phase 3b); PM state Codex P2 fixed; escalation ×68→×69. |
-| rust-implementer | **P1** | RFC-0113 Phase 4 Rust stdlib classification (same pattern as Go/TS/Python). Then Phase 3b (#795). |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×70 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
+| PM | **DONE ✅** | v205: PR #796 merged `b052bcc` (RFC-0113 Phase 3b Go qualified-call fix); issue #795 closed; escalation ×69→×70. |
+| rust-implementer | **P1** | RFC-0113 Phase 4 Rust stdlib classification (same pattern as Go/TS/Python). |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -150,6 +151,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v205 (PR #796 merged `b052bcc`; issue #795 closed; escalation ×69→×70)
+
+**Pre-flight:** Continued from v205 active session. Read CHARTER.md §5.1/§5.12/§5.13, _orchestrator.md, decisions.jsonl, anti-patterns (ci/git-workflow domains). PM state v204 in context.
+
+**Assessment:**
+- PR #796 (`fix/rfc-0113-phase3b-go-qualified`, RFC-0113 Phase 3b Go qualified-call fix): **MERGED** `b052bcc` 2026-06-12.
+- Quality Gate failure at `9f8e1c1`: false positive — 3 jobs `cancelled` by subsequent memory-file push (`44f2d76`). New CI run on `44f2d76` proceeded cleanly; squash-merge as `b052bcc`.
+- Issue #795 (Go qualified stdlib calls): **CLOSED** (completed).
+- 1 open PR: #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×70).
+- 1 DRAFT PR: #763 (RFC-0121, 22/22 CI ✅, BDFL required).
+- Develop HEAD: `b052bcc`.
+
+**Actions taken:**
+1. **Quality Gate diagnosed** — false positive; `cancelled` jobs due to memory-file push; no code action needed. ✅
+2. **Issue #795 closed** (completed, via `mcp__github__issue_write`). ✅
+3. **Incremented PR #568 escalation**: ×69 → ×70. ✅
+4. **PM state v205 written** (this file) + decisions.jsonl to be appended. ✅
+
+**Escalations to founder (P0, ×70 consecutive runs):**
+- **(1) PR #568 — 🚨 READY NOW**: 50/50 CI ✅, all registries published ✅ (×70 consecutive runs). Trigger `finalize` workflow_dispatch.
+- **(2) PR #763 — ✅ UNBLOCKED**: DRAFT RFC-0121 Option A; `bpe_charter_sla_binding` per-class thresholds on develop ✅; un-draft + merge.
 
 ### 2026-06-12 PM dispatch v204 (PR #793 merged `3b46ba2`; Phase 3b issue #795; Codex P2 fixed; escalation ×68→×69)
 
