@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v198 — PR #787 merged `3586948`; 0 Codex findings; P0 escalation ×63) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×63 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v199 — PR #788 merged `574ab2b7`; Codex P2 fixed+outdated; P0 escalation ×64) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×64 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -80,13 +80,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `3586948` (PM v197 chore, via PR #787 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #787 had 0 Codex findings (clean). No autonomous engineering tasks available — all P1 items blocked on PR #568 git ceremony.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `574ab2b7` (PM v198 chore, via PR #788 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #788 had 1 Codex P2 finding (fixed via commit `093fe0f` + reply, thread outdated). No autonomous engineering tasks available — all P1 items blocked on PR #568 git ceremony.
 > **v196 update (2026-06-11):** PR #785 (v195 chore) merged squash `8d04aae1`; Codex P1 rejected (stale SHA DCO false-positive — recurring squash-merge pattern; CI DCO job 80905615896 ✅). Escalation ×60→×61.
 > **v197 update (2026-06-11):** PR #786 (v196 chore) merged squash `1052fc8a`; 0 Codex findings (clean). Escalation ×61→×62.
 > **v198 update (2026-06-12):** PR #787 (v197 chore) merged squash `3586948`; 0 Codex findings (clean). Escalation ×62→×63.
+> **v199 update (2026-06-12):** PR #788 (v198 chore) merged squash `574ab2b7`; Codex P2 fixed (commit `093fe0f` + reply, thread outdated). Escalation ×63→×64.
 
 **P0 (founder action required):**
-1. **PR #568** [×63 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×64 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
 **ℹ️ Codex — active. PR #787: 0 findings (clean). Hard Rule satisfied.**
@@ -106,12 +107,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-12 v198)
+## Dispatch state (2026-06-12 v199)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×63 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
-| PM | **DONE ✅** | v198: PR #787 merged `3586948` (0 Codex findings); escalation ×62→×63. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×64 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
+| PM | **DONE ✅** | v199: PR #788 merged `574ab2b7` (Codex P2 fixed via `093fe0f` + reply, outdated); escalation ×63→×64. |
 | rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS MERGED (`6f6f4a9`): `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests. 20/20 CI ✅. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -148,6 +149,25 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v199 (PR #788 merged `574ab2b7`; Codex P2 fixed+outdated; escalation ×63→×64)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline), PM state v198 (from develop SHA 574ab2b7), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #788 (chore/pm-state-v198, CI 20/20 ✅, Codex P2 fixed via 093fe0f + reply, thread outdated), #763 (DRAFT RFC-0121, BDFL required), #568 (release/v0.3.0, 50/50 CI ✅, registries ✅, founder-gated ×63).
+- 0 open P0/P1 issues.
+- Develop CI: GREEN (develop HEAD 574ab2b7 after #788 merge).
+- No autonomous engineering tasks available — all P1 items blocked on PR #568 git ceremony.
+
+**Actions taken:**
+1. **Merged PR #788** (squash `574ab2b7`): Codex P2 finding addressed (fix commit `093fe0f` + reply posted, thread outdated). CI 20/20 ✅. ✅
+2. **Incremented PR #568 escalation** ×63→×64. ✅
+3. **PM state v199** written + decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** [×64 runs]: Trigger `finalize` workflow_dispatch — 50/50 CI ✅, all registries ✅. Git ceremony (Steps 1–4) only remaining step.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Option A — BDFL approval required.
 
 ### 2026-06-12 PM dispatch v198 (this run)
 
