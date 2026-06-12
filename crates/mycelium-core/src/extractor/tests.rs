@@ -3910,7 +3910,34 @@ fn extractor_go_multi_segment_import_qualified_call_stored_as_pkg_method_path() 
         .filter_map(|&id| store.path_of(id).map(str::to_owned))
         .collect();
     assert!(
-        callee_paths.iter().any(|p| p == "http>Get"),
-        "`http.Get()` callee must be stored as `http>Get` (multi-segment import), got: {callee_paths:?}"
+        callee_paths.iter().any(|p| p == "net/http>Get"),
+        "`http.Get()` callee must be stored as `net/http>Get` (full import path), got: {callee_paths:?}"
+    );
+}
+
+#[test]
+fn extractor_go_explicit_import_alias_resolved_to_full_path() {
+    // Codex P2: `import h "net/http"` + `h.Get()` → callee `net/http>Get`.
+    // Explicit aliases must map to the full import path, not just `h`.
+    let ext = go_phase3b_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "alias.go",
+        b"package main\nimport h \"net/http\"\nfunc fetch() { h.Get(\"https://example.com\") }\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+
+    let caller = store
+        .lookup("alias.go>fetch")
+        .expect("fetch function must be a node");
+    let callee_paths: Vec<String> = store
+        .outgoing(caller, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&id| store.path_of(id).map(str::to_owned))
+        .collect();
+    assert!(
+        callee_paths.iter().any(|p| p == "net/http>Get"),
+        "`h.Get()` with `import h \"net/http\"` must resolve to `net/http>Get`, got: {callee_paths:?}"
     );
 }

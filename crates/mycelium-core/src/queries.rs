@@ -69,15 +69,26 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
             store.path_of(dst).map(|path| {
                 let class = if path.contains('>') {
                     // RFC-0113 Phase 3b: for Go, a qualified path like `fmt>Println`
-                    // may be a stdlib call stored via the import-alias mechanism.
-                    // `classify_go_qualified` returns Stdlib for known stdlib package
-                    // receivers and Unknown for everything else, so non-stdlib qualified
-                    // paths (e.g. `src/server.go>Server>Run`) safely fall through to Project.
+                    // or `net/http>Get` may be a stdlib call stored via the
+                    // import-alias mechanism (Pass 1b-go maps local → full import path).
+                    // Third-party packages always have a domain in the first path
+                    // component (e.g. `github.com/acme/http>Get`), which is identified
+                    // by a `.` before the first `/`. Stdlib and internal packages have
+                    // no domain (e.g. `net/http`, `fmt`). (Codex P2 fix.)
                     if is_go {
-                        let (pkg, method) = path.split_once('>').unwrap_or((path, ""));
-                        match classify_go_qualified(pkg, method) {
-                            CalleeClass::Unknown => CalleeClass::Project.as_str(),
-                            known => known.as_str(),
+                        let (pkg_path, method) = path.split_once('>').unwrap_or((path, ""));
+                        let first_component = pkg_path.split('/').next().unwrap_or(pkg_path);
+                        if first_component.contains('.') {
+                            // Has domain prefix → third-party package → project node.
+                            CalleeClass::Project.as_str()
+                        } else {
+                            // No domain → stdlib candidate; use last segment to look up
+                            // in the stdlib table (`"net/http"` → local `"http"`).
+                            let local = pkg_path.rsplit('/').next().unwrap_or(pkg_path);
+                            match classify_go_qualified(local, method) {
+                                CalleeClass::Unknown => CalleeClass::Project.as_str(),
+                                known => known.as_str(),
+                            }
                         }
                     } else {
                         CalleeClass::Project.as_str()
@@ -1161,18 +1172,37 @@ mod tests {
 
     #[test]
     fn callees_payload_go_qualified_http_get_is_stdlib() {
-        // `import "net/http"` → local name `http`; `http>Get` → stdlib.
+        // Full import-path form: `net/http>Get` must classify as stdlib.
+        // (The extractor stores the full path after the Codex P2 fix.)
         use crate::types::NodeKind;
         let mut store = Store::new();
         let src = store.upsert_node(p("fetch.go>fetch"));
-        let get = store.upsert_node_with_kind(p("http>Get"), NodeKind::Unresolved);
+        let get = store.upsert_node_with_kind(p("net/http>Get"), NodeKind::Unresolved);
         store.upsert_edge(EdgeKind::Calls, src, get);
 
         let v = callees_payload(&store, src, EdgeKind::Calls);
         let entries = v["callees"].as_array().unwrap();
         assert_eq!(
             entries[0]["class"], "stdlib",
-            "`http>Get` callee for .go file must be `stdlib`"
+            "`net/http>Get` callee for .go file must be `stdlib`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_go_third_party_domain_pkg_stays_project() {
+        // Codex P2: `github.com/acme/http>Get` must NOT be classified as stdlib.
+        // Domain prefix (dot in first component) identifies third-party packages.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("main.go>main"));
+        let get = store.upsert_node_with_kind(p("github.com/acme/http>Get"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, get);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(
+            entries[0]["class"], "project",
+            "`github.com/acme/http>Get` must be `project`, not `stdlib` (third-party domain)"
         );
     }
 

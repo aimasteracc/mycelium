@@ -294,7 +294,14 @@ impl Extractor {
         // For `.go` files, `import "net/http"` makes `http` the local package name.
         // Go has no `@reference.alias_binding`, so populate the alias table here from
         // `@reference.import` captures. This lets RFC-0118 Part B's `@call.receiver`
-        // resolve `http.Get()` → `http>Get` instead of a bare-stub `Get`.
+        // resolve `http.Get()` → `net/http>Get` instead of a bare-stub `Get`.
+        //
+        // The alias table maps local-name → full-import-path (not local → local) so
+        // `callees_payload` can distinguish stdlib paths (no domain, e.g. "net/http")
+        // from third-party paths (with domain, e.g. "github.com/acme/http").
+        // Explicit Go import aliases (`import h "net/http"`) are resolved via the
+        // `name` field of the `import_spec` node; blank (`_`) and dot (`.`) imports
+        // are skipped. (Codex P2 fix.)
         if matches!(
             std::path::Path::new(file_path)
                 .extension()
@@ -304,13 +311,12 @@ impl Extractor {
             let mut cursor = QueryCursor::new();
             let mut matches = cursor.matches(&self.query, root, source);
             while let Some(m) = matches.next() {
-                let is_import = m
-                    .captures
-                    .iter()
-                    .any(|c| names[c.index as usize] == "reference.import");
-                if !is_import {
+                let import_spec_node = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "reference.import").then_some(c.node)
+                });
+                let Some(import_spec_node) = import_spec_node else {
                     continue;
-                }
+                };
                 let name_node = m
                     .captures
                     .iter()
@@ -324,16 +330,19 @@ impl Extractor {
                 if import_path.is_empty() {
                     continue;
                 }
-                // "net/http" → local name "http"; "fmt" → local name "fmt".
-                // The alias table maps local-name → local-name so the callee path
-                // is `http>Get` (the form `callees_payload` expects), not the raw
-                // import path `net/http>Get`.
-                let local = import_path.rsplit('/').next().unwrap_or(import_path);
-                // `entry().or_insert` keeps an explicit alias (`import io "io/fs"`)
-                // that alias_binding may have already written.
+                // Explicit alias: `import h "net/http"` → name field = "h".
+                // Blank (`_`) and dot (`.`) imports are excluded.
+                let explicit_alias = import_spec_node
+                    .child_by_field_name("name")
+                    .and_then(|n| n.utf8_text(source).ok())
+                    .filter(|s| !matches!(*s, "_" | "."));
+                let local = explicit_alias
+                    .unwrap_or_else(|| import_path.rsplit('/').next().unwrap_or(import_path));
+                // Map local → full import path; `or_insert` preserves an earlier
+                // entry if the same local name was already written.
                 alias_table
                     .entry(local.to_string())
-                    .or_insert_with(|| local.to_string());
+                    .or_insert_with(|| import_path.to_string());
             }
         }
 
