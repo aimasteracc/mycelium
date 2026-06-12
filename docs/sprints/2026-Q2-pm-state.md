@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v202 — no new merged PRs; Codex: PR #763 DRAFT has 0 comments (no findings); P0 escalation ×67) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 2 TS on develop (`6f6f4a9`); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×67 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v203 — PR #792 merged `22da0e3`; RFC-0113 Phase 3 Go shipped (PR #793 opened, CI pending); P0 escalation ×68) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 3 Go on feature branch PR #793 (CI pending); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×68 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -80,47 +80,45 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `75393b0` (PM v201 chore). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #763 (DRAFT) has 0 comments (Codex does not review DRAFTs; Hard Rule satisfied). No autonomous engineering tasks available — all P1 items blocked on PR #568 git ceremony.
-> **v197 update (2026-06-11):** PR #786 (v196 chore) merged squash `1052fc8a`; 0 Codex findings (clean). Escalation ×61→×62.
-> **v198 update (2026-06-12):** PR #787 (v197 chore) merged squash `3586948`; 0 Codex findings (clean). Escalation ×62→×63.
-> **v199 update (2026-06-12):** PR #788 (v198 chore) merged squash `574ab2b7`; Codex P2 fixed (commit `093fe0f` + reply, thread outdated). Escalation ×63→×64.
-> **v200 update (2026-06-12):** PR #789 (v199 chore) merged squash `8a2c5e2a`; Codex P2 fixed (commit `edd3f2a` + reply, thread outdated). Escalation ×64→×65.
-> **v201 update (2026-06-12):** PR #790 (v200 chore) merged squash `6b68fa77`; Codex P2 fixed (commit `98983c9` + reply, thread outdated). Escalation ×65→×66.
-> **v202 update (2026-06-12):** No new PRs merged. 0 open issues. PR #763 (DRAFT) 0 comments — Codex has not reviewed DRAFT; Hard Rule satisfied. Develop HEAD `75393b0`. Escalation ×66→×67.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `22da0e3` (PM v202 chore). RFC-0113 Phase 3 Go on PR #793 (CI pending). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active.
+> **v202 update (2026-06-12):** No new PRs merged; PR #763 DRAFT 0 Codex comments; develop HEAD `75393b0`. Escalation ×66→×67.
+> **v203 update (2026-06-12):** PR #792 (PM v202 chore) merged `22da0e3`; **RFC-0113 Phase 3 Go shipped** — PR #793 opened (feature/RFC-0113-phase3-go, CI pending). Previous "all P1 blocked" assessment corrected. Escalation ×67→×68.
 
 **P0 (founder action required):**
-1. **PR #568** [×67 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×68 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments (Codex does not review DRAFTs). PR #568: 1 finding (outdated, replied + issue #560 tracked, Hard Rule satisfied). Hard Rule satisfied.**
+**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments (Codex does not review DRAFTs). PR #793 (RFC-0113 Phase 3 Go): CI pending; Codex review pending. PR #568: 1 finding (outdated, replied + issue #560 tracked, Hard Rule satisfied).**
 
-**P1 (completed recently):**
-1. **PR #776** — RFC-0113 Phase 2 TypeScript + Codex fixes. ✅ **MERGED** squash `6f6f4a9` (CI 20/20 ✅; all Codex threads addressed). Now on develop.
+**P1 (recently completed):**
+1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
+2. **PR #793** — RFC-0113 Phase 3 Go stdlib classification. ✅ **OPENED** (CI pending). `classify_go` + `classify_go_import_gated` + `classify_go_qualified`; 11 TDD tests; Go dispatch wired into `callees_payload`. Quality gate local: fmt ✅ clippy ✅ tests ✅.
 
-**P1 (post-v0.3.0 ceremony, unblocked after #568 finalizes):**
-2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). Also satisfies RFC-0119 AC-12/AC-13 (dogfood transcript).
-3. RFC-0104 cold SLA measurement: nightly benchmark data for Charter §2 warm/cold split commit (bench).
-4. **RFC-0113 Phase 2**: corpus measurement — `unknown`-tail reduction benchmark on dogfood corpus.
+**P1 (unblocked — next items):**
+3. **RFC-0113 Phase 4** (Rust stdlib) — follows same pattern as Go/TS/Python; no #568 dependency.
+4. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries — not blocked on ceremony.
+5. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
+6. **RFC-0113 corpus measurement** — `unknown`-tail reduction on dogfood corpus (after Phase 3 lands on develop).
 
 **P2:**
-5. Skill marketplace submission to Claude Code marketplace (tech-writer)
-6. "First 5 minutes" walkthrough validation with npm/bun path
-7. ~~`release.yml` finalize merge step systemic fix~~ **✅ RESOLVED (v160)**
+7. Skill marketplace submission to Claude Code marketplace (tech-writer)
+8. "First 5 minutes" walkthrough validation with npm/bun path
+9. ~~`release.yml` finalize merge step systemic fix~~ **✅ RESOLVED (v160)**
 
 ---
 
-## Dispatch state (2026-06-12 v202)
+## Dispatch state (2026-06-12 v203)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×67 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
-| PM | **DONE ✅** | v202: no new PRs merged; PR #763 DRAFT 0 Codex comments; 0 open issues; escalation ×66→×67. |
-| rust-implementer | **DONE ✅** | RFC-0113 Phase 2 TS MERGED (`6f6f4a9`): `classify_typescript_import_gated` wired into `callees_payload`; `isInteger` removed from builtins; 4 TDD tests. 20/20 CI ✅. |
-| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1 (PRs #746–#757 content). |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×68 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
+| PM | **DONE ✅** | v203: PR #792 merged; RFC-0113 Phase 3 Go (PR #793 opened); "all P1 blocked" corrected; escalation ×67→×68. |
+| rust-implementer | **P1** | After PR #793 CI green + merge: RFC-0113 Phase 4 Rust stdlib classification (same pattern). |
+| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
-| e2e-runner | **P1 (blocked)** | Dogfood re-run with SDKs + redb-as-default (also satisfies RFC-0119 AC-12/13 transcript). |
-| bench | **P1 (blocked)** | RFC-0104 cold SLA nightly benchmark. |
+| e2e-runner | **P1 (unblocked)** | Dogfood re-run — SDK packages at v0.3.0 in registries, not blocked on #568 ceremony. |
+| bench | **P1** | RFC-0104 cold SLA nightly benchmark. |
 | tech-writer | idle | Skill marketplace prep (P2). |
 
 ---
@@ -151,6 +149,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v203 (PR #792 merged; RFC-0113 Phase 3 Go (PR #793); escalation ×67→×68)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/async/storage), PM state v202 (from chore/pm-state-v202 branch), v0.2 PRD. GitHub state verified via MCP GitHub tools.
+
+**Assessment:**
+- 3 open PRs at start: #792 (chore/pm-state-v202, 22/22 CI ✅), #763 (DRAFT RFC-0121, BDFL required), #568 (release/v0.3.0, 50/50 CI ✅, registries ✅, founder-gated ×67).
+- 0 open issues (all labels).
+- Develop CI GREEN (HEAD `75393b0` pre-merge, `22da0e3` post-merge).
+- **Key correction**: v186–v202 claimed "all P1 items blocked on PR #568 git ceremony" — this was overly conservative. RFC-0113 Phase 3 (Go stdlib classification) is additive code in `classify.rs`, zero dependency on version numbers or PR #568. Corrected in this run.
+- Develop feature content since release cut (2026-06-05): 20+ non-chore commits including RFC-0113/0115/0116/0117/0122/0124 features.
+
+**Actions taken:**
+1. **Merged PR #792** (chore/pm-state-v202, squash `22da0e3`): 22/22 CI ✅. ✅
+2. **Implemented RFC-0113 Phase 3 (Go stdlib classification)**: TDD RED-first — 11 unit tests; `classify_go` + `classify_go_import_gated` + `classify_go_qualified` + `GO_BUILTINS` + `GO_STDLIB_PKG_NAMES` tables; dispatch wired in `callees_payload` for `.go` extensions. Quality gate: fmt ✅ clippy 0 warnings ✅ cargo test --all ✅. ✅
+3. **Opened PR #793** (`feature/RFC-0113-phase3-go`, CI pending). ✅
+4. **Corrected PM state "blocked" assessment**: e2e-runner and RFC-0113 phase work are NOT blocked by #568 ceremony. Updated dispatch table. ✅
+5. **Escalation** ×67→×68. ✅
+
+**Escalations to founder (P0, ×68 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4). CI 50/50 ✅; registries published 2026-06-05.
+- **(2) RFC-0121**: DRAFT PR #763 staged (22/22 CI ✅, 0 Codex comments) — un-draft + merge (Charter §2 SLA amendment).
 
 ### 2026-06-12 PM dispatch v202 (no new PRs merged; PR #763 DRAFT 0 Codex comments; escalation ×66→×67)
 
