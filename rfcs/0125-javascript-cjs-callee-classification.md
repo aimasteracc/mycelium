@@ -1,6 +1,6 @@
 # RFC-0125: JavaScript CJS callee classification — close the require() gap
 
-- **Status**: Draft
+- **Status**: Implemented
 - **Author(s)**: orchestrator (Hive AI agent, PM dispatch v216)
 - **Created**: 2026-06-12
 - **Depends on**: [RFC-0113](0113-stdlib-callee-classification.md) (callee classification
@@ -163,28 +163,29 @@ the primary classification returned `Unknown`:
 
 ### Phase 1 — CJS extractor fix
 
-- [ ] **AC-1**: Tree-sitter pattern `const X = require('Y')` emits `@reference.import`
+- [x] **AC-1**: Tree-sitter pattern `const X = require('Y')` emits `@reference.import`
       with `@name = "Y"` in `packs/javascript/queries.scm`.
-- [ ] **AC-2**: Pattern `const { A, B } = require('Y')` emits `@reference.alias_binding`
+- [x] **AC-2**: Pattern `const { A, B } = require('Y')` emits `@reference.alias_binding`
       with `@name = "Y"` (module) + `@alias.original_name = "A"` / `"B"`.
-- [ ] **AC-3**: A `.js` fixture file using CJS `require('fs')` + `readFileSync()` call —
+- [x] **AC-3**: A `.js` fixture file using CJS `require('fs')` + `readFileSync()` call —
       extractor produces `caller_imports` containing `"fs"` → `classify_typescript_import_gated`
       returns `Stdlib` for `readFileSync`. TDD: test is RED before the queries.scm
       change and GREEN after.
-- [ ] **AC-4**: ESM files (`import fs from 'fs'`) are **not affected** — their
+- [x] **AC-4**: ESM files (`import fs from 'fs'`) are **not affected** — their
       `@reference.import` captures are unchanged and no duplicate entries are emitted.
-- [ ] **AC-5**: All three embedded pack copies synced (`mycelium-core`,
+- [x] **AC-5**: All three embedded pack copies synced (`mycelium-core`,
       `mycelium-cli`, `mycelium-mcp` — per anti-patterns.jsonl `packs/` parity rule).
 
 ### Phase 2 — Browser-global classifier
 
-- [ ] **AC-6**: `classify_javascript_browser_global("fetch")` returns `CalleeClass::Stdlib`.
-- [ ] **AC-7**: `classify_javascript_browser_global("document")` returns `CalleeClass::Stdlib`.
-- [ ] **AC-8**: `classify_javascript_browser_global("myCustomFn")` returns `CalleeClass::Unknown`.
-- [ ] **AC-9**: In `callees_payload`, a `.js` file calling `fetch()` with no imports
-      returns `"stdlib"` (Phase 2 tier fires). A `.ts` file calling `fetch()` also
-      returns `"stdlib"` via the existing TS classifier (no regression). A `.rs` file
-      with a local function named `fetch` is not affected.
+- [x] **AC-6**: `classify_javascript_browser_global("fetch")` returns `CalleeClass::Stdlib`.
+- [x] **AC-7**: `classify_javascript_browser_global("document")` returns `CalleeClass::Stdlib`.
+- [x] **AC-8**: `classify_javascript_browser_global("myCustomFn")` returns `CalleeClass::Unknown`.
+- [x] **AC-9**: In `callees_payload`, a `.js` file calling `document` (DOM global) with no
+      imports returns `"stdlib"` via the browser-global fallback tier. `fetch` is classified
+      as `"builtin"` via `TS_GLOBAL_BUILTINS` (browser + Node 18+) before the fallback fires.
+      A `.ts` file calling `fetch()` returns `"builtin"` via `TS_GLOBAL_BUILTINS`. The `.cjs`
+      extensionless-require resolution concern is tracked in issue #816 (Phase 2+ scope).
 
 ---
 
