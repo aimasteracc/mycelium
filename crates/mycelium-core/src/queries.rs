@@ -14,22 +14,22 @@ use crate::test_gap::CoverageFacts;
 use crate::types::{EdgeKind, NodeId};
 
 /// Build the `{ "callee_paths": [...], "callees": [{path, class}, ...] }` payload
-/// for `get_callees` (RFC-0109 Option A shape + RFC-0113 Phase 2 class field).
+/// for `get_callees` (RFC-0109 Option A shape + RFC-0113 class field).
 ///
 /// `callee_paths` is kept for backward compatibility. `callees` is the additive
 /// array where each entry carries the trunk path **and** a static classification:
 /// - Paths containing `>` are project-defined symbols → `"project"`.
 /// - Bare stub paths (no `>`) are classified against the language-appropriate
-///   allowlists: TypeScript/JS classifier for `.ts/.tsx/.js/.jsx/.mjs/.cjs`
-///   callers (RFC-0113 Phase 2); Python classifier otherwise. Callers must apply
-///   the project-ownership shadow first (only unresolved stubs reach here), which
-///   `resolve_bare_call_stubs` already ensures.
+///   allowlists: TypeScript/JS (RFC-0113 Phase 2) for `.ts/.tsx/.js/.jsx/.mjs/.cjs`;
+///   Go (RFC-0113 Phase 3) for `.go`; Python otherwise. Callers must apply the
+///   project-ownership shadow first (only unresolved stubs reach here).
 ///
 /// Both arrays are sorted lexicographically by path and deduplicated.
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
     use crate::classify::{
-        CalleeClass, classify_python_import_gated, classify_typescript_import_gated,
+        CalleeClass, classify_go_import_gated, classify_python_import_gated,
+        classify_typescript_import_gated,
     };
     use std::collections::HashSet;
 
@@ -55,13 +55,12 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
         })
         .unwrap_or_default();
 
-    // RFC-0113 Phase 2: dispatch to language-appropriate classifier.
-    let is_ts_js = caller_file.as_deref().is_some_and(|f| {
-        matches!(
-            std::path::Path::new(f).extension().and_then(|e| e.to_str()),
-            Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs")
-        )
-    });
+    // RFC-0113 Phase 2+3: dispatch to language-appropriate classifier.
+    let ext = caller_file
+        .as_deref()
+        .and_then(|f| std::path::Path::new(f).extension().and_then(|e| e.to_str()));
+    let is_ts_js = matches!(ext, Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs"));
+    let is_go = matches!(ext, Some("go"));
 
     let mut entries: Vec<(String, &'static str)> = store
         .outgoing(id, kind)
@@ -72,6 +71,8 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
                     CalleeClass::Project.as_str()
                 } else if is_ts_js {
                     classify_typescript_import_gated(path, &caller_imports).as_str()
+                } else if is_go {
+                    classify_go_import_gated(path, &caller_imports).as_str()
                 } else {
                     classify_python_import_gated(path, &caller_imports).as_str()
                 };

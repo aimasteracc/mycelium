@@ -1975,3 +1975,393 @@ mod ts_tests {
         );
     }
 }
+
+// ── Go stdlib classification (RFC-0113 Phase 3) ──────────────────────────────
+
+/// Classify a bare Go callee name without import context.
+///
+/// - **Builtins** (`make`, `len`, `append`, …) are classified unconditionally.
+/// - **Stdlib package names** (`fmt`, `os`, `http`, `json`, …) are classified
+///   as `Stdlib` even without import evidence — the import gate is [`classify_go_import_gated`].
+/// - Everything else is `Unknown`.
+#[must_use]
+pub fn classify_go(name: &str) -> CalleeClass {
+    if GO_BUILTINS.contains(name) {
+        CalleeClass::Builtin
+    } else if GO_STDLIB_PKG_NAMES.contains(name) {
+        CalleeClass::Stdlib
+    } else {
+        CalleeClass::Unknown
+    }
+}
+
+/// Classify a bare Go callee name with **import-context gating** (RFC-0113 Phase 3).
+///
+/// - **Builtins** never need an import — they fire unconditionally.
+/// - **Stdlib package local names** (`fmt`, `http`, `json`, …): require that
+///   `caller_imports` contains either the exact local name (e.g. `"fmt"`) or a
+///   multi-segment import path whose last component equals the local name
+///   (e.g. `"net/http"` → local name `"http"`). This covers both simple imports
+///   (`import "fmt"`) and path imports (`import "encoding/json"` → `json`).
+/// - Everything else is `Unknown`.
+///
+/// `caller_imports` is the set of import path strings from the caller file's
+/// `Imports` edges — e.g. `{"fmt", "net/http", "encoding/json"}`.
+#[must_use]
+pub fn classify_go_import_gated<S: std::hash::BuildHasher>(
+    name: &str,
+    caller_imports: &std::collections::HashSet<String, S>,
+) -> CalleeClass {
+    if GO_BUILTINS.contains(name) {
+        return CalleeClass::Builtin;
+    }
+
+    if GO_STDLIB_PKG_NAMES.contains(name) {
+        // Accept if any import path's last segment (after the final '/') equals name,
+        // or if the full path equals name (for single-segment packages like "fmt").
+        let imported = caller_imports.iter().any(|imp| {
+            let local = imp.rsplit('/').next().unwrap_or(imp.as_str());
+            local == name
+        });
+        return if imported {
+            CalleeClass::Stdlib
+        } else {
+            CalleeClass::Unknown
+        };
+    }
+
+    CalleeClass::Unknown
+}
+
+/// Classify a module-qualified Go call `receiver.Method()`.
+///
+/// If the `receiver` is a known Go stdlib package local name (e.g. `fmt`,
+/// `http`, `json`) or a full import path (e.g. `net/http`, `encoding/json`),
+/// the call is **stdlib** — the method name is trusted to be whatever the
+/// package exports. Otherwise returns `Unknown`.
+///
+/// Callers must apply the project-ownership shadow first (only unresolved stubs
+/// reach here).
+#[must_use]
+pub fn classify_go_qualified(receiver: &str, _method: &str) -> CalleeClass {
+    // Accept the local name directly (e.g. "fmt", "http", "json").
+    if GO_STDLIB_PKG_NAMES.contains(receiver) {
+        return CalleeClass::Stdlib;
+    }
+    // Accept a full import path as receiver (e.g. "net/http", "encoding/json").
+    // The local name is the last path segment.
+    let local = receiver.rsplit('/').next().unwrap_or(receiver);
+    if local != receiver && GO_STDLIB_PKG_NAMES.contains(local) {
+        return CalleeClass::Stdlib;
+    }
+    CalleeClass::Unknown
+}
+
+/// Go builtin functions — available without any import.
+static GO_BUILTINS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        "make", "len", "cap", "append", "copy", "delete", "close", "panic", "recover", "new",
+        "print", "println", "real", "imag", "complex", "min", "max", "clear", // Go 1.21+
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Go stdlib package local names — the identifiers used in code after import.
+/// Covers all packages from the Go standard library used in typical projects.
+/// Multi-segment packages (e.g. `net/http`) are listed by their local name (`http`).
+static GO_STDLIB_PKG_NAMES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // core I/O and OS
+        "fmt",
+        "os",
+        "io",
+        "bufio",
+        "bytes",
+        "strings",
+        "strconv",
+        "log",
+        "errors",
+        // data structures and algorithms
+        "sort",
+        "math",
+        "rand",
+        // concurrency
+        "sync",
+        "atomic",
+        "context",
+        "time",
+        // networking
+        "net",
+        "http",
+        "url",
+        "rpc",
+        "smtp",
+        "mail",
+        // encoding
+        "json",
+        "xml",
+        "csv",
+        "base64",
+        "hex",
+        "binary",
+        "gob",
+        "asn1",
+        // filesystem
+        "path",
+        "filepath",
+        "fs",
+        "embed",
+        // text/templates
+        "template",
+        "html",
+        // reflection and runtime
+        "reflect",
+        "runtime",
+        "unsafe",
+        // testing
+        "testing",
+        "iotest",
+        "httptest",
+        // compression / archive
+        "gzip",
+        "zlib",
+        "bzip2",
+        "zip",
+        "tar",
+        "lzw",
+        // crypto
+        "tls",
+        "rsa",
+        "ecdsa",
+        "ed25519",
+        "sha256",
+        "sha512",
+        "md5",
+        "hmac",
+        "cipher",
+        "aes",
+        "des",
+        "rc4",
+        "rand_crypto",
+        // Go tools
+        "ast",
+        "parser",
+        "token",
+        "types",
+        "scanner",
+        "format",
+        // flags and CLI
+        "flag",
+        // misc stdlib
+        "regexp",
+        "unicode",
+        "utf8",
+        "utf16",
+        "big",
+        "bits",
+        "cmplx",
+        "ring",
+        "heap",
+        "list",
+        "pprof",
+        "trace",
+        "signal",
+        "exec",
+        "user",
+        "sql",
+        "driver",
+        "debug",
+        "dwarf",
+        "elf",
+        "gosym",
+        "macho",
+        "pe",
+        "plan9obj",
+        "build",
+        "constraint",
+        "importer",
+        "tabwriter",
+        "template",
+        "syslog",
+        "ioutil",
+    ]
+    .into_iter()
+    .collect()
+});
+
+#[cfg(test)]
+mod go_tests {
+    use super::*;
+
+    fn go_imports(pkgs: &[&str]) -> std::collections::HashSet<String> {
+        pkgs.iter().map(|s| (*s).to_owned()).collect()
+    }
+
+    // ── classify_go (name-only) ──────────────────────────────────────────────
+
+    #[test]
+    fn go_classifies_builtins() {
+        assert_eq!(classify_go("make"), CalleeClass::Builtin);
+        assert_eq!(classify_go("len"), CalleeClass::Builtin);
+        assert_eq!(classify_go("cap"), CalleeClass::Builtin);
+        assert_eq!(classify_go("append"), CalleeClass::Builtin);
+        assert_eq!(classify_go("copy"), CalleeClass::Builtin);
+        assert_eq!(classify_go("delete"), CalleeClass::Builtin);
+        assert_eq!(classify_go("close"), CalleeClass::Builtin);
+        assert_eq!(classify_go("panic"), CalleeClass::Builtin);
+        assert_eq!(classify_go("recover"), CalleeClass::Builtin);
+        assert_eq!(classify_go("new"), CalleeClass::Builtin);
+    }
+
+    #[test]
+    fn go_classifies_stdlib_package_names() {
+        assert_eq!(classify_go("fmt"), CalleeClass::Stdlib);
+        assert_eq!(classify_go("os"), CalleeClass::Stdlib);
+        assert_eq!(classify_go("io"), CalleeClass::Stdlib);
+        assert_eq!(classify_go("strings"), CalleeClass::Stdlib);
+        assert_eq!(classify_go("http"), CalleeClass::Stdlib);
+        assert_eq!(classify_go("json"), CalleeClass::Stdlib);
+    }
+
+    #[test]
+    fn go_unknown_names_stay_unknown() {
+        assert_eq!(classify_go("myHelper"), CalleeClass::Unknown);
+        assert_eq!(classify_go("frobnicate"), CalleeClass::Unknown);
+        assert_eq!(classify_go("handler"), CalleeClass::Unknown);
+    }
+
+    // ── classify_go_import_gated ─────────────────────────────────────────────
+
+    #[test]
+    fn go_import_gate_builtins_fire_without_imports() {
+        let none = go_imports(&[]);
+        assert_eq!(
+            classify_go_import_gated("make", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(classify_go_import_gated("len", &none), CalleeClass::Builtin);
+        assert_eq!(
+            classify_go_import_gated("panic", &none),
+            CalleeClass::Builtin
+        );
+        assert_eq!(classify_go_import_gated("new", &none), CalleeClass::Builtin);
+    }
+
+    #[test]
+    fn go_import_gate_stdlib_pkg_blocked_without_import() {
+        let none = go_imports(&[]);
+        assert_eq!(classify_go_import_gated("fmt", &none), CalleeClass::Unknown);
+        assert_eq!(classify_go_import_gated("os", &none), CalleeClass::Unknown);
+        assert_eq!(
+            classify_go_import_gated("http", &none),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn go_import_gate_simple_pkg_requires_exact_import() {
+        // `import "fmt"` → local name "fmt" → stem "fmt".
+        let with_fmt = go_imports(&["fmt"]);
+        assert_eq!(
+            classify_go_import_gated("fmt", &with_fmt),
+            CalleeClass::Stdlib
+        );
+        // Wrong import does not enable fmt.
+        let with_os = go_imports(&["os"]);
+        assert_eq!(
+            classify_go_import_gated("fmt", &with_os),
+            CalleeClass::Unknown
+        );
+    }
+
+    #[test]
+    fn go_import_gate_multi_segment_pkg_matched_by_last_component() {
+        // `import "net/http"` → stem stored as "net/http"; local name in code is "http".
+        let with_net_http = go_imports(&["net/http"]);
+        assert_eq!(
+            classify_go_import_gated("http", &with_net_http),
+            CalleeClass::Stdlib
+        );
+        // encoding/json → local name "json".
+        let with_enc_json = go_imports(&["encoding/json"]);
+        assert_eq!(
+            classify_go_import_gated("json", &with_enc_json),
+            CalleeClass::Stdlib
+        );
+        // path/filepath → local name "filepath".
+        let with_filepath = go_imports(&["path/filepath"]);
+        assert_eq!(
+            classify_go_import_gated("filepath", &with_filepath),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn go_import_gate_unknown_names_stay_unknown_regardless_of_imports() {
+        let lots = go_imports(&["fmt", "os", "net/http", "encoding/json"]);
+        assert_eq!(
+            classify_go_import_gated("frobnicate", &lots),
+            CalleeClass::Unknown
+        );
+        assert_eq!(
+            classify_go_import_gated("myHelper", &lots),
+            CalleeClass::Unknown
+        );
+    }
+
+    // ── classify_go_qualified ────────────────────────────────────────────────
+
+    #[test]
+    fn go_qualified_stdlib_receiver_is_stdlib() {
+        assert_eq!(classify_go_qualified("fmt", "Println"), CalleeClass::Stdlib);
+        assert_eq!(classify_go_qualified("os", "Open"), CalleeClass::Stdlib);
+        assert_eq!(
+            classify_go_qualified("strings", "Join"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(classify_go_qualified("http", "Get"), CalleeClass::Stdlib);
+        assert_eq!(
+            classify_go_qualified("json", "Marshal"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_go_qualified("filepath", "Join"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(classify_go_qualified("errors", "New"), CalleeClass::Stdlib);
+        assert_eq!(classify_go_qualified("sync", "Mutex"), CalleeClass::Stdlib);
+        assert_eq!(
+            classify_go_qualified("context", "Background"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_go_qualified("regexp", "MustCompile"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn go_qualified_full_import_path_as_receiver_is_stdlib() {
+        // If the import path itself appears as receiver (rare, e.g. aliased)
+        assert_eq!(
+            classify_go_qualified("net/http", "Get"),
+            CalleeClass::Stdlib
+        );
+        assert_eq!(
+            classify_go_qualified("encoding/json", "Marshal"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn go_qualified_unknown_receiver_falls_back_to_method() {
+        // Unknown receiver → classify the method alone.
+        assert_eq!(
+            classify_go_qualified("myPkg", "frobnicate"),
+            CalleeClass::Unknown
+        );
+        // Unknown receiver but method is a builtin name → still unknown (builtins aren't methods).
+        assert_eq!(classify_go_qualified("myPkg", "len"), CalleeClass::Unknown);
+    }
+}

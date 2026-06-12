@@ -1,6 +1,6 @@
 # RFC-0113: stdlib/builtin callee classification — rescue the `unknown` tail (design)
 
-- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped)
+- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped; Phase 3 Go tables shipped)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
@@ -125,7 +125,15 @@ existing pack files (the core resolver loads it the way it loads `queries.scm`).
 Python tables. Global builtins (`parseInt`, `Error`, …), Node.js modules (`fs`, `path`, …),
 stdlib methods (Array/String/Promise), Node.js module-level functions (`readFileSync`, …),
 test-framework matchers (jest/vitest/mocha/chai). Import-gated with `node:` prefix
-tolerance. Other Tier-1 packs (Go, Rust, Java, C/C++) remain pending.
+tolerance. `callees_payload` dispatches `.ts/.tsx/.js/.jsx/.mjs/.cjs` callers here.
+
+**Phase 3:** Go — `classify_go`, `classify_go_import_gated`, `classify_go_qualified`. ✅ Shipped.
+Go builtins (`make`, `len`, `append`, `cap`, `copy`, `delete`, `close`, `panic`, `recover`,
+`new`, `real`, `imag`, `complex`, `min`, `max`, `clear`). Stdlib package local names covering
+all common standard library packages (`fmt`, `os`, `io`, `http`, `json`, `filepath`, `sync`,
+`context`, `regexp`, `testing`, …). Import-gated via last-component matching: `"net/http"` →
+local name `"http"`, `"encoding/json"` → local name `"json"`. `callees_payload` dispatches
+`.go` callers here. 11 TDD tests. Other Tier-1 packs (Rust, Java, C/C++) remain pending.
 
 ## Alternatives considered
 
