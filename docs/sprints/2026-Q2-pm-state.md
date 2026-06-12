@@ -80,7 +80,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `574ab2b7` (PM v199 chore, via PR #788 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #788 had 1 Codex P2 finding (fixed via commit `093fe0f` + reply, thread outdated). No autonomous engineering tasks available — all P1 items blocked on PR #568 git ceremony.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `574ab2b7` (PM v198 chore, via PR #788 squash-merge). RFC-0113 Phase 2 TS on develop (`6f6f4a9`). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active — PR #788 had 1 Codex P2 finding (fixed via commit `093fe0f` + reply, thread outdated). No autonomous engineering tasks available — all P1 items blocked on PR #568 git ceremony.
 > **v196 update (2026-06-11):** PR #785 (v195 chore) merged squash `8d04aae1`; Codex P1 rejected (stale SHA DCO false-positive — recurring squash-merge pattern; CI DCO job 80905615896 ✅). Escalation ×60→×61.
 > **v197 update (2026-06-11):** PR #786 (v196 chore) merged squash `1052fc8a`; 0 Codex findings (clean). Escalation ×61→×62.
 > **v198 update (2026-06-12):** PR #787 (v197 chore) merged squash `3586948`; 0 Codex findings (clean). Escalation ×62→×63.
