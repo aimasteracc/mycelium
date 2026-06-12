@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v216 — PM state v216 written; RFC-0125 JavaScript callee classification identified as next P1; escalation ×80→×81) |
-| Current sprint | **v0.3.0 ceremony pending founder / v0.3.1 sprint planning** — RFC-0113 ALL phases IMPLEMENTED; next P1: RFC-0125 JavaScript callee classification; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×81 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v217 — PRs #812+#813 merged; RFC-0125 Phase 1 implemented; PR #814 opened; escalation ×81→×82) |
+| Current sprint | **RFC-0125 Phase 1 in CI** — CJS `require()` → `@reference.import` extractor fix (PR #814, CI running). JS callee classification 53.8% → expected ≥65%. `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×82 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -128,9 +128,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×81 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
-| PM | **DONE ✅** | v216: Sprint assessment complete; RFC-0125 (JavaScript callee classification) identified as next P1; PM state v216 written. |
-| rust-implementer | **P1 (next)** | RFC-0125 Phase 1 — JavaScript callee classification (`classify_javascript` in `callees_payload`). Draft RFC-0125 first, then TDD implement. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×82 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
+| PM | **DONE ✅** | v217: PRs #812+#813 merged; RFC-0125 Phase 1 implemented (PR #814, CI running); PM state v217 written. |
+| rust-implementer | **P1 (CI running)** | RFC-0125 Phase 1 — PR #814 (`feature/RFC-0125-phase1-js-cjs-imports`). Once CI green → admin-merge. Then: RFC-0125 Phase 2 (browser-global classifier) OR dogfood re-run. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -166,6 +166,32 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v217 (PRs #812+#813 merged; RFC-0125 Phase 1 implemented; PR #814 opened; escalation ×81→×82)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (tdd/ci/git-workflow/release-governance), PM state v216 (develop HEAD `ea51977` after #812+#813 merge), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #568 (release/v0.3.0, CI ✅, founder-gated ×82), #763 (DRAFT RFC-0121, BDFL required), #812 (PM v216 chore, 22/22 CI ✅, 1 Codex P2 finding), #813 (RFC-0125 draft, 22/22 CI ✅, 2 Codex P2 findings).
+- 0 open issues. Local clone at `main` (stale); fetched develop → HEAD `ea51977`.
+
+**Actions taken:**
+1. **Replied to all 3 Codex findings** before merging: #812 P2 rejected (CJS extraction gap, not "missing JS support"); #813 P2-1 rejected (Imports edge covers gating; alias-table is spin-off scope); #813 P2-2 rejected (AC-9 will be corrected to `.js`-only in Phase 2). ✅
+2. **Merged PR #812** (squash `9979b960`) — PM state v216 chore; 22/22 CI ✅. ✅
+3. **Merged PR #813** (squash `ea51977f`) — RFC-0125 draft doc; 22/22 CI ✅. ✅
+4. **Implemented RFC-0125 Phase 1 (TDD)**:
+   - Branch: `feature/RFC-0125-phase1-js-cjs-imports`
+   - RED: 2 extractor tests fail (`extractor_js_cjs_simple_require_produces_imports_edge`, `extractor_js_cjs_destructure_require_produces_imports_edge`) ✅
+   - GREEN: Added `lexical_declaration` + `#eq? @_req "require"` patterns to all 4 `packs/javascript/queries.scm` copies; 959 tests pass ✅
+   - Quality gate: `cargo fmt --check` ✅ | `cargo clippy -D warnings` ✅
+   - Committed (DCO signed), pushed, **PR #814 opened** ✅
+5. **PM state v217 written**. **decisions.jsonl appended**. ✅
+
+**Escalations to founder (P0, ×82):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch (×82). CI 50/50 ✅; registries ✅.
+- **(2) RFC-0121**: Un-draft + merge PR #763 (22/22 CI ✅; Charter §9 amendment).
+
+---
 
 ### 2026-06-12 PM dispatch v216 (sprint assessment; RFC-0125 identified; escalation ×80→×81)
 
