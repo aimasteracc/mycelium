@@ -152,7 +152,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ### 2026-06-12 PM dispatch v200 (PR #789 merged `8a2c5e2a`; Codex P2 fixed+outdated; escalation ×64→×65)
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/three-surface/rfc-0109), PM state v199 (develop HEAD `8a2c5e2a` after PR #789 squash-merge), v0.2 PRD. GitHub state verified via MCP GitHub tools.
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/three-surface/rfc-0109), PM state v199 (develop HEAD `574ab2b7` pre-merge), v0.2 PRD. GitHub state verified via MCP GitHub tools.
 
 **Assessment:**
 - 3 open PRs at start: #789 (chore/pm-state-v199, CI 20/20 ✅, Codex P2 fixed via `edd3f2a` + reply, thread outdated), #763 (DRAFT RFC-0121, BDFL required), #568 (release/v0.3.0, 50/50 CI ✅, registries ✅, founder-gated ×64).
