@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v209 — PR #803 MERGED `bdad01d`; PR #802 MERGED `8b14ecd` (RFC-0113 Phase 5; issue #800 closed); P0 escalation ×74) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 5 extractor MERGED `8b14ecd`; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×74 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v210 — PR #804 MERGED `2961bd3` (PM v209 chore); issue #800 EXPLICITLY CLOSED (GitHub skips auto-close on non-default branches); 0 open issues; P0 escalation ×75) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 ALL 5 PHASES DONE; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×75 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -94,7 +94,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 1. **PR #568** [×74 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #803: Codex P2 replied (option b). MERGED `bdad01d`. PR #802: 0 Codex findings. MERGED `8b14ecd`.**
+**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #804: chore-only, no code findings expected. MERGED `2961bd3`.**
+> **v210 update (2026-06-12):** PR #804 **MERGED** `2961bd3` (PM v209 chore; 20/20 CI ✅). Issue #800 **EXPLICITLY CLOSED** (GitHub does not auto-close on non-default branch merge; closed via API in v210). 0 open issues. Escalation ×74→×75.
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
@@ -115,12 +116,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-12 v209)
+## Dispatch state (2026-06-12 v210)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×74 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
-| PM | **DONE ✅** | v209: PR #803 merged `bdad01d`; PR #802 MERGED `8b14ecd` (RFC-0113 Phase 5; issue #800 closed); decisions.jsonl appended. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×75 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
+| PM | **DONE ✅** | v210: PR #804 merged `2961bd3`; issue #800 explicitly closed (0 open issues); PM state v210 pushed. |
 | rust-implementer | **DONE ✅** | PR #802 MERGED `8b14ecd` — RFC-0113 Phase 5 on develop. Next: dogfood corpus measurement (RFC-0113 unknown-tail reduction). |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -157,6 +158,27 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v210 (PR #804 merged `2961bd3`; issue #800 explicitly closed; 0 open issues; escalation ×74→×75)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance domains), PM state v209 (develop HEAD `2961bd3`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #804 (PM v209 chore, 20/20 CI ✅), #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×74), #763 (DRAFT RFC-0121, BDFL required).
+- 1 open issue: #800 (fixed by PR #802 `8b14ecd` but GitHub did not auto-close — develop is non-default branch).
+- Develop CI GREEN at `2961bd3` (PM v209 chore).
+- 0 P0/P1 issues. Both P0 tasks are founder-gated. RFC-0113 ALL 5 PHASES DONE.
+
+**Actions taken:**
+1. **Merged PR #804** (squash `2961bd3`) — PM v209 chore; CI 20/20 ✅. ✅
+2. **Explicitly closed issue #800** via GitHub API — GitHub skips auto-close on non-default branch merges; "Closes #800" in commit `8b14ecd` (non-default branch) did not trigger the automation. 0 open issues now. ✅
+3. **PM state v210 written** (this file) + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×75 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 SLA amendment.
+
+---
 
 ### 2026-06-12 PM dispatch v209 (PR #803 merged `bdad01d`; PR #802 parity fix + MERGED `8b14ecd`; issue #800 closed; escalation ×73→×74)
 
