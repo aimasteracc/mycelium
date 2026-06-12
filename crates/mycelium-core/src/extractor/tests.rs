@@ -3997,3 +3997,44 @@ fn extractor_rust_multi_segment_path_call_unchanged() {
         "`crate::watch::start()` must still store bare `start` stub (multi-segment unchanged), got: {callee_paths:?}"
     );
 }
+
+// ── RFC-0125 Phase 1: CJS require() → Imports edge ───────────────────────────
+
+fn js_extractor_at(file_path: &str, source: &str) -> Store {
+    let ext = js_extractor();
+    let mut store = Store::new();
+    ext.extract(file_path, source.as_bytes(), &mut store)
+        .expect("JS extraction should succeed");
+    store
+}
+
+#[test]
+fn extractor_js_cjs_simple_require_produces_imports_edge() {
+    // `const fs = require('fs')` must produce an Imports edge (file → fs).
+    // Before RFC-0125 Phase 1: queries.scm only captures ESM `import_statement`;
+    // require() is a call_expression with no @reference.import, so caller_imports
+    // is empty and classify_typescript_import_gated classifies callees as "unknown".
+    let store = js_extractor_at("test.cjs", "const fs = require('fs');");
+    let file_id = store.lookup("test.cjs").expect("file node must exist");
+    let fs_id = store
+        .lookup("fs")
+        .expect("'fs' module node must exist after CJS require()");
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&fs_id),
+        "CJS `const fs = require('fs')` must produce an Imports edge to 'fs'"
+    );
+}
+
+#[test]
+fn extractor_js_cjs_destructure_require_produces_imports_edge() {
+    // `const { readFileSync } = require('fs')` must produce an Imports edge.
+    let store = js_extractor_at("test.cjs", "const { readFileSync } = require('fs');");
+    let file_id = store.lookup("test.cjs").expect("file node must exist");
+    let fs_id = store
+        .lookup("fs")
+        .expect("'fs' module node must exist after destructured CJS require()");
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&fs_id),
+        "CJS `const {{ readFileSync }} = require('fs')` must produce an Imports edge to 'fs'"
+    );
+}
