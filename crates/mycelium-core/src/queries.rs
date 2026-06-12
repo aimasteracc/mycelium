@@ -28,7 +28,7 @@ use crate::types::{EdgeKind, NodeId};
 #[must_use]
 pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
     use crate::classify::{
-        CalleeClass, classify_go_import_gated, classify_python_import_gated,
+        CalleeClass, classify_go_import_gated, classify_go_qualified, classify_python_import_gated,
         classify_typescript_import_gated,
     };
     use std::collections::HashSet;
@@ -68,7 +68,31 @@ pub fn callees_payload(store: &Store, id: NodeId, kind: EdgeKind) -> Value {
         .filter_map(|&dst| {
             store.path_of(dst).map(|path| {
                 let class = if path.contains('>') {
-                    CalleeClass::Project.as_str()
+                    // RFC-0113 Phase 3b: for Go, a qualified path like `fmt>Println`
+                    // or `net/http>Get` may be a stdlib call stored via the
+                    // import-alias mechanism (Pass 1b-go maps local → full import path).
+                    // Third-party packages always have a domain in the first path
+                    // component (e.g. `github.com/acme/http>Get`), which is identified
+                    // by a `.` before the first `/`. Stdlib and internal packages have
+                    // no domain (e.g. `net/http`, `fmt`). (Codex P2 fix.)
+                    if is_go {
+                        let (pkg_path, method) = path.split_once('>').unwrap_or((path, ""));
+                        let first_component = pkg_path.split('/').next().unwrap_or(pkg_path);
+                        if first_component.contains('.') {
+                            // Has domain prefix → third-party package → project node.
+                            CalleeClass::Project.as_str()
+                        } else {
+                            // No domain → stdlib candidate; use last segment to look up
+                            // in the stdlib table (`"net/http"` → local `"http"`).
+                            let local = pkg_path.rsplit('/').next().unwrap_or(pkg_path);
+                            match classify_go_qualified(local, method) {
+                                CalleeClass::Unknown => CalleeClass::Project.as_str(),
+                                known => known.as_str(),
+                            }
+                        }
+                    } else {
+                        CalleeClass::Project.as_str()
+                    }
                 } else if is_ts_js {
                     classify_typescript_import_gated(path, &caller_imports).as_str()
                 } else if is_go {
@@ -1123,5 +1147,79 @@ mod tests {
         let v = callees_payload(&store, src, EdgeKind::Calls);
         let entries = v["callees"].as_array().expect("callees must be an array");
         assert_eq!(entries[0]["class"], "builtin");
+    }
+
+    // ── RFC-0113 Phase 3b: Go qualified stdlib call classification ────────────
+
+    #[test]
+    fn callees_payload_go_qualified_fmt_println_is_stdlib() {
+        // `fmt>Println` in a .go caller must be `stdlib`, not `project`.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.go>main"));
+        let println = store.upsert_node_with_kind(p("fmt>Println"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, println);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "fmt>Println");
+        assert_eq!(
+            entries[0]["class"], "stdlib",
+            "Go qualified stdlib callee `fmt>Println` must be `stdlib`, not `project`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_go_qualified_http_get_is_stdlib() {
+        // Full import-path form: `net/http>Get` must classify as stdlib.
+        // (The extractor stores the full path after the Codex P2 fix.)
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("fetch.go>fetch"));
+        let get = store.upsert_node_with_kind(p("net/http>Get"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, get);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(
+            entries[0]["class"], "stdlib",
+            "`net/http>Get` callee for .go file must be `stdlib`"
+        );
+    }
+
+    #[test]
+    fn callees_payload_go_third_party_domain_pkg_stays_project() {
+        // Codex P2: `github.com/acme/http>Get` must NOT be classified as stdlib.
+        // Domain prefix (dot in first component) identifies third-party packages.
+        use crate::types::NodeKind;
+        let mut store = Store::new();
+        let src = store.upsert_node(p("main.go>main"));
+        let get = store.upsert_node_with_kind(p("github.com/acme/http>Get"), NodeKind::Unresolved);
+        store.upsert_edge(EdgeKind::Calls, src, get);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(
+            entries[0]["class"], "project",
+            "`github.com/acme/http>Get` must be `project`, not `stdlib` (third-party domain)"
+        );
+    }
+
+    #[test]
+    fn callees_payload_go_qualified_project_path_stays_project() {
+        // A .go callee whose receiver is not a stdlib package name must stay `project`.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/main.go>handleRequest"));
+        let run = store.upsert_node(p("src/server.go>Server>Run"));
+        store.upsert_edge(EdgeKind::Calls, src, run);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(
+            entries[0]["class"], "project",
+            "Go project callee `src/server.go>Server>Run` must remain `project`"
+        );
     }
 }

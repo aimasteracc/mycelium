@@ -64,13 +64,12 @@
   path: (interpreted_string_literal) @name) @reference.import
 
 ; ── Call references ───────────────────────────────────────────────────
+; Bare unqualified calls only (make, len, myFunc, etc.).
+; Qualified calls like fmt.Println() are handled exclusively by RFC-0118
+; Part B below, which also captures @call.receiver for import-alias resolution.
 
 (call_expression
-  function: [
-    (identifier) @name
-    (selector_expression
-      field: (field_identifier) @name)
-  ]) @reference.call
+  function: (identifier) @name) @reference.call
 
 ; ── RFC-0118 Part B: receiver capture + local composite-literal bindings ──
 ; Method call on a plain-identifier receiver: capture it for type inference.

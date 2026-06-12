@@ -3853,3 +3853,91 @@ fn run() {
         "run() must NOT be mis-bound to Trunk>upsert_node"
     );
 }
+
+// ── RFC-0113 Phase 3b: Go qualified stdlib call classification ────────────────
+
+fn go_phase3b_extractor() -> Extractor {
+    let language: tree_sitter::Language = tree_sitter_go::LANGUAGE.into();
+    let query_src = include_str!("../../../../packs/go/queries.scm");
+    Extractor::new(language, query_src).expect("go extractor should build")
+}
+
+#[test]
+fn extractor_go_qualified_stdlib_call_stored_as_pkg_method_path() {
+    // RFC-0113 Phase 3b: `fmt.Println("hello")` in a .go file with `import "fmt"`
+    // must store the callee edge as `fmt>Println`, not a bare `Println` stub.
+    let ext = go_phase3b_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "main.go",
+        b"package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"hello\") }\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+
+    let caller = store
+        .lookup("main.go>main")
+        .expect("main function must be a node");
+    let callee_paths: Vec<String> = store
+        .outgoing(caller, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&id| store.path_of(id).map(str::to_owned))
+        .collect();
+    assert!(
+        callee_paths.iter().any(|p| p == "fmt>Println"),
+        "`fmt.Println()` callee must be stored as `fmt>Println`, got: {callee_paths:?}"
+    );
+}
+
+#[test]
+fn extractor_go_multi_segment_import_qualified_call_stored_as_pkg_method_path() {
+    // RFC-0113 Phase 3b: `import "net/http"` local name `http`; `http.Get()` → callee `http>Get`.
+    let ext = go_phase3b_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "fetch.go",
+        b"package main\nimport \"net/http\"\nfunc fetch() { http.Get(\"https://example.com\") }\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+
+    let caller = store
+        .lookup("fetch.go>fetch")
+        .expect("fetch function must be a node");
+    let callee_paths: Vec<String> = store
+        .outgoing(caller, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&id| store.path_of(id).map(str::to_owned))
+        .collect();
+    assert!(
+        callee_paths.iter().any(|p| p == "net/http>Get"),
+        "`http.Get()` callee must be stored as `net/http>Get` (full import path), got: {callee_paths:?}"
+    );
+}
+
+#[test]
+fn extractor_go_explicit_import_alias_resolved_to_full_path() {
+    // Codex P2: `import h "net/http"` + `h.Get()` → callee `net/http>Get`.
+    // Explicit aliases must map to the full import path, not just `h`.
+    let ext = go_phase3b_extractor();
+    let mut store = Store::new();
+    ext.extract(
+        "alias.go",
+        b"package main\nimport h \"net/http\"\nfunc fetch() { h.Get(\"https://example.com\") }\n",
+        &mut store,
+    )
+    .expect("extraction should succeed");
+
+    let caller = store
+        .lookup("alias.go>fetch")
+        .expect("fetch function must be a node");
+    let callee_paths: Vec<String> = store
+        .outgoing(caller, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&id| store.path_of(id).map(str::to_owned))
+        .collect();
+    assert!(
+        callee_paths.iter().any(|p| p == "net/http>Get"),
+        "`h.Get()` with `import h \"net/http\"` must resolve to `net/http>Get`, got: {callee_paths:?}"
+    );
+}

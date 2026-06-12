@@ -290,6 +290,62 @@ impl Extractor {
             }
         }
 
+        // ─── Pass 1b-go: Go import-path → alias table (RFC-0113 Phase 3b) ──────
+        // For `.go` files, `import "net/http"` makes `http` the local package name.
+        // Go has no `@reference.alias_binding`, so populate the alias table here from
+        // `@reference.import` captures. This lets RFC-0118 Part B's `@call.receiver`
+        // resolve `http.Get()` → `net/http>Get` instead of a bare-stub `Get`.
+        //
+        // The alias table maps local-name → full-import-path (not local → local) so
+        // `callees_payload` can distinguish stdlib paths (no domain, e.g. "net/http")
+        // from third-party paths (with domain, e.g. "github.com/acme/http").
+        // Explicit Go import aliases (`import h "net/http"`) are resolved via the
+        // `name` field of the `import_spec` node; blank (`_`) and dot (`.`) imports
+        // are skipped. (Codex P2 fix.)
+        if matches!(
+            std::path::Path::new(file_path)
+                .extension()
+                .and_then(|e| e.to_str()),
+            Some("go")
+        ) {
+            let mut cursor = QueryCursor::new();
+            let mut matches = cursor.matches(&self.query, root, source);
+            while let Some(m) = matches.next() {
+                let import_spec_node = m.captures.iter().find_map(|c| {
+                    (names[c.index as usize] == "reference.import").then_some(c.node)
+                });
+                let Some(import_spec_node) = import_spec_node else {
+                    continue;
+                };
+                let name_node = m
+                    .captures
+                    .iter()
+                    .find_map(|c| (names[c.index as usize] == "name").then_some(c.node));
+                let Some(name_node) = name_node else {
+                    continue;
+                };
+                let raw = name_node.utf8_text(source).unwrap_or("");
+                // `interpreted_string_literal` text includes surrounding double-quotes.
+                let import_path = raw.trim_matches('"');
+                if import_path.is_empty() {
+                    continue;
+                }
+                // Explicit alias: `import h "net/http"` → name field = "h".
+                // Blank (`_`) and dot (`.`) imports are excluded.
+                let explicit_alias = import_spec_node
+                    .child_by_field_name("name")
+                    .and_then(|n| n.utf8_text(source).ok())
+                    .filter(|s| !matches!(*s, "_" | "."));
+                let local = explicit_alias
+                    .unwrap_or_else(|| import_path.rsplit('/').next().unwrap_or(import_path));
+                // Map local → full import path; `or_insert` preserves an earlier
+                // entry if the same local name was already written.
+                alias_table
+                    .entry(local.to_string())
+                    .or_insert_with(|| import_path.to_string());
+            }
+        }
+
         // ─── Pass 1c: per-function local constructor bindings (RFC-0118 B) ──
         // `let x = Type::new()` → record (x → Type) under the enclosing function,
         // so Pass 2's method-call handler can attach a ReceiverContext and the

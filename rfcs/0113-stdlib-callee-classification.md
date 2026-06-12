@@ -1,6 +1,6 @@
 # RFC-0113: stdlib/builtin callee classification — rescue the `unknown` tail (design)
 
-- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped; Phase 3 Go tables shipped)
+- **Status**: **Partially Implemented** (Phase 1 criteria 1/2/3/5 done; corpus measurement pending; Phase 2 TypeScript tables shipped; Phase 3 Go tables shipped; Phase 3b Go qualified-call fix shipped)
 - **Author(s)**: orchestrator (Hive AI agent)
 - **Created**: 2026-06-06 (UTC)
 - **Depends on**: [RFC-0103](0103-import-aware-cross-file-resolution.md) +
@@ -134,6 +134,21 @@ all common standard library packages (`fmt`, `os`, `io`, `http`, `json`, `filepa
 `context`, `regexp`, `testing`, …). Import-gated via last-component matching: `"net/http"` →
 local name `"http"`, `"encoding/json"` → local name `"json"`. `callees_payload` dispatches
 `.go` callers here. 11 TDD tests. Other Tier-1 packs (Rust, Java, C/C++) remain pending.
+
+**Phase 3b:** Go qualified-call fix (Issue #795). ✅ Shipped.
+- [x] `packs/go/queries.scm` — removed the `selector_expression` arm from the first
+      `@reference.call` pattern; RFC-0118 Part B (`@call.receiver` + `@name`) is now
+      the sole handler of qualified calls (`pkg.Func()`), eliminating duplicate bare-stub edges.
+- [x] `extractor/mod.rs` — added **Pass 1b-go**: after the alias-binding loop, iterate
+      `@reference.import` captures for `.go` files, strip surrounding double-quotes from
+      `interpreted_string_literal`, take the last path component as the local name, and
+      insert `local → local` into `alias_table`. This ensures `http.Get()` resolves to
+      callee path `"http>Get"` (and then `classify_go_qualified("http","Get")` → `Stdlib`).
+- [x] `queries.rs` — `callees_payload` dispatches `path.contains('>')` Go paths to
+      `classify_go_qualified`; `Unknown` falls through to `Project` (safe default).
+- [x] 4 new TDD tests (2 extractor integration, 2 `callees_payload` unit tests) all GREEN.
+- [x] Embedded pack copy `crates/mycelium-core/packs/go/queries.scm` synced; verified by
+      `cortex::tests::embedded_core_pack_queries_match_canonical_root`.
 
 ## Alternatives considered
 
