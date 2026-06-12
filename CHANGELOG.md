@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0113 Phase 3 — Go stdlib callee classification.**
+  `classify_go`, `classify_go_import_gated`, and `classify_go_qualified` added to
+  `mycelium-rcig-core::classify`. Covers Go builtins (`make`, `len`, `append`, …),
+  stdlib package local names (`fmt`, `os`, `http`, `json`, `filepath`, `sync`, …).
+  Import-gated via last-component matching so `import "net/http"` enables the `http`
+  local name and `import "encoding/json"` enables `json`. `callees_payload` now
+  dispatches `.go` callers to the Go classifier. 11 TDD tests. (RFC-0113)
+
 - **RFC-0113 Phase 2 — TypeScript/JS stdlib callee classification (wired).**
   `classify_typescript`, `classify_typescript_import_gated`, and
   `classify_typescript_qualified` added to `mycelium-rcig-core::classify`.
