@@ -1427,14 +1427,15 @@ fn extractor_rust_scoped_method_call_creates_calls_edge() {
     let source = "fn outer() { WatchEngine::drive(); }";
     let store = extract_rs(source);
     let caller = store.lookup("test.rs>outer").expect("outer must exist");
-    // Cross-file resolution produces a bare stub `drive` at the top level
-    // (later resolved by `resolve_bare_call_stubs` against the typed body).
+    // RFC-0113 Phase 5: single-segment path → qualified stub `WatchEngine>drive`.
+    // Previously this stored a bare `drive` stub; now the receiver is preserved
+    // so `classify_rust_qualified("WatchEngine", "drive")` can classify the callee.
     let callee = store
-        .lookup("drive")
-        .expect("`drive` bare stub must exist after extraction");
+        .lookup("WatchEngine>drive")
+        .expect("`WatchEngine>drive` qualified stub must exist after RFC-0113 Phase 5");
     assert!(
         store.outgoing(caller, EdgeKind::Calls).contains(&callee),
-        "outer should have a Calls edge to the `drive` stub for `WatchEngine::drive(...)`"
+        "outer should have a Calls edge to the `WatchEngine>drive` stub"
     );
 }
 
@@ -3939,5 +3940,60 @@ fn extractor_go_explicit_import_alias_resolved_to_full_path() {
     assert!(
         callee_paths.iter().any(|p| p == "net/http>Get"),
         "`h.Get()` with `import h \"net/http\"` must resolve to `net/http>Get`, got: {callee_paths:?}"
+    );
+}
+
+// ── RFC-0113 Phase 5: Rust single-segment qualified call classification ────────
+
+/// RFC-0113 Phase 5 (issue #800): `fs::read_to_string(path)` in a .rs file
+/// must store the callee edge as `fs>read_to_string`, not a bare `read_to_string`
+/// stub. This enables `classify_rust_qualified("fs", "read_to_string")` → Stdlib
+/// in `callees_payload`, closing the gap where single-segment stdlib calls were
+/// silently misclassified as Unknown/Project.
+#[test]
+fn extractor_rust_single_segment_scoped_call_stored_as_scope_method() {
+    let store = extract_rs("fn main() { let _ = fs::read_to_string(\"foo.txt\"); }");
+    let caller = store.lookup("test.rs>main").expect("main must be a node");
+    let callee_paths: Vec<String> = store
+        .outgoing(caller, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&id| store.path_of(id).map(str::to_owned))
+        .collect();
+    assert!(
+        callee_paths.iter().any(|p| p == "fs>read_to_string"),
+        "`fs::read_to_string()` callee must be stored as `fs>read_to_string`, got: {callee_paths:?}"
+    );
+}
+
+/// RFC-0113 Phase 5: `io::stdin()` → stored as `io>stdin`.
+#[test]
+fn extractor_rust_single_segment_io_call_stored_as_scope_method() {
+    let store = extract_rs("fn main() { io::stdin(); }");
+    let caller = store.lookup("test.rs>main").expect("main must be a node");
+    let callee_paths: Vec<String> = store
+        .outgoing(caller, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&id| store.path_of(id).map(str::to_owned))
+        .collect();
+    assert!(
+        callee_paths.iter().any(|p| p == "io>stdin"),
+        "`io::stdin()` callee must be stored as `io>stdin`, got: {callee_paths:?}"
+    );
+}
+
+/// RFC-0113 Phase 5: multi-segment path `crate::watch::start()` must NOT be
+/// changed — only the terminal `start` is captured (unchanged from Phase 4).
+#[test]
+fn extractor_rust_multi_segment_path_call_unchanged() {
+    let store = extract_rs("fn outer() { crate::watch::start(); }");
+    let caller = store.lookup("test.rs>outer").expect("outer must exist");
+    let callee_paths: Vec<String> = store
+        .outgoing(caller, EdgeKind::Calls)
+        .iter()
+        .filter_map(|&id| store.path_of(id).map(str::to_owned))
+        .collect();
+    assert!(
+        callee_paths.iter().any(|p| p == "start"),
+        "`crate::watch::start()` must still store bare `start` stub (multi-segment unchanged), got: {callee_paths:?}"
     );
 }
