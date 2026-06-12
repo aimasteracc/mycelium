@@ -82,7 +82,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `b052bcc` (RFC-0113 Phase 3b Go qualified-call fix squash). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `28ee0dc` (RFC-0113 Phase 4 Rust stdlib classification squash, PR #798). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active.
 > **v203 update (2026-06-12):** PR #792 (PM v202 chore) merged `22da0e3`; RFC-0113 Phase 3 Go implemented and PR #793 opened (CI pending at end of v203). Previous "all P1 blocked" assessment corrected. Escalation ×67→×68.
 > **v204 update (2026-06-12):** PR #793 **MERGED** `3b46ba2` (22/22 CI ✅; Codex P1 spun off to issue #795 Phase 3b). PM state v203 Codex P2 findings fixed. Escalation ×68→×69.
 > **v205 update (2026-06-12):** PR #796 **MERGED** `b052bcc` (RFC-0113 Phase 3b Go qualified-call fix; Codex P2 fixed in-PR). Issue #795 closed. Escalation ×69→×70.
