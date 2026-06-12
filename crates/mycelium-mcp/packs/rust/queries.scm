@@ -169,17 +169,34 @@
     value: (_) @call.receiver
     field: (field_identifier) @name)) @reference.call
 
-; Scoped / qualified path calls: Type::method() / crate::mod::func()
+; Scoped / qualified path calls — RFC-0113 Phase 5.
 ;
-; The captured @name is the LAST identifier (the function or method name).
-; Cross-file resolution by `resolve_bare_call_stubs` later links it to the
-; concrete definition once both files have been indexed.
-;
-; Added 2026-06-03 after dogfooding the Mycelium repo against itself surfaced
-; that `WatchEngine::drive(...)` produced no Calls edges — the previous query
-; only matched `(identifier)` and `(field_expression)` function forms.
+; Rust uses `path: (identifier)` for single-segment receivers (e.g.
+; `fs::read_to_string`, `WatchEngine::drive`) and other node types for
+; multi-segment or keyword-qualified paths. We split into four mutually
+; exclusive patterns so the extractor can emit `scope>name` qualified stubs
+; for the single-segment case while preserving bare-terminal stubs for the
+; rest.
+
+; (1) Single-segment module/type qualifier: `fs::read_to_string`, `Vec::new`.
+;     @call.scope + @name → extractor builds `scope>name` (RFC-0113 Phase 5).
 (call_expression
   function: (scoped_identifier
+    path: (identifier) @call.scope
+    name: (identifier) @name)) @reference.scoped_call
+
+; (2) Multi-segment path: `crate::watch::start`, `std::fs::read_to_string`.
+;     Only terminal @name captured; full resolution deferred to bare-stub pass.
+(call_expression
+  function: (scoped_identifier
+    path: (scoped_identifier)
+    name: (identifier) @name)) @reference.call
+
+; (3) Keyword-qualified call: `crate::func`, `super::func`, `self::func`.
+;     Only terminal @name captured (keywords can't be stdlib modules).
+(call_expression
+  function: (scoped_identifier
+    path: [(crate) (super) (self)]
     name: (identifier) @name)) @reference.call
 
 ; ── RFC-0118 Part B: local constructor bindings (let x = Type::new()) ──

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0113 Phase 5 — Rust extractor emits receiver-qualified callee stubs.**
+  Single-segment Rust scoped calls (`fs::read_to_string()`, `io::stdin()`,
+  `WatchEngine::drive()`) are now stored as `scope>name` stubs (e.g.
+  `fs>read_to_string`) instead of bare terminal names. This activates
+  `classify_rust_qualified` at query time, closing the last gap where
+  single-segment stdlib calls were misclassified as `Unknown`. The extractor
+  uses a new `reference.scoped_call` query capture that simultaneously captures
+  `@call.scope` (the module/type before `::`) and `@name` (the method). Multi-
+  segment paths (`crate::watch::start`), keyword paths (`super::func`), and
+  bare calls are unchanged. (Issue #800, RFC-0113)
+
 - **RFC-0113 Phase 4 — Rust stdlib callee classification.**
   Bare Rust callees are now classified using language-appropriate allowlists:
   macros (`println`, `panic`, `assert_eq`, `vec`, `dbg`, …) and `drop` classify

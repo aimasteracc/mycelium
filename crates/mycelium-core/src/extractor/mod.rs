@@ -825,6 +825,40 @@ impl Extractor {
                         };
                         store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
                     }
+                    "reference.scoped_call" => {
+                        // RFC-0113 Phase 5: single-segment Rust scoped calls
+                        // (`fs::read_to_string`, `WatchEngine::drive`). The query
+                        // captures both `@call.scope` (the path segment before `::`)
+                        // and `@name` (the terminal identifier). We store the callee
+                        // as `scope>name` so `classify_rust_qualified` can classify
+                        // stdlib modules correctly (e.g. `fs>read_to_string` → Stdlib).
+                        let scope = m.captures.iter().find_map(|c| {
+                            if names[c.index as usize] == "call.scope" {
+                                c.node.utf8_text(source).ok()
+                            } else {
+                                None
+                            }
+                        });
+                        let Some(scope) = scope else { continue };
+                        let callee_name = name_text.unwrap_or("_unknown");
+                        let qualified_stub = format!("{scope}>{callee_name}");
+
+                        let caller_full = enclosing_function_path(anchor, source)
+                            .map(|s| format!("{file_path}>{s}"));
+                        let caller_id = caller_full
+                            .as_deref()
+                            .and_then(|p| TrunkPath::parse(p).ok())
+                            .map_or(file_id, |p| store.upsert_node(p));
+
+                        let callee_id = if let Some(id) = store.lookup(&qualified_stub) {
+                            id
+                        } else if let Ok(path) = TrunkPath::parse(&qualified_stub) {
+                            store.upsert_node_with_kind(path, NodeKind::Unresolved)
+                        } else {
+                            continue;
+                        };
+                        store.upsert_edge(EdgeKind::Calls, caller_id, callee_id);
+                    }
                     "reference.extends" => {
                         // anchor = class_definition node; @name = base class identifier.
                         let base_name = name_text.unwrap_or("_unknown");
