@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0113 Phase 4 — Rust stdlib callee classification.**
+  Bare Rust callees are now classified using language-appropriate allowlists:
+  macros (`println`, `panic`, `assert_eq`, `vec`, `dbg`, …) and `drop` classify
+  as `builtin`; stdlib module local names (`fs`, `io`, `env`, `sync`, `thread`, …)
+  classify as `stdlib` when the matching `use std::<name>` (or sub-item import) is
+  present in the caller file; qualified paths like `fs>read_to_string` or
+  `std::io>stdout` are classified via `classify_rust_qualified`. 21 new TDD tests
+  (14 in `classify::rust_tests`, 7 in `queries::tests`). (RFC-0113)
+
 - **RFC-0113 Phase 3b — Go qualified-call classification fix (Issue #795).**
   `fmt.Println()` / `http.Get()` now correctly classify as `stdlib` instead of landing
   as bare-stub `unknown` callees. Fix covers three layers: (1) `packs/go/queries.scm`
