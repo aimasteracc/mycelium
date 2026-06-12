@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v207 — PR #797 merged `763fe66` (PM v205 chore); PR #798 **MERGED** `28ee0dc` (RFC-0113 Phase 4 Rust stdlib); PR #799 closed superseded; issue #800 opened (extractor qualified-path enhancement); P0 escalation ×72) |
-| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 4 Rust stdlib MERGED; `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×72 escalations). |
+| Last updated | 2026-06-12 (PM dispatch v208 — PR #801 MERGED `016aed9` (PM v207 chore; Codex P2 fixed); PR #802 OPENED (RFC-0113 Phase 5 extractor qualified stubs, issue #800); P0 escalation ×73) |
+| Current sprint | **v0.3.0 ceremony pending founder** — RFC-0113 Phase 5 extractor (PR #802 CI running); `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×73 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -82,44 +82,45 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ## Live priorities (ordered)
 
-> ⚠️ **Two P0 items require founder action.** Develop HEAD `28ee0dc` (RFC-0113 Phase 4 Rust stdlib classification squash, PR #798). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active.
-> **v203 update (2026-06-12):** PR #792 (PM v202 chore) merged `22da0e3`; RFC-0113 Phase 3 Go implemented and PR #793 opened (CI pending at end of v203). Previous "all P1 blocked" assessment corrected. Escalation ×67→×68.
-> **v204 update (2026-06-12):** PR #793 **MERGED** `3b46ba2` (22/22 CI ✅; Codex P1 spun off to issue #795 Phase 3b). PM state v203 Codex P2 findings fixed. Escalation ×68→×69.
+> ⚠️ **Two P0 items require founder action.** Develop HEAD `016aed9` (PM v207 chore, PR #801). RFC-0121 Option A staged as DRAFT PR #763 — **unblocked**. Skills: **97/97 Three-Surface compliant**. **Codex status**: active.
+> **v203 update (2026-06-12):** PR #792 (PM v202 chore) merged `22da0e3`; RFC-0113 Phase 3 Go implemented and PR #793 opened (CI pending at end of v203). Escalation ×67→×68.
+> **v204 update (2026-06-12):** PR #793 **MERGED** `3b46ba2` (22/22 CI ✅; Codex P1 spun off to issue #795 Phase 3b). Escalation ×68→×69.
 > **v205 update (2026-06-12):** PR #796 **MERGED** `b052bcc` (RFC-0113 Phase 3b Go qualified-call fix; Codex P2 fixed in-PR). Issue #795 closed. Escalation ×69→×70.
-> **v207 update (2026-06-12):** PR #797 **MERGED** `763fe66` (PM v205 chore). PR #798 **MERGED** `28ee0dc` (RFC-0113 Phase 4 Rust stdlib — `classify_rust` + `classify_rust_import_gated` + `classify_rust_qualified`; 21 TDD tests; Codex P2 spun off to issue #800). PR #799 closed superseded by v207. Issue #800 opened (extractor: emit receiver-qualified paths for qualified stdlib classification). Escalation ×70→×72 (×71 was v206, superseded).
+> **v207 update (2026-06-12):** PR #797 **MERGED** `763fe66`. PR #798 **MERGED** `28ee0dc` (RFC-0113 Phase 4 Rust — `classify_rust` + `classify_rust_import_gated` + `classify_rust_qualified`; 21 TDD tests; Codex P2 spun off to issue #800). Issue #800 opened. Escalation ×70→×72.
+> **v208 update (2026-06-12):** PR #801 **MERGED** `016aed9` (PM v207 chore; Codex P2 fixed: banner SHA b052bcc→28ee0dc). **PR #802 OPENED** (`fix/rfc-0113-phase5-rust-qualified`): RFC-0113 Phase 5 — single-segment Rust scoped calls now emit `scope>name` stubs (3 new TDD tests, 957/957 pass). Closes issue #800. Escalation ×72→×73.
 
 **P0 (founder action required):**
-1. **PR #568** [×72 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
-2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: issue #766 closed via PR #767 — `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
+1. **PR #568** [×73 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments (Codex does not review DRAFTs). PR #568: 1 finding (outdated, replied + issue #560 tracked, Hard Rule satisfied). PR #798: Codex P2 spun off as issue #800 (extractor qualified-path enhancement) + replied. MERGED `28ee0dc`.**
+**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #801: Codex P2 fixed (commit `5715e66`: banner SHA corrected) + replied. MERGED. PR #802: CI running — Codex will review when complete.**
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
-2. **PR #793** — RFC-0113 Phase 3 Go stdlib classification. ✅ **MERGED** `3b46ba2`. `classify_go` + `classify_go_import_gated` + `classify_go_qualified`; 11 TDD tests; Go dispatch wired into `callees_payload`.
-3. **PR #796** — RFC-0113 Phase 3b Go qualified-call fix. ✅ **MERGED** `b052bcc`. Pass 1b-go alias table (`local → full_import_path`); domain-prefix guard for third-party packages; explicit alias support (`import h "net/http"`); `fmt.Println()`/`http.Get()` → `"stdlib"`. Issue #795 **CLOSED**. Codex P2 addressed in-PR.
-4. **PR #798** — RFC-0113 Phase 4 Rust stdlib classification. ✅ **MERGED** `28ee0dc`. `classify_rust` + `classify_rust_import_gated` + `classify_rust_qualified`; 21 TDD tests (14 classify + 7 queries). `callees_payload` dispatches `.rs` callers to Rust classifier. Codex P2 spun off as issue #800.
+2. **PR #793** — RFC-0113 Phase 3 Go stdlib classification. ✅ **MERGED** `3b46ba2`.
+3. **PR #796** — RFC-0113 Phase 3b Go qualified-call fix. ✅ **MERGED** `b052bcc`. Issue #795 **CLOSED**.
+4. **PR #798** — RFC-0113 Phase 4 Rust stdlib classification. ✅ **MERGED** `28ee0dc`. Codex P2 → issue #800.
+5. **PR #802** — RFC-0113 Phase 5 Rust extractor qualified stubs. **CI running** (issue #800). `reference.scoped_call` query; `fs::read_to_string` → `fs>read_to_string`; 3 new TDD tests; 957/957 pass locally. Admin-merge once CI green + Codex resolved.
 
 **P1 (unblocked — next items):**
-5. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries — not blocked on ceremony.
-6. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
-7. **RFC-0113 corpus measurement** — `unknown`-tail reduction on dogfood corpus (Phase 3+4 both on develop as of `28ee0dc`). Extractor qualified-path enhancement tracked in issue #800 (P2).
-8. **Issue #800** (P2) — Rust extractor: emit `receiver>method` paths for scoped identifiers to activate `classify_rust_qualified`.
+6. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
+7. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
+8. RFC-0113 corpus measurement — `unknown`-tail reduction on dogfood corpus.
 
 **P2:**
-7. Skill marketplace submission to Claude Code marketplace (tech-writer)
-8. "First 5 minutes" walkthrough validation with npm/bun path
-9. ~~`release.yml` finalize merge step systemic fix~~ **✅ RESOLVED (v160)**
+9. Skill marketplace submission to Claude Code marketplace (tech-writer)
+10. "First 5 minutes" walkthrough validation with npm/bun path
+11. ~~`release.yml` finalize merge step systemic fix~~ **✅ RESOLVED (v160)**
 
 ---
 
-## Dispatch state (2026-06-12 v207)
+## Dispatch state (2026-06-12 v208)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×72 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — `bpe_charter_sla_binding` per-class thresholds ✅; un-draft + merge. |
-| PM | **DONE ✅** | v207: PR #798 merged `28ee0dc` (RFC-0113 Phase 4 Rust stdlib); PR #799 closed superseded; issue #800 opened; escalation ×70→×72. |
-| rust-implementer | **P1 (unblocked)** | Issue #800 — Rust extractor: emit `receiver>method` paths; RFC-0113 corpus measurement. |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×73 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
+| PM | **DONE ✅** | v208: PR #801 merged `016aed9` (Codex P2 fixed); PR #802 opened (RFC-0113 Phase 5, issue #800 closed); decisions.jsonl appended. |
+| rust-implementer | **CI pending** | PR #802 — RFC-0113 Phase 5 extractor. Monitor CI; admin-merge once green + Codex clear. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then scope v0.3.1. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -155,6 +156,36 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-12 PM dispatch v208 (PR #801 merged `016aed9`; PR #802 opened RFC-0113 Phase 5; issue #800 → PR #802; escalation ×72→×73)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/git-workflow domains hit), PM state v207 (develop HEAD `016aed9`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×72), #763 (DRAFT RFC-0121, BDFL required), #801 (PM v207 chore, CI ✅, Codex P2 finding live).
+- 1 open issue: #800 (P2 — Rust extractor emit receiver-qualified callee paths).
+- Develop CI: green at `016aed9` (PM v207 merge).
+- P0 tasks: #568 finalize (×73) + #763 BDFL approval — both founder-gated, no autonomous action possible.
+- P1 task: issue #800 is the highest unblocked item (RFC-0113 Phase 5).
+
+**Actions taken:**
+1. **Addressed Codex P2 on PR #801** — banner SHA `b052bcc` → `28ee0dc` (commit `5715e66`); reply posted. ✅
+2. **Merged PR #801** (squash `016aed9`) — PM v207 chore; Codex P2 fix included. ✅
+3. **Implemented RFC-0113 Phase 5** (issue #800, TDD RED-first):
+   - `packs/rust/queries.scm`: replaced 1 generic `scoped_identifier` call query with 3 mutually-exclusive patterns; new `@reference.scoped_call` for single-segment paths.
+   - `crates/mycelium-core/src/extractor/mod.rs`: added `"reference.scoped_call"` arm that builds `scope>name` Unresolved stub.
+   - `crates/mycelium-core/packs/rust/queries.scm`: synced compiled-in copy.
+   - Tests: 3 new TDD tests (2 RED-first confirmed: `extractor_rust_single_segment_*`; 1 regression guard: multi-segment unchanged). Updated `extractor_rust_scoped_method_call_creates_calls_edge` to expect `WatchEngine>drive`.
+   - 957/957 tests pass locally; `cargo fmt` + `cargo clippy -D warnings` clean.
+4. **Opened PR #802** (`fix/rfc-0113-phase5-rust-qualified` → develop). CI running. ✅
+5. **PM state v208 written** (this file). ✅
+6. **Appended decisions.jsonl**. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** (×73): trigger `finalize` workflow_dispatch — all CI green, registries published.
+- **(2) PR #763** (DRAFT): un-draft + merge RFC-0121 SLA amendment.
+
+---
 
 ### 2026-06-12 PM dispatch v207 (PR #798 merged `28ee0dc`; PR #799 closed superseded; issue #800 opened; escalation ×70→×72)
 
