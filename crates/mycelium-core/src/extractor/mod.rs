@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator as _};
 
 use crate::{
+    classify::{CalleeClass, classify_javascript_browser_global},
     resolver::receiver::{LocalBinding, ParamBinding, ReceiverContext},
     store::Store,
     trunk::TrunkPath,
@@ -624,6 +625,26 @@ impl Extractor {
                                 None
                             }
                         });
+                        // RFC-0126 Phase 3: synthesize "receiver.method" for known
+                        // browser-global receivers in .js/.jsx files so the callee
+                        // node carries receiver context for classification.
+                        // RFC-0126 Phase 3: synthesize "receiver.method" for known
+                        // browser-global receivers in .js/.jsx files so the callee
+                        // node carries receiver context for classification.
+                        let bg_callee: Option<String> = if std::path::Path::new(file_path)
+                            .extension()
+                            .is_some_and(|e| {
+                                e.eq_ignore_ascii_case("js") || e.eq_ignore_ascii_case("jsx")
+                            }) {
+                            receiver
+                                .filter(|r| {
+                                    classify_javascript_browser_global(r) == CalleeClass::Stdlib
+                                })
+                                .map(|r| format!("{r}.{callee_name}"))
+                        } else {
+                            None
+                        };
+                        let effective_callee = bg_callee.as_deref().unwrap_or(callee_name);
                         // Full enclosing-function path string (RFC-0118 B: keys the
                         // local-binding table for receiver-type inference).
                         let caller_full = enclosing_function_path(anchor, source)
@@ -704,10 +725,10 @@ impl Extractor {
                                 continue;
                             }
                         } else {
-                            let intra = format!("{file_path}>{callee_name}");
+                            let intra = format!("{file_path}>{effective_callee}");
                             if let Some(id) = store.lookup(&intra) {
                                 (id, true)
-                            } else if let Ok(bare) = TrunkPath::parse(callee_name) {
+                            } else if let Ok(bare) = TrunkPath::parse(effective_callee) {
                                 (
                                     store.upsert_node_with_kind(bare, NodeKind::Unresolved),
                                     false,

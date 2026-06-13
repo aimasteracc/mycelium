@@ -1405,6 +1405,51 @@ mod tests {
         assert_eq!(entries[0]["class"], "unknown");
     }
 
+    // ── RFC-0126 Phase 3: dot-qualified browser-global callees ───────────────
+
+    #[test]
+    fn callees_payload_js_document_query_selector_synthesized_is_stdlib() {
+        // AC-1 (RFC-0126): "document.querySelector" stored as callee from a
+        // .js caller → stdlib via browser-global tier.
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/app.js>handleClick"));
+        let stub = store.upsert_node(p("document.querySelector"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["path"], "document.querySelector");
+        assert_eq!(entries[0]["class"], "stdlib");
+    }
+
+    #[test]
+    fn callees_payload_js_navigator_send_beacon_is_stdlib() {
+        // AC-6 (RFC-0126): "navigator.sendBeacon" → stdlib
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/analytics.js>track"));
+        let stub = store.upsert_node(p("navigator.sendBeacon"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["path"], "navigator.sendBeacon");
+        assert_eq!(entries[0]["class"], "stdlib");
+    }
+
+    #[test]
+    fn callees_payload_js_unknown_receiver_dot_method_is_unknown() {
+        // AC-4 (RFC-0126): "myObj.myMethod" → unknown (no false positive)
+        let mut store = Store::new();
+        let src = store.upsert_node(p("src/app.js>fn1"));
+        let stub = store.upsert_node(p("myObj.myMethod"));
+        store.upsert_edge(EdgeKind::Calls, src, stub);
+
+        let v = callees_payload(&store, src, EdgeKind::Calls);
+        let entries = v["callees"].as_array().expect("callees must be an array");
+        assert_eq!(entries[0]["class"], "unknown");
+    }
+
     #[test]
     fn callees_payload_ts_fetch_is_builtin_via_ts_global_builtins() {
         // fetch is in TS_GLOBAL_BUILTINS (browser + Node 18+) → classified as builtin

@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RFC-0126 Phase 3 — JavaScript browser-global member-call receiver synthesis.**
+  `document.querySelector()`, `window.open()`, `localStorage.getItem()`, and
+  all other `<browser-global>.<method>()` patterns in `.js`/`.jsx` files are now
+  classified as `Stdlib`. The extractor synthesizes `"receiver.method"` callee
+  names at extraction time for calls whose receiver root is a known browser global;
+  `classify_javascript_browser_global` splits on `.` to check the root.
+  No `queries.scm` change — the existing `@call.receiver` capture already provides
+  the receiver text. 10 new TDD tests (4 classify unit + 3 queries E2E + 3
+  extractor integration). Unknown receivers (`myObj.myMethod()`) are unaffected
+  (no false positives). (Issue #819, RFC-0126)
+
 - **RFC-0125 Phase 2 — JavaScript browser-global classifier.**
   `classify_javascript_browser_global` fires as a fallback for `.js`/`.jsx` files
   after `classify_typescript_import_gated` returns `Unknown`. Covers DOM and Web

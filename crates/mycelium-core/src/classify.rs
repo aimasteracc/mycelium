@@ -1294,7 +1294,10 @@ static JS_BROWSER_GLOBALS: std::sync::LazyLock<std::collections::HashSet<&'stati
 /// any import statement.
 #[must_use]
 pub fn classify_javascript_browser_global(name: &str) -> CalleeClass {
-    if JS_BROWSER_GLOBALS.contains(name) {
+    // Split on the first dot so that synthesized "receiver.method" names
+    // (RFC-0126 Phase 3) are classified via their receiver root.
+    let root = name.split('.').next().unwrap_or(name);
+    if JS_BROWSER_GLOBALS.contains(root) {
         CalleeClass::Stdlib
     } else {
         CalleeClass::Unknown
@@ -2758,6 +2761,44 @@ mod rust_tests {
         );
         assert_eq!(
             classify_rust_qualified("third_party", "run"),
+            CalleeClass::Unknown
+        );
+    }
+
+    // ── classify_javascript_browser_global Phase 3: dot-qualified names ─────────
+
+    #[test]
+    fn js_browser_global_member_call_document_query_selector_is_stdlib() {
+        // AC-1 (RFC-0126): synthesized "document.querySelector" → Stdlib
+        assert_eq!(
+            classify_javascript_browser_global("document.querySelector"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn js_browser_global_member_call_window_open_is_stdlib() {
+        // AC-2 (RFC-0126): synthesized "window.open" → Stdlib
+        assert_eq!(
+            classify_javascript_browser_global("window.open"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn js_browser_global_member_call_local_storage_get_item_is_stdlib() {
+        // AC-3 (RFC-0126): synthesized "localStorage.getItem" → Stdlib
+        assert_eq!(
+            classify_javascript_browser_global("localStorage.getItem"),
+            CalleeClass::Stdlib
+        );
+    }
+
+    #[test]
+    fn js_browser_global_member_call_unknown_receiver_is_unknown() {
+        // AC-4 (RFC-0126): unknown receiver → Unknown (no false positive)
+        assert_eq!(
+            classify_javascript_browser_global("myObj.myMethod"),
             CalleeClass::Unknown
         );
     }

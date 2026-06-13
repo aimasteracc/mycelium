@@ -4085,3 +4085,49 @@ fn extractor_js_cjs_extensionless_local_require_from_nested_dir() {
         "Imports edge must point to 'src/lib/helper.js'"
     );
 }
+
+// ── RFC-0126 Phase 3: browser-global member-call receiver synthesis ───────────
+
+#[test]
+fn extractor_js_browser_global_member_call_synthesizes_receiver_dot_method() {
+    // AC-1 (RFC-0126): document.querySelector('.foo') in a .js file must store
+    // a callee node named "document.querySelector", not just "querySelector".
+    let store = js_extractor_at(
+        "src/app.js",
+        "function handleClick() { document.querySelector('.foo'); }",
+    );
+    let caller = store
+        .lookup("src/app.js>handleClick")
+        .expect("handleClick must exist");
+    let callee_id = store.lookup("document.querySelector").expect(
+        "callee node 'document.querySelector' must be in the store (not bare 'querySelector')",
+    );
+    assert!(
+        store.outgoing(caller, EdgeKind::Calls).contains(&callee_id),
+        "handleClick must have a Calls edge to 'document.querySelector'"
+    );
+}
+
+#[test]
+fn extractor_js_browser_global_window_open_synthesizes_receiver_dot_method() {
+    // AC-2 (RFC-0126): window.open(url) → callee "window.open"
+    let store = js_extractor_at("src/nav.js", "function openTab(url) { window.open(url); }");
+    let caller = store
+        .lookup("src/nav.js>openTab")
+        .expect("openTab must exist");
+    let callee_id = store
+        .lookup("window.open")
+        .expect("callee 'window.open' must exist in the store");
+    assert!(store.outgoing(caller, EdgeKind::Calls).contains(&callee_id));
+}
+
+#[test]
+fn extractor_js_unknown_receiver_not_synthesized() {
+    // AC-4 (RFC-0126): myObj.myMethod() must NOT produce "myObj.myMethod" — only
+    // the bare "myMethod" stub is created (unknown receiver, no synthesis).
+    let store = js_extractor_at("src/util.js", "function run() { myObj.myMethod(); }");
+    assert!(
+        store.lookup("myObj.myMethod").is_none(),
+        "unknown receiver must not produce synthesized 'myObj.myMethod' node"
+    );
+}
