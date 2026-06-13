@@ -114,8 +114,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v228 update (2026-06-13):** **PR #831 MERGED** `69463051` (PM v227 chore; 22/22 CI ✅; Codex P2 rejected — pre-merge/post-merge SHA pair are two correct snapshots, not a contradiction). **1 open issue: #829 P1** unchanged. No autonomous code tasks this run — both P0s founder-gated. Escalation ×88→×89.
 > **v229 update (2026-06-13):** **PR #832 MERGED** `eccb51d` (PM v228 chore; 22/22 CI ✅; Codex P2 rejected — line 114 "all P0/P1 founder-gated" was a scoped v228 run note, not a global lock; live priorities "P1 (unblocked)" section remains authoritative). **1 open issue: #829 P1** unchanged. P1 unblocked items (e2e-runner dogfood, bench mutation kill rate, RFC-0104 cold SLA) noted for next autonomous run. Escalation ×89→×90.
 > **v230 update (2026-06-13):** **PR #833 MERGED** `6160f40` (PM v229 chore; 22/22 CI ✅; Codex P2 rejected — archive entries record cumulative session outcomes not pre-flight snapshots; decisions.jsonl is the timestamped event log). **1 open issue: #829 P1** unchanged. P0 escalation ×90→×91 on PR #568. Escalation ×90→×91.
-> **v232 update (2026-06-13):** **PR #835 MERGED** `f861fc84` (PM v231 chore; 22/22 CI ✅; Codex P2 rejected — rationale copy error, artifacts correct). **1 open issue: #829 P1** unchanged. Escalation ×92→×93.
 > **v231 update (2026-06-13):** **PR #834 MERGED** `de1e016` (PM v230 chore; 22/22 CI ✅; 0 Codex findings). **1 open issue: #829 P1** unchanged. Escalation ×91→×92.
+> **v232 update (2026-06-13):** **PR #835 MERGED** `f861fc84` (PM v231 chore; 22/22 CI ✅; Codex P2 rejected — rationale copy error, artifacts correct). **1 open issue: #829 P1** unchanged. Escalation ×92→×93.
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
