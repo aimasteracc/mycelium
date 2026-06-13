@@ -98,396 +98,403 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v210 update (2026-06-12):** PR #804 **MERGED** `2961bd3` (PM v209 chore; 20/20 CI ✅). Issue #800 **EXPLICITLY CLOSED** (GitHub does not auto-close on non-default branch merge; closed via API in v210). 0 open issues. Escalation ×74→×75.
 > **v211 update (2026-06-12):** PR #805 **MERGED** `a20f64e` (PM v210 chore; 20/20 CI ✅). RFC-0113 Phase 5 docs updated. Escalation ×75→×76.
 > **v212 update (2026-06-12):** Codex P2 on PR #806 RFC-0113 line 162 FIXED (commit `9581552`). CI deferred (18/22 at session-end). Escalation ×76→×77.
-> **v213 update (2026-06-12):** PR #806 **MERGED** `d2b2a12` (PM v211 + RFC-0113 Phase 5 docs; 20/20 CI ✅; Codex P2 fixed). PR #807 closed (superseded). Escalation ×77→×78.
-> **v214 update (2026-06-12):** PR #808 **MERGED** `35bfe2d` (PM v213 chore; Codex P2 rejected — pre-flight SHA). RFC-0113 corpus measurement completed: 1,026 callee edges; 66.4% classified (project 45%, stdlib 6%, builtin 5%), 33.6% unknown tail. PR #809 opened (docs/rfc-0113-corpus-measurement, CI pending). Escalation ×78→×79.
-> **v215 update (2026-06-12):** PR #809 **MERGED** `2f47f503` (RFC-0113 corpus docs; 3/3 CI ✅; Codex P1+P2 addressed). PR #810 **MERGED** `7600b9db` (PM v214 chore; 3/3 CI ✅; Codex P2 self-resolved). RFC-0113 **fully IMPLEMENTED + DOCUMENTED** on develop. Escalation ×79→×80.
-> **v216 update (2026-06-12):** RFC-0125 planned (JavaScript callee classification). No PRs merged this run. Escalation ×80→×81.
-> **v217 update (2026-06-12):** PR #812 **MERGED** `9979b960` (PM v216 chore). PR #813 **MERGED** `ea51977f` (RFC-0125 draft). RFC-0125 Phase 1 implemented (CJS require() extractor); PR #814 opened (CI running). Escalation ×81→×82.
-> **v218 update (2026-06-12):** PR #814 **MERGED** `7e711f4f` (RFC-0125 Phase 1 CJS extractor). PR #815 **MERGED** `0cc5bcfd` (PM v217 chore). RFC-0125 Phase 2 implemented (browser-global classifier); PR #817 opened. All 965 tests pass. Escalation ×82→×83.
-> **v219 update (2026-06-12):** PR #817 **MERGED** `a6c83af3` (RFC-0125 Phase 2 browser-global). Issue #819 opened (Phase 3 member-call receiver). PM state v219 updated. Escalation ×83→×84.
-> **v223 update (2026-06-13):** PR #823 **MERGED** `c2fbc34` (RFC-0126 Phase 3; 977 tests). PRs #822+#824 closed (superseded). Issue #819 closed. Escalation ×84→×86.
-> **v224 update (2026-06-13):** PR #826 opened (chore/pm-state-v224; CI pending). Issue #827 filed (pm-state live section inertia). Escalation ×86.
-> **v225 update (2026-06-13):** PR #828 **MERGED** `95be1b6` (chore/pm-state-v225 audit entry). Issue #827 open. Escalation ×86.
-> **v226 update (2026-06-13):** NEW FINDING: Nightly CI on main FAILED — mutation kill rate <70%. Issue #829 opened (P1). Issue #827 CLOSED (live header fixed). Escalation ×87.
-> **v227 update (2026-06-13):** PR #830 **MERGED** `fb3f3cc6` (PM v226 chore; Codex P1 rejected — CI DCO ✅; Codex P2 fixed — open-issue count updated). Escalation ×87→×88.
-> **v228 update (2026-06-13):** PR #831 **MERGED** `69463051` (PM v227 chore; Codex P2 rejected — two-snapshot SHA pair valid). Escalation ×88→×89.
-> **v229 update (2026-06-13):** PR #832 **MERGED** `eccb51d` (PM v228 chore; Codex P2 rejected — scoped audit note vs live priorities). Escalation ×89→×90.
-> **v230 update (2026-06-13):** PR #833 **MERGED** `6160f40` (PM v229 chore; Codex P2 rejected — archive entries are cumulative summaries). Escalation ×90→×91.
-> **v231 update (2026-06-13):** PR #834 **MERGED** `de1e016` (PM v230 chore; 22/22 CI ✅; 0 Codex findings). Escalation ×91→×92.
-> **v232 update (2026-06-13):** PR #835 **MERGED** `f861fc84` (PM v231 chore; 22/22 CI ✅; Codex P2 rejected — archive entries are post-session summaries, not pre-flight snapshots). Escalation ×92→×93. 1 open issue: #829 P1 (nightly mutation kill rate <70% on main).
+> **v213 update (2026-06-12):** PR #806 **MERGED** `d2b2a12` (20/20 CI ✅). PR #807 **CLOSED** superseded; Codex P2 rejected with justification. Escalation ×77→×78.
+> **v214 update (2026-06-12):** PR #808 **MERGED** `35bfe2d` (PM v213 chore; 3/3 CI ✅; Codex P2 rejected with justification — pre-flight SHA error, correct SHA `a20f64e` documented). **PR #809 OPENED** — RFC-0113 corpus measurement: 66.4% classified overall (Rust 66.3%, Python 67.3%, TS 66.0%, JS 53.8%, 1,026 callee edges); RFC-0113 Status → Implemented. `cargo test --all` 957/957 ✅. Escalation ×78→×79.
+> **v215 update (2026-06-12):** PR #809 **MERGED** `2f47f503` (RFC-0113 corpus docs; 3 Codex findings replied: #809 P1 rejected/CI green, #809 P2 rejected/before=0%, #810 P2 accepted/merge order). PR #810 **MERGED** `7600b9db` (PM v214 chore; Codex P2 self-resolved by merge ordering). RFC-0113 fully Implemented + documented on develop. Escalation ×79→×80.
+> **v216 update (2026-06-12):** PM v215 chore (`58d2a2c`) confirmed on develop. Full sprint assessment: all 10 language packs live (Tier 1 + Tier 2 complete); RFC-0113 callee classification covers Rust/Python/TS/Go but not JS (53.8% — worst Tier 1 lang in corpus). No open issues. Both P0s founder-gated. **Identified RFC-0125 (JavaScript callee classification) as next P1** — extends RFC-0113 approach to JS, bounded 2-phase scope, no core changes. PM state v216 written. Escalation ×80→×81.
+> **v217 update (2026-06-12):** PR #814 **MERGED** `7e711f4f` (RFC-0125 Phase 1; 24/24 CI ✅; Codex P1 rejected/RFC exists on develop, P2 spun off to issue #816). PR #815 **MERGED** `0cc5bcfd` (PM v217 chore; Codex P2 fixed commit `62c6631`). Issue #816 opened (.cjs extensionless resolution, Phase 2+ scope). Escalation ×82→×83.
+> **v218 update (2026-06-12):** RFC-0125 Phase 2 implemented (browser-global classifier). **PR #817 OPENED** (`feature/RFC-0125-phase2-browser-global-classifier`): `classify_javascript_browser_global` fallback for `.js`/`.jsx`; `fetch` added to `TS_GLOBAL_BUILTINS`; 6 TDD tests (AC-6/7/8/9); RFC-0125 Status → Implemented. 965 tests, 0 failures. CI running. PM state v218 written. Escalation ×82→×83.
+> **v219 update (2026-06-12):** PR #817 **MERGED** `a6c83af3` (RFC-0125 Phase 2 browser-global classifier ✅). Codex P2 spun off → issue #819 (Phase 3: member-call receiver classification). Escalation ×83→×84.
+> **v220–v222 updates (2026-06-12/13):** RFC-0126 Phase 3 designed + implemented on `feature/RFC-0126-js-member-call-receiver`. PM chore branches (PR #821, #822, #824) ran but were superseded/closed without merging. Escalation ×84→×85 (v220) →×86 (v221/v222 not merged; v223 this run).
+> **v223 update (2026-06-13):** PR #823 **MERGED** `c2fbc34` (RFC-0126 Phase 3; 10 TDD tests; 977/0 core; Codex P2 rejected with justification — scope analysis deferred to future RFC). PRs #822 (PM v221) and #824 (PM v222) **CLOSED** superseded (v220-v222 chore entries not on develop; memory gap noted). Issue #819 **CLOSED**. 0 open issues. Escalation ×84→×86.
+> **v224 update (2026-06-13):** Assessment: 2 open PRs (#568 founder-gated ×86, #763 DRAFT founder-gated). 0 open issues. No autonomous code work available. Wrote PM state v224 archive entry. PR #826 (chore/pm-state-v224) opened but live header NOT updated (Issue #827 Codex finding surfaced this). Escalation ×86 unchanged.
+> **v225 update (2026-06-13):** Responded to issue #827 (pm-state live section inertia). PR #828 (chore/pm-state-v225 audit entry) **MERGED** `95be1b6` — audit entry only; live header still not fixed (issue #827 acceptance criteria incomplete). decisions.jsonl gap v224/v225 noted. Escalation ×86 unchanged.
+> **v226 update (2026-06-13):** **Issue #829 OPENED** — nightly mutation kill rate <70% on main (Charter §2/§5.4 violation; nightly run #27458627065 job 81167775506). **Issue #827 CLOSED** (live header now updated). decisions.jsonl backfilled v224+v225 gap. Escalation ×86→×87.
+> **v227 update (2026-06-13):** **PR #830 MERGED** `fb3f3cc6` (PM v226 chore; 22/22 CI ✅; Codex P1 rejected/CI DCO gate authoritative, P2 committed to v227 open-issue fix). **1 open issue: #829 P1** (nightly mutation kill rate; awaiting PR #568 ceremony). Escalation ×87→×88.
+> **v228 update (2026-06-13):** **PR #831 MERGED** `69463051` (PM v227 chore; 22/22 CI ✅; Codex P2 rejected — pre-merge/post-merge SHA pair are two correct snapshots, not a contradiction). **1 open issue: #829 P1** unchanged. No autonomous code tasks this run — both P0s founder-gated. Escalation ×88→×89.
+> **v229 update (2026-06-13):** **PR #832 MERGED** `eccb51d` (PM v228 chore; 22/22 CI ✅; Codex P2 rejected — line 114 "all P0/P1 founder-gated" was a scoped v228 run note, not a global lock; live priorities "P1 (unblocked)" section remains authoritative). **1 open issue: #829 P1** unchanged. P1 unblocked items (e2e-runner dogfood, bench mutation kill rate, RFC-0104 cold SLA) noted for next autonomous run. Escalation ×89→×90.
+> **v230 update (2026-06-13):** **PR #833 MERGED** `6160f40` (PM v229 chore; 22/22 CI ✅; Codex P2 rejected — archive entries record cumulative session outcomes not pre-flight snapshots; decisions.jsonl is the timestamped event log). **1 open issue: #829 P1** unchanged. P0 escalation ×90→×91 on PR #568. Escalation ×90→×91.
+> **v232 update (2026-06-13):** **PR #835 MERGED** `f861fc84` (PM v231 chore; 22/22 CI ✅; Codex P2 rejected — rationale copy error, artifacts correct). **1 open issue: #829 P1** unchanged. Escalation ×92→×93.
+> **v231 update (2026-06-13):** **PR #834 MERGED** `de1e016` (PM v230 chore; 22/22 CI ✅; 0 Codex findings). **1 open issue: #829 P1** unchanged. Escalation ×91→×92.
+
+**P1 (recently completed):**
+1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
+2. **PR #793** — RFC-0113 Phase 3 Go stdlib classification. ✅ **MERGED** `3b46ba2`.
+3. **PR #796** — RFC-0113 Phase 3b Go qualified-call fix. ✅ **MERGED** `b052bcc`. Issue #795 **CLOSED**.
+4. **PR #798** — RFC-0113 Phase 4 Rust stdlib classification. ✅ **MERGED** `28ee0dc`. Codex P2 → issue #800.
+5. **PR #802** — RFC-0113 Phase 5 Rust extractor qualified stubs. ✅ **MERGED** `8b14ecd`. Issue #800 **CLOSED**. Pack query parity ✅; Quality Gate 22/22 ✅; 0 Codex findings.
+6. **PR #809** — RFC-0113 corpus measurement + Status → Implemented. ✅ **MERGED** `2f47f503`. Codex P1 rejected (CI green), P2 rejected (before=0% baseline). RFC-0113 FULLY COMPLETE on develop.
+7. **PR #810** — PM state v214 chore. ✅ **MERGED** `7600b9db`. Codex P2 self-resolved by merge ordering (#809 first).
+8. **PR #814** — RFC-0125 Phase 1 CJS `require()` extractor. ✅ **MERGED** `7e711f4f`. Codex P1 rejected, P2 → issue #816.
+9. **PR #817** — RFC-0125 Phase 2 browser-global classifier. ✅ **MERGED** `a6c83af3`. RFC-0125 Status → Implemented. Codex P2 → issue #819.
+10. **PR #820** — fix .cjs extensionless `require()` resolution. ✅ **MERGED** `ea47f65`.
+11. **PR #823** — RFC-0126 Phase 3 browser-global member-call receiver synthesis. ✅ **MERGED** `c2fbc34`. Issue #819 **CLOSED**.
 
 **P1 (unblocked — next items):**
-- e2e-runner: dogfood 8/8 CLI commands + SDK round-trip (Node/Python SDKs at v0.3.0 in registries)
-- bench: RFC-0104 cold SLA nightly benchmark
-- bench: verify issue #829 mutation kill rate resolved after v0.3.0 ceremony lands on main
+1. **Issue #829** — nightly mutation kill rate <70% on main. Hypothesis: completing PR #568 ceremony fixes it (v0.3.0 has 977 tests vs v0.2.0's smaller set). If not, bench must identify low-kill-rate modules. *(Confirm after v0.3.0 ceremony lands.)*
+2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
+3. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
+
+**P2:**
+10. Skill marketplace submission to Claude Code marketplace (tech-writer)
+11. "First 5 minutes" walkthrough validation with npm/bun path
+12. ~~`release.yml` finalize merge step systemic fix~~ **✅ RESOLVED (v160)**
 
 ---
 
-## Decision gates (for future sessions)
+## Dispatch state (2026-06-13 v232)
 
-| Gate | Status | Notes |
+| Agent | Status | Current item |
 |---|---|---|
-| RFC-0121 Option A/B/C | ✅ **OPTION A STAGED** — DRAFT PR #763 | Founder: un-draft + merge PR #763 |
-| RFC-0123 MCP facade | 📋 **SPEC MERGED** (PR #747) | Founder ratification required before implementation |
-| RFC-0104 cold SLA | ⏳ Unblocked | bench agent: run nightly benchmark |
-| Mutation kill rate (issue #829) | ⏳ Pending PR #568 ceremony | Likely resolved when main advances to v0.3.0 |
+| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×91 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment (×93 consecutive escalations for PR #568). |
+| PM | **DONE ✅** | v232: PR #835 merged (`f861fc84`); Codex P2 on #835 rejected (append-only rationale, artifacts correct); 1 open issue #829 P1; PM state v232 written. |
+| rust-implementer | **P1 (unblocked)** | 0 open issues. After v0.3.0 lands: dogfood re-run + confirm issue #829 mutation kill rate resolved. Else: identify next callee-classification language gap. |
+| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop → cut `release/v0.3.1`. |
+| security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
+| architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
+| e2e-runner | **P1 (unblocked)** | Dogfood re-run — SDK packages at v0.3.0 in registries, not blocked on #568 ceremony. |
+| bench | **P1** | After v0.3.0 ceremony: verify mutation kill rate on new main (issue #829). Then RFC-0104 cold SLA nightly benchmark. |
+| tech-writer | idle | Skill marketplace prep (P2). |
 
 ---
 
-## Dispatch state (v232)
+## Decision gates (require founder)
 
-| Item | Owner | Status |
-|---|---|---|
-| PR #568 `release/v0.3.0` → main | founder | ⏳ **IMMEDIATELY ACTIONABLE** ×93 |
-| PR #763 RFC-0121 Charter §2 amendment | founder (BDFL) | ⏳ DRAFT — ready to un-draft + merge |
-| Issue #829 mutation kill rate | bench / founder | ⏳ awaiting #568 ceremony |
-| e2e-runner dogfood (8/8 CLI + SDK) | e2e-runner | ⏳ unblocked |
-| RFC-0104 cold SLA benchmark | bench | ⏳ unblocked |
-| RFC-0123 MCP facade impl | rust-implementer | 🔒 blocked on founder ratification |
-| RFC-0119 AC-12/AC-13 dogfood | e2e-runner | ⏳ unblocked (post-#568 back-merge ideal) |
-
----
-
-## Inline history (v210–v232)
-
-### v232 (2026-06-13)
-- Merged PR #835 (chore/pm-state-v231, squash `f861fc84`, 22/22 CI ✅).
-- Codex P2 on PR #835: rejected with justification — archive entries document post-session outcomes, not pre-flight snapshots; decisions.jsonl is the authoritative timestamped log.
-- Escalation ×92→×93 for PR #568 (v0.3.0 ceremony).
-- 1 open issue: #829 P1 (nightly mutation kill rate <70% on main, awaiting PR #568 ceremony).
-- No autonomous code work available.
-
-### v231 (2026-06-13)
-- Merged PR #834 (PM v230 chore, squash `de1e016`, 22/22 CI ✅, 0 Codex findings).
-- Escalation ×91→×92 for PR #568.
-- P0s unchanged; P1 unblocked queue held.
-
-### v230 (2026-06-13)
-- Merged PR #833 (PM v229 chore, squash `6160f40`).
-- Codex P2 rejected: archive entries are cumulative session summaries; decisions.jsonl is the authoritative event log.
-- Escalation ×90→×91.
-
-### v229 (2026-06-13)
-- Merged PR #832 (PM v228 chore, squash `eccb51d`).
-- Codex P2 rejected: scoped v228 audit note vs live priorities section — 'P1 (unblocked)' section is authoritative for next run.
-- Escalation ×89→×90. P1 unblocked items explicitly surfaced.
-
-### v228 (2026-06-13)
-- Merged PR #831 (PM v227 chore, squash `69463051`).
-- Codex P2 rejected: two-snapshot SHA pair (pre-merge + post-merge) is valid sequential state.
-- Escalation ×88→×89.
-
-### v227 (2026-06-13)
-- Merged PR #830 (PM v226 chore, squash `fb3f3cc6`).
-- Codex P1 rejected: CI DCO gate passed (job 81171862185 ✅); merge commit legitimately exempt.
-- Codex P2 fixed: open-issue count 0→1 (#829 P1 nightly mutation kill rate).
-- Escalation ×87→×88.
-
-### v226 (2026-06-13)
-- NEW FINDING: Nightly CI on main FAILED — mutation testing kill-rate gate <70% (SHA 54687972=v0.2.0).
-- Issue #829 opened (P1). Issue #827 CLOSED (live header fixed).
-- Decisions.jsonl backfilled v224+v225. Escalation ×87.
-
-### v225 (2026-06-13)
-- PR #828 merged `95be1b6` (audit entry only). Issue #827 still open — live header fix deferred to v226.
-
-### v224 (2026-06-13)
-- PR #826 opened (chore/pm-state-v224). Issue #827 filed (pm-state live section inertia — live header not updated).
-
-### v223 (2026-06-13)
-- PR #823 merged `c2fbc34` (RFC-0126 Phase 3; 977 tests). PRs #822+#824 closed (superseded).
-- Issue #819 closed. Escalation ×84→×86.
-
-### v219 (2026-06-12)
-- PR #817 merged `a6c83af3` (RFC-0125 Phase 2 browser-global classifier).
-- Issue #819 opened (Phase 3 member-call receiver). PM state v219. Escalation ×83→×84.
-
-### v218 (2026-06-12)
-- PR #814 merged `7e711f4f` (RFC-0125 Phase 1 CJS extractor). PR #815 merged `0cc5bcfd` (PM v217 chore).
-- RFC-0125 Phase 2 implemented (965 tests). PR #817 opened. Escalation ×82→×83.
-
-### v217 (2026-06-12)
-- PR #812 merged `9979b960` (PM v216 chore). PR #813 merged `ea51977f` (RFC-0125 draft).
-- RFC-0125 Phase 1 (CJS require() extractor) implemented. PR #814 opened. Escalation ×81→×82.
-
-### v216 (2026-06-12)
-- RFC-0125 JavaScript callee classification planned as next P1. No PRs merged.
-- Escalation ×80→×81.
-
-### v215 (2026-06-12)
-- PR #809 merged `2f47f503` (RFC-0113 corpus docs). PR #810 merged `7600b9db` (PM v214 chore).
-- RFC-0113 **FULLY IMPLEMENTED + DOCUMENTED** on develop. Escalation ×79→×80.
-
-### v214 (2026-06-12)
-- PR #808 merged `35bfe2d` (PM v213 chore). RFC-0113 corpus measurement: 1,026 callee edges, 66.4% classified. PR #809 opened.
-- Escalation ×78→×79.
-
-### v213 (2026-06-12)
-- PR #806 merged `d2b2a12` (PM v211 + RFC-0113 Phase 5 docs). PR #807 closed (superseded).
-- Escalation ×77→×78.
-
-### v212 (2026-06-12)
-- Codex P2 on PR #806 RFC-0113 line 162 FIXED (commit `9581552`). CI 18/22 at session-end.
-- Escalation ×76→×77.
-
-### v211 (2026-06-12)
-- PR #805 merged `a20f64e` (PM v210 chore). RFC-0113 Phase 5 docs updated (Phase 5 AC section added).
-- Escalation ×75→×76.
-
-### v210 (2026-06-12)
-- PR #804 merged `2961bd3` (PM v209 chore). Issue #800 explicitly closed (GitHub non-default branch auto-close gap).
-- 0 open issues. Escalation ×74→×75.
+- Any name change to a public crate or CLI subcommand.
+- Charter §5.X amendment or new commitment.
+- Re-licensing (forbidden — see Charter §5.8).
+- Storage-format break.
+- Skill marketplace listing metadata sign-off.
+- **RFC-0104 cold SLA measurement**: Charter §2 warm/cold SLA table amendment requires measured nightly data.
+- **RFC-0121 SLA amendment**: DRAFT PR #763 staged. ✅ **UNBLOCKED** — issue #766 closed via PR #767 (`bpe_charter_sla_binding` per-class thresholds on develop). Founder action: un-draft + merge PR #763. [RFC-0121](../../rfcs/0121-charter-hyphae-token-sla-amendment.md) | [PR #763 (DRAFT)](https://github.com/aimasteracc/mycelium/pull/763).
+- ~~**Codex usage limits**~~: **✅ RESOLVED (v184)** — Codex confirmed active (live P2 on PR #771 + 0 threads on PR #772 chore diff). No founder action needed.
+- ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED by founder 2026-06-03T12:30Z.
+- ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED — retro-tag at `6aa1bed`; main jumps v0.1.16→v0.1.18→v0.1.19.
+- ~~**Systemic**: `release.yml` finalize merge step~~  **✅ RESOLVED (v160)** — `finalize` job is `workflow_dispatch`-gated with `RELEASE_BOT_TOKEN` + `git push origin main`. Design is correct; no further CI changes needed.
 
 ---
 
-## Archive — PM dispatches v130–v209
-
-### v209 (2026-06-12)
-- Merged PR #803 `bdad01d` (PM v208 chore; Codex P2 replied — issue #800 correctly OPEN, PR #802 pending).
-- Diagnosed PR #802 `Pack query parity` CI failure: MCP+CLI embedded copies not synced; pushed fix `4d93d565`; Quality Gate 22/22 ✅; 0 Codex findings.
-- PR #802 MERGED `8b14ecd` (RFC-0113 Phase 5 — single-segment Rust scoped calls emit `scope>name` stubs; parity fix included).
-- Issue #800 CLOSED (auto-close by PR #802 on develop; GitHub auto-close fires only on default-branch merge — explicit close via API).
-
-### v208 (2026-06-12)
-- PR #801 merged `016aed9` (PM v207 chore; Codex P2 fixed: banner SHA corrected b052bcc→28ee0dc).
-- RFC-0113 Phase 5 implemented: new `reference.scoped_call` query captures `@call.scope` + `@name`; extractor builds `scope>name` stub; 3 TDD tests; 957/957 pass. PR #802 opened.
-- Escalation ×72→×73.
-
-### v207 (2026-06-12)
-- PR #798 merged `28ee0dc` (RFC-0113 Phase 4 Rust stdlib; 21 TDD tests). PR #799 closed (superseded).
-- Issue #800 opened (Rust extractor qualified-path enhancement — Codex P2 spin-off).
-- Escalation ×70→×72.
-
-### v205/v206 (2026-06-12)
-- PR #796 merged `b052bcc` (RFC-0113 Phase 3b — Go qualified-call fix; Pass 1b-go alias table; 4 TDD tests).
-- Issue #795 closed. PR #797 merged `763fe66` (PM v205 chore). Escalation ×69→×70.
-
-### v204 (2026-06-12)
-- PR #793 merged `3b46ba2` (RFC-0113 Phase 3 Go — classify_go + GO_BUILTINS 17 entries + GO_STDLIB_PKG_NAMES 80+ entries; 11 TDD tests).
-- Codex P1 spun off: issue #795 (Phase 3b Go qualified calls). Escalation ×68→×69.
-
-### v203 (2026-06-12)
-- CRITICAL ASSESSMENT CORRECTION: RFC-0113 Phase 3 Go was always unblocked (not blocked on #568 ceremony).
-- PR #792 merged `22da0e3` (PM v202 chore). PR #793 opened (RFC-0113 Phase 3 Go). Escalation ×67→×68.
-
-### v202 (2026-06-12)
-- No autonomous engineering tasks. Both P0s founder-gated. Escalation ×66→×67.
-
-### v201 (2026-06-12)
-- PR #790 merged `6b68fa77` (PM v200 chore; Codex P2 fixed: pre-flight SHA label corrected). Escalation ×65→×66.
-
-### v200 (2026-06-12)
-- PR #789 merged `8a2c5e2a` (PM v199 chore; Codex P2 fixed + outdated). PM state v200 written. Escalation ×64→×65.
-
-### v199 (2026-06-12)
-- PR #788 merged `574ab2b7` (PM v198 chore; Codex P2 addressed — stale SHA, fix commit 093fe0f). Escalation ×63→×64.
-
-### v198 (2026-06-12)
-- PR #787 merged `3586948` (PM v197 chore; 0 Codex findings). Escalation ×62→×63.
-
-### v197 (2026-06-12)
-- PR #786 merged `1052fc8a` (PM v196 chore; 0 Codex findings). Escalation ×61→×62.
-
-### v196 (2026-06-11)
-- PR #785 merged `8d04aae1` (PM v195 chore; Codex P1 rejected — stale SHA DCO). Escalation ×60→×61.
-
-### v195 (2026-06-11)
-- PR #784 merged `46aedccd` (PM v194 chore; 0 Codex findings). Escalation ×59→×60.
-
-### v194 (2026-06-11)
-- PR #783 merged `ce2a341c` (PM v193 chore; Codex P1 rejected — stale SHA DCO). Escalation ×58→×59.
-
-### v193 (2026-06-11)
-- PR #782 merged `9a601c1` (PM v192 chore; Codex P1 rejected — stale SHA DCO). Escalation ×57→×58.
-
-### v192 (2026-06-11)
-- PR #781 merged `af889a1` (PM v191 chore; Codex P1+P2 rejected). PR #780 closed (CI anomaly, superseded). Escalation ×56→×57.
-
-### v191 (2026-06-11)
-- PR #780 had CI anomaly (only Triage ran; CI/E2E not triggered). PR #781 opened on separate branch. Escalation ×55→×56.
-
-### v190 (2026-06-11)
-- PR #779 opened (chore/pm-state-v189). Escalation ×54→×55.
-
-### v189 (2026-06-11)
-- PR #778 merged `f948cef` (PM v188 chore; Codex P1 rejected — stale SHA DCO). Escalation ×53→×54.
-
-### v188 (2026-06-11)
-- RFC-0113 Phase 2 TS classifier wired into callees_payload (Codex P1 bug fix: TS/JS callers were using Python classifier). `isInteger` removed from TS_GLOBAL_BUILTINS. 4 TDD tests. PR #776 fix commit `9de6484`.
-- PR #777 closed (superseded by v188). Escalation ×52→×53.
-
-### v187 (2026-06-11)
-- RFC-0113 Phase 2 TS implemented: `classify_typescript` + `TS_BROWSER_APIS` + `TS_GLOBAL_BUILTINS` (fetch/console/etc.) tables. PR #776 opened.
-- Escalation ×51→×52.
-
-### v186 (2026-06-11)
-- PR #774 merged `c3b03603` (PM v185 chore; 22/22 CI ✅). Escalation ×50→×51.
-
-### v185 (2026-06-11)
-- PR #773 merged `84c72d55` (PM v184 chore; 22/22 CI ✅). Escalation ×49→×50.
-
-### v184 (2026-06-11)
-- PR #772 merged `ee8332d` (PM v183 chore; 22/22 CI ✅). Codex P0 #3 resolved (confirmed active). Escalation ×48→×49.
-
-### v183 (2026-06-11)
-- PR #771 merged `ea20c12` (PM v182 chore; Codex P2 rejected). Codex posted live P2 (billing restored signal). Escalation ×47→×48.
-
-### v182 (2026-06-11)
-- PR #770 merged `d9aa509` (PM v181 chore; 20/20 CI ✅). 97/97 Three-Surface confirmed on develop. Escalation ×46→×47.
-
-### v181 (2026-06-11)
-- PR #769 merged `ee29ef4` (PM v180 chore; 22/22 CI ✅). Escalation ×44→×45.
-
-### v180 (2026-06-11)
-- Issue #766 manually closed (GitHub auto-close failed after squash-merge to non-default branch).
-- Escalation ×43→×44.
-
-### v179 (2026-06-11)
-- PR #765 merged `c9836688` (PM v178 chore; 20/20 CI ✅). PR #767 opened (fix: per-class SLA thresholds). Escalation ×43.
-
-### v178 (2026-06-11)
-- ERROR CORRECTION: `bpe_charter_sla_binding` IS a real test (not phantom). Codex P2 VALID. Issue #766 opened. Anti-pattern recorded (stale-local-search).
-
-### v177 (2026-06-11)
-- PR #762 merged `7b062c8` (PM v176 chore; Codex P2 rejected — archive append-only). DRAFT PR #763 opened (RFC-0121 Option A Charter §2 amendment). Escalation ×41→×42.
-
-### v176 (2026-06-11)
-- No autonomous code tasks. All paths founder-gated. Escalation ×40→×41.
-
-### v175 (2026-06-11)
-- PR #760 merged `45fd3c6` (PM v174 chore; 20/20 CI ✅). PR #568 CI: 50/50 SUCCESS/SKIPPED — Charter §5.12 gate fully MET. Escalation ×39→×40.
-
-### v174 (2026-06-11)
-- Fixed PR #568 dirty state: git merge -X ours origin/main + removed duplicate `build-cli-binaries` CI job (merge artifact). Commits `4d03f3b` + `351e4b5` pushed. Escalation ×38→×39.
-
-### v173 (2026-06-11)
-- PR #757 merged (RFC-0117 Phase 2 check-architecture; merge conflict resolved; commit `a7000d1`). 97/97 Three-Surface ✅. Develop HEAD `98636e0`. Escalation ×37→×38.
-
-### v172 (2026-06-10)
-- RFC-0117 Phase 2 implemented: YAML loader + Store edge adapter + CLI `check-architecture` + `mycelium_check_architecture` MCP + graph-structure Skill. EXPECTED_TOOL_COUNT 96→97. PR #757 opened. Escalation ×36→×37.
-
-### v171 (2026-06-10)
-- PR #755 closed (conflict). RFC-0117 + RFC-0119 status corrected Draft→Partially Implemented. RFC-0117 Phase 2 queued as next P1. Escalation ×35→×36.
-
-### v170 (2026-06-10)
-- RFC-0124 (Hyphae selector ordering relaxed) implemented: PR #754 merged `56bc4b7`. RFC-0113 Phase 2 Python implemented. Pack spans fixed for 5 more language packs (PR #751). Budget threaded through query/cross-refs/tree tools (PR #752). Escalation ×34→×35.
-
-### v169 (2026-06-10)
-- ADR-0013: callee tree collapses unresolved leaves into `unresolved_callees` count. PR #748 merged. Escalation ×33→×34.
-
-### v168 (2026-06-10)
-- RFC-0115 Phase 2 test-gap surface implemented. PR #743 opened. RFC-0116 Phase 2 confirmed on develop. Escalation ×32→×33.
-
-### v167 (2026-06-10)
-- RFC-0115 Phase 2 implemented (test-gap CLI + MCP + Skill; 96/96 Three-Surface). PR #743 opened. Escalation ×31→×32.
-
-### v166 (2026-06-10)
-- PR #741 merged `231a819` (PM v165 chore). RFC-0116 Phase 2 confirmed on develop (`500a2a1`). RFC-0115 Phase 2 next P1. PR #742 opened. Escalation ×30→×31.
-
-### v165 (2026-06-10)
-- RFC-0116 Phase 2 implemented: `safe_to_edit_payload()` + CLI `safe-to-edit` + `mycelium_safe_to_edit` MCP + skills/reachability + INDEX.md Phase 3.3 (95/95). PR #740 opened. Escalation ×29→×30.
-
-### v164 (2026-06-10)
-- RFC-0115/0116 status corrected Draft→Partially Implemented. RFC-0116 Phase 2 unblocked. PR #738 merged. Escalation ×28→×29.
-
-### v163 (2026-06-10)
-- PR #737 merged `7da70b5` (PM v162 chore). Escalation ×27→×28.
-
-### v162 (2026-06-10)
-- PR #736 merged `8d0fc17` (PM v161 chore). RFC audit: RFC-0113 PartiallyImplemented, RFC-0114 Implemented, RFC-0115/0116/0117/0119 Draft. P1 backlog: RFC-0113 Phase 2 added. Escalation ×26→×27.
-
-### v161 (2026-06-10)
-- PR #735 merged `3b6d192` (PM v160 chore). RFC-0121 Option A confirmed recommendation. Escalation ×25→×26.
-
-### v160 (2026-06-10)
-- PR #734 merged `acaddf5` (PM v159 chore). P2 item 9 resolved (release.yml finalize already workflow_dispatch-gated). Escalation ×24→×25.
-
-### v159 (2026-06-10)
-- Corrected stale dispatch: RFC-0122 Phase 2b IS Implemented (PR #725). Appended deferred v158 decisions.jsonl entry. Escalation ×23→×24.
-
-### v158 (2026-06-10)
-- PR #731 + #732 merged. RFC-0120 COMPLETE: get-token-stats CLI subcommand + EXCEPTION:MCP-only retracted. Three-Surface fully satisfied for get_token_stats. Escalation ×22→×23.
-
-### v157 (2026-06-10)
-- RFC-0120 Phase 3B implemented: `token_stats_payload()` shared fn + CLI `Cmd::GetTokenStats` + 4-test byte-identity harness. PR #731 opened. Escalation ×21→×22.
-
-### v156 (2026-06-09)
-- PR #728 + #730 merged. RFC-0120 COMPLETE (Phase 3A: MCP `mycelium_get_token_stats` tool wired). All 10 language packs at 94/94 Three-Surface. Escalation ×20→×21.
-
-### v155 (2026-06-09)
-- RFC-0114 Phase 2 implemented (project_health CLI + MCP + Skill; 94/94). RFC-0120 Phase 3A planned. PR #726 + #727 opened. Escalation ×19→×20.
-
-### v154 (2026-06-09)
-- RFC-0122 Phase 2b implemented (caller_context payload; fix: entry_point field). PR #724 merged. RFC-0114 Phase 2 next P1. Escalation ×18→×19.
-
-### v153 (2026-06-09)
-- RFC-0122 Phase 2a implemented (caller_context core + mcp_request). PR #722 + #723 opened. Escalation ×17→×18.
-
-### v152 (2026-06-09)
-- RFC-0112 Phase 2 implemented (get_source_span CLI + MCP + Skill; 93/93 Three-Surface). RFC-0122 Phase 2a next P1. Escalation ×16→×17.
-
-### v151 (2026-06-09)
-- RFC-0112 Phase 1 implemented (Store::source_span method + 3 TDD tests). RFC-0112 Phase 2 next. Escalation ×15→×16.
-
-### v150 (2026-06-09)
-- RFC-0118 Part B implemented (qualified calls `pkg>Func` via @reference.call selector_expression). PR #715 merged. RFC-0112 Phase 1 next P1. Escalation ×14→×15.
-
-### v149 (2026-06-09)
-- RFC-0118 Part A implemented (anonymous function calls — @reference.call). PR #713 merged. RFC-0118 Part B next. Escalation ×13→×14.
-
-### v148 (2026-06-09)
-- RFC-0118 drafted. RFC-0109 Phase 2b merged (count semantics fix). P1 queue: RFC-0118 Part A (anonymous fn calls). Escalation ×12→×13.
-
-### v147 (2026-06-09)
-- RFC-0109 Phase 2a: `get_callee_tree`/`get_caller_tree` budget added (BFS cap). PR #708 merged. Escalation ×11→×12.
-
-### v146 (2026-06-09)
-- PR #706 merged (fix/hyphae-kind-validation-and-error-ux). Kind selector validation + human-readable errors. Escalation ×10→×11.
-
-### v145 (2026-06-09)
-- PR #704 + #705 merged (RFC-0113 Phase 1 extractor + RFC-0109 Phase 1 query/cross-refs budget). Escalation ×9→×10.
-
-### v144 (2026-06-09)
-- RFC-0113 Phase 1 implemented (callee extractor: @reference.call patterns for Python/TS/JS/Ruby). PR #703 opened.
-- PR #700 + #701 merged (pack span fixes + tests). Escalation ×8→×9.
-
-### v143 (2026-06-09)
-- PR #698 merged (PM v140 chore). RFC-0113 drafted. Escalation ×7→×8.
-
-### v142 (2026-06-08)
-- PR #694 + #695 merged (RFC-0109 callee_tree Phase 0 + RFC-0094 Phase 4 token-efficiency). 91/91 Three-Surface. Escalation ×6→×7.
-
-### v141 (2026-06-08)
-- PR #691 merged (RFC-0109 Phase 0 callee tree baseline). Three-Surface 91/91 pending #691. Escalation ×5→×6.
-
-### v140 (2026-06-08)
-- ADR-0012: real-symbol filter in entry-points/rank (excludes phantom/unresolved stubs). PR #687 + #688 + #689 merged. Escalation ×4→×5.
-
-### v139 (2026-06-08)
-- RFC-0116 Phase 1 implemented (SafetyVerdict evaluator: SAFE/CAUTION/REVIEW/UNSAFE). PR #682 + #683 merged. Three-Surface 91/91. Escalation ×3→×4.
-
-### v138 (2026-06-07)
-- RFC-0115 Phase 1 implemented (test_gap.rs pure core). RFC-0116 Phase 1 dispatched. PR #679 merged. Escalation ×2→×3.
-
-### v137 (2026-06-07)
-- RFC-0120 Phase 1+2 implemented (token stats core + MCP shell). PR #674 + #675 + #676 merged. RFC-0115 next P1. Escalation ×1→×2.
-
-### v136 (2026-06-07)
-- PR #568 first appeared as P0 founder-gated (release/v0.3.0 registries published). Develop CI GREEN. Escalation ×1.
+## Cadence
+
+- **Hourly (autonomous)**: each agent picks the top item from its queue.
+- **Daily PM check** (orchestrator): scan issue queue for new P0/P1; rebalance.
+- **Weekly Sprint review** (orchestrator + founder if available): mark sprint exit criteria; cut next sprint.
+- **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/vX.Y.Z branch.
 
 ---
 
-## Archive — PM dispatches v129–v130 (2026-06-08 to 2026-06-09)
+## Archive
 
-### 2026-06-09 PM dispatch v130 (reconciled from GitHub API)
-1. Verified develop HEAD = `8aaef3a6` (PR #672 `redb`→`mycelium-store` rename, squash).
-2. Merged PR #697 (squash `d0b3d5f`). ✅
-3. Rewrote PM state v130 from scratch (reconciled from GitHub API). ✅
+### 2026-06-13 PM dispatch v231 (PR #834 merged; 0 Codex findings; escalation ×91→×92)
 
-### 2026-06-08 PM dispatch v129 (PRs #690+#693+#696 merged; Codex P1 on #696 rejected)
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/git-workflow/tdd), PM state v230 (develop HEAD `de1e016`, post-PR #834 merge), v0.2 PRD.
 
-*(see PR #697 squash commit `d0b3d5f` for full archive)*
+**Assessment:**
+- 3 open PRs at session start: #834 (PM v230 chore, CI 22/22 ✅, 0 Codex findings), #568 (release/v0.3.0, CI 50/50 ✅, founder-gated ×91), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue: #829 (P1, nightly mutation kill rate <70% on main; Charter §2/§5.4 violation).
+- Develop CI: GREEN ✅. E2E: GREEN (dogfood ✅ + real projects ✅ on PR #834 run).
 
-### 2026-06-03 PM dispatch v28 and earlier (v1–v128)
+**Actions taken:**
+1. **Checked Codex on PR #834** — 0 review thread comments. ✅
+2. **Checked CI on PR #834** — 22/22 checks SUCCESS (Quality Gate ✅, all matrix ✅). ✅
+3. **Merged PR #834** (squash `de1e016`, PM v230 chore; 22/22 CI ✅; 0 Codex findings). ✅
+4. **PM state v231 written** + decisions.jsonl appended. ✅
 
-*(see closed PRs #502/#506 and git log for historical archives — last pre-v0.2.0 dispatch)*
+**Escalations to founder (×92):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop). All 50 CI ✅. Registries published 2026-06-05T17:59Z. Charter §5.12 gate MET. Likely also fixes issue #829 (mutation kill rate — main advances from v0.2.0 to v0.3.0 with 977 tests).
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 Hyphae token SLA amendment (DRAFT, 22/22 CI ✅, Option A recommended).
+
+### 2026-06-13 PM dispatch v230 (PR #833 merged; Codex P2 rejected; escalation ×90→×91)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/git-workflow/tdd), PM state v229 (develop HEAD `6160f40`, post-PR #833 merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at session start: #833 (PM v229 chore, CI 22/22 ✅, 1 Codex P2 finding), #568 (release/v0.3.0, CI 50/50 ✅, founder-gated ×90), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue: #829 (P1, nightly mutation kill rate < 70% on main).
+- Develop CI: GREEN ✅.
+- PR #568 has been escalated ×90 consecutive runs; all 50 CI checks SUCCESS/SKIPPED; registries published; git ceremony Steps 1–4 pending founder `finalize` workflow_dispatch.
+
+**Actions taken:**
+1. **Addressed Codex P2 on PR #833** (rejected): archive entries record cumulative session outcomes, not pre-flight snapshots. The `eccb51d` SHA cited as "develop HEAD" is correct at archive-write time (end of session after merge). Retroactive edit would violate Charter §5.3 append-only memory discipline; decisions.jsonl is the authoritative timestamped event log. Reply posted. ✅
+2. **Merged PR #833** (squash `6160f40`, PM v229 chore; 22/22 CI ✅). ✅
+3. **PM state v230 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (×91):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop). All 50 CI ✅. Registries published. Charter §5.12 gate MET.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 Hyphae token SLA amendment (DRAFT, 22/22 CI ✅).
+
+### 2026-06-13 PM dispatch v229 (PR #832 merged; Codex P2 rejected; escalation ×89→×90)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/git-workflow/tdd), PM state v228 (develop HEAD `eccb51d`, post-PR #832 merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at session start: #832 (PM v228 chore, CI 22/22 ✅, 1 Codex P2 finding), #568 (release/v0.3.0, CI 50/50 ✅, founder-gated ×89), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue: #829 (P1, nightly mutation kill rate <70% on main; nightly run #27458627065; likely fixed by PR #568 ceremony).
+- Develop CI: GREEN (HEAD `694630512`, 2026-06-13T09:06 UTC). E2E: GREEN.
+- All 3 P1 unblocked items (e2e-runner dogfood, bench mutation kill rate, RFC-0104 cold SLA) identified from PM state v228 "P1 (unblocked)" section.
+
+**Actions taken:**
+1. **Addressed Codex P2 on PR #832** (rejected): line 114 note "all P0/P1 work founder-gated" is a scoped v228 run audit note, not a global queue lock. Authoritative live state is "P1 (unblocked — next items)" section (lines 129–132) listing 3 actionable items. Reply posted. ✅
+2. **Merged PR #832** (squash `eccb51d`, PM v228 chore; 22/22 CI ✅). ✅
+3. **PM state v229 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×90 consecutive):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — v0.3.0 git ceremony (50/50 CI ✅; registries published 2026-06-05). Also likely fixes issue #829.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 Hyphae token SLA amendment (Option A recommended).
+
+### 2026-06-13 PM dispatch v228 (PR #831 merged; Codex P2 rejected; escalation ×88→×89)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (entries through v29 on local clone + v227 from PR #831 diff), anti-patterns (ci/testing/release-governance domains), PM state v227 (develop HEAD `694630512` post-PR #831 merge), v0.2 PRD.
+
+**Assessment:**
+- Open PRs at start of run: #831 (PM v227 chore, 22/22 CI ✅, 1 unresolved Codex P2), #568 (`release/v0.3.0`, CI 50/50 ✅, founder-gated ×88), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue: #829 (P1, nightly mutation kill rate <70% on main, Charter §2/§5.4 violation).
+- PR #831 Codex: 1 P2 finding (unresolved at session start) — pre-merge/post-merge head SHA inconsistency.
+- No autonomous code tasks available — both P0s and P1 are founder-gated.
+
+**Actions taken:**
+1. **Addressed PR #831 Codex P2** (rejected with justification: `95be1b6` = pre-flight snapshot; `fb3f3cc6` = post-merge snapshot; two correct sequential SHAs, not a contradiction). ✅
+2. **Merged PR #831** (squash `69463051`, PM dispatch v227 chore). ✅
+3. **Updated PM state v228**: live header, P0 escalation counter ×86→×89 (backfilling v224–v227 missed updates), dispatch state v227→v228, inline history v228 entry. ✅
+4. **Appended decisions.jsonl** v228 entry. ✅
+
+**Escalations to founder (unchanged from v227):**
+- **(1) PR #568** (×89 consecutive runs): All 50 CI checks SUCCESS/SKIPPED. Trigger `finalize` workflow_dispatch. Advances main to v0.3.0 — likely resolves issue #829 mutation kill rate.
+- **(2) PR #763** (DRAFT RFC-0121): Un-draft + merge Charter §2 Hyphae token SLA amendment.
+- **(3) Issue #829** (P1): Nightly mutation kill rate <70% on main. Bench to verify after PR #568 ceremony.
+
+### 2026-06-13 PM dispatch v227 (PR #830 merged; Codex findings addressed; escalation ×87→×88)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance domains), PM state v226 (develop HEAD `95be1b6`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at start: #830 (PM v226 chore, 22/22 CI ✅), #568 (`release/v0.3.0`, CI 50/50 ✅, founder-gated ×87), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue: #829 (P1, nightly mutation kill rate <70% on main, Charter §2/§5.4 violation).
+- PR #568 Codex: 1 finding (resolved+outdated, replied by founder) — CLEAN.
+- PR #830 Codex: 2 findings (P1: DCO missing; P2: open issue count).
+
+**Actions taken:**
+1. **Addressed PR #830 Codex P1** (rejected with justification: CI `DCO sign-off` job 81171862185 = SUCCESS, commit `d5270f5e` is a merge commit legitimately exempt from `--no-merges`). ✅
+2. **Addressed PR #830 Codex P2** (committed to fix in v227: open issue count "0" → "1 (#829 P1)"). ✅
+3. **Merged PR #830** (`fb3f3cc6`, squash, PM dispatch v226 chore). ✅
+4. **Updated PM state v227**: live header, dispatch state, inline history, open issue #829 in priority queue. Fixes Codex P2 commitment. ✅
+5. **Appended decisions.jsonl** v227 entry. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** (×88): All 50 CI checks SUCCESS/SKIPPED. Trigger `finalize` workflow_dispatch. Likely also fixes issue #829 mutation kill rate.
+- **(2) PR #763** (DRAFT RFC-0121): Un-draft + merge Charter §2 amendment.
+- **(3) Issue #829** (P1): Nightly mutation kill rate <70% on main. Monitor after PR #568 ceremony.
+
+### 2026-06-13 PM dispatch v226 (issue #829 opened; issue #827 CLOSED; live header fixed; decisions.jsonl backfilled)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/tdd/release-governance domains), PM state (fetched develop HEAD `95be1b6` via git checkout, live header stale at v223), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (`release/v0.3.0`, CI 50/50 ✅, founder-gated ×87), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue at session start: #827 (P2 pm-state live section inertia).
+- CI: develop + main fast-lane all SUCCESS. **Nightly FAILED on main**: job 81167775506 (`mutation testing (kill-rate gate >= 70%)`) — "Enforce >= 70% kill rate" step FAILURE on SHA `54687972` (v0.2.0). Charter §2/§5.4 violation.
+- decisions.jsonl gap: v224/v225 entries missing (appended to audit only, not to decisions.jsonl).
+- pm-state live header: stale at v223 despite v224+v225 running (issue #827).
+
+**Actions taken:**
+1. **Opened issue #829** — nightly mutation kill rate <70% on main (Charter §2/§5.4 violation); P1; root-cause hypothesis: completing PR #568 ceremony advances main to v0.3.0 with 977+ tests, likely resolving. ✅
+2. **Updated pm-state live header** v223 → v226 with current sprint status, escalation count, new P1 issue #829. ✅ (Fixes issue #827 acceptance criteria.)
+3. **Closed issue #827** — live header now updated this dispatch. ✅
+4. **Backfilled v224/v225 update lines** in live priorities inline history. ✅
+5. **Appended decisions.jsonl** v224/v225/v226 entries. ✅
+6. **PM state v226 written** (this archive entry). ✅
+
+**Escalations to founder:**
+- **(1) PR #568** (×87): All 50 CI checks SUCCESS/SKIPPED. Trigger `finalize` workflow_dispatch. Also likely fixes issue #829 mutation kill rate.
+- **(2) PR #763** (DRAFT RFC-0121): Un-draft + merge Charter §2 amendment.
+- **(3) Issue #829** (P1): Nightly mutation kill rate <70% on main. Monitor after PR #568 ceremony.
+
+### 2026-06-13 PM dispatch v225 (audit entry; issue #827 filed; live header still lagging)
+
+**Actions taken:**
+1. Wrote PM state v225 audit entry. PR #828 `chore(hive): PM dispatch v225 audit entry` **MERGED** `95be1b6`. ✅
+2. Acknowledged issue #827 in audit. Live header NOT updated in this dispatch (issue #827 acceptance criteria unmet — deferred to v226). ✅
+
+**Escalations to founder:** (unchanged — PR #568 ×86, PR #763 DRAFT)
+
+### 2026-06-13 PM dispatch v224 (no code work; 2 P0s founder-gated; pm-state archive only)
+
+**Assessment:** 2 open PRs (#568 ×86, #763 DRAFT). 0 open issues. No autonomous code work available. Both blocked on founder.
+
+**Actions taken:**
+1. PM state v224 archive entry appended. PR #826 (chore/pm-state-v224) opened. Live header NOT updated — surfaced as Codex finding on #826, tracked in issue #827 (filed post-PR). ✅
+
+**Escalations to founder:** (unchanged — PR #568 ×86, PR #763 DRAFT)
+
+### 2026-06-13 PM dispatch v223 (PR #823 merged; PRs #822/#824 closed; issue #819 closed; escalation ×84→×86)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v219 (develop HEAD `c2fbc34` post-#823), v0.2 PRD.
+
+**Assessment:**
+- 5 open PRs at start: #824 (PM v222 chore, CI ✅), #823 (RFC-0126 Phase 3, CI ✅), #822 (PM v221 chore, CI ✅, Codex addressed), #763 (DRAFT RFC-0121, founder-gated), #568 (release/v0.3.0, founder-gated ×86).
+- 1 open issue: #819 (P2 browser-global member-call receiver — closed by #823).
+- CI: all recent runs SUCCESS. Develop HEAD `c2fbc34` (RFC-0126 Phase 3 squash merge).
+- Note: v220-v222 PM chore PRs (#821 closed, #822 superseded, #824 superseded) never merged to develop — decisions.jsonl gap v219→v223.
+
+**Actions taken:**
+1. **Replied to all Codex findings** (4 threads across 3 PRs): #823 P2 rejected (shadow-globals out of scope; RFC-0125 precedent; future RFC); #824 P1 rejected (CI DCO gate 22/22 green); #824 P2 acknowledged (PR #823 merging; closing #824 as superseded). ✅
+2. **Merged PR #823** (squash `c2fbc34`, RFC-0126 Phase 3). Issue #819 auto-closed by merge. ✅
+3. **Closed PR #822** as superseded (PM v221 chore, Codex already addressed on branch). ✅
+4. **Closed PR #824** as superseded (PM v222 chore; v223 replaces it). ✅
+5. **PM state v223 written**. decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** (×86): trigger `finalize` workflow_dispatch — all 50 CI checks SUCCESS/SKIPPED.
+- **(2) PR #763** (DRAFT): un-draft + merge RFC-0121 Charter §2 amendment.
+
+### 2026-06-12 PM dispatch v217 (PRs #812+#813 merged; RFC-0125 Phase 1 implemented; PR #814 opened; escalation ×81→×82)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (tdd/ci/git-workflow/release-governance), PM state v216 (develop HEAD `ea51977` after #812+#813 merge), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #568 (release/v0.3.0, CI ✅, founder-gated ×82), #763 (DRAFT RFC-0121, BDFL required), #812 (PM v216 chore, 22/22 CI ✅, 1 Codex P2 finding), #813 (RFC-0125 draft, 22/22 CI ✅, 2 Codex P2 findings).
+- 0 open issues. Local clone at `main` (stale); fetched develop → HEAD `ea51977`.
+
+**Actions taken:**
+1. **Replied to all 3 Codex findings** before merging: #812 P2 rejected (CJS extraction gap, not "missing JS support"); #813 P2-1 rejected (Imports edge covers gating; alias-table is spin-off scope); #813 P2-2 rejected (AC-9 will be corrected to `.js`-only in Phase 2). ✅
+2. **Merged PR #812** (squash `9979b960`) — PM state v216 chore; 22/22 CI ✅. ✅
+3. **Merged PR #813** (squash `ea51977f`) — RFC-0125 draft doc; 22/22 CI ✅. ✅
+4. **Implemented RFC-0125 Phase 1 (TDD)**:
+   - Branch: `feature/RFC-0125-phase1-js-cjs-imports`
+   - RED: 2 extractor tests fail (`extractor_js_cjs_simple_require_produces_imports_edge`, `extractor_js_cjs_destructure_require_produces_imports_edge`) ✅
+   - GREEN: Added `lexical_declaration` + `#eq? @_req "require"` patterns to all 4 `packs/javascript/queries.scm` copies; 959 tests pass ✅
+   - Quality gate: `cargo fmt --check` ✅ | `cargo clippy -D warnings` ✅
+   - Committed (DCO signed), pushed, **PR #814 opened** ✅
+5. **PM state v217 written**. **decisions.jsonl appended**. ✅
+
+**Escalations to founder (P0, ×82):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch (×82). CI 50/50 ✅; registries ✅.
+- **(2) RFC-0121**: Un-draft + merge PR #763 (22/22 CI ✅; Charter §9 amendment).
+
+---
+
+### 2026-06-12 PM dispatch v216 (sprint assessment; RFC-0125 identified; escalation ×80→×81)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (tdd/ci/release-governance/git-workflow/storage/governance domains — no blocking hits), PM state v215 (develop HEAD `58d2a2c`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×81), #763 (DRAFT RFC-0121, 22/22 CI ✅, BDFL required). 0 open Codex findings on either PR (#763: 0 comments; #568: 1 resolved+outdated).
+- 0 open issues. Develop CI GREEN (HEAD `58d2a2c` = PM v215 chore, PR #811).
+- RFC-0113 fully IMPLEMENTED + DOCUMENTED (all 5 phases + corpus measurement at 66.4%).
+- Language pack survey: all 10 packs live (Tier 1: Python/TS/JS/Rust/Go; Tier 2: Java/C/C++/C#/Ruby). Tier 3 (Swift/Kotlin/PHP/Lua/Bash) not yet implemented.
+- RFC-0113 callee classification gaps: JS 53.8% (worst Tier 1 lang in corpus), Java/C/C++/C#/Ruby unclassified (not in Mycelium's own corpus; Tier 2 packs lack classification logic entirely).
+- Both P0s founder-gated; no new code P1 tasks unblocked without binary (no cache in this remote container).
+
+**Actions taken:**
+1. **PM state v216 written** — updated header, escalation ×80→×81, new P1 item RFC-0125, v216 dispatch state, archive entry. ✅
+2. **decisions.jsonl appended** (v216 entry). ✅
+
+**Next session focus:** RFC-0125 Phase 1 implementation — JavaScript callee classification (`classify_javascript` + import-gated stdlib list in `callees_payload`). Pattern mirrors RFC-0113 Python/TS phases. Expected: 57.8%→70%+ JS classification rate. Prerequisite: draft RFC-0125 first (1 RFC doc, 0 core-code lines), then TDD implement Phase 1.
+
+**Escalations to founder (P0, unchanged ×2):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch (×81). CI 50/50 ✅; registries ✅.
+- **(2) RFC-0121**: Un-draft + merge PR #763 (22/22 CI ✅; Charter §9 amendment).
+
+---
+
+### 2026-06-12 PM dispatch v215 (PRs #809+#810 merged; RFC-0113 fully on develop; escalation ×79→×80)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/tdd domains), PM state v214 (develop HEAD `7600b9db`), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #809 (RFC-0113 corpus docs, CI 3/3 ✅, Codex P1+P2 live), #810 (PM v214 chore, CI 3/3 ✅, Codex P2 live), #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×79), #763 (DRAFT RFC-0121, BDFL required).
+- 0 open issues. Develop CI GREEN at `7600b9db`.
+- P0 tasks: PR #568 + PR #763 — both founder-gated. No unblocked code P1 tasks.
+- P1 actionable (docs/chore): merge #809 and #810 after addressing Codex findings.
+
+**Actions taken:**
+1. **Replied to 3 Codex findings** across 2 PRs:
+   - #809 P1 (DCO): **Rejected** — CI Quality Gate 3/3 ✅ at SHA `4e818718`; gate accepted the trailer. ✅
+   - #809 P2 (before/after): **Rejected** — before state is definitionally 0% (RFC-0113 introduced classification; no prior run existed). ✅
+   - #810 P2 (keep RFC-0113 pending): **Accepted** — merge #809 first; ordering resolves the concern. ✅
+2. **Merged PR #809** (squash `2f47f503`) — RFC-0113 corpus docs; CI 3/3 ✅. RFC-0113 Status → Implemented on develop. ✅
+3. **Merged PR #810** (squash `7600b9db`) — PM v214 chore; CI 3/3 ✅; Codex P2 self-resolved by merge order. ✅
+4. **PM state v215 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×80 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 SLA amendment. CI 22/22 ✅.
+
+---
+
+### 2026-06-12 PM dispatch v214 (PR #808 merged `35bfe2d`; RFC-0113 corpus measured; PR #809 opened; escalation ×78→×79)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (rfc/three-surface/tdd/ci domains), PM state v213 (develop HEAD `d2b2a12`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #808 (PM v213 chore, CI 3/3 ✅; Codex P2 live), #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×78), #763 (DRAFT RFC-0121, BDFL required).
+- 0 open issues. Develop HEAD `d2b2a12` (post-#806 merge = PM v211 chore).
+- Develop CI GREEN. No unblocked code P1 (all require binary or post-v0.3.0 ceremony).
+- Rust toolchain available in environment (1.93.1) → able to build and run corpus measurement.
+
+**Actions taken:**
+1. **Replied to Codex P2 on PR #808** — P2 on pre-flight SHA (`d2b2a12` recorded, correct was `a20f64e`): justified rejection (file >400KB; correction documented in reply per append-only discipline; correct SHA `a20f64e` identified from git log). ✅
+2. **Merged PR #808** (squash `35bfe2d`) — PM v213 chore; CI 3/3 ✅; Codex P2 rejected. ✅
+3. **Built mycelium release binary** (`cargo build --release` + `cargo test --all` 957/957 ✅). ✅
+4. **RFC-0113 corpus measurement** — indexed Mycelium repo (3,601 symbols, 124 files); sampled 249 functions (100 Rust + 94 Python + 32 TS + 23 JS); 1,026 callee edges. Results: **66.4% classified** overall (project 45%, stdlib 6%, builtin 5%); **33.6% unknown tail**. Methodologically sound — the 33.6% are generic receiver methods and import-unbacked calls that are correctly indeterminate without type inference. ✅
+5. **PR #809 opened** (`docs/rfc-0113-corpus-measurement`) — marks RFC-0113 corpus criterion `[x]`, promotes Status → Implemented, adds measurement table to RFC + CHANGELOG. Docs-only, CI pending. ✅
+6. **PM state v214 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×79 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 SLA amendment. CI 22/22 ✅.
+
+---
+
+### 2026-06-12 PM dispatch v213 (PR #806 merged `d2b2a12`; PR #807 closed superseded; Codex P2 on #807 rejected; escalation ×77→×78)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/tdd/git-workflow/async/storage/testing domains), PM state v211 (develop HEAD `d2b2a12`), v0.2 PRD.
+
+**Assessment:**
+- 4 open PRs: #806 (PM v211 chore, 20/20 CI ✅ Quality Gate ✅; Codex P2 FIXED commit `9581552` + reply posted), #807 (PM v212 chore, 22/22 CI ✅; Codex P2 live — contradictory CI status in decisions.jsonl), #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×77), #763 (DRAFT RFC-0121, BDFL required).
+- 0 open issues.
+- Develop CI GREEN at `d2b2a12` (PM v211 chore).
+- Both P0s founder-gated. No unblocked P1 impl tasks (all P1s require running the binary: dogfood, cold-SLA, corpus). Only autonomous actions: merge #806, address + close #807.
+
+**Actions taken:**
+1. **Merged PR #806** (squash `d2b2a12`) — PM v211 chore + RFC-0113 Phase 5 docs; CI 20/20 ✅; Codex P2 fixed in-PR (commit `9581552`). ✅
+2. **Replied to Codex P2 on PR #807** — rejected with justification: "contradiction" was two different GitHub check-run contexts at session-end; PR #806 is now 20/20 ✅ Quality Gate ✅ and has been merged. ✅
+3. **Closed PR #807** (`chore/pm-state-v212`) as superseded by this v213 dispatch. ✅
+4. **PM state v213 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×78 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 SLA amendment. CI 22/22 ✅.
+
+---
+
+### 2026-06-12 PM dispatch v212 (Codex P2 on PR #806 fixed; CI deferred; escalation ×76→×77)
+
+*(Documented in closed PR #807. Actions: fixed Codex P2 on RFC-0113 Phase 5 acceptance criteria (`std::io::stdout()` → `io::stdout()`); CI 18/22 ✅ at session-end (now fully green at 20/20); merge deferred to v213. Escalation ×76→×77.)*
+
+---
+
+### 2026-06-12 PM dispatch v211 (PR #805 merged `a20f64e`; RFC-0113 Phase 5 docs updated; escalation ×75→×76)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (governance/verification/three-surface domains), PM state v210 (develop HEAD `a20f64e`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #805 (PM v210 chore, 20/20 CI ✅), #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×75), #763 (DRAFT RFC-0121, BDFL required).
+- 0 open issues.
+- Develop CI GREEN at `a20f64e` (PM v210 chore, all 20/20 checks pass).
+- RFC-0113 Phase 5 was shipped (PR #802) but RFC doc Status line still said "Phase 4 Rust tables shipped" — missing Phase 5 mention + acceptance criteria section.
+
+**Actions taken:**
+1. **Merged PR #805** (squash `a20f64e`) — PM v210 chore; CI 20/20 ✅; 0 Codex findings. ✅
+2. **Updated RFC-0113**: Status line updated to include "Phase 5 Rust qualified-call fix shipped"; Phase 5 acceptance criteria section added (`scope>name` stubs, pack parity, 3 TDD tests, 957/957 pass, issue #800 closed). ✅
+3. **PM state v211 written** (this file) + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×76 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 SLA amendment. CI 22/22 ✅.
+
+---
+
+### 2026-06-12 PM dispatch v210 (PR #804 merged `2961bd3`; issue #800 explicitly closed; 0 open issues; escalation ×74→×75)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance domains), PM state v209 (develop HEAD `2961bd3`), v0.2 PRD.
