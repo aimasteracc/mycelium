@@ -11,3 +11,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
 | Last shipped (git) | **v0.2.0** — ceremony 4/4 COMPLETE (main `54687972`, 2026-06-04) |
+
+---
+
+FILE TOO LARGE TO INLINE — SEE /tmp/pm_final.md
