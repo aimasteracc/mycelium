@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-13 (PM dispatch v229 — PR #832 merged (squash `eccb51d`, 22/22 CI ✅; Codex P2 rejected with justification — scoped note vs unblocked P1 section); 1 open issue #829 P1; escalation ×89→×90) |
-| Current sprint | **Holding pattern — 0 open code tasks (v229).** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×90 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
+| Last updated | 2026-06-13 (PM dispatch v230 — PR #833 merged (squash `6160f40`, 22/22 CI ✅; Codex P2 rejected with justification — archive entries record cumulative session outcomes, not pre-flight snapshots); 1 open issue #829 P1; escalation ×90→×91) |
+| Current sprint | **Holding pattern — 0 open code tasks (v230).** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×91 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -113,6 +113,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v227 update (2026-06-13):** **PR #830 MERGED** `fb3f3cc6` (PM v226 chore; 22/22 CI ✅; Codex P1 rejected/CI DCO gate authoritative, P2 committed to v227 open-issue fix). **1 open issue: #829 P1** (nightly mutation kill rate; awaiting PR #568 ceremony). Escalation ×87→×88.
 > **v228 update (2026-06-13):** **PR #831 MERGED** `69463051` (PM v227 chore; 22/22 CI ✅; Codex P2 rejected — pre-merge/post-merge SHA pair are two correct snapshots, not a contradiction). **1 open issue: #829 P1** unchanged. No autonomous code tasks this run — both P0s founder-gated. Escalation ×88→×89.
 > **v229 update (2026-06-13):** **PR #832 MERGED** `eccb51d` (PM v228 chore; 22/22 CI ✅; Codex P2 rejected — line 114 "all P0/P1 founder-gated" was a scoped v228 run note, not a global lock; live priorities "P1 (unblocked)" section remains authoritative). **1 open issue: #829 P1** unchanged. P1 unblocked items (e2e-runner dogfood, bench mutation kill rate, RFC-0104 cold SLA) noted for next autonomous run. Escalation ×89→×90.
+> **v230 update (2026-06-13):** **PR #833 MERGED** `6160f40` (PM v229 chore; 22/22 CI ✅; Codex P2 rejected — archive entries record cumulative session outcomes not pre-flight snapshots; decisions.jsonl is the timestamped event log). **1 open issue: #829 P1** unchanged. P0 escalation ×90→×91 on PR #568. Escalation ×90→×91.
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
@@ -139,12 +140,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-13 v229)
+## Dispatch state (2026-06-13 v230)
 
 | Agent | Status | Current item |
 |---|---|---|
 | founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×90 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
-| PM | **DONE ✅** | v229: PR #832 merged (`eccb51d`); Codex P2 rejected; 1 open issue #829 P1; PM state v229 written. |
+| PM | **DONE ✅** | v230: PR #833 merged (`6160f40`); Codex P2 rejected; 1 open issue #829 P1; PM state v230 written. |
 | rust-implementer | **P1 (unblocked)** | 0 open issues. After v0.3.0 lands: dogfood re-run + confirm issue #829 mutation kill rate resolved. Else: identify next callee-classification language gap. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop → cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -181,6 +182,25 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-13 PM dispatch v230 (PR #833 merged; Codex P2 rejected; escalation ×90→×91)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/release-governance/git-workflow/tdd), PM state v229 (develop HEAD `6160f40`, post-PR #833 merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at session start: #833 (PM v229 chore, CI 22/22 ✅, 1 Codex P2 finding), #568 (release/v0.3.0, CI 50/50 ✅, founder-gated ×90), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue: #829 (P1, nightly mutation kill rate < 70% on main).
+- Develop CI: GREEN ✅.
+- PR #568 has been escalated ×90 consecutive runs; all 50 CI checks SUCCESS/SKIPPED; registries published; git ceremony Steps 1–4 pending founder `finalize` workflow_dispatch.
+
+**Actions taken:**
+1. **Addressed Codex P2 on PR #833** (rejected): archive entries record cumulative session outcomes, not pre-flight snapshots. The `eccb51d` SHA cited as "develop HEAD" is correct at archive-write time (end of session after merge). Retroactive edit would violate Charter §5.3 append-only memory discipline; decisions.jsonl is the authoritative timestamped event log. Reply posted. ✅
+2. **Merged PR #833** (squash `6160f40`, PM v229 chore; 22/22 CI ✅). ✅
+3. **PM state v230 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (×91):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch to complete v0.3.0 git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop). All 50 CI ✅. Registries published. Charter §5.12 gate MET.
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 Hyphae token SLA amendment (DRAFT, 22/22 CI ✅).
 
 ### 2026-06-13 PM dispatch v229 (PR #832 merged; Codex P2 rejected; escalation ×89→×90)
 
