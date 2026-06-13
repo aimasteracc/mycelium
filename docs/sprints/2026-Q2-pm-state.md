@@ -1750,3 +1750,14 @@ No decisions.jsonl entry was appended (branch broken; PR closed in v143 pre-flig
 ### 2026-06-03 PM dispatch v28 and earlier (v1–v128)
 
 *(see closed PRs #502/#506 and git log for historical archives — last pre-v0.2.0 dispatch)*
+
+### 2026-06-13 PM dispatch v224 (Codex P2 on #825 fixed; issue #819 closed; PR #825 pending Quality Gate)
+
+**Actions taken:**
+1. Fixed Codex P2 on PR #825 (stale PR #817 in P1-unblocked queue) — commit `fe91f12`. Replied to Codex. ✅
+2. Closed issue #819 via API (GitHub auto-close missed non-default-branch merge). ✅
+3. PR #825 CI re-running; merge pending Quality Gate. Escalations ×86 unchanged.
+
+**Escalations (×86):**
+1. PR #568 (`release/v0.3.0`) — 50/50 CI ✅, registries published — trigger `finalize` workflow_dispatch.
+2. PR #763 (RFC-0121 Charter SLA amendment) — DRAFT, 22/22 CI ✅ — un-draft + merge.
