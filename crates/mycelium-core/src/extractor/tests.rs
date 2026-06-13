@@ -4038,3 +4038,50 @@ fn extractor_js_cjs_destructure_require_produces_imports_edge() {
         "CJS `const {{ readFileSync }} = require('fs')` must produce an Imports edge to 'fs'"
     );
 }
+
+#[test]
+fn extractor_js_cjs_extensionless_local_require_resolves_to_js_not_cjs() {
+    // Issue #816: `require('./foo')` from a `.cjs` file must produce an Imports
+    // edge to `foo.js`, not `foo.cjs`.  Node's CJS resolution algorithm resolves
+    // extensionless local specifiers to `.js` regardless of the importer's own
+    // extension.
+    let store = js_extractor_at("src/index.cjs", "const m = require('./utils');");
+    let file_id = store.lookup("src/index.cjs").expect("file node must exist");
+    // The resolved target must be `src/utils.js`, not `src/utils.cjs`.
+    let js_id = store.lookup("src/utils.js");
+    let cjs_id = store.lookup("src/utils.cjs");
+    assert!(
+        js_id.is_some(),
+        "extensionless require('./utils') from a .cjs file must create node 'src/utils.js'"
+    );
+    assert!(
+        cjs_id.is_none(),
+        "must NOT create 'src/utils.cjs' — Node resolves .cjs importer to .js targets"
+    );
+    let js_id = js_id.unwrap();
+    assert!(
+        store.outgoing(file_id, EdgeKind::Imports).contains(&js_id),
+        "Imports edge must point to 'src/utils.js', not 'src/utils.cjs'"
+    );
+}
+
+#[test]
+fn extractor_js_cjs_extensionless_local_require_from_nested_dir() {
+    // Regression: verify path normalisation is preserved for the .cjs→.js fix.
+    // `require('../lib/helper')` from `src/sub/index.cjs` → `src/lib/helper.js`.
+    let store = js_extractor_at("src/sub/index.cjs", "const h = require('../lib/helper');");
+    let file_id = store
+        .lookup("src/sub/index.cjs")
+        .expect("file node must exist");
+    let target_id = store.lookup("src/lib/helper.js");
+    assert!(
+        target_id.is_some(),
+        "extensionless require('../lib/helper') from src/sub/index.cjs must resolve to 'src/lib/helper.js'"
+    );
+    assert!(
+        store
+            .outgoing(file_id, EdgeKind::Imports)
+            .contains(&target_id.unwrap()),
+        "Imports edge must point to 'src/lib/helper.js'"
+    );
+}

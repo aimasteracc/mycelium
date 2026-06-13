@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **fix(packs/js): `.cjs` extensionless `require()` resolves to `.js` target.**
+  `require('./foo')` from a `.cjs` file now produces an Imports edge to `foo.js`,
+  not `foo.cjs`. Node's CJS resolution algorithm resolves extensionless local
+  specifiers to `.js` regardless of the importer's own extension. Two new tests
+  cover the basic case and nested-directory path normalisation. (Issue #816)
+
 ### Added
 
 - **RFC-0125 Phase 2 — JavaScript browser-global classifier.**

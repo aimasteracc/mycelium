@@ -1256,12 +1256,14 @@ fn resolve_typescript_import(importing_file: &str, specifier: &str) -> Option<St
         dir.join(specifier)
     } else {
         // Use the importer's own extension so .js files resolve to .js targets,
-        // .ts files to .ts targets, etc.  Fall back to "ts" if the importer
-        // has no extension (should not happen in practice).
-        let ext = std::path::Path::new(importing_file)
+        // .ts files to .ts targets, etc.  Exception: `.cjs` importers resolve
+        // extensionless locals to `.js`, matching Node's CJS resolution algorithm
+        // (require('./foo') from a .cjs file finds foo.js, not foo.cjs).
+        let raw_ext = std::path::Path::new(importing_file)
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("ts");
+        let ext = if raw_ext == "cjs" { "js" } else { raw_ext };
         dir.join(specifier).with_extension(ext)
     };
     // Normalise `a/b/../c` → `a/c` using component iteration (no fs access).
