@@ -116,11 +116,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 5. **PR #802** — RFC-0113 Phase 5 Rust extractor qualified stubs. ✅ **MERGED** `8b14ecd`. Issue #800 **CLOSED**. Pack query parity ✅; Quality Gate 22/22 ✅; 0 Codex findings.
 6. **PR #809** — RFC-0113 corpus measurement + Status → Implemented. ✅ **MERGED** `2f47f503`. Codex P1 rejected (CI green), P2 rejected (before=0% baseline). RFC-0113 FULLY COMPLETE on develop.
 7. **PR #810** — PM state v214 chore. ✅ **MERGED** `7600b9db`. Codex P2 self-resolved by merge ordering (#809 first).
+8. **PR #814** — RFC-0125 Phase 1 CJS `require()` extractor. ✅ **MERGED** `7e711f4f`. Codex P1 rejected, P2 → issue #816.
+9. **PR #817** — RFC-0125 Phase 2 browser-global classifier. ✅ **MERGED** `a6c83af3`. RFC-0125 Status → Implemented. Codex P2 → issue #819.
+10. **PR #820** — fix .cjs extensionless `require()` resolution. ✅ **MERGED** `ea47f65`.
+11. **PR #823** — RFC-0126 Phase 3 browser-global member-call receiver synthesis. ✅ **MERGED** `c2fbc34`. Issue #819 **CLOSED**.
 
 **P1 (unblocked — next items):**
-7. **RFC-0125 Phase 2** → **PR #817 (CI running)** — `classify_javascript_browser_global` fallback for `.js`/`.jsx` files; 6 TDD tests (AC-6/7/8/9). Once CI green + Codex addressed → admin-merge. RFC-0125 Status → Implemented (all 9 ACs). Issue #816 tracks `.cjs` extension resolution (Phase 2+ follow-on).
-8. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
-9. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
+1. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
+2. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
 
 **P2:**
 10. Skill marketplace submission to Claude Code marketplace (tech-writer)
