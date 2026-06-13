@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v219 — PR #817 (RFC-0125 Phase 2) merged `a6c83af3`; Codex P2 spun off to issue #819 (Phase 3); escalation ×83→×84) |
-| Current sprint | **RFC-0125 IMPLEMENTED** — Phase 1 (CJS require() extractor, PR #814 ✅) + Phase 2 (browser-global classifier, PR #817 ✅ merged `a6c83af3`). JS callee classification 53.8% → expected ≥65%. `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×84 escalations). |
+| Last updated | 2026-06-13 (PM dispatch v220 — PR #820 opened (`fix/issue-816-cjs-extensionless-require`, closes issue #816); escalation ×84→×85) |
+| Current sprint | **RFC-0125 IMPLEMENTED** — Phase 1 (CJS require() extractor, PR #814 ✅) + Phase 2 (browser-global classifier, PR #817 ✅ merged `a6c83af3`). Issue #816 fix in PR #820 (CI running). `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×85 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -105,6 +105,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v217 update (2026-06-12):** PR #814 **MERGED** `7e711f4f` (RFC-0125 Phase 1; 24/24 CI ✅; Codex P1 rejected/RFC exists on develop, P2 spun off to issue #816). PR #815 **MERGED** `0cc5bcfd` (PM v217 chore; Codex P2 fixed commit `62c6631`). Issue #816 opened (.cjs extensionless resolution, Phase 2+ scope). Escalation ×82→×83.
 > **v218 update (2026-06-12):** RFC-0125 Phase 2 implemented (browser-global classifier). **PR #817 OPENED** (`feature/RFC-0125-phase2-browser-global-classifier`): `classify_javascript_browser_global` fallback for `.js`/`.jsx`; `fetch` added to `TS_GLOBAL_BUILTINS`; 6 TDD tests (AC-6/7/8/9); RFC-0125 Status → Implemented. 965 tests, 0 failures. CI running. PM state v218 written. Escalation ×82→×83.
 > **v219 update (2026-06-12):** PR #817 **MERGED** `a6c83af3` (RFC-0125 Phase 2 browser-global classifier ✅). Codex P2 spun off → issue #819 (Phase 3: member-call receiver classification). Escalation ×83→×84.
+> **v220 update (2026-06-13):** **PR #820 OPENED** (`fix/issue-816-cjs-extensionless-require`, closes issue #816): one-line fix in `resolve_typescript_import` — `.cjs` importer maps to `.js` target (Node CJS resolution algorithm); 2 TDD tests (RED confirmed); 967/967 ✅; 0 clippy warnings. CI running. Escalation ×84→×85.
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
@@ -114,26 +115,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 5. **PR #802** — RFC-0113 Phase 5 Rust extractor qualified stubs. ✅ **MERGED** `8b14ecd`. Issue #800 **CLOSED**. Pack query parity ✅; Quality Gate 22/22 ✅; 0 Codex findings.
 6. **PR #809** — RFC-0113 corpus measurement + Status → Implemented. ✅ **MERGED** `2f47f503`. Codex P1 rejected (CI green), P2 rejected (before=0% baseline). RFC-0113 FULLY COMPLETE on develop.
 7. **PR #810** — PM state v214 chore. ✅ **MERGED** `7600b9db`. Codex P2 self-resolved by merge ordering (#809 first).
+8. **PR #817** — RFC-0125 Phase 2 browser-global classifier. ✅ **MERGED** `a6c83af3`. RFC-0125 Status → Implemented.
 
 **P1 (unblocked — next items):**
-7. **RFC-0125 Phase 2** → **PR #817 (CI running)** — `classify_javascript_browser_global` fallback for `.js`/`.jsx` files; 6 TDD tests (AC-6/7/8/9). Once CI green + Codex addressed → admin-merge. RFC-0125 Status → Implemented (all 9 ACs). Issue #816 tracks `.cjs` extension resolution (Phase 2+ follow-on).
-8. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
-9. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
+9. **PR #820** (CI running) — issue #816 fix: `.cjs` extensionless `require()` resolves to `.js`. Once CI green + Codex addressed → admin-merge. Closes issue #816.
+10. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
+11. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
 
 **P2:**
-10. Skill marketplace submission to Claude Code marketplace (tech-writer)
-11. "First 5 minutes" walkthrough validation with npm/bun path
-12. ~~`release.yml` finalize merge step systemic fix~~ **✅ RESOLVED (v160)**
+12. RFC-0125 Phase 3: member-call receiver classification (issue #819) — needs RFC before implementation.
+13. Skill marketplace submission to Claude Code marketplace (tech-writer)
+14. "First 5 minutes" walkthrough validation with npm/bun path
+15. ~~`release.yml` finalize merge step systemic fix~~ **✅ RESOLVED (v160)**
 
 ---
 
-## Dispatch state (2026-06-12 v219)
+## Dispatch state (2026-06-13 v220)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×83 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
-| PM | **DONE ✅** | v219: PR #817 merged (`a6c83af3`, RFC-0125 Phase 2 ✅); issue #819 opened (Phase 3 member-call receiver); Codex P2s addressed; PM state v219 written. |
-| rust-implementer | **P2 (next)** | RFC-0125 Phase 2 merged ✅. Next: issue #816 (`.cjs` extensionless require fix, P2). Optionally draft RFC for Phase 3 member-call receiver classification (issue #819). |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×85 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
+| PM | **DONE ✅** | v220: PR #820 opened (issue #816 fix, CI running); PM state v220 written; decisions.jsonl appended. |
+| rust-implementer | **P1 (CI pending)** | PR #820 (`fix/issue-816-cjs-extensionless-require`) opened — CI running. Once green + Codex addressed → admin-merge; closes issue #816. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -169,6 +172,31 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-13 PM dispatch v220 (PR #820 opened; issue #816 fix; escalation ×84→×85)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/tdd/git-workflow/release-governance/three-surface), PM state v219 (develop HEAD `7a781c3`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0, CI 50/50 ✅ — founder-gated), #763 (RFC-0121 DRAFT — founder-gated).
+- 2 open issues: #816 (P2 — .cjs extensionless require fix), #819 (P2 — member-call receiver Phase 3).
+- Develop CI: GREEN (2026-06-13T00:07Z).
+- Both P0s require founder action — not autonomously actionable.
+- Selected issue #816 as highest-value P2 (bounded fix, clear spec, no RFC required).
+
+**Actions taken:**
+1. **Implemented** fix for issue #816: `resolve_typescript_import` maps `cjs` → `js` ext for extensionless local specifiers. One-line change covering both ESM-import and require() code paths. ✅
+2. **TDD RED**: 2 new tests written → `cargo test` FAILED (confirmed RED). ✅
+3. **TDD GREEN**: fix applied → all 4 CJS tests pass; `cargo test --all` 967/967 ✅. ✅
+4. **Quality gate**: `cargo fmt` clean; `cargo clippy -D warnings` 0 errors. ✅
+5. **CHANGELOG** updated (Unreleased → Fixed section). ✅
+6. **Committed** (`git commit -s`) + pushed branch `fix/issue-816-cjs-extensionless-require`. ✅
+7. **PR #820** opened (base: develop). CI running. ✅
+8. **PM state v220** written; decisions.jsonl appended. ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: READY — trigger `finalize` workflow_dispatch. ×85 consecutive.
+- **(2) PR #763**: Un-draft + merge (Charter §9 amendment, CI ✅, 0 Codex).
 
 ### 2026-06-12 PM dispatch v217 (PRs #812+#813 merged; RFC-0125 Phase 1 implemented; PR #814 opened; escalation ×81→×82)
 
