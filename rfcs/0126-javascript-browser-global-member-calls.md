@@ -129,10 +129,12 @@ adds non-trivial latency to the classification hot path.
   pattern; `callee_name` and classification unchanged (no false positives).
 - [ ] **AC-5**: `fetch('/api')` bare call (RFC-0125 Phase 2) → still classified
   `Stdlib` (no regression).
-- [ ] **AC-6**: `navigator.geolocation.getCurrentPosition(cb)` — first-level
-  receiver `navigator` matches; `callee_name = "navigator.getCurrentPosition"`,
-  classified `Stdlib`. (Deep chains are flattened to one dot; nested member
-  resolution is out of scope.)
+- [ ] **AC-6**: `navigator.sendBeacon(url, data)` — single-level receiver
+  `navigator` matches; `callee_name = "navigator.sendBeacon"`, classified
+  `Stdlib`. (Two-level chains such as `navigator.geolocation.getCurrentPosition`
+  are **out of scope for Phase 3** — the call's immediate object is a nested
+  member_expression, not an identifier, so the query pattern does not fire.
+  Chained-receiver support is tracked for Phase 4.)
 - [ ] **AC-7**: All embedded pack copies synced (anti-patterns.jsonl
   `packs/` parity rule): `mycelium-core`, `mycelium-cli`, `mycelium-mcp`.
 
