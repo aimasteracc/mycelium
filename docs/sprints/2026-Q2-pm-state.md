@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-13 (PM dispatch v223 — PR #823 (RFC-0126 Phase 3) merged `c2fbc34`; PRs #822/#824 closed superseded; 0 open issues; escalation ×84→×86) |
-| Current sprint | **RFC-0126 Phase 3 IMPLEMENTED** — `document.querySelector()`, `window.open()`, `localStorage.getItem()`, `navigator.sendBeacon()` etc. → Stdlib (PR #823 ✅ merged `c2fbc34`). JS browser-global member-call receiver synthesis complete. 0 open issues. `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×86 escalations). |
+| Last updated | 2026-06-13 (PM dispatch v226 — issue #829 opened (nightly mutation kill rate <70%); issue #827 CLOSED (live header fixed); v224+v225 decisions.jsonl gaps backfilled; escalation ×86→×87) |
+| Current sprint | **Holding pattern — 0 open code tasks.** Both P0s founder-gated (PR #568 v0.3.0 ceremony ×87 escalations; PR #763 RFC-0121 Charter amendment). **P1**: issue #829 — nightly mutation kill rate <70% on main (Charter §2/§5.4 violation); likely fixed by PR #568 ceremony advancing main to v0.3.0. Next autonomous work: identify next callee-classification gap or dogfood re-run once ceremony lands. |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -107,6 +107,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v219 update (2026-06-12):** PR #817 **MERGED** `a6c83af3` (RFC-0125 Phase 2 browser-global classifier ✅). Codex P2 spun off → issue #819 (Phase 3: member-call receiver classification). Escalation ×83→×84.
 > **v220–v222 updates (2026-06-12/13):** RFC-0126 Phase 3 designed + implemented on `feature/RFC-0126-js-member-call-receiver`. PM chore branches (PR #821, #822, #824) ran but were superseded/closed without merging. Escalation ×84→×85 (v220) →×86 (v221/v222 not merged; v223 this run).
 > **v223 update (2026-06-13):** PR #823 **MERGED** `c2fbc34` (RFC-0126 Phase 3; 10 TDD tests; 977/0 core; Codex P2 rejected with justification — scope analysis deferred to future RFC). PRs #822 (PM v221) and #824 (PM v222) **CLOSED** superseded (v220-v222 chore entries not on develop; memory gap noted). Issue #819 **CLOSED**. 0 open issues. Escalation ×84→×86.
+> **v224 update (2026-06-13):** Assessment: 2 open PRs (#568 founder-gated ×86, #763 DRAFT founder-gated). 0 open issues. No autonomous code work available. Wrote PM state v224 archive entry. PR #826 (chore/pm-state-v224) opened but live header NOT updated (Issue #827 Codex finding surfaced this). Escalation ×86 unchanged.
+> **v225 update (2026-06-13):** Responded to issue #827 (pm-state live section inertia). PR #828 (chore/pm-state-v225 audit entry) **MERGED** `95be1b6` — audit entry only; live header still not fixed (issue #827 acceptance criteria incomplete). decisions.jsonl gap v224/v225 noted. Escalation ×86 unchanged.
+> **v226 update (2026-06-13):** **Issue #829 OPENED** — nightly mutation kill rate <70% on main (Charter §2/§5.4 violation; nightly run #27458627065 job 81167775506). **Issue #827 CLOSED** (live header now updated). decisions.jsonl backfilled v224+v225 gap. Escalation ×86→×87.
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
@@ -122,8 +125,9 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 11. **PR #823** — RFC-0126 Phase 3 browser-global member-call receiver synthesis. ✅ **MERGED** `c2fbc34`. Issue #819 **CLOSED**.
 
 **P1 (unblocked — next items):**
-1. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
-2. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
+1. **Issue #829** — nightly mutation kill rate <70% on main. Hypothesis: completing PR #568 ceremony fixes it (v0.3.0 has 977 tests vs v0.2.0's smaller set). If not, bench must identify low-kill-rate modules. *(Confirm after v0.3.0 ceremony lands.)*
+2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
+3. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
 
 **P2:**
 10. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -132,18 +136,18 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-13 v223)
+## Dispatch state (2026-06-13 v226)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×86 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
-| PM | **DONE ✅** | v223: PR #823 merged (`c2fbc34`, RFC-0126 Phase 3 ✅); PRs #822/#824 closed superseded; issue #819 closed; 0 open issues; PM state v223 written. |
-| rust-implementer | **P1 (unblocked)** | RFC-0126 Phase 3 merged ✅. 0 open issues. Next: dogfood re-run (8/8 CLI commands + SDK round-trip) or identify next P1 callee classification gap. |
-| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then cut `release/v0.3.1`. |
+| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×87 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
+| PM | **DONE ✅** | v226: issue #829 opened; issue #827 CLOSED; live header fixed; decisions.jsonl backfilled v224+v225; PM state v226 written. |
+| rust-implementer | **P1 (unblocked)** | 0 open issues. After v0.3.0 lands: dogfood re-run + confirm issue #829 mutation kill rate resolved. Else: identify next callee-classification language gap. |
+| release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop → cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
 | e2e-runner | **P1 (unblocked)** | Dogfood re-run — SDK packages at v0.3.0 in registries, not blocked on #568 ceremony. |
-| bench | **P1** | RFC-0104 cold SLA nightly benchmark. |
+| bench | **P1** | After v0.3.0 ceremony: verify mutation kill rate on new main (issue #829). Then RFC-0104 cold SLA nightly benchmark. |
 | tech-writer | idle | Skill marketplace prep (P2). |
 
 ---
@@ -174,6 +178,47 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-13 PM dispatch v226 (issue #829 opened; issue #827 CLOSED; live header fixed; decisions.jsonl backfilled)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/testing/tdd/release-governance domains), PM state (fetched develop HEAD `95be1b6` via git checkout, live header stale at v223), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (`release/v0.3.0`, CI 50/50 ✅, founder-gated ×87), #763 (DRAFT RFC-0121, founder-gated Charter §9).
+- 1 open issue at session start: #827 (P2 pm-state live section inertia).
+- CI: develop + main fast-lane all SUCCESS. **Nightly FAILED on main**: job 81167775506 (`mutation testing (kill-rate gate >= 70%)`) — "Enforce >= 70% kill rate" step FAILURE on SHA `54687972` (v0.2.0). Charter §2/§5.4 violation.
+- decisions.jsonl gap: v224/v225 entries missing (appended to audit only, not to decisions.jsonl).
+- pm-state live header: stale at v223 despite v224+v225 running (issue #827).
+
+**Actions taken:**
+1. **Opened issue #829** — nightly mutation kill rate <70% on main (Charter §2/§5.4 violation); P1; root-cause hypothesis: completing PR #568 ceremony advances main to v0.3.0 with 977+ tests, likely resolving. ✅
+2. **Updated pm-state live header** v223 → v226 with current sprint status, escalation count, new P1 issue #829. ✅ (Fixes issue #827 acceptance criteria.)
+3. **Closed issue #827** — live header now updated this dispatch. ✅
+4. **Backfilled v224/v225 update lines** in live priorities inline history. ✅
+5. **Appended decisions.jsonl** v224/v225/v226 entries. ✅
+6. **PM state v226 written** (this archive entry). ✅
+
+**Escalations to founder:**
+- **(1) PR #568** (×87): All 50 CI checks SUCCESS/SKIPPED. Trigger `finalize` workflow_dispatch. Also likely fixes issue #829 mutation kill rate.
+- **(2) PR #763** (DRAFT RFC-0121): Un-draft + merge Charter §2 amendment.
+- **(3) Issue #829** (P1): Nightly mutation kill rate <70% on main. Monitor after PR #568 ceremony.
+
+### 2026-06-13 PM dispatch v225 (audit entry; issue #827 filed; live header still lagging)
+
+**Actions taken:**
+1. Wrote PM state v225 audit entry. PR #828 `chore(hive): PM dispatch v225 audit entry` **MERGED** `95be1b6`. ✅
+2. Acknowledged issue #827 in audit. Live header NOT updated in this dispatch (issue #827 acceptance criteria unmet — deferred to v226). ✅
+
+**Escalations to founder:** (unchanged — PR #568 ×86, PR #763 DRAFT)
+
+### 2026-06-13 PM dispatch v224 (no code work; 2 P0s founder-gated; pm-state archive only)
+
+**Assessment:** 2 open PRs (#568 ×86, #763 DRAFT). 0 open issues. No autonomous code work available. Both blocked on founder.
+
+**Actions taken:**
+1. PM state v224 archive entry appended. PR #826 (chore/pm-state-v224) opened. Live header NOT updated — surfaced as Codex finding on #826, tracked in issue #827 (filed post-PR). ✅
+
+**Escalations to founder:** (unchanged — PR #568 ×86, PR #763 DRAFT)
 
 ### 2026-06-13 PM dispatch v223 (PR #823 merged; PRs #822/#824 closed; issue #819 closed; escalation ×84→×86)
 
