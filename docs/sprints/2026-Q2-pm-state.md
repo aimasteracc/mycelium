@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-12 (PM dispatch v219 — PR #817 (RFC-0125 Phase 2) merged `a6c83af3`; Codex P2 spun off to issue #819 (Phase 3); escalation ×83→×84) |
-| Current sprint | **RFC-0125 IMPLEMENTED** — Phase 1 (CJS require() extractor, PR #814 ✅) + Phase 2 (browser-global classifier, PR #817 ✅ merged `a6c83af3`). JS callee classification 53.8% → expected ≥65%. `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×84 escalations). |
+| Last updated | 2026-06-13 (PM dispatch v222 — RFC-0126 Phase 3 implemented (PR #823 opened); issue #819 closed; escalation ×84→×85) |
+| Current sprint | **RFC-0126 Phase 3 IMPLEMENTED** — browser-global member-call receiver synthesis (`document.querySelector`, `window.open`, `localStorage.getItem` etc → Stdlib). PR #823 CI running. Develop HEAD `ea47f65`. `release/v0.3.0` (PR #568) awaiting founder `finalize` workflow_dispatch (×85 escalations). |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -91,10 +91,10 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v209 update (2026-06-12):** PR #803 **MERGED** `bdad01d` (PM v208 chore; Codex P2 replied — issue #800 correctly OPEN, PR #802 pending). **PR #802 parity fix**: diagnosed `Pack query parity` CI failure (MCP+CLI embedded copies not synced); pushed fix `4d93d565`; Pack query parity ✅ on new run; Quality Gate 22/22 ✅; 0 Codex findings. **PR #802 MERGED** `8b14ecd` (RFC-0113 Phase 5; issue #800 CLOSED). Anti-pattern (syncing only core) already in anti-patterns.jsonl `07:40Z` — pre-flight grep missed. Escalation ×73→×74.
 
 **P0 (founder action required):**
-1. **PR #568** [×84 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×85 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
-**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #809 MERGED `2f47f503`. PR #810 MERGED `7600b9db`.**
+**ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #823 (RFC-0126 Phase 3): CI running, Codex review pending.**
 > **v210 update (2026-06-12):** PR #804 **MERGED** `2961bd3` (PM v209 chore; 20/20 CI ✅). Issue #800 **EXPLICITLY CLOSED** (GitHub does not auto-close on non-default branch merge; closed via API in v210). 0 open issues. Escalation ×74→×75.
 > **v211 update (2026-06-12):** PR #805 **MERGED** `a20f64e` (PM v210 chore; 20/20 CI ✅). RFC-0113 Phase 5 docs updated. Escalation ×75→×76.
 > **v212 update (2026-06-12):** Codex P2 on PR #806 RFC-0113 line 162 FIXED (commit `9581552`). CI deferred (18/22 at session-end). Escalation ×76→×77.
@@ -105,6 +105,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v217 update (2026-06-12):** PR #814 **MERGED** `7e711f4f` (RFC-0125 Phase 1; 24/24 CI ✅; Codex P1 rejected/RFC exists on develop, P2 spun off to issue #816). PR #815 **MERGED** `0cc5bcfd` (PM v217 chore; Codex P2 fixed commit `62c6631`). Issue #816 opened (.cjs extensionless resolution, Phase 2+ scope). Escalation ×82→×83.
 > **v218 update (2026-06-12):** RFC-0125 Phase 2 implemented (browser-global classifier). **PR #817 OPENED** (`feature/RFC-0125-phase2-browser-global-classifier`): `classify_javascript_browser_global` fallback for `.js`/`.jsx`; `fetch` added to `TS_GLOBAL_BUILTINS`; 6 TDD tests (AC-6/7/8/9); RFC-0125 Status → Implemented. 965 tests, 0 failures. CI running. PM state v218 written. Escalation ×82→×83.
 > **v219 update (2026-06-12):** PR #817 **MERGED** `a6c83af3` (RFC-0125 Phase 2 browser-global classifier ✅). Codex P2 spun off → issue #819 (Phase 3: member-call receiver classification). Escalation ×83→×84.
+> **v222 update (2026-06-13):** RFC-0126 Phase 3 IMPLEMENTED — `document.querySelector()`, `window.open()`, `localStorage.getItem()`, `navigator.sendBeacon()` etc. in `.js`/`.jsx` classified Stdlib. Extractor synthesizes `receiver.method` callee names; `classify_javascript_browser_global` splits on `.`. 10 TDD tests (4 classify unit + 3 queries E2E + 3 extractor integration). **PR #823 OPENED** (`feature/RFC-0126-js-member-call-receiver`, CI running). RFC-0126 Status → Implemented, all 7 ACs checked. Issue #819 closed. Escalation ×84→×85.
 
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
@@ -115,10 +116,14 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 6. **PR #809** — RFC-0113 corpus measurement + Status → Implemented. ✅ **MERGED** `2f47f503`. Codex P1 rejected (CI green), P2 rejected (before=0% baseline). RFC-0113 FULLY COMPLETE on develop.
 7. **PR #810** — PM state v214 chore. ✅ **MERGED** `7600b9db`. Codex P2 self-resolved by merge ordering (#809 first).
 
+**P1 (recently completed, continued):**
+8. **PR #820** — fix(packs/js): `.cjs` extensionless `require()` resolves to `.js` not `.cjs`. ✅ **MERGED** `ea47f65`. Issue #816 **CLOSED**.
+9. **PR #823** — RFC-0126 Phase 3 browser-global member-call receiver synthesis. **CI RUNNING** (opened 2026-06-13). Issue #819 closed.
+
 **P1 (unblocked — next items):**
-7. **RFC-0125 Phase 2** → **PR #817 (CI running)** — `classify_javascript_browser_global` fallback for `.js`/`.jsx` files; 6 TDD tests (AC-6/7/8/9). Once CI green + Codex addressed → admin-merge. RFC-0125 Status → Implemented (all 9 ACs). Issue #816 tracks `.cjs` extension resolution (Phase 2+ follow-on).
-8. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
-9. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
+10. **PR #823 merge**: once CI green + Codex addressed → admin-merge.
+11. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
+12. RFC-0104 cold SLA measurement: nightly benchmark data (bench).
 
 **P2:**
 10. Skill marketplace submission to Claude Code marketplace (tech-writer)
@@ -127,13 +132,13 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-12 v219)
+## Dispatch state (2026-06-13 v222)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×83 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
-| PM | **DONE ✅** | v219: PR #817 merged (`a6c83af3`, RFC-0125 Phase 2 ✅); issue #819 opened (Phase 3 member-call receiver); Codex P2s addressed; PM state v219 written. |
-| rust-implementer | **P2 (next)** | RFC-0125 Phase 2 merged ✅. Next: issue #816 (`.cjs` extensionless require fix, P2). Optionally draft RFC for Phase 3 member-call receiver classification (issue #819). |
+| founder | **🚨 action required (P0 ×2)** | **(1) READY**: PR #568 CI 50/50 ✅ (×85 runs) — trigger `finalize` workflow_dispatch. **(2) UNBLOCKED**: PR #763 — un-draft + merge (Charter §9 amendment). |
+| PM | **DONE ✅** | v222: RFC-0126 Phase 3 implemented; PR #823 opened (CI running); PM state v222 written. |
+| rust-implementer | **awaiting PR #823 merge** | RFC-0126 Phase 3 on PR #823 (CI running). Once merged: issue #816 closed (PR #820 ✅), issue #819 closed. Next: Phase 4 chained receivers (deferred). |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop; then cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
 | architect | **DONE ✅** | RFC-0123 MCP facade consolidation spec (PR #747). Requires founder ratification before implementation begins. |
@@ -169,6 +174,28 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-13 PM dispatch v222 (RFC-0126 Phase 3 implemented; PR #823 opened; issue #819 closed; escalation ×84→×85)
+
+**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-5, anti-patterns (tdd/ci/release-governance/packs domains), PM state v219 (develop HEAD `ea47f65`, PR #820 merged), v0.2 PRD. GitHub state assessed.
+
+**Assessment:**
+- 3 open PRs: #568 (release/v0.3.0, 50/50 CI ✅, founder-gated ×84), #763 (DRAFT RFC-0121, BDFL required), #822 (chore/pm-state-v221, Codex addressed in v221 session). Also note: PR #820 MERGED `ea47f65` (fix: .cjs extensionless require → .js; issue #816 closed). 1 open issue: #819 (Phase 3 member-call receiver).
+- Develop HEAD `ea47f65`. 0 blocking issues.
+- Continuing from previous session context: RFC-0126 Phase 3 implementation was complete in context (classify.rs + extractor/mod.rs + extractor/tests.rs + queries.rs all modified, `cargo test --all` 977/977 ✅, fmt ✅, clippy ✅). CHANGELOG.md + RFC file not yet written at context boundary.
+
+**Actions taken:**
+1. **Wrote RFC-0126 file** (`rfcs/0126-javascript-browser-global-member-calls.md`): Status → Implemented, all 7 ACs checked, implementation details documenting the Rust-side receiver synthesis approach. ✅
+2. **Updated CHANGELOG.md** `## [Unreleased] ### Added` — RFC-0126 Phase 3 entry describing synthesized `receiver.method` callee names, 10 TDD tests, no false positives. ✅
+3. **Committed** `96a7ab2` on `feature/RFC-0126-js-member-call-receiver` (DCO signed, Conventional Commit). 6 files changed: CHANGELOG + classify.rs + extractor/mod.rs + extractor/tests.rs + queries.rs + rfcs/0126. ✅
+4. **Pushed** + **PR #823 OPENED** (`feature/RFC-0126-js-member-call-receiver` → develop). CI running. ✅
+5. **PM state v222 written** + decisions.jsonl appended. ✅
+
+**Escalations to founder (P0, ×85 consecutive runs):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch. CI 50/50 ✅, all registries published ✅ (×85 consecutive runs).
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §9 amendment. CI 22/22 ✅.
+
+---
 
 ### 2026-06-12 PM dispatch v217 (PRs #812+#813 merged; RFC-0125 Phase 1 implemented; PR #814 opened; escalation ×81→×82)
 
