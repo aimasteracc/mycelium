@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-14 (PM dispatch v260 — PRs #862 `b2a09e88` + #861 `f14f80df` MERGED; PR #861 lands nightly.yml ENOTDIR fix in release/v0.3.0; PR #568 CI will re-run on new HEAD; escalation ×120)**
+**Last updated: 2026-06-14 (PM dispatch v261 — PR #863 `5e6e06a1` MERGED; PR #568 CI CONFIRMED 50/50 ✅ on HEAD `f14f80df` as of 2026-06-14T21:19Z; escalation ×121)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×120 Escalation (CRITICAL)
+### PR #568 — ×121 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×120 (escalated in v260)
+- **Escalation count**: ×121 (escalated in v261)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
-- **Release branch HEAD**: `f14f80df` (updated in v260 — nightly.yml fix from PR #861 now included). CI will re-run on new HEAD.
-- **Ceremony path (v260 update)**: PR #861 is now MERGED into release/v0.3.0. The prerequisite is satisfied. Founder only needs to: **(1) wait for PR #568 CI to go green on new HEAD `f14f80df`**, then **(2) trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **Blocker**: Founder has not triggered `finalize` despite ×119 escalations over 9+ days (since 2026-06-05).
+- **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
+- **Ceremony path (v261 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
+- **Blocker**: Founder has not triggered `finalize` despite ×120 escalations over 9+ days (since 2026-06-05).
 
 ### ⚠️ Codex Usage Limits Exhausted (NEW — v252)
 
@@ -57,6 +57,12 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #863 — MERGED `5e6e06a1` (v260 → develop)
+
+- **Merged at**: 2026-06-14 (v261)
+- **What it was**: PM dispatch v260 chore — PRs #862+#861 merged; nightly.yml fix in release/v0.3.0; escalation ×120
+- **Dispatch**: v261
 
 ### PR #862 — MERGED `b2a09e88` (v259 → develop)
 
@@ -134,6 +140,34 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-14 PM dispatch v261
+
+**PR #863 `5e6e06a1` MERGED. PR #568 CI CONFIRMED 50/50 ✅ on HEAD `f14f80df` — ALL PREREQUISITES MET for v0.3.0 ceremony. Escalation ×120→×121 on PR #568.**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×121 escalation — release/v0.3.0 ceremony. CI CONFIRMED 50/50 ✅ on `f14f80df` as of 2026-06-14T21:19Z. No remaining prerequisites. Founder triggers `finalize` workflow_dispatch to complete ceremony.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion to "Ready for Review"
+- Codex usage limits exhausted — automated PR reviews unavailable
+
+**P1:**
+- Issue #829: Fix in release/v0.3.0 (`f14f80df`). Resolves on main after ceremony.
+
+**Actions taken this dispatch:**
+- Pre-flight: CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v260, v0.2 PRD ✅
+- Assessed GitHub: 3 open PRs (#568 ceremony, #863 chore, #763 DRAFT); 1 open issue (#829)
+- **Verified CI on PR #568**: 50/50 ✅ on HEAD `f14f80df` as of 2026-06-14T21:19Z — `Quality Gate` ✅, all tests ✅, crates.io/npm/PyPI ✅, `merge to main` SKIPPED (needs `finalize` workflow_dispatch)
+- **Verified CI on PR #863**: 22/22 ✅; Codex exhausted (rule vacuously satisfied); 0 review threads
+- **Merged PR #863** (`5e6e06a1`) — PM dispatch v260 chore ✅
+- Updated PM state to v261; appended decisions.jsonl; PushNotification sent to founder
+- Escalated PR #568 to ×121
+
+**Escalations to founder:**
+1. **PR #568** ×121: **CI is CONFIRMED GREEN on `f14f80df`** — trigger `finalize` workflow_dispatch on release/v0.3.0 NOW to complete the v0.3.0 ceremony
+2. **PR #763**: un-draft RFC-0121 Charter §2 amendment when ready
+3. **Codex**: upgrade usage limits at https://chatgpt.com/codex/cloud/settings/code-review
 
 ---
 
