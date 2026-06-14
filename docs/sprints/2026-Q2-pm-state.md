@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-14 (PM dispatch v251 — PR #852 MERGED `46ffa9f9`)**
+**Last updated: 2026-06-14 (PM dispatch v252 — PR #853 MERGED `c858cc40`)**
 
 ---
 
@@ -21,13 +21,19 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×111 Escalation (CRITICAL)
+### PR #568 — ×112 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder merge or explicit "close as won't fix"
-- **Escalation count**: ×111 (escalated in v251)
-- **What it is**: [describe PR #568 content here]
-- **Blocker**: Founder has not reviewed/merged despite ×111 escalations
+- **Escalation count**: ×112 (escalated in v252)
+- **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. All 50/50 CI ✅. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05. Ceremony steps 1–4 require founder `finalize` workflow_dispatch.
+- **Blocker**: Founder has not triggered `finalize` workflow_dispatch despite ×112 escalations over 9+ days (since 2026-06-05).
 - **PM note**: This is the longest-standing P0 blocker in project history.
+
+### ⚠️ Codex Usage Limits Exhausted (NEW — v252)
+
+- **Status**: Codex code review bot hit usage limits on PR #853 (2026-06-14T12:19:22Z). No automated PR review is available until founder upgrades or adds credits.
+- **Hard Rule impact**: The "Never ignore a Codex review" rule remains enforceable (vacuously — no P1/P2/P3 findings can be generated while limits are exhausted).
+- **Blocker**: Founder must upgrade Codex account or add credits at https://chatgpt.com/codex/cloud/settings/code-review.
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -52,10 +58,16 @@ These items cannot proceed without explicit founder action.
 
 ## Recently Closed / Merged
 
+### PR #853 — MERGED `c858cc40` (v252)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v251 chore — escalation ×111, Codex usage-limit notice
+- **Dispatch**: v252
+
 ### PR #852 — MERGED `46ffa9f9` (v251)
 
 - **Merged at**: 2026-06-14
-- **What it was**: [describe PR #852]
+- **What it was**: PM dispatch v250 chore — escalation ×110
 - **Dispatch**: v251
 
 ---
@@ -73,6 +85,28 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-14 PM dispatch v252
+
+**PR #853 MERGED `c858cc40`. Escalation ×111→×112 on PR #568. Codex usage limits exhausted (new).**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×112 escalation — CRITICAL, release/v0.3.0 ceremony 9+ days pending
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion
+- **NEW**: Codex usage limits exhausted — automated PR reviews unavailable
+
+**P1:**
+- Issue #829: nightly mutation kill rate <70% on main (fix = PR #568 ceremony)
+
+**Actions taken this dispatch:**
+- Merged PR #853 (`c858cc40`) — 20/20 CI ✅, no Codex findings (usage limits hit)
+- Escalated PR #568 to ×112
+- Documented Codex usage limit exhaustion
+- Sent PushNotification to founder
+- Updated PM state file to v252
+- Appended decisions.jsonl through v252
 
 ---
 
