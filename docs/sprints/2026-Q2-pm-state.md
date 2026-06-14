@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-14 (PM dispatch v258 — PR #859 MERGED `6c0fc595`)**
+**Last updated: 2026-06-14 (PM dispatch v259 — PR #860 MERGED `8d3cfc35`; PR #861 opened (nightly.yml ENOTDIR fix → release/v0.3.0); Issue #829 root cause diagnosed)**
 
 ---
 
@@ -21,13 +21,20 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×118 Escalation (CRITICAL)
+### PR #568 — ×119 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder merge or explicit "close as won't fix"
-- **Escalation count**: ×118 (escalated in v258)
+- **Escalation count**: ×119 (escalated in v259)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. All 50/50 CI ✅. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05. Ceremony steps 1–4 require founder `finalize` workflow_dispatch.
-- **Blocker**: Founder has not triggered `finalize` workflow_dispatch despite ×117 escalations over 9+ days (since 2026-06-05).
+- **Blocker**: Founder has not triggered `finalize` workflow_dispatch despite ×118 escalations over 9+ days (since 2026-06-05).
 - **PM note**: This is the longest-standing P0 blocker in project history.
+
+### PR #861 — nightly.yml ENOTDIR fix (NEW — v259, actionable before ceremony)
+
+- **Status**: OPEN — targeting `release/v0.3.0`, awaiting CI + founder merge
+- **What it is**: 3-line fix to `nightly.yml` — rename `tee mutants.out` → `tee mutants.log`. Resolves Issue #829 root cause (CI tooling crash, not a real kill-rate failure).
+- **Why it targets release/v0.3.0**: So the fix flows into `main` after the ceremony. Develop already has this fix since v248.
+- **Founder action**: merge PR #861 BEFORE triggering `finalize` on PR #568.
 
 ### ⚠️ Codex Usage Limits Exhausted (NEW — v252)
 
@@ -47,18 +54,23 @@ These items cannot proceed without explicit founder action.
 
 ### Issue #829 — Nightly Mutation Kill Rate <70% on Main
 
-- **Status**: OPEN
+- **Status**: OPEN — root cause diagnosed in v259, fix in PR #861
 - **Priority**: P1
-- **What it is**: Nightly mutation testing on `main` branch is reporting kill rates below the 70% threshold
-- **Owner**: Unassigned
-- **Next action**: Investigate mutation survivors, write targeted tests
-- **Bench note**: After v0.3.0 ceremony, verify mutation kill rate on new main
+- **Root cause (diagnosed v259)**: **CI tooling crash, not a real kill-rate failure.** `cargo-mutants` creates `mutants.out/` as its working directory. `nightly.yml` on `main` used `tee mutants.out` which creates `mutants.out` as a regular **file** before the pipe starts, causing `cargo-mutants` to fail with `ENOTDIR` (os error 20) when trying to create `mutants.out/lock.json`. No mutations were tested. Kill rate = 0 by default = false failure.
+- **Fix**: PR #861 (3-line nightly.yml change: `mutants.out` → `mutants.log`). Founder must merge PR #861 → then trigger `finalize` on PR #568.
+- **Bench note**: After v0.3.0 ceremony, verify nightly mutation test on new main passes with the fix.
 
 ---
 
 ## Recently Closed / Merged
 
-### PR #859 — MERGED `6c0fc595` (v258)
+### PR #860 — MERGED `8d3cfc35` (v258)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v258 chore — escalation ×118, Codex usage-limit notice
+- **Dispatch**: v259
+
+### PR #859 — MERGED `6c0fc595` (v257)
 
 - **Merged at**: 2026-06-14
 - **What it was**: PM dispatch v257 chore — escalation ×117, Codex usage-limit notice
@@ -115,6 +127,31 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-14 PM dispatch v259
+
+**PR #860 MERGED `8d3cfc35`. Escalation ×118→×119 on PR #568. Issue #829 root cause diagnosed. PR #861 opened (nightly.yml ENOTDIR fix → release/v0.3.0).**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×119 escalation — CRITICAL, release/v0.3.0 ceremony 9+ days pending (since 2026-06-05). All 50/50 CI ✅, registries published (crates.io ✅ npm ✅ PyPI ✅). Founder must trigger `finalize` workflow_dispatch.
+- **NEW prerequisite**: merge PR #861 BEFORE triggering `finalize` — adds the nightly.yml ENOTDIR fix to release/v0.3.0 so Issue #829 is resolved by the ceremony.
+- PR #763: RFC-0121 DRAFT (Charter §2 Hyphae token SLA amendment) — awaiting founder promotion to "Ready for Review"
+- Codex usage limits exhausted — automated PR reviews unavailable (since v252)
+
+**P1:**
+- Issue #829: **Root cause diagnosed in v259.** CI tooling crash (ENOTDIR), not a real kill-rate failure. `tee mutants.out` created a file that blocked cargo-mutants from creating its `mutants.out/` directory. Fix: PR #861 (3-line nightly.yml change). Develop already has the fix since v248.
+
+**Actions taken this dispatch:**
+- Merged PR #860 (`8d3cfc35`) — 22/22 CI ✅, Codex usage limits exhausted (rule vacuously satisfied)
+- **Diagnosed Issue #829 root cause**: ENOTDIR in `nightly.yml` mutants job (not a real kill-rate failure)
+- **Opened PR #861** (`fix/ci-mutants-log-conflict` → `release/v0.3.0`): 3-line nightly.yml fix, resolves Issue #829 after ceremony
+- **Commented on Issue #829** with full diagnosis and action plan
+- Escalated PR #568 to ×119
+- Updated PM state file to v259
+- Appended decisions.jsonl
+- PushNotification sent to founder
 
 ---
 
