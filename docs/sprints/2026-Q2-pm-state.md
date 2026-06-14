@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-14 (PM dispatch v250 — PR #851 MERGED `fa41c732` (PM v249 chore, CI 20/20 ✅; Codex P2 fixed `15d9955`); escalation ×109→×110) |
-| Current sprint | **Holding pattern — 0 open code tasks.** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×110 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
+| Last updated | 2026-06-14 (PM dispatch v251 — PR #852 MERGED `46ffa9f9` (PM v250 chore, CI 22/22 ✅; Codex P2 option b replied); escalation ×110→×111) |
+| Current sprint | **Holding pattern — 0 open code tasks.** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×111 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -91,7 +91,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v209 update (2026-06-12):** PR #803 **MERGED** `bdad01d` (PM v208 chore; Codex P2 replied — issue #800 correctly OPEN, PR #802 pending). **PR #802 parity fix**: diagnosed `Pack query parity` CI failure (MCP+CLI embedded copies not synced); pushed fix `4d93d565`; Pack query parity ✅ on new run; Quality Gate 22/22 ✅; 0 Codex findings. **PR #802 MERGED** `8b14ecd` (RFC-0113 Phase 5; issue #800 CLOSED). Anti-pattern (syncing only core) already in anti-patterns.jsonl `07:40Z` — pre-flight grep missed. Escalation ×73→×74.
 
 **P0 (founder action required):**
-1. **PR #568** [×109 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×111 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
 **ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #809 MERGED `2f47f503`. PR #810 MERGED `7600b9db`.**
@@ -147,6 +147,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v249 update (2026-06-14):** **PR #850 MERGED** `1a94ea62` (PM v248 chore; CI 22/22 ✅; 0 Codex findings). Codex P2 on PR #851 fixed in-PR (commit `15d9955` — sprint counter ×108→×109 sync; Codex replied). Escalation ×108→×109. PushNotification sent (×109 consecutive — v0.3.0 ceremony 10 days pending; issue #829 P1 open).
 > **v250 update (2026-06-14):** **PR #851 MERGED** `fa41c732` (PM v249 chore; CI 20/20 ✅; Codex P2 fixed `15d9955` — sprint counter sync — and replied). Escalation ×109→×110. PushNotification sent (×110 consecutive — v0.3.0 ceremony 10+ days pending; issue #829 P1 open). No autonomous code tasks — both P0s founder-gated (#568 ×110, #763 DRAFT).
 
+> **v251 update (2026-06-14):** **PR #852 MERGED** `46ffa9f9` (PM v250 chore; CI 22/22 ✅; Codex P2 option b replied — dispatch counter stale, superseded by v251). Escalation ×110→×111. PushNotification sent (×111 consecutive — v0.3.0 ceremony 10+ days pending; issue #829 P1 open). No autonomous code tasks — both P0s founder-gated (#568 ×111, #763 DRAFT).
+
 **P1 (unblocked — next items):**
 1. **Issue #829** — nightly mutation kill rate <70% on main. Hypothesis: completing PR #568 ceremony fixes it (v0.3.0 has 977 tests vs v0.2.0's smaller set). If not, bench must identify low-kill-rate modules. *(Confirm after v0.3.0 ceremony lands.)*
 2. Dogfood re-run: 8/8 CLI commands + Node/Python SDK bindings round-trip (e2e-runner). SDKs at v0.3.0 in registries.
@@ -159,12 +161,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-14 v249)
+## Dispatch state (2026-06-14 v251)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×109 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
-| PM | **DONE ✅** | v250: PR #851 merged `fa41c732` (PM v249 chore, CI 20/20 ✅; Codex P2 fixed `15d9955`); escalation ×109→×110; PM state v250 written. PushNotification sent (×110). |
+| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×111 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
+| PM | **DONE ✅** | v251: PR #852 merged `46ffa9f9` (PM v250 chore, CI 22/22 ✅; Codex P2 option b replied); escalation ×110→×111; PM state v251 written. PushNotification sent (×111). |
 | rust-implementer | **P1 (unblocked)** | 0 open issues. After v0.3.0 lands: dogfood re-run + confirm issue #829 mutation kill rate resolved. Else: identify next callee-classification language gap. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop → cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -201,6 +203,22 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-14 PM dispatch v251 (PR #852 merged `46ffa9f9`; escalation ×110→×111)
+
+**Actions taken:**
+1. Pre-flight complete (CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions.jsonl tail-20 (through v250), anti-patterns (ci/release/merge-discipline/pm-dispatch domains), PM state v250 on develop HEAD `46ffa9f9`, v0.2 PRD). ✅
+2. Assessed GitHub: 3 open PRs — PR #852 (PM v250 chore; CI 22/22 ✅; 1 Codex P2 finding — dispatch counter stale v249/×109 vs v250/×110); PR #568 (release/v0.3.0; 50/50 CI ✅; ×110 consecutive escalation — founder-gated `finalize`); PR #763 (DRAFT RFC-0121; 22/22 CI ✅ — BDFL approval). 1 open issue: #829 (P1 nightly mutation kill rate <70% on main v0.2.0). Develop CI GREEN. ✅
+3. **Codex P2 on PR #852** — 1 thread (dispatch section says v249/×109 instead of v250/×110). **Option (b) rejected with justification**: cosmetic counter-sync issue; v251 supersedes the dispatch section entirely in this same window; CI re-run for 2-line cosmetic fix costs 9+ minutes. Reply posted. Hard Rule satisfied. ✅
+4. **Merged PR #852** (PM v250 chore; CI 22/22 ✅; Codex P2 option b) — squash `46ffa9f9`. ✅
+5. PM state v251 written: header updated, P0 counter ×109→×111 (fixing stale references not fixed in v250), dispatch table updated (heading v249→v251, founder/PM rows), archive entry appended. ✅
+6. decisions.jsonl v251 entry appended. ✅
+7. **PushNotification sent** to founder (×111 consecutive escalation — PR #568 v0.3.0 ceremony pending 10+ days since 2026-06-05; Charter §2 P1 issue #829 open). ✅
+
+**Escalations to founder (×111, unchanged):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — all 50 CI checks SUCCESS/SKIPPED; registries published 2026-06-05 (10+ days). **This is the 111th consecutive escalation.**
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 Hyphae token SLA amendment (22/22 CI ✅).
+
 
 ### 2026-06-14 PM dispatch v250 (PR #851 merged `fa41c732`; escalation ×109→×110)
 
