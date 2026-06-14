@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-14 (PM dispatch v243 — PR #845 MERGED `10d07f3` (PM v242 chore, CI ✅; Codex P2 replied — SHA correction `645c797`→`645c796`); escalation ×102→×103) |
-| Current sprint | **Holding pattern — 0 open code tasks.** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×102 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
+| Last updated | 2026-06-14 (PM dispatch v244 — PR #846 MERGED `0599373` (PM v243 chore, CI ✅; 0 Codex findings); escalation ×103→×104) |
+| Current sprint | **Holding pattern — 0 open code tasks.** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×103 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -91,7 +91,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v209 update (2026-06-12):** PR #803 **MERGED** `bdad01d` (PM v208 chore; Codex P2 replied — issue #800 correctly OPEN, PR #802 pending). **PR #802 parity fix**: diagnosed `Pack query parity` CI failure (MCP+CLI embedded copies not synced); pushed fix `4d93d565`; Pack query parity ✅ on new run; Quality Gate 22/22 ✅; 0 Codex findings. **PR #802 MERGED** `8b14ecd` (RFC-0113 Phase 5; issue #800 CLOSED). Anti-pattern (syncing only core) already in anti-patterns.jsonl `07:40Z` — pre-flight grep missed. Escalation ×73→×74.
 
 **P0 (founder action required):**
-1. **PR #568** [×102 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
+1. **PR #568** [×104 consecutive runs] (`release/v0.3.0`, open) — **🚨 IMMEDIATELY ACTIONABLE**: All 50 CI checks are SUCCESS or SKIPPED. Registries published (crates.io ✅, npm ✅, PyPI ✅). Charter §5.12 gate **MET** — trigger `finalize` workflow_dispatch on PR #568 to complete git ceremony (Steps 1–4: merge main + tag v0.3.0 + GitHub Release + back-merge to develop).
 2. **RFC-0121** — DRAFT PR #763 staged (22/22 CI ✅). ✅ **UNBLOCKED**: `bpe_charter_sla_binding` asserts per-class thresholds (tree ≤35%, list ≤70%, scalar ≤90%). Founder can un-draft + merge PR #763 directly.
 
 **ℹ️ Codex — active. PR #763 (DRAFT): 0 comments. PR #568: 1 finding (outdated, replied + issue #560 tracked). PR #809 MERGED `2f47f503`. PR #810 MERGED `7600b9db`.**
@@ -127,6 +127,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v241 update (2026-06-14):** **PR #843 MERGED** `b2787a82` (PM v240 chore; 22/22 CI ✅; 0 Codex findings). **1 open issue: #829 P1** unchanged. No autonomous code tasks — both P0s founder-gated (#568 ×101, #763 DRAFT). Escalation ×100→×101.
 > **v242 update (2026-06-14):** **PR #844 MERGED** `645c796` (SHA corrected from typo `645c797`; PM v241 chore; 22/22 CI ✅; 0 Codex findings). **1 open issue: #829 P1** unchanged. No autonomous code tasks — both P0s founder-gated (#568 ×102, #763 DRAFT). Escalation ×101→×102.
 > **v243 update (2026-06-14):** **PR #845 MERGED** `10d07f3` (PM v242 chore; CI ✅; Codex P2 replied — SHA typo `645c797`→`645c796` corrected in PM state, append-only correction in decisions.jsonl). **1 open issue: #829 P1** unchanged. No autonomous code tasks — both P0s founder-gated (#568 ×103, #763 DRAFT). Escalation ×102→×103.
+> **v244 update (2026-06-14):** **PR #846 MERGED** `0599373` (PM v243 chore; CI ✅; 0 Codex findings). **1 open issue: #829 P1** unchanged. No autonomous code tasks — both P0s founder-gated (#568 ×104, #763 DRAFT). PushNotification sent to founder (×104 consecutive escalation — 10 days since registries published). Escalation ×103→×104.
 **P1 (recently completed):**
 1. **PR #776** — RFC-0113 Phase 2 TypeScript. ✅ **MERGED** `6f6f4a9`.
 2. **PR #793** — RFC-0113 Phase 3 Go stdlib classification. ✅ **MERGED** `3b46ba2`.
@@ -152,12 +153,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-14 v243)
+## Dispatch state (2026-06-14 v244)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×103 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
-| PM | **DONE ✅** | v243: PR #845 merged `10d07f3` (PM v242 chore, CI ✅; Codex P2 replied + SHA corrected); escalation ×102→×103; PM state v243 written. |
+| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×104 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
+| PM | **DONE ✅** | v244: PR #846 merged `0599373` (PM v243 chore, CI ✅; 0 Codex findings); escalation ×103→×104; PM state v244 written. PushNotification sent. |
 | rust-implementer | **P1 (unblocked)** | 0 open issues. After v0.3.0 lands: dogfood re-run + confirm issue #829 mutation kill rate resolved. Else: identify next callee-classification language gap. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop → cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
@@ -194,6 +195,23 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 ---
 
 ## Archive
+
+### 2026-06-14 PM dispatch v244 (PR #846 merged `0599373`; escalation ×103→×104)
+
+**Actions taken:**
+1. Pre-flight complete (CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions.jsonl tail-20 (through v243), anti-patterns (ci/release/merge-discipline/pm-dispatch), PM state v243 on develop `0599373`, v0.2 PRD). ✅
+2. Assessed GitHub: 3 open PRs (#846 CI ✅ 0 Codex findings, #568 50/50 CI ✅ ×103 founder-gated, #763 DRAFT). 1 open issue #829 P1. Develop CI GREEN. ✅
+3. **No Codex findings on PR #846** — clean PR, no action required. ✅
+4. **PushNotification sent** to founder (×104th escalation — PR #568 v0.3.0 ceremony 10 days pending; Charter §2 P1 issue #829 open). ✅
+5. **Merged PR #846** (PM v243 chore; CI ✅; 0 Codex findings) — squash `0599373`. ✅
+6. PM state v244 written (header, dispatch state, inline update, archive entry). ✅
+7. decisions.jsonl v244 entry appended. ✅
+
+**Escalations to founder (×104, unchanged):**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — all 50 CI checks SUCCESS/SKIPPED; registries published 2026-06-05 (10 days). **This is the 104th consecutive escalation.**
+- **(2) PR #763**: Un-draft + merge RFC-0121 Charter §2 Hyphae token SLA amendment (22/22 CI ✅).
+
+---
 
 ### 2026-06-14 PM dispatch v243 (PR #845 merged `10d07f3`; escalation ×102→×103)
 
