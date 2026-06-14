@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-14 (PM dispatch v252 — PR #853 MERGED `c858cc40`)**
+**Last updated: 2026-06-14 (PM dispatch v253 — PR #854 MERGED `695974d`)**
 
 ---
 
@@ -24,7 +24,7 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×112 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder merge or explicit "close as won't fix"
-- **Escalation count**: ×112 (escalated in v252)
+- **Escalation count**: ×113 (escalated in v253)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. All 50/50 CI ✅. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05. Ceremony steps 1–4 require founder `finalize` workflow_dispatch.
 - **Blocker**: Founder has not triggered `finalize` workflow_dispatch despite ×112 escalations over 9+ days (since 2026-06-05).
 - **PM note**: This is the longest-standing P0 blocker in project history.
@@ -58,6 +58,12 @@ These items cannot proceed without explicit founder action.
 
 ## Recently Closed / Merged
 
+### PR #854 — MERGED `695974d` (v253)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v252 chore — escalation ×112, Codex usage-limit notice
+- **Dispatch**: v253
+
 ### PR #853 — MERGED `c858cc40` (v252)
 
 - **Merged at**: 2026-06-14
@@ -85,6 +91,27 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-14 PM dispatch v253
+
+**PR #854 MERGED `695974d`. Escalation ×112→×113 on PR #568.**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×113 escalation — CRITICAL, release/v0.3.0 ceremony 9+ days pending (since 2026-06-05). All 50/50 CI ✅, registries published (crates.io ✅ npm ✅ PyPI ✅). Founder must trigger `finalize` workflow_dispatch.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion to "Ready for Review"
+- Codex usage limits exhausted — automated PR reviews unavailable (since v252)
+
+**P1:**
+- Issue #829: nightly mutation kill rate <70% on main (fix = PR #568 ceremony advancing main to v0.3.0)
+
+**Actions taken this dispatch:**
+- Merged PR #854 (`695974d`) — 22/22 CI ✅, no Codex findings (usage limits exhausted, rule vacuously satisfied)
+- Escalated PR #568 to ×113
+- Updated PM state file to v253
+- Appended decisions.jsonl through v253
+- PushNotification sent to founder
 
 ---
 
