@@ -102,14 +102,14 @@ jobs:
         run: cargo install cargo-mutants --locked
       - name: Run mutation tests
         run: |
-          cargo mutants --workspace --timeout 60 --jobs 4 2>&1 | tee mutants.out
+          cargo mutants --workspace --timeout 60 --jobs 4 2>&1 | tee mutants.log
       - name: Enforce >= 70% kill rate
         shell: bash
         run: |
           # cargo-mutants summary line looks like:
           #   "42 missed, 120 caught, 3 unviable, 5 timeout in 5.00s"
           # We extract caught and missed from that line.
-          SUMMARY=$(grep -E 'missed|caught' mutants.out | tail -1)
+          SUMMARY=$(grep -E 'missed|caught' mutants.log | tail -1)
           echo "Summary line: $SUMMARY"
           CAUGHT=$(echo "$SUMMARY" | grep -oP '\d+(?= caught)')
           MISSED=$(echo "$SUMMARY" | grep -oP '\d+(?= missed)')
@@ -134,5 +134,5 @@ jobs:
         if: always()
         with:
           name: mutants-report
-          path: mutants.out
+          path: mutants.log
           if-no-files-found: ignore
