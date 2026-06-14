@@ -5,8 +5,8 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 | Field | Value |
 |---|---|
 | PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-14 (PM dispatch v247 — PR #848 MERGED `81faab3` (PM v245 chore, CI 20/20 ✅; Codex P2 fixed `ec7a951`); escalation ×105→×107 (v246 abortive — Codex fix + PushNotification only, wall-clock limit)) |
-| Current sprint | **Holding pattern — 0 open code tasks.** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×107 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
+| Last updated | 2026-06-14 (PM dispatch v248 — PR #849 MERGED `711677a62` (PM v247 chore, CI 22/22 ✅; 0 Codex findings); escalation ×107→×108) |
+| Current sprint | **Holding pattern — 0 open code tasks.** P0 ×2 founder-gated (PR #568 v0.3.0 ceremony ×108 escalations; PR #763 RFC-0121). **P1 unblocked**: e2e-runner dogfood 8/8 CLI + SDK round-trip; bench mutation kill rate (issue #829); RFC-0104 cold SLA nightly. |
 | Active release branch | `release/v0.3.0` (PR #568) |
 | Next release target | **v0.3.0** — Node/TS SDK + Python SDK (RFC-0111) + Extends resolution (RFC-0103) + token-efficient MCP output (RFC-0094 Phase 4) |
 | Last shipped (registries) | **v0.3.0 crates.io/npm/PyPI** — published 2026-06-05T17:59Z |
@@ -143,6 +143,7 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 > **v245 update (2026-06-14):** **PR #847 MERGED** `9ca00d1` (PM v244 chore; CI 22/22 ✅; 0 Codex findings). Escalation ×104→×105. PushNotification sent (×105 consecutive — 10 days since v0.3.0 registries published; PR #568 finalize still founder-gated).
 > **v246 update (2026-06-14):** **Abortive session** — Codex P2 fixed on PR #848 (commit `ec7a951`; ×104→×105 live-state inconsistency); PushNotification sent (×106 escalation). PR #848 NOT merged — wall-clock limit during CI test matrix. No PM state update.
 > **v247 update (2026-06-14):** **PR #848 MERGED** `81faab3` (PM v245 chore; CI 20/20 ✅; Codex P2 outdated+fixed `ec7a951`). Escalation ×106→×107. PushNotification sent (×107 consecutive — v0.3.0 ceremony 10 days pending; issue #829 P1 open).
+> **v248 update (2026-06-14):** **PR #849 MERGED** `711677a62` (PM v247 chore; CI 22/22 ✅; 0 Codex findings). Escalation ×107→×108. PushNotification sent (×108 consecutive — v0.3.0 ceremony 10 days pending; issue #829 P1 open). No autonomous code tasks — both P0s founder-gated (#568 ×108, #763 DRAFT).
 
 **P1 (unblocked — next items):**
 1. **Issue #829** — nightly mutation kill rate <70% on main. Hypothesis: completing PR #568 ceremony fixes it (v0.3.0 has 977 tests vs v0.2.0's smaller set). If not, bench must identify low-kill-rate modules. *(Confirm after v0.3.0 ceremony lands.)*
@@ -156,12 +157,12 @@ This file is the **live state** of the PM brain. Update on every cadence checkpo
 
 ---
 
-## Dispatch state (2026-06-14 v247)
+## Dispatch state (2026-06-14 v248)
 
 | Agent | Status | Current item |
 |---|---|---|
-| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×107 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
-| PM | **DONE ✅** | v247: PR #848 merged `81faab3` (PM v245 chore, CI 20/20 ✅; Codex P2 fixed `ec7a951`); escalation ×105→×107 (v246 abortive); PM state v247 written. PushNotification sent (×107). |
+| founder | **🚨 action required (P0 ×2 + P1 ×1)** | **(1) READY**: PR #568 CI 50/50 ✅ (×108 runs) — trigger `finalize` workflow_dispatch → advances main to v0.3.0 + likely fixes issue #829 mutation kill rate. **(2) UNBLOCKED**: PR #763 — un-draft + merge RFC-0121 Charter §2 amendment. |
+| PM | **DONE ✅** | v248: PR #849 merged `711677a62` (PM v247 chore, CI 22/22 ✅; 0 Codex findings); escalation ×107→×108; PM state v248 written. PushNotification sent (×108). |
 | rust-implementer | **P1 (unblocked)** | 0 open issues. After v0.3.0 lands: dogfood re-run + confirm issue #829 mutation kill rate resolved. Else: identify next callee-classification language gap. |
 | release | **awaiting founder** | After PR #568 finalizes: post-release back-merge lands on develop → cut `release/v0.3.1`. |
 | security-reviewer | idle | Next scan: post-v0.3.0 (after back-merge lands on develop). |
