@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-14 (PM dispatch v256 — PR #857 MERGED `17958f34`)**
+**Last updated: 2026-06-14 (PM dispatch v257 — PR #858 MERGED `edb17606`)**
 
 ---
 
@@ -21,12 +21,12 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×116 Escalation (CRITICAL)
+### PR #568 — ×117 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder merge or explicit "close as won't fix"
-- **Escalation count**: ×116 (escalated in v256)
+- **Escalation count**: ×117 (escalated in v257)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. All 50/50 CI ✅. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05. Ceremony steps 1–4 require founder `finalize` workflow_dispatch.
-- **Blocker**: Founder has not triggered `finalize` workflow_dispatch despite ×114 escalations over 9+ days (since 2026-06-05).
+- **Blocker**: Founder has not triggered `finalize` workflow_dispatch despite ×117 escalations over 9+ days (since 2026-06-05).
 - **PM note**: This is the longest-standing P0 blocker in project history.
 
 ### ⚠️ Codex Usage Limits Exhausted (NEW — v252)
@@ -57,6 +57,12 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #858 — MERGED `edb17606` (v257)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v256 chore — escalation ×116, Codex usage-limit notice
+- **Dispatch**: v257
 
 ### PR #857 — MERGED `17958f34` (v256)
 
@@ -103,6 +109,27 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-14 PM dispatch v257
+
+**PR #858 MERGED `edb17606`. Escalation ×116→×117 on PR #568.**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×117 escalation — CRITICAL, release/v0.3.0 ceremony 9+ days pending (since 2026-06-05). All 50/50 CI ✅, registries published (crates.io ✅ npm ✅ PyPI ✅). Founder must trigger `finalize` workflow_dispatch.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion to "Ready for Review"
+- Codex usage limits exhausted — automated PR reviews unavailable (since v252)
+
+**P1:**
+- Issue #829: nightly mutation kill rate <70% on main (fix = PR #568 ceremony advancing main to v0.3.0)
+
+**Actions taken this dispatch:**
+- Merged PR #858 (`edb17606`) — 3/3 CI ✅, Codex usage limits exhausted (rule vacuously satisfied)
+- Escalated PR #568 to ×117
+- Updated PM state file to v257
+- Appended decisions.jsonl through v257
+- PushNotification sent to founder
 
 ---
 
