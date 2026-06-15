@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-15 (PM dispatch v271 — PR #879 MERGED (v270 chore); Issue #872 CLOSED; PR #568 escalation ×131)**
+**Last updated: 2026-06-15 (PM dispatch v273 — PR #881 CI-pending (Codex P1 fixed, commit 5b5ff62); PR #568 escalation ×133)**
 
 ---
 
@@ -21,20 +21,26 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×131 Escalation (CRITICAL)
+### PR #568 — ×133 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×131 (escalated in v271)
+- **Escalation count**: ×133 (escalated in v273)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×130 escalations over 10+ days (since 2026-06-05).
+- **Blocker**: Founder has not triggered `finalize` despite ×133 escalations over 10+ days (since 2026-06-05).
+
+### PR #881 — CI PENDING (PM dispatch v272 chore)
+
+- **Status**: OPEN — CI running on fix commit `5b5ff62` (all fast checks ✅, matrix + coverage in_progress)
+- **What it is**: PM dispatch v272 chore — PR #880 merged, Codex P1 fixed (restored deleted v13 entry in decisions.jsonl)
+- **Codex P1** (r3412502211): **FIXED** — commit `5b5ff62` restores deleted `decisions.jsonl` v13 stub entry. Reply posted. Charter append-only satisfied.
+- **Next action (FIRST THING next run)**: Once Quality Gate shows ✅ → `gh pr merge #881 --admin --squash --delete-branch`
 
 ### ✅ Codex Usage Limits — RESTORED (v268)
 
-- **Status**: Codex reviewed PR #870 successfully (2026-06-15T04:32:20Z) with 2 findings (P1, P2) — limits are back online.
-- **Hard Rule impact**: Full enforcement restored. All P1/P2 findings on PR #870 addressed before close (→ issues #871, #872).
-- **Note**: PR #870 was closed superseded; next PM chore PR (#871 this session) will receive Codex review normally.
+- **Status**: Codex reviewed PRs actively — limits online.
+- **Hard Rule impact**: Full enforcement active.
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -195,6 +201,34 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-15 PM dispatch v273
+
+**Codex P1 on PR #881 FIXED (commit 5b5ff62 restores deleted decisions.jsonl v13 entry). PR #881 CI pending. PR #568 escalation ×132→×133.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-40, anti-patterns (domains: ci/release-governance/merge-discipline), PM state v271/v272 (develop HEAD `e980845c`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #881 (PM v272 chore, 1 live Codex P1 r3412502211), #568 (release, founder gate ×132), #763 (DRAFT RFC-0121)
+- 1 open issue: #829 (P1, mutation kill rate on main — blocked on #568 ceremony)
+- Develop CI: ✅ GREEN (HEAD `e980845c`)
+
+**Actions taken:**
+1. **Diagnosed Codex P1 on PR #881** (r3412502211): PR #881 (`chore/pm-state-v272` branch) deleted the first line of `.hive/memory/decisions.jsonl` — the stub v13 entry (`ts: 2026-06-03T00:00:00Z`). This is a Charter Hard Rule violation (append-only memory). ✅
+2. **Fixed Codex P1**: Fetched `origin/chore/pm-state-v272`, prepended the deleted v13 line, committed `5b5ff62` (`fix(memory): restore deleted decisions.jsonl v13 entry`), pushed. Reply posted to Codex thread. ✅
+3. **CI re-triggered on PR #881**: fast checks all ✅ (DCO, commit lint, governance guardrails, clippy, rustfmt, Skill coverage, real projects ×2, dogfood, security, unit tests); matrix + coverage + build in_progress at dispatch close.
+4. **Updated PM state to v273**. ✅
+5. **Appended decisions.jsonl** ✅
+6. **PR #882 opened** (this PR). ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×133: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. Trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+
+**Next run first action**: Check PR #881 Quality Gate → if ✅ merge immediately (squash, delete branch).
 
 ---
 
