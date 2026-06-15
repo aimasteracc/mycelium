@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-15 (PM dispatch v272 — PR #880 MERGED (v271 chore + Codex P2 rejected); PR #568 escalation ×132)**
+**Last updated: 2026-06-15 (PM dispatch v274 — PR #881 MERGED `b76ea5f1` (v272 chore + Codex P1 fixed); PR #882 CLOSED superseded; PR #568 escalation ×134)**
 
 ---
 
@@ -21,20 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×132 Escalation (CRITICAL)
+### PR #568 — ×134 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×132 (escalated in v272)
+- **Escalation count**: ×134 (escalated in v274)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×132 escalations over 10+ days (since 2026-06-05).
-
-### ✅ Codex Usage Limits — RESTORED (v268)
-
-- **Status**: Codex reviewed PR #870 successfully (2026-06-15T04:32:20Z) with 2 findings (P1, P2) — limits are back online.
-- **Hard Rule impact**: Full enforcement restored.
-- **Note**: PR #880 Codex P2 (blocker sentence ×130) rejected with justification in v272 — superseded by this document.
+- **Blocker**: Founder has not triggered `finalize` despite ×134 escalations over 10+ days (since 2026-06-05).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -57,6 +51,17 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #882 — CLOSED SUPERSEDED (v273 chore → superseded by v274)
+
+- **Closed at**: 2026-06-15 (v274)
+- **What it was**: PM dispatch v273 state chore — reported Codex P1 fix on PR #881. Had 3 live Codex P2 findings (r3412698735: missing v272 memory record; r3412698755: shell comment in merge command; r3412698775: PR #881 miscategorized as founder-gated). All findings replied to before close. CI 22/22 ✅.
+- **Why closed**: Conflict on decisions.jsonl after PR #881 merge; all 3 Codex P2 corrections incorporated into v274 directly.
+
+### PR #881 — MERGED `b76ea5f1` (PM dispatch v272 chore → develop)
+
+- **Merged at**: 2026-06-15 (v274)
+- **What it was**: PM dispatch v272 state chore — PR #880 merged (`e980845c`), Codex P2 (r3411947817) rejected. Had 1 Codex P1 finding (r3412502211: deleted v13 decisions.jsonl entry) — fixed via commit `5b5ff62` by v273. Codex P1 thread is outdated (finding resolved). CI 20/20 ✅.
 
 ### PR #880 — MERGED `e980845c` (PM dispatch v271 chore → develop)
 
@@ -154,6 +159,47 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-15 PM dispatch v274
+
+**PR #881 MERGED `b76ea5f1` (v272 chore). PR #882 CLOSED superseded. All 3 Codex P2 findings on #882 replied to. Develop CI ✅ GREEN. PR #568 escalation ×133→×134.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/release-governance/merge-discipline/pm-dispatch/git-workflow), PM state v272 (develop HEAD `b76ea5f1`), v0.2 PRD.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate — blocked on #568 ceremony)
+- 4 open PRs at session start: #881 (PM v272 chore, CI 20/20 ✅, Codex P1 outdated/fixed via `5b5ff62`), #882 (PM v273, CI 22/22 ✅, 3 live Codex P2 findings), #568 (release, founder gate, CI 50/50 ✅ `f14f80df`), #763 (DRAFT RFC-0121, founder gate)
+- Develop CI: ✅ GREEN
+
+**Actions taken:**
+1. **Replied to all 3 Codex P2 findings on PR #882** — r3412698735 (missing v272 record): fix is merge #881 first + supersede #882 ✅; r3412698755 (shell comment): `gh pr merge 881` going forward ✅; r3412698775 (miscategorization): #881 is autonomous-merge, corrected in v274 ✅
+2. **Merged PR #881** (`b76ea5f1`) — PM dispatch v272 chore. CI 20/20 ✅, Codex P1 outdated (fixed by `5b5ff62`). ✅
+3. **Closed PR #882** as superseded — conflict on decisions.jsonl after #881 merge; 3 Codex P2 corrections incorporated into v274 directly. ✅
+4. **Updated PM state to v274** — escalation ×134; all Codex P2 issues from #882 fixed. ✅
+5. **Appended decisions.jsonl** (v273 + v274 entries) ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×134: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. Please trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+
+---
+
+### 2026-06-15 PM dispatch v273
+
+**Codex P1 FIXED on PR #881 (r3412502211: deleted v13 entry restored via commit `5b5ff62`). PR #882 opened. PR #568 escalation ×132→×133.**
+
+*(This dispatch's PM state PR #882 was superseded without merge — the v273 decisions.jsonl entry is appended to memory in v274.)*
+
+**Actions taken:**
+1. **Diagnosed Codex P1 on PR #881** — deleted v13 stub entry in `.hive/memory/decisions.jsonl` (Charter Hard Rule: append-only memory violated). ✅
+2. **Fixed Codex P1**: fetched `origin/chore/pm-state-v272`, prepended deleted v13 stub line, committed `5b5ff62` (`fix(memory): restore deleted decisions.jsonl v13 entry`), pushed. Reply posted (comment #3412636366). ✅
+3. **PR #882 opened** — v273 PM state chore reporting the fix. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×133: CI 50/50 ✅ `f14f80df`. Please trigger `finalize` workflow_dispatch on `release/v0.3.0`.
 
 ---
 
