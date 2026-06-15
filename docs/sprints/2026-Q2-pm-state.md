@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-15 (PM dispatch v269 — PR #873 MERGED (v268 chore); Issue #871 CLOSED (already-fixed in develop); PR #874 OPENED (fix/npm-linux-libc-constraint, Issue #872); PR #568 escalation ×129)**
+**Last updated: 2026-06-15 (PM dispatch v270 — PRs #874/#875/#876/#877/#878 MERGED; Issue #872 CLOSED; dep bumps uuid/regex/insta landed; PR #568 escalation ×130)**
 
 ---
 
@@ -24,7 +24,7 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×128 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×129 (escalated in v269)
+- **Escalation count**: ×130 (escalated in v270)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
@@ -57,6 +57,31 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #878 — MERGED `2c3074f` (insta 1.47.2→1.48.0 → develop)
+
+- **Merged at**: 2026-06-15 (v270)
+- **What it was**: Dependabot bump — `insta` 1.47.2 → 1.48.0 (strip_ansi, YAML literal blocks, CI=true override). CI 22/22 ✅, 0 Codex findings.
+
+### PR #877 — MERGED `3a527fe` (regex 1.12.3→1.12.4 → develop)
+
+- **Merged at**: 2026-06-15 (v270)
+- **What it was**: Dependabot bump — `regex` 1.12.3 → 1.12.4 (perf: large char class compile). CI 22/22 ✅, 0 Codex findings.
+
+### PR #876 — MERGED `94c441e` (uuid 1.23.2→1.23.3 → develop)
+
+- **Merged at**: 2026-06-15 (v270)
+- **What it was**: Dependabot bump — `uuid` 1.23.2 → 1.23.3 (parser panic on empty input fix). CI 22/22 ✅, 0 Codex findings.
+
+### PR #875 — MERGED `535ed5b` (PM dispatch v269 chore → develop)
+
+- **Merged at**: 2026-06-15 (v270)
+- **What it was**: PM dispatch v269 state chore.
+
+### PR #874 — MERGED `6a9e86b` (libc fix → develop) / Issue #872 CLOSED
+
+- **Merged at**: 2026-06-15 (v270)
+- **What it was**: `fix(npm): add libc glibc constraint to Linux platform packages` — closes Issue #872. Adds `"libc": ["glibc"]` to linux-x64-gnu and linux-arm64-gnu platform `package.json` entries so npm 8.7+ on Alpine/musl skips incompatible glibc binaries. CI 22/22 ✅, 0 Codex findings.
 
 ### PR #870 — CLOSED SUPERSEDED (v267 stale branch)
 
@@ -165,6 +190,33 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-15 PM dispatch v270
+
+**PRs #874/#875 MERGED (libc fix + v269 chore). Dependabot PRs #876/#877/#878 MERGED (uuid/regex/insta bumps). Issue #872 CLOSED. Develop CI ✅ GREEN. PR #568 escalation ×130.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/release-governance/npm), PM state v269, v0.2 PRD.
+
+**Assessment:**
+- 2 open issues: #872 (P2, libc — addressed by #874), #829 (P1, mutation kill rate — blocked on #568 ceremony)
+- 7 open PRs at session start: #763 (DRAFT, founder gate), #568 (release, founder gate), #874 (#872 libc fix, CI 22/22 ✅), #875 (v269 chore, CI 22/22 ✅), #876/#877/#878 (dependabot, CI ✅)
+- 0 Codex review findings on any PR
+- Develop CI: ✅ GREEN (post-v269 develop HEAD `15f6315` → `2c3074f` after all merges)
+
+**Actions taken:**
+1. **Merged PR #874** (`6a9e86b`) — libc glibc constraint fix. Closes Issue #872. ✅
+2. **Merged PR #875** (`535ed5b`) — PM dispatch v269 chore. ✅
+3. **Merged PR #876** (`94c441e`) — dependabot uuid 1.23.2→1.23.3. ✅
+4. **Merged PR #877** (`3a527fe`) — dependabot regex 1.12.3→1.12.4. ✅
+5. **Merged PR #878** (`2c3074f`) — dependabot insta 1.47.2→1.48.0. ✅
+6. **Appended decisions.jsonl** ✅
+7. **PR #880 opened** — PM dispatch v270 chore ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×130: release/v0.3.0 ceremony ALL PREREQUISITES MET (CI 50/50 ✅ `f14f80df`). Please trigger `finalize` workflow_dispatch.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
 
 ---
 
