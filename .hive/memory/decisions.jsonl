@@ -1,3 +1,4 @@
+{"ts": "2026-06-03T00:00:00Z", "agent": "orchestrator", "action": "pm-dispatch", "decision": "PM dispatch v13 (2026-06-03): PR #506 merged. No open P0. Dispatched rust-implementer to RFC-0082.", "rationale": "Post-merge state", "ref": "v13", "artifacts": []}
 {"ts": "2026-06-03T01:00:00Z", "agent": "orchestrator", "action": "pm-dispatch", "decision": "PM dispatch v14: RFC-0082 RED phase confirmed. rust-implementer proceeding to GREEN.", "rationale": "TDD RED phase", "ref": "v14", "artifacts": []}
 {"ts": "2026-06-03T02:00:00Z", "agent": "orchestrator", "action": "pm-dispatch", "decision": "PM dispatch v15: GREEN achieved on RFC-0082 core tests. Moving to refactor.", "rationale": "TDD GREEN", "ref": "v15", "artifacts": []}
 {"ts": "2026-06-03T03:00:00Z", "agent": "orchestrator", "action": "pm-dispatch", "decision": "PM dispatch v16: RFC-0082 refactor complete. Quality gate passed. Opening PR.", "rationale": "Quality gate", "ref": "v16", "artifacts": []}
