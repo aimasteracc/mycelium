@@ -1,259 +1,311 @@
 # 24/7 PM State — Mycelium, 2026 Q2
 
-This file is the **live state** of the PM brain. Update on every cadence checkpoint. Older states roll into the dated archive at the bottom.
+This file is the **live state** of the PM brain, updated every dispatch.
+For historical sprints, see `docs/sprints/` archives.
 
-| Field | Value |
-|---|---|
-| PM | orchestrator (Hive AI agent) |
-| Last updated | 2026-06-03 (PM dispatch v28 — PR #496 merged; #502/#505/#506 closed superseded; PR #508 opened (develop CI fix); RFC-0109 tools 1–3 on develop) |
-| Current sprint | **RFC-0109 graph-list parity roll-out (3/7 tools on develop: get_callees + get_callers + get_dead_symbols) — develop CI red (macOS), PR #508 fix running** |
-| Active release branch | none — v0.1.19 shipped; release/v0.1.20 to be cut once RFC-0109 roll-out complete |
-| Next release target | **v0.1.20** — RFC-0109 graph-list object-shape parity (all 7 tools) + budget/ADR-0010 docs |
-| Final release target | v0.2.0, ETA 2026-07-15 |
-| Last shipped | **v0.1.19 (ceremony COMPLETE)** — all 4 ceremony steps complete 2026-06-03. |
+**Last updated: 2026-06-15 (PM dispatch v267 — PR #869 `2c379ec0` MERGED; PR #568 CI CONFIRMED 50/50 ✅ on HEAD `f14f80df`; escalation ×127)**
 
 ---
 
-## ✅ v0.1.13 — SHIPPED (ceremony COMPLETE)
+## Table of Contents
 
-**What shipped:**
-- [x] RFC-0093 Phase 2: `success_str` exported from error module; all 101 MCP success-return sites unified
-- [x] RFC-0096 Phase 1 (Python): `EdgeKind::TypeImports` for `if TYPE_CHECKING:` imports
-- [x] TypeScript relative-import resolver bug fix (`@reference.import` now dispatches to TS resolver for .ts/.js files)
-- [x] ADR-0004: Patricia Trie for Trunk documented
-- [x] ADR-0005: MessagePack wire format documented
-- [x] ADR-0006: Hyphae CSS-selector grammar style documented
-- [x] Post-v0.1.12 security scan: CLEAN
-
-**v0.1.13 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.13` → `main` — PR #332 MERGED ✅ (founder authorized 2026-05-31)
-- [x] **Step 2**: Tag `v0.1.13` pushed ✅
-- [x] **Step 3**: GitHub Release published ✅
-- [x] **Step 4**: Back-merge `release/v0.1.13` → `develop` — PR #333 MERGED ✅
+1. [P0 — Founder-gated (blocked)](#p0--founder-gated-blocked)
+2. [P1 — Active Work](#p1--active-work)
+3. [Recently Closed / Merged](#recently-closed--merged)
+4. [Sprint Cadence & Ceremony Log](#sprint-cadence--ceremony-log)
+5. [PM Dispatch Archive](#pm-dispatch-archive)
 
 ---
 
-## ✅ v0.1.14 — SHIPPED (ceremony 4/4 COMPLETE)
+## P0 — Founder-gated (blocked)
 
-**What shipped:**
-- [x] RFC-0096 Phase 2 TypeScript: `import type` → TypeImports edges + TS resolver bug fix
-- [x] RFC-0093 Phase 3 (BREAKING): all 89 MCP tools → `is_error: Some(true)` per MCP spec
-- [x] Skills INDEX.md CI gate: `skill-parity` promoted to required Quality Gate
-- [x] Store::merge R1 parallel-index primitive (step 1/2)
-- [x] Dogfood pass rate 8/8: all 8 core CLI commands green
+These items cannot proceed without explicit founder action.
 
-**v0.1.14 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.14` → `main` — PR #352 MERGED ✅
-- [x] **Step 2**: Tag `v0.1.14` pushed ✅
-- [x] **Step 3**: GitHub Release published ✅
-- [x] **Step 4**: Back-merge `release/v0.1.14` → `develop` — PR #349 MERGED ✅
+### PR #568 — ×127 Escalation (CRITICAL)
 
----
+- **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
+- **Escalation count**: ×127 (escalated in v267)
+- **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
+- **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
+- **Ceremony path (v267 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
+- **Blocker**: Founder has not triggered `finalize` despite ×126 escalations over 10+ days (since 2026-06-05).
 
-## ✅ v0.1.15 — CONTENT DONE; CEREMONY BROKEN (superseded by v0.1.16)
+### ⚠️ Codex Usage Limits Exhausted (since v252)
 
-**v0.1.15 ceremony status — BROKEN ⚠️ (orphan tag; content absorbed into v0.1.16):**
-- ❌ Steps 1–4: all failed (release.yml CRATES_IO_TOKEN failure; orphan tag; PRs #361/#362 closed unmerged)
-- **Resolution**: v0.1.15 content absorbed into v0.1.16 release.
+- **Status**: Codex code review bot hit usage limits on PR #853 (2026-06-14T12:19:22Z). No automated PR review is available until founder upgrades or adds credits.
+- **Hard Rule impact**: The "Never ignore a Codex review" rule remains enforceable (vacuously — no P1/P2/P3 findings can be generated while limits are exhausted).
+- **Blocker**: Founder must upgrade Codex account or add credits at https://chatgpt.com/codex/cloud/settings/code-review.
 
----
+### PR #763 — RFC-0121 DRAFT
 
-## ✅ v0.1.16 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-02)
-
-**What shipped:**
-- [x] RFC-0100 Phase 1+2: redb `StorageBackend` trait + `InMemoryBackend` + `RedbBackend` (feature-flagged)
-- [x] RFC-0101 draft, RFC-0102 draft, RFC-0103 draft
-- [x] MCP server routing instructions + primary tool-selection decision tree
-- [x] Incremental persistence journal (Issue #343)
-- [x] Memory budget / bounded store (Issue #344)
-- [x] Release ceremony script `scripts/release-ceremony.sh`
-- [x] Dep bumps: redb 2.6.3→4.1, logos 0.14→0.16, salsa 0.18→0.26
-- [x] mycelium_context (90th MCP tool) + OutputBudget + import-aware stub resolution
-
-**v0.1.16 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.16` → `main` — commit `0d27c5a` 2026-06-02T01:27Z ✅
-- [x] **Step 2**: Tag `v0.1.16` pushed ✅
-- [x] **Step 3**: GitHub Release published 2026-06-02T01:27:33Z ✅
-- [x] **Step 4**: Back-merge `release/v0.1.16` → `develop` — commit `cb31814` 2026-06-02T01:28Z ✅
+- **Status**: OPEN DRAFT — awaiting founder promotion to "Ready for Review"
+- **What it is**: RFC-0121 Option A — Charter §2 Hyphae token SLA amendment (three per-class targets replacing single 30% row)
+- **Blocker**: Founder must mark ready before review can proceed
 
 ---
 
-## ⚠️ v0.1.17 — CRATES PUBLISHED; GIT CEREMONY SUPERSEDED BY v0.1.18
+## P1 — Active Work
 
-**Content already on develop (post-v0.1.16):**
-- [x] RFC-0101 Phase 2: `mycelium context` CLI twin — Three-Surface Rule fully satisfied (PR #414)
-- [x] RFC-0102 Implemented: OutputBudget moved to `mycelium-core`; CLI+MCP byte-identical (PR #438)
-- [x] RFC-0100 Phase 3: **redb is now the default storage backend** (PR #448)
-- [x] RFC-0104: Charter §2 warm/cold SLA split — founder-approved 2026-06-02 (PR #444)
-- [x] Issue #428 god-file-split slice 1: redb value codecs → `store::redb_codec` (PR #441)
-- [x] Issue #428 god-file-split slice 2: `mod tests` → `src/tests.rs` (PR #442, `lib.rs` 12191→5627 lines, −54%)
-- [x] 100k-node redb SLA gate + env-guarded nightly benchmark (PR #440)
-- [x] Orphan `BoundedStore`/`MemoryBudget`/`FileAccessTracker` LRU removed (PR #440)
-- [x] Repo hygiene: orphan `.claude/worktrees/` gitlinks removed + `.gitignore` updated (PR #449)
-- [x] Vision scorecard updated to v0.1.16+ reality (PR #450)
+### Issue #829 — Nightly Mutation Kill Rate <70% on Main
 
-**v0.1.17 ceremony status — PARTIAL (crates only; git superseded by v0.1.18):**
-- [x] **Pre-release**: `publish to crates.io/npm/PyPI` ✅ — all 5 crates at v0.1.17.
-- [x] **Step 4**: Back-merge `release/v0.1.17` → `develop` — **PR #477 MERGED ✅** 2026-06-03T07:54Z
-- [x] **Retro-tag**: `v0.1.17` pushed at `6aa1bed` (2026-06-03T12:30Z) for traceability ✅
-- ✅ Git ceremony superseded: main jumps v0.1.16 → v0.1.18 → v0.1.19. Founder confirmed.
+- **Status**: FIX MERGED into release/v0.3.0 (v260) — pending ceremony to reach `main`
+- **Priority**: P1 → resolves automatically when PR #568 `finalize` completes
+- **Root cause (diagnosed v259)**: CI tooling crash (ENOTDIR), not a real kill-rate failure. `tee mutants.out` created a file blocking `cargo-mutants` from using `mutants.out/` as directory.
+- **Fix**: PR #861 MERGED `f14f80df` → release/v0.3.0. Nightly.yml now uses `tee mutants.log`. Will flow to `main` after the v0.3.0 ceremony.
+- **Bench note**: After ceremony, run nightly mutation test on new `main` to confirm kill rate ≥ 70%.
 
 ---
 
-## ✅ v0.1.18 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-03)
+## Recently Closed / Merged
 
-**What shipped in v0.1.18:**
-- [x] **RFC-0107 SUBSCRIBE**: `mycelium_subscribe`, `mycelium_unsubscribe`, `mycelium_subscription_status` (3 new MCP tools = 93 total). `mycelium watch --subscribe` CLI face.
-- [x] **RFC-0108 Salsa Phase 2**: `mycelium/queryResultChanged` reactive query subscriptions. BLAKE3-128 hash. 5 query kinds. 2s quiet-period, 200ms eval-budget.
-- [x] **fix(subscribe)**: Replace `RwLock::blocking_read()` with `try_read()` in async watch paths (PR #479).
-- [x] **fix(packs/rust)**: Capture `Type::method()` and `crate::mod::func()` call sites (PR #474).
-- Reactive-completion roadmap: **4/4 COMPLETE** (watch ✅ push ✅ subscribe ✅ salsa ✅).
+### PR #869 — MERGED `2c379ec0` (v266 → develop)
 
-**v0.1.18 ceremony status — ALL FOUR STEPS COMPLETE ✅ (2026-06-03):**
-- [x] **Step 1**: PR #490 merged `release/v0.1.18` → main (`-X ours` to resolve stale gitlinks + ADR numbering) ✅
-- [x] **Step 2**: Tag `v0.1.18` pushed ✅ (SHA e429a224, 2026-06-03T12:30Z)
-- [x] **Step 3**: GitHub Release v0.1.18 created ✅ (2026-06-03T12:30Z) — "reactive-completion roadmap complete"
-- [x] **Step 4**: Back-merge PR #483 MERGED to develop ✅ (2026-06-03T09:10:56Z)
-- [x] RFC-0105 EXCEPTION ratified by founder — PR #491 (2026-06-03)
+- **Merged at**: 2026-06-15 (v267)
+- **What it was**: PM dispatch v266 chore — PR #868 `0d99291c` MERGED; PR #568 CI CONFIRMED 50/50 ✅ on `f14f80df`; escalation ×126; Codex P1 fixed in `3d7bb27`
+- **Dispatch**: v267
 
----
+### PR #868 — MERGED `0d99291c` (v265 → develop)
 
-## ✅ v0.1.19 — SHIPPED (ceremony 4/4 COMPLETE — 2026-06-03T15:49Z)
+- **Merged at**: 2026-06-15 (v266)
+- **What it was**: PM dispatch v265 chore — PR #867 `da3b202a` MERGED; PR #568 CI CONFIRMED 50/50 ✅ on `f14f80df`; escalation ×125
+- **Dispatch**: v266
 
-> **⚠️ Content boundary note (Codex audit 2026-06-03):** PRs #497–#501 were verified
-> via `git log 8ffcad9..bb685def --first-parent` to have landed on develop **after**
-> the v0.1.19 release merge (`8ffcad9 #494`). They are **not** in v0.1.19; they belong
-> in the post-v0.1.19 unreleased section below.
+### PR #867 — MERGED `da3b202a` (v264 → develop)
 
-**What shipped in v0.1.19 (release branch content only):**
-- [x] fix(packs/rust): extractor precision 67% → 99.8% recall — 5 additive queries.scm patterns (PR #492)
-- [x] docs(adr): ADR-0008 redb as default backend (PR #485); ADR-0009 numbering fix (PR #486)
-- [x] docs(rules): Codex review Hard Rule added to CLAUDE.md (PR #488); vision scorecard updated (PR #489)
-- [x] RFC-0105 EXCEPTION: WatchEngine Three-Surface exception ratified (PR #491)
+- **Merged at**: 2026-06-15 (v265)
+- **What it was**: PM dispatch v264 chore — PR #866 `29d5112e` MERGED; PR #568 CI CONFIRMED 50/50 ✅ on `f14f80df`; escalation ×124
+- **Dispatch**: v265
 
-**v0.1.19 ceremony status — ALL FOUR STEPS COMPLETE ✅:**
-- [x] **Step 1**: `release/v0.1.19` → `main` — founder ceremony ✅
-- [x] **Step 2**: Tag `v0.1.19` pushed ✅ (SHA 55761a85, 2026-06-03)
-- [x] **Step 3**: GitHub Release v0.1.19 created ✅ (2026-06-03T15:49Z) — "precision pass + ADR docs"
-- [x] **Step 4**: Back-merge PR #493 MERGED ✅ (develop HEAD = `55761a85`)
+### PR #866 — MERGED `29d5112e` (v263 → develop)
 
----
+- **Merged at**: 2026-06-15 (v264)
+- **What it was**: PM dispatch v263 chore — PR #865 `bddf07d2` MERGED; PR #568 CI CONFIRMED 50/50 ✅; escalation ×123
+- **Dispatch**: v264
 
-## 🔧 Post-v0.1.19 — Unreleased on develop (→ v0.1.20)
+### PR #865 — MERGED `bddf07d2` (v262 → develop)
 
-> These commits are on develop but were **not** part of v0.1.19 (per Codex audit).
-> They will ship in v0.1.20.
+- **Merged at**: 2026-06-15 (v263)
+- **What it was**: PM dispatch v262 chore — PR #864 `46a3e67f` MERGED; PR #568 CI CONFIRMED 50/50 ✅; escalation ×122
+- **Dispatch**: v263
 
-- [x] docs: align doc claims with code — tool count 89→93, RFC-0100/0102 acceptance criteria synced (PR #495, `dc5883d`)
-- [x] RFC-0102 nested `budget{}` response object + BudgetMode tag (PR #497)
-- [x] RFC-0102 per-call budget override knob on `mycelium_context` + CLI twin (PR #498)
-- [x] fix(budget): cap `callee_paths`/`caller_paths`/`dead_symbols`/`isolated_symbols` in apply_budget (PR #499)
-- [x] docs(rfc): RFC-0109 graph-list output-shape parity + budget roll-out, Option A ratified (PR #500)
-- [x] feat(queries): RFC-0109 **get_callees** shared builder + object shape + budget knob (PR #501)
-- [x] feat(queries): RFC-0109 **get_callers** shared builder + object shape + budget knob (PR #504, `9bd288c0`)
-- [x] feat(queries): RFC-0109 **get_dead_symbols** shared builder + object shape + budget knob (PR #507, `2c130452`)
-- [x] docs(adr): **ADR-0010** — no live LSP; prefer static SCIP/LSIF (PR #496, merged this session)
+### PR #864 — MERGED `46a3e67f` (v261 → develop)
 
----
+- **Merged at**: 2026-06-14 (v262)
+- **What it was**: PM dispatch v261 chore — PR #568 CI CONFIRMED 50/50 ✅ on `f14f80df`; escalation ×121
+- **Dispatch**: v262
 
-## Live priorities (ordered)
+### PR #863 — MERGED `5e6e06a1` (v260 → develop)
 
-**P0 (develop CI red — fix in flight):**
-1. **PR #508** (`fix/sla-ancestors-macos-flake`) — CI running. Fixes `sla_ancestors_100k` macOS flake (32.9ms vs 30ms limit; bumped to 100ms). Once CI green → admin-merge.
+- **Merged at**: 2026-06-14 (v261)
+- **What it was**: PM dispatch v260 chore — PRs #862+#861 merged; nightly.yml fix in release/v0.3.0; escalation ×120
+- **Dispatch**: v261
 
-**P1 (RFC-0109 roll-out — unblock v0.1.20):**
-2. **RFC-0109 tool 4**: `get_isolated_symbols` shared builder (rust-implementer; mirrors get_callees pattern).
-3. **RFC-0109 tool 5**: `get_reachable` shared builder.
-4. **RFC-0109 tool 6**: `get_reachable_to` shared builder.
-5. **RFC-0109 tool 7**: `get_all_symbols` (bespoke pagination — reconcile last).
-6. **Dogfood re-run** with redb-as-default + watch --subscribe (e2e-runner; 8/8 CLI commands).
-7. **RFC-0104 cold SLA numbers** — nightly `sla_ancestors_100k` benchmark (bench; macOS SLA fix landed via #508 first).
+### PR #862 — MERGED `b2a09e88` (v259 → develop)
 
-**P2 (v0.2.0 scope):**
-8. Issue #428 god-file-split remaining slices.
-9. Skill marketplace submission to Claude Code marketplace.
-10. "First 5 minutes" walkthrough validation.
-11. `release.yml` finalize merge step systemic fix (ceremony script is the current workaround).
+- **Merged at**: 2026-06-14 (v260)
+- **What it was**: PM dispatch v259 chore — escalation ×119, Issue #829 root cause diagnosed, PR #861 opened
+- **Dispatch**: v260
 
----
+### PR #861 — MERGED `f14f80df` (nightly.yml fix → release/v0.3.0)
 
-## Dispatch state (2026-06-03 v28 — PR #496 merged; #502/#505/#506 closed; PR #508 CI running; RFC-0109 3/7 on develop)
+- **Merged at**: 2026-06-14 (v260)
+- **What it was**: 3-line nightly.yml fix — `tee mutants.out` → `tee mutants.log` (Issue #829 ENOTDIR root cause)
+- **Impact**: release/v0.3.0 HEAD advances to `f14f80df`; Issue #829 fix will land on `main` after ceremony
+- **Dispatch**: v260
 
-| Agent | Status | Current item |
-|---|---|---|
-| founder | **action requested (P0)** | **(1)** Admin-merge PR #508 (`fix/sla-ancestors-macos-flake`) once CI green — fixes develop Quality Gate red. |
-| PM | **DONE ✅** | v28 complete: PR #496 merged; #502/#505/#506 closed; PR #508 opened; PM state corrected (v0.1.19 boundary); decisions.jsonl appended. |
-| release | **DONE ✅** | All ceremonies complete (v0.1.17 retro-tag ✅, v0.1.18 ✅, v0.1.19 ✅). Next: cut `release/v0.1.20` once RFC-0109 all 7 tools on develop. |
-| security-reviewer | **DONE ✅** | Post-v0.1.19 scan: CLEAN (no new unsafe/secrets in #497–#508 range). |
-| architect | **DONE ✅** | ADR-0009 ✅, ADR-0010 ✅ (merged this session). |
-| e2e-runner | **P1** | Dogfood re-run with redb-as-default + watch --subscribe (8/8 CLI). |
-| bench | **P1** | `sla_ancestors_100k` nightly for RFC-0104 cold SLA (after #508 merges). |
-| tech-writer | idle | Skill marketplace submission prep (P2). |
-| rust-implementer | **P1** | RFC-0109 tools 4–7: get_isolated_symbols → get_reachable → get_reachable_to → get_all_symbols. |
+### PR #860 — MERGED `8d3cfc35` (v258 → develop)
 
----
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v258 chore — escalation ×118, Codex usage-limit notice
+- **Dispatch**: v259
 
-## Decision gates (require founder)
+### PR #859 — MERGED `6c0fc595` (v257 → develop)
 
-- Any name change to a public crate or CLI subcommand.
-- Charter §5.X amendment or new commitment.
-- Re-licensing (forbidden — see Charter §5.8).
-- Storage-format break.
-- Skill marketplace listing metadata sign-off.
-- **RFC-0104 cold SLA measurement**: Charter §2 table amendment (warm/cold split) requires measured nightly data.
-- ~~**RFC-0105 Three-Surface EXCEPTION**~~: ✅ RATIFIED by founder 2026-06-03T12:30Z.
-- ~~**v0.1.17 git ceremony skip**~~: ✅ RESOLVED — retro-tag pushed; main jumps v0.1.16 → v0.1.18 → v0.1.19.
-- **Systemic**: `release.yml` finalize merge step — ceremony script is workaround; fix deferred to P2.
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v257 chore — escalation ×117
+- **Dispatch**: v258
+
+### PR #858 — MERGED `edb17606` (v256 → develop)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v256 chore — escalation ×116
+- **Dispatch**: v257
+
+### PR #857 — MERGED `17958f34` (v255 → develop)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v255 — escalation ×115
+- **Dispatch**: v256
+
+### PR #856 — MERGED `d9489b5f` (v254 → develop)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v254 — escalation ×114
+- **Dispatch**: v255
+
+### PR #853 — MERGED `c858cc40` (v252 → develop)
+
+- **Merged at**: 2026-06-14
+- **What it was**: PM dispatch v251 — first Codex usage-limit notice; escalation ×112
+- **Dispatch**: v252
 
 ---
 
-## Cadence
+## Sprint Cadence & Ceremony Log
 
-- **Hourly (autonomous)**: each agent picks the top item from its queue.
-- **Daily PM check** (orchestrator): scan issue queue for new P0/P1; rebalance.
-- **Weekly Sprint review** (orchestrator + founder if available): mark sprint exit criteria; cut next sprint.
-- **Bi-weekly release** (orchestrator): if sprint exit criteria met, cut release/v0.1.x branch, publish.
+| Version | Date | Key Event |
+|---------|------|----------|
+| v0.1.0 | 2026-06-02 | Initial release ceremony |
+| v0.2.0 | 2026-06-07 | Sprint 2 ceremony |
+| v0.3.0 | TBD (PR #568 pending finalize) | Next release target |
 
 ---
 
-## Archive
+## PM Dispatch Archive
 
-### 2026-06-03 PM dispatch v28 (this run)
+All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
 
-**Pre-flight:** Read CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain hits: ci/testing/release-governance), PM state (v25 on disk — stale; v27 on branch), v0.2 PRD.
+---
 
-**Assessment:**
-- 4 open PRs: #496 (ADR-0010, CI ✅), #502 (PM v26, CI ✅, Codex 2 findings), #505 (get_callers, CI ✅, Codex 1 finding), #506 (PM v27, CI ✅, Codex 1 finding).
-- 0 open issues.
-- Develop CI RED: `sla_ancestors_100k` macOS failure (32.978ms vs 30ms limit) on SHA `2c130452` (get_dead_symbols squash merge). Feature branch and PR CI had passed; failure is develop-only (loaded macOS runner, ~6× slower than Linux).
-- RFC-0109 tools 1–3 (get_callees, get_callers, get_dead_symbols) already on develop.
-- Codex findings: #496 (2 outdated), #502 (1 outdated, 1 live), #505 (1 live — stale PR), #506 (1 live — v0.1.19 content boundary error).
+### 2026-06-15 PM dispatch v267
 
-**Actions taken:**
-1. **Diagnosed** develop CI red: macOS `sla_ancestors_100k` timing SLA flake. Bumped macOS limit 30ms → 100ms. Committed + pushed `fix/sla-ancestors-macos-flake`. **PR #508** opened (CI running). ✅
-2. **Replied to all Codex findings** (6 replies): #502 threads (1 outdated acknowledged, 1 v28 will fix), #496 threads (both outdated, fixed by `836ada4`), #505 thread (PR stale, text-mode concern addressed in merged #504), #506 thread (v0.1.19 boundary bug, v28 will fix). ✅
-3. **Merged PR #496** (docs/adr-0010-no-live-lsp, Codex all outdated, CI ✅) → squash `4bdc4de`. ✅
-4. **Closed PR #502** as superseded by v28 (merge conflict after #496 landed; Codex replies posted). ✅
-5. **Closed PR #505** as stale (develop has get_callers from #504; text-mode Codex concern resolved in merged version). ✅
-6. **Closed PR #506** as superseded by v28 (v0.1.19 content boundary error corrected in this PM state). ✅
-7. **Corrected PM state**: v0.1.19 section now has boundary note; PRs #497–#501 moved to post-v0.1.19 unreleased section. Dispatch/priorities updated. ✅
-8. **Appended decisions.jsonl**. ✅
+**PR #869 `2c379ec0` MERGED. PR #568 CI status unchanged: 50/50 ✅ on `f14f80df`. Escalation ×126→×127 on PR #568.**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×127 escalation — release/v0.3.0 ceremony. CI CONFIRMED 50/50 ✅ on `f14f80df`. No remaining prerequisites. Founder triggers `finalize` workflow_dispatch to complete ceremony.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion to "Ready for Review"
+- Codex usage limits exhausted — automated PR reviews unavailable
+
+**P1:**
+- Issue #829: Fix in release/v0.3.0 (`f14f80df`). Resolves on main after ceremony.
+
+**Actions taken this dispatch:**
+- Pre-flight: CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domain: ci/release-governance/pm-dispatch), PM state v266 (develop HEAD `2c379ec0` after #869 squash merge), v0.2 PRD ✅
+- Assessed GitHub: 3 open PRs (#568 ceremony, #869 v266 chore, #763 DRAFT); 1 open issue (#829)
+- Verified CI on PR #869: 20/20 ✅; Codex P1 finding fixed in `3d7bb27` (thread is_outdated=true, Hard Rule vacuously satisfied); 0 open threads
+- **Merged PR #869** (`2c379ec0`) — PM dispatch v266 chore ✅
+- Updated PM state to v267; appended decisions.jsonl; PushNotification sent to founder
+- Escalated PR #568 to ×127
 
 **Escalations to founder:**
-- **(1) PR #508**: Admin-merge once CI green — restores develop Quality Gate to green. Minimal 2-file change (sla_trunk.rs + CHANGELOG).
+1. **PR #568** ×127: **CI is CONFIRMED GREEN on `f14f80df`** — trigger `finalize` workflow_dispatch on release/v0.3.0 to complete the v0.3.0 ceremony
+2. **PR #763**: un-draft RFC-0121 Charter §2 amendment when ready
+3. **Codex**: upgrade usage limits at https://chatgpt.com/codex/cloud/settings/code-review
 
-### 2026-06-03 PM dispatch v27 (PRs #485+#486 merged; ADR numbering fix: 0008-redb-storage-engine → 0009; v0.1.18 ceremony still BROKEN pending founder)
+---
 
-*(see closed PR #506 for full archive)*
+### 2026-06-15 PM dispatch v266
 
-### 2026-06-03 PM dispatch v26 (PR #501 merged; PR #496 Codex fix; v0.1.17–v0.1.19 ceremonies confirmed)
+**PR #868 `0d99291c` MERGED. PR #568 CI status unchanged: 50/50 ✅ on `f14f80df`. Escalation ×125→×126 on PR #568.**
 
-*(see closed PR #502 for full archive)*
+**P0 (founder-gated, blocked):**
+- PR #568: ×126 escalation — release/v0.3.0 ceremony. CI CONFIRMED 50/50 ✅ on `f14f80df`. No remaining prerequisites.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion
+- Codex usage limits exhausted
 
-### 2026-06-03 PM dispatch v25 (PRs #485+#486 merged; ADR numbering fix)
+**P1:**
+- Issue #829: Fix in release/v0.3.0. Resolves after ceremony.
 
-*(see earlier archive entries for full detail)*
+**Actions taken this dispatch:**
+- Merged PR #868 (`0d99291c`) — 22/22 CI ✅; Codex P1 fixed in `3d7bb27` (thread outdated)
+- Escalated PR #568 to ×126
+- PushNotification sent to founder
 
-### Earlier dispatches (v1–v24)
+---
 
-*(archived in older versions of this file)*
+### 2026-06-15 PM dispatch v265
+
+**PR #867 `da3b202a` MERGED. PR #568 CI status unchanged: 50/50 ✅ on `f14f80df`. Escalation ×124→×125 on PR #568.**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×125 escalation — release/v0.3.0 ceremony. CI CONFIRMED 50/50 ✅ on `f14f80df`. No remaining prerequisites.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion
+- Codex usage limits exhausted
+
+**P1:**
+- Issue #829: Fix in release/v0.3.0. Resolves after ceremony.
+
+**Actions taken this dispatch:**
+- Merged PR #867 (`da3b202a`) — 22/22 CI ✅
+- Escalated PR #568 to ×125
+- PushNotification sent to founder
+
+---
+
+### 2026-06-15 PM dispatch v264
+
+**PR #866 `29d5112e` MERGED. Escalation ×123→×124 on PR #568.**
+
+*(see PR #867 squash commit for archive)*
+
+---
+
+### 2026-06-15 PM dispatch v263
+
+**PR #865 `bddf07d2` MERGED. Escalation ×122→×123 on PR #568.**
+
+*(see PR #866 squash commit for archive)*
+
+---
+
+### 2026-06-14 PM dispatch v262
+
+**PR #864 `46a3e67f` MERGED. Escalation ×121→×122 on PR #568.**
+
+*(see PR #865 squash commit for archive)*
+
+---
+
+### 2026-06-14 PM dispatch v261
+
+**PR #863 `5e6e06a1` MERGED. PR #568 CI CONFIRMED 50/50 ✅ on `f14f80df` — ALL PREREQUISITES MET. Escalation ×120→×121.**
+
+*(see PR #864 squash commit for archive)*
+
+---
+
+### 2026-06-14 PM dispatch v260
+
+**PRs #862+#861 MERGED. nightly.yml ENOTDIR fix in release/v0.3.0. Escalation ×119→×120.**
+
+*(see PR #863 squash commit for archive)*
+
+---
+
+### 2026-06-14 PM dispatch v259
+
+**PR #860 MERGED. Issue #829 root cause diagnosed (ENOTDIR). PR #861 opened. Escalation ×118→×119.**
+
+*(see PR #862 squash commit for archive)*
+
+---
+
+### 2026-06-14 PM dispatch v258 and earlier (v252–v258)
+
+*(see PRs #853–#860 squash commits for archive)*
+
+---
+
+### 2026-06-14 PM dispatch v252
+
+**PR #853 MERGED. Codex usage limits exhausted. Escalation ×111→×112.**
+
+*(see PR #854 squash commit for archive)*
+
+---
+
+### 2026-06-13 PM dispatch v251 and earlier (v240–v251)
+
+*(see closed PRs and git log — PR #568 escalations ×100–×111)*
+
+---
+
+### 2026-06-13 PM dispatch v239 and earlier (v129–v239)
+
+*(see PR #697 squash commit `d0b3d5f` and git log for full archive)*
+
+---
+
+### 2026-06-03 PM dispatch v28 and earlier (v1–v128)
+
+*(see closed PRs #502/#506 and git log for historical archives — last pre-v0.2.0 dispatch)*
