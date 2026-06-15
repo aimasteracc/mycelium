@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-15 (PM dispatch v266 — PR #868 `0d99291c` MERGED; PR #568 CI CONFIRMED 50/50 ✅ on HEAD `f14f80df`; escalation ×126)**
+**Last updated: 2026-06-15 (PM dispatch v268 — PR #870 CLOSED superseded (dirty/stale); Codex P1→#871, P2→#872 spun off; PR #568 CI CONFIRMED 50/50 ✅ on HEAD `f14f80df`; escalation ×128)**
 
 ---
 
@@ -21,20 +21,20 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×126 Escalation (CRITICAL)
+### PR #568 — ×128 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×126 (escalated in v266)
+- **Escalation count**: ×128 (escalated in v268)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
-- **Ceremony path (v266 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×125 escalations over 10+ days (since 2026-06-05).
+- **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
+- **Blocker**: Founder has not triggered `finalize` despite ×127 escalations over 10+ days (since 2026-06-05).
 
-### ⚠️ Codex Usage Limits Exhausted (since v252)
+### ✅ Codex Usage Limits — RESTORED (v268)
 
-- **Status**: Codex code review bot hit usage limits on PR #853 (2026-06-14T12:19:22Z). No automated PR review is available until founder upgrades or adds credits.
-- **Hard Rule impact**: The "Never ignore a Codex review" rule remains enforceable (vacuously — no P1/P2/P3 findings can be generated while limits are exhausted).
-- **Blocker**: Founder must upgrade Codex account or add credits at https://chatgpt.com/codex/cloud/settings/code-review.
+- **Status**: Codex reviewed PR #870 successfully (2026-06-15T04:32:20Z) with 2 findings (P1, P2) — limits are back online.
+- **Hard Rule impact**: Full enforcement restored. All P1/P2 findings on PR #870 addressed before close (→ issues #871, #872).
+- **Note**: PR #870 was closed superseded; next PM chore PR (#871 this session) will receive Codex review normally.
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -57,6 +57,13 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #870 — CLOSED SUPERSEDED (v267 stale branch)
+
+- **Closed at**: 2026-06-15 (v268)
+- **What it was**: PM dispatch v267 — stale branch with 27 accumulated commits / 35 files (RFC-0109/0110 code already merged to develop + PM state). `mergeable_state: dirty` (decisions.jsonl conflict).
+- **Codex findings addressed before close**: P1 (`r3411045985`) → issue #871; P2 (`r3411045988`) → issue #872
+- **Replaced by**: this v268 PM chore (clean branch from develop HEAD)
 
 ### PR #868 — MERGED `0d99291c` (v265 → develop)
 
@@ -158,6 +165,38 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-15 PM dispatch v268
+
+**PR #870 CLOSED superseded (dirty, 27 stale commits). Codex limits RESTORED (P1→#871, P2→#872 spun off). Develop CI ✅ GREEN. PR #568 CI CONFIRMED 50/50 ✅ on `f14f80df`. Escalation ×126→×128 on PR #568.**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×128 escalation — release/v0.3.0 ceremony. CI CONFIRMED 50/50 ✅ on `f14f80df`. All registries published. Founder triggers `finalize` workflow_dispatch to complete ceremony.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion to "Ready for Review"
+- ~~Codex usage limits exhausted~~ — **RESTORED** (Codex reviewed PR #870 at 2026-06-15T04:32Z)
+
+**P1:**
+- Issue #829: Fix in release/v0.3.0 (`f14f80df`). Resolves on main after ceremony.
+- Issue #871 (NEW): fix(release) — check-npm-token should gate publish steps. P1, fix before v0.3.1.
+- Issue #872 (NEW): feat(npm) — add libc constraint to Linux platform packages. P2.
+
+**Actions taken this dispatch:**
+- Pre-flight: CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v266 (develop HEAD `2c379ec0`), v0.2 PRD ✅
+- Assessed GitHub: 3 open PRs (#568 ceremony, #870 PM v267 dirty, #763 DRAFT RFC-0121); 1 open issue (#829). Develop CI: ✅ GREEN (#1851 at 04:06Z). PR #568: 50/50 ✅, finalize pending.
+- **PR #870 analysis**: found dirty (mergeable_state: dirty), 27 commits / 35 files including pre-merged RFC-0109/RFC-0110 code. Codex had reviewed with P1 + P2 findings.
+- **Addressed Codex P1** (`r3411045985`) → opened issue **#871** (`fix(release): check-npm-token should gate publish steps`), replied to thread
+- **Addressed Codex P2** (`r3411045988`) → opened issue **#872** (`feat(npm): add libc constraint to Linux platform packages`), replied to thread
+- **Closed PR #870** as superseded (dirty, stale, Codex findings addressed) ✅
+- **Codex limits RESTORED**: Codex reviewed PR #870 at 2026-06-15T04:32Z — limits are back
+- Created clean `chore/pm-state-v268` from develop HEAD `2c379ec0`; updated PM state; appended decisions.jsonl
+- PushNotification sent to founder (PR #568 ×128 escalation)
+
+**Escalations to founder:**
+1. **PR #568** ×128: **CI is CONFIRMED GREEN on `f14f80df`** (50/50 ✅, verified 2026-06-14T21:19Z) — trigger `finalize` workflow_dispatch on release/v0.3.0
+2. **PR #763**: un-draft RFC-0121 Charter §2 amendment when ready
+3. **Issue #871**: P1 — fix check-npm-token to fail (not warn) before next release
 
 ---
 
