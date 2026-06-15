@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **fix(npm): add `libc: ["glibc"]` constraint to Linux platform packages.**
+  Alpine Linux (musl) systems no longer receive the glibc-linked
+  `linux-x64-gnu` / `linux-arm64-gnu` binaries as npm optional dependencies.
+  The `libc` field (supported since npm 8.7.0) gates installation on the
+  host's C library, preventing silent runtime failures on musl-based containers.
+  (Issue #872)
+
 - **fix(packs/js): `.cjs` extensionless `require()` resolves to `.js` target.**
   `require('./foo')` from a `.cjs` file now produces an Imports edge to `foo.js`,
   not `foo.cjs`. Node's CJS resolution algorithm resolves extensionless local

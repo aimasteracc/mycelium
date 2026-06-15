@@ -25,8 +25,8 @@ const SCOPE = "@aimasteracc";
 const TARGETS = {
   "darwin-arm64": { os: "darwin", cpu: "arm64", suffix: "darwin-arm64", exe: false },
   "darwin-x64": { os: "darwin", cpu: "x64", suffix: "darwin-x64", exe: false },
-  "linux-x64": { os: "linux", cpu: "x64", suffix: "linux-x64-gnu", exe: false },
-  "linux-arm64": { os: "linux", cpu: "arm64", suffix: "linux-arm64-gnu", exe: false },
+  "linux-x64": { os: "linux", cpu: "x64", suffix: "linux-x64-gnu", exe: false, libc: ["glibc"] },
+  "linux-arm64": { os: "linux", cpu: "arm64", suffix: "linux-arm64-gnu", exe: false, libc: ["glibc"] },
   "win32-x64": { os: "win32", cpu: "x64", suffix: "win32-x64", exe: true },
 };
 
@@ -67,6 +67,7 @@ async function buildPlatformPackage(out, binDir, version, key, t) {
     repository: { type: "git", url: "git+https://github.com/aimasteracc/mycelium.git" },
     os: [t.os],
     cpu: [t.cpu],
+    ...(t.libc ? { libc: t.libc } : {}),
     files: ["bin/"],
   };
   await writeFile(join(dir, "package.json"), JSON.stringify(pkg, null, 2) + "\n");
