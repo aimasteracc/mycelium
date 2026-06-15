@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-15 (PM dispatch v268 — PR #870 CLOSED superseded (dirty/stale); Codex P1→#871, P2→#872 spun off; PR #568 CI CONFIRMED 50/50 ✅ on HEAD `f14f80df`; escalation ×128)**
+**Last updated: 2026-06-15 (PM dispatch v269 — PR #873 MERGED (v268 chore); Issue #871 CLOSED (already-fixed in develop); PR #874 OPENED (fix/npm-linux-libc-constraint, Issue #872); PR #568 escalation ×129)**
 
 ---
 
@@ -24,7 +24,7 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×128 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×128 (escalated in v268)
+- **Escalation count**: ×129 (escalated in v269)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
@@ -197,6 +197,35 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 1. **PR #568** ×128: **CI is CONFIRMED GREEN on `f14f80df`** (50/50 ✅, verified 2026-06-14T21:19Z) — trigger `finalize` workflow_dispatch on release/v0.3.0
 2. **PR #763**: un-draft RFC-0121 Charter §2 amendment when ready
 3. **Issue #871**: P1 — fix check-npm-token to fail (not warn) before next release
+
+---
+
+### 2026-06-15 PM dispatch v269
+
+**PR #873 MERGED `15f6315`. Issue #871 CLOSED (already-fixed on develop). PR #874 OPENED (fix/npm-linux-libc-constraint, Issue #872). PR #568 escalation ×128→×129.**
+
+**P0 (founder-gated, blocked):**
+- PR #568: ×129 escalation — release/v0.3.0 ceremony. CI 50/50 ✅ on `f14f80df`. All registries published. Founder triggers `finalize` workflow_dispatch.
+- PR #763: RFC-0121 DRAFT — awaiting founder promotion to "Ready for Review"
+
+**P1:**
+- Issue #829: Fix in release/v0.3.0. Resolves on main after ceremony.
+- PR #874 (NEW): fix(npm) — libc glibc constraint for Linux platform packages. CI pending. Closes Issue #872.
+
+**Actions taken this dispatch:**
+- Pre-flight: CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns, PM state v268, v0.2 PRD ✅
+- Assessed GitHub: 3 open PRs (#568 ceremony, #873 PM v268 chore, #763 DRAFT); 2 open issues (#829, #871, #872). Develop CI: ✅ GREEN.
+- **Merged PR #873** (PM v268 chore, CI ✅ 1/1 success → squash `15f6315`) ✅
+- **Issue #871 investigation**: checked develop release.yml HEAD — `check-npm-token` already exits non-zero (exit 1) and `publish-crates` already lists it in `needs`. Fix was applied in a prior cycle (Issue #560 / Codex P1). Issue #871 is a duplicate filed from stale branch #870.
+- **Closed Issue #871** with explanation comment — already-fixed in develop ✅
+- **Implemented Issue #872** (musl libc): added `libc: ["glibc"]` to linux-x64 and linux-arm64 entries in `TARGETS` + spreads into generated `package.json` in `buildPlatformPackage`. CHANGELOG updated. Committed `9228622`, pushed `fix/npm-linux-libc-constraint`.
+- **Opened PR #874** (fix/npm-linux-libc-constraint → develop) — CI pending ✅
+- Updated PM state v269 + appended decisions.jsonl ✅
+- PushNotification sent to founder (PR #568 ×129, Charter §2 violation on main)
+
+**Escalations to founder:**
+1. **PR #568** ×129: CI GREEN on `f14f80df` — trigger `finalize` workflow_dispatch on release/v0.3.0
+2. **PR #763**: un-draft RFC-0121 Charter §2 amendment when ready
 
 ---
 
