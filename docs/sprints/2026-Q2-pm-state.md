@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-15 (PM dispatch v276 — PR #884 MERGED `b18c322` (v275 chore, CI 22/22 ✅, 0 Codex findings); PR #568 escalation ×136)**
+**Last updated: 2026-06-17 (PM dispatch v277 — PR #885 MERGED `7bc6174` (v276 chore, CI 20/20 ✅, Codex P2 fixed); PR #568 escalation ×137)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×136 Escalation (CRITICAL)
+### PR #568 — ×137 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×136 (escalated in v276)
+- **Escalation count**: ×137 (escalated in v277)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×136 escalations over 10+ days (since 2026-06-05).
+- **Blocker**: Founder has not triggered `finalize` despite ×137 escalations over 12+ days (since 2026-06-05).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #885 — MERGED `7bc6174` (PM dispatch v276 chore → develop)
+
+- **Merged at**: 2026-06-17 (v277)
+- **What it was**: PM dispatch v276 state chore — normalized PR #568 escalation count to ×136 throughout P0 section (Codex P2 r3413720160 fixed via commit `94ed599`). CI 20/20 ✅, Codex P2 thread resolved before merge.
 
 ### PR #884 — MERGED `b18c322` (PM dispatch v275 chore → develop)
 
@@ -169,6 +174,33 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-17 PM dispatch v277
+
+**PR #885 MERGED `7bc6174` (v276 chore, Codex P2 fixed). Develop CI ✅ GREEN. PR #568 escalation ×136→×137.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/release-governance/merge-discipline/codex), PM state v276 (develop HEAD `7bc6174`), v0.2 PRD. Memory index scanned; no domain-specific anti-pattern hits blocking this dispatch.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
+- 3 open PRs at start of dispatch: #885 (PM v276 chore, CI 20/20 ✅, Codex P2 fixed via `94ed599` → **merged this dispatch**), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×137), #763 (DRAFT RFC-0121, founder gate)
+- Develop CI: ✅ GREEN (HEAD `7bc6174` post-merge)
+- No new dependabot PRs, no autonomous-executable feature work
+
+**Actions taken:**
+1. **Pre-flight complete** — all 6 mandatory steps executed. ✅
+2. **Resolved Codex P2 thread** (PRRT_kwDOSq56sc6JlY2i) — finding was already fixed via commit `94ed599` in v276; thread marked resolved. ✅
+3. **Merged PR #885** (`7bc6174`) — PM dispatch v276 chore. CI 20/20 ✅, Codex P2 thread resolved. ✅
+4. **Updated PM state to v277** — escalation ×137; PR #885 added to recently merged. ✅
+5. **Appended decisions.jsonl** ✅
+6. **PR #886 opened** — this PR. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×137: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. Please trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
 
 ---
 
