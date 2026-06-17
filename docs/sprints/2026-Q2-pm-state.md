@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-15 (PM dispatch v275 — PR #883 MERGED `cfc1e1d4` (v274 chore, CI 20/20 ✅, 0 Codex findings); PR #568 escalation ×135)**
+**Last updated: 2026-06-15 (PM dispatch v276 — PR #884 MERGED `b18c322` (v275 chore, CI 22/22 ✅, 0 Codex findings); PR #568 escalation ×136)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×135 Escalation (CRITICAL)
+### PR #568 — ×136 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×135 (escalated in v275)
+- **Escalation count**: ×136 (escalated in v276)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×135 escalations over 10+ days (since 2026-06-05).
+- **Blocker**: Founder has not triggered `finalize` despite ×136 escalations over 10+ days (since 2026-06-05).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #884 — MERGED `b18c322` (PM dispatch v275 chore → develop)
+
+- **Merged at**: 2026-06-15 (v276)
+- **What it was**: PM dispatch v275 state chore — PR #883 merged (`cfc1e1d4`), PR #568 escalation ×135. CI 22/22 ✅, 0 Codex findings on #884.
 
 ### PR #883 — MERGED `cfc1e1d4` (PM dispatch v274 chore → develop)
 
@@ -164,6 +169,32 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-15 PM dispatch v276
+
+**PR #884 MERGED `b18c322` (v275 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×135→×136.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (domains: ci/testing/release/tdd/three-surface), PM state v275 (develop HEAD `b18c322`), v0.2 PRD. Memory index scanned; no domain-specific anti-pattern hits blocking this dispatch.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate <70% on main — root cause is CI tooling ENOTDIR; fix is in release/v0.3.0; resolves automatically after PR #568 finalize)
+- 3 open PRs at start of dispatch: #884 (PM v275 chore, CI 22/22 ✅, 0 Codex findings → **merged this dispatch**), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×136), #763 (DRAFT RFC-0121, founder gate)
+- Develop CI: ✅ GREEN (HEAD `b18c322`)
+- No new dependabot PRs, no autonomous-executable feature work — all P0/P1 queue items are founder-gated
+
+**Actions taken:**
+1. **Pre-flight complete** — all 6 mandatory steps executed (CHARTER.md, orchestrator, memory INDEX, anti-patterns grep, decisions.jsonl tail-5, kill-switch #1 implicitly active). ✅
+2. **Merged PR #884** (`b18c322`) — PM dispatch v275 chore. CI 22/22 ✅, 0 Codex review comments. ✅
+3. **Updated PM state to v276** — escalation ×136; PR #884 added to recently merged. ✅
+4. **Appended decisions.jsonl** ✅
+5. **PR #885 opened** — this PR. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×136: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. Please trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
 
 ---
 
