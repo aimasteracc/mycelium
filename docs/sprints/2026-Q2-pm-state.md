@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v282 — PR #890 MERGED `8f4f586` (v281 chore, CI 22/22 ✅, 0 Codex findings); PR #568 escalation ×142)**
+**Last updated: 2026-06-18 (PM dispatch v283 — PR #891 CI in-progress at dispatch time (fast lane 11/19 ✅, 0 Codex findings, test matrix running); PR #568 escalation ×143)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×142 Escalation (CRITICAL)
+### PR #568 — ×143 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×142 (escalated in v282)
+- **Escalation count**: ×143 (escalated in v283)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×142 escalations over 13+ days (since 2026-06-05).
+- **Blocker**: Founder has not triggered `finalize` despite ×143 escalations over 13+ days (since 2026-06-05).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #891 — CI in-progress at v283 dispatch (PM dispatch v282 chore → develop)
+
+- **Status**: CI 11/19 ✅ in-progress at dispatch time (fast lane complete, test matrix running); 0 Codex findings. Will be merged by next dispatch once CI green.
+- **What it is**: PM dispatch v282 state chore — PR #890 merged (`8f4f586`), PR #568 escalation ×142.
 
 ### PR #890 — MERGED `8f4f586` (PM dispatch v281 chore → develop)
 
@@ -193,6 +198,34 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-18 PM dispatch v283
+
+**PR #891 CI in-progress at dispatch time (fast lane 11/19 ✅, 0 Codex findings). PR #892 opened (stacked on #891). Develop CI ✅ GREEN. PR #568 escalation ×142→×143. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`).**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow), PM state v282 (branch `chore/pm-state-v282-clean` HEAD `f444c9d`), v0.2 PRD. Memory INDEX scanned; no domain-specific anti-pattern hits blocking this dispatch.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
+- 3 open PRs: #891 (PM v282 chore, CI 11/19 in-progress at dispatch time, fast lane all ✅, 0 Codex threads — **cannot merge until CI completes**), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×143), #763 (DRAFT RFC-0121, founder gate)
+- Develop CI: ✅ GREEN (HEAD `8f4f586`)
+- Nightly CI on `main`: ❌ FAILING — mutation kill rate gate (issue #829; ENOTDIR tooling crash; fix in release/v0.3.0)
+- No autonomous-executable feature work — all P0/P1 items are founder-gated
+
+**Actions taken:**
+1. Pre-flight complete — CHARTER, orchestrator, memory INDEX, anti-patterns grep, decisions.jsonl tail-20, v0.2 PRD. ✅
+2. Verified PR #891 CI: 11/19 checks in-progress at dispatch time — fast lane all ✅ (clippy, rustfmt, DCO, governance, skill-parity, security, unit tests, dogfood, real-projects). Test matrix + coverage + docs still running. 0 Codex review threads. ✅
+3. PR #891 cannot be merged yet — CI in-flight; hard rule prohibits admin-merge with non-green CI. ✅ (correct; will merge next dispatch)
+4. Updated PM state to v283: escalation ×143, PR #891 noted as CI in-progress, v283 archive added. ✅
+5. Appended decisions.jsonl. ✅
+6. PR #892 opened (stacked on #891 branch; rebase onto develop after #891 merges). ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×143: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. Please trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
 
 ---
 
