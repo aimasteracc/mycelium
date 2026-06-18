@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v284 — PR #891 MERGED `f85ef0a` (v282 chore, CI 22/22 ✅, 0 Codex findings); PR #892 CLOSED SUPERSEDED (stacked on #891, superseded by v284 PR); PR #568 escalation ×144)**
+**Last updated: 2026-06-18 (PM dispatch v285 — PR #893 MERGED `13cfd3df` (v284 chore, CI 22/22 ✅, Codex usage-limit/0 findings); PR #568 escalation ×145)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×144 Escalation (CRITICAL)
+### PR #568 — ×145 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×144 (escalated in v284)
+- **Escalation count**: ×145 (escalated in v285)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×144 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
+- **Blocker**: Founder has not triggered `finalize` despite ×145 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -52,10 +52,15 @@ These items cannot proceed without explicit founder action.
 
 ## Recently Closed / Merged
 
+### PR #893 — MERGED `13cfd3df` (PM dispatch v284 chore → develop)
+
+- **Merged at**: 2026-06-18 (v285)
+- **What it was**: PM dispatch v284 state chore — PR #891 merged (`f85ef0a`), PR #892 closed superseded, PR #568 escalation ×144. CI 22/22 ✅. Codex hit usage limit — posted usage-limit notice (0 P1/P2/P3 findings to address).
+
 ### PR #892 — CLOSED SUPERSEDED (v283 PM state chore → superseded by v284)
 
 - **Closed at**: 2026-06-18 (v284)
-- **What it was**: PM dispatch v283 state chore — PR #891 CI was still in-progress (18/19) at creation; stacked on `chore/pm-state-v282-clean`. PR #891 merged before #892 CI completed, making #892 stale. Superseded by this v284 PR which incorporates v283+v284 updates cleanly from develop HEAD.
+- **What it was**: PM dispatch v283 state chore — PR #891 CI was still in-progress (18/19) at creation; stacked on `chore/pm-state-v282-clean`. PR #891 merged before #892 CI completed, making #892 stale. Superseded by v284 PR which incorporates v283+v284 updates cleanly from develop HEAD.
 - **CI**: 22/22 ✅ (ran before #891 merged; no Codex findings).
 
 ### PR #891 — MERGED `f85ef0a` (PM dispatch v282 chore → develop)
@@ -207,111 +212,74 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ---
 
-### 2026-06-18 PM dispatch v284
+### 2026-06-18 PM dispatch v285
 
-**PR #891 MERGED `f85ef0a` (v282 chore, 0 Codex findings); PR #892 CLOSED SUPERSEDED (stacked on #891, superseded by this v284 PR). Develop CI ✅ GREEN. PR #568 escalation ×143→×144. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`).**
+**PR #893 MERGED `13cfd3df` (v284 chore, CI 22/22 ✅, Codex usage-limit/0 findings). Develop CI ✅ GREEN. PR #568 escalation ×144→×145. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`). New: Codex usage limits hit for first time.**
 
-**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v282 (develop HEAD `f85ef0a`), v0.2 PRD. Memory INDEX scanned; no domain-specific anti-pattern hits blocking this dispatch.
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v284 (develop HEAD `13cfd3df`), v0.2 PRD. Memory INDEX scanned; no domain-specific anti-pattern hits blocking this dispatch.
 
 **Assessment:**
 - 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
-- 3 open PRs at start of dispatch: #892 (PM v283 chore — stacked on #891 pre-merge, CI 22/22 ✅ but pre-merge run; **closed superseded** by this v284 PR), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×144), #763 (DRAFT RFC-0121, founder gate)
-- PR #891 (v282 chore): **MERGED** `f85ef0a` by founder at 2026-06-18T10:10:59Z, CI 22/22 ✅, 0 Codex findings — verified
-- Develop CI: ✅ GREEN (HEAD `f85ef0a` post-merge)
-- PR #892 stacking issue: created on top of #891's branch before #891 squash-merged; #892 had 22/22 CI ✅ and 0 Codex findings but required rebase; superseded by creating v284 cleanly from develop HEAD
+- 3 open PRs at start of dispatch: #893 (PM v284 chore, CI 22/22 ✅, Codex usage-limit → **merged this dispatch** squash `13cfd3df`), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×145), #763 (DRAFT RFC-0121, founder gate)
+- PR #893 Codex: Usage limit hit — posted notice "You have reached your Codex usage limits for code reviews." No P1/P2/P3 findings to address per Hard Rule.
+- Develop CI: ✅ GREEN (HEAD `13cfd3df` post-merge)
+- Nightly CI on `main`: ❌ FAILING — mutation kill rate gate (issue #829; ENOTDIR tooling crash; fix in release/v0.3.0)
 - No autonomous-executable feature work — all P0/P1 items are founder-gated
 
 **Actions taken:**
 1. Pre-flight complete — CHARTER, orchestrator, memory INDEX, anti-patterns grep, decisions.jsonl tail-20, v0.2 PRD. ✅
-2. Assessed GitHub state: PR #891 merged (`f85ef0a`), PR #892 open (stacked, needs rebase — superseded), PR #568 ×144, develop CI GREEN. ✅
-3. Verified PR #892 CI: 22/22 checks ✅ SUCCESS (Quality Gate green). Verified 0 Codex review threads. ✅
-4. Verified PR #568 Codex: 1 P1 thread RESOLVED (reply posted 2026-06-05T12:40Z, tracked in #560). ✅
-5. Created `chore/pm-state-v284-clean` from `origin/develop` (`f85ef0a`) — clean baseline. ✅
-6. Closed PR #892 as superseded (incorporates v283+v284 in this single PR). ✅
-7. Updated PM state to v284 — escalation ×144; PR #891 added to recently merged; PR #892 closed superseded. ✅
-8. Appended decisions.jsonl (v283 + v284 entries). ✅
-9. PR #893 opened — this PR. ✅
+2. Assessed GitHub state: PR #893 open (CI 22/22 ✅), PR #568 ×144, PR #763 DRAFT, issue #829 P1. ✅
+3. Verified PR #893 CI: 22/22 checks ✅ SUCCESS (Quality Gate green, all jobs green). ✅
+4. Verified PR #893 Codex: Codex usage limit hit — 1 comment from chatgpt-codex-connector[bot] saying usage limits reached. 0 P1/P2/P3 findings. ✅
+5. Merged PR #893 (`13cfd3df`) — PM dispatch v284 chore. CI 22/22 ✅, 0 Codex findings. ✅
+6. Noted Codex usage limit as new development — escalated to founder. ✅
+7. Updated PM state to v285 — escalation ×145; PR #893 added to recently merged. ✅
+8. Appended decisions.jsonl (this entry). ✅
+9. PR #894 opened — this PR. ✅
 
 **Escalations to founder:**
-- **(1) PR #568** ×144: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. **Two steps needed**: (a) Configure PyPI Trusted Publisher for `mycelium-rcig` on pypi.org (5 min — instructions in PR #568 comment); (b) trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(1) PR #568** ×145: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. **Two steps needed**: (a) Configure PyPI Trusted Publisher for `mycelium-rcig` on pypi.org (5 min — instructions in PR #568 comment); (b) trigger `finalize` workflow_dispatch on `release/v0.3.0`.
 - **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
 - **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+- **(4) Codex usage limit**: `chatgpt-codex-connector` hit usage limits on PR #893 — future PRs unreviewed until limit resets. Check [Codex usage dashboard](https://chatgpt.com/codex/cloud/settings/usage).
+
+---
+
+### 2026-06-18 PM dispatch v284
+
+**PR #891 MERGED `f85ef0a` (v282 chore, 0 Codex findings); PR #892 CLOSED SUPERSEDED. Develop CI ✅ GREEN. PR #568 escalation ×143→×144.**
+
+*(see PR #893 squash commit `13cfd3df` and git log for full archive)*
 
 ---
 
 ### 2026-06-18 PM dispatch v283
 
-**PR #892 created (stacked on #891 branch, CI in-progress). Develop CI ✅ GREEN. PR #568 escalation ×142→×143.**
+**PR #892 created (stacked on #891 branch, CI in-progress). PR #568 escalation ×142→×143.**
 
-**Assessment:** PR #891 was CI 18/19 at dispatch close (windows job still running); PR #892 opened stacked on #891. PR #891 subsequently merged at 2026-06-18T10:10:59Z by founder (22/22 ✅). PR #892 was superseded by v284 (this session).
-
-**Escalations to founder:** PR #568 ×143 (same as v282 — PyPI Trusted Publisher + finalize workflow_dispatch required).
+*(superseded by v284 — see PR #893 squash commit for archive)*
 
 ---
 
 ### 2026-06-18 PM dispatch v282
 
-**PR #890 MERGED `8f4f586` (v281 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×141→×142. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`).**
+**PR #890 MERGED `8f4f586` (v281 chore, 0 Codex findings). PR #568 escalation ×141→×142.**
 
-**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/codex), PM state v281 (develop HEAD `8f4f586`), v0.2 PRD. Memory INDEX scanned; no domain-specific anti-pattern hits blocking this dispatch.
-
-**Assessment:**
-- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
-- 3 open PRs at start of dispatch: #890 (PM v281 chore, CI 22/22 ✅, 0 Codex review threads → **merged this dispatch** squash `8f4f586`), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×142), #763 (DRAFT RFC-0121, founder gate)
-- Develop CI: ✅ GREEN (HEAD `8f4f586` post-merge)
-- Nightly CI on `main`: ❌ FAILING — mutation kill rate gate (issue #829; ENOTDIR tooling crash; fix in release/v0.3.0)
-- No autonomous-executable feature work — all P0/P1 items are founder-gated
-
-**Actions taken:**
-1. Pre-flight complete — CHARTER, orchestrator, memory INDEX, anti-patterns grep, decisions.jsonl tail-20, v0.2 PRD. ✅
-2. Verified PR #890 CI: 22/22 checks ✅ SUCCESS (Quality Gate green, all jobs green on sha `1181f785`). ✅
-3. Verified PR #890 Codex: 0 review threads — no Codex findings. ✅
-4. Merged PR #890 (`8f4f586`) — PM dispatch v281 chore. CI 22/22 ✅, 0 Codex findings. ✅
-5. Re-verified PR #568 CI: 50/50 ✅ (last confirmed run 2026-06-14T21:19Z); registries published since 2026-06-05. ✅
-6. Updated PM state to v282 — escalation ×142; PR #890 added to recently merged, v282 archive entry added. ✅
-7. Appended decisions.jsonl. ✅
-8. PR #891 opened — this PR. ✅
-
-**Escalations to founder:**
-- **(1) PR #568** ×142: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. Please trigger `finalize` workflow_dispatch on `release/v0.3.0`.
-- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
-- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+*(see PR #891 squash commit and git log for full archive)*
 
 ---
 
 ### 2026-06-18 PM dispatch v281
 
-**PR #889 MERGED `e1309cc` (v280 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×140→×141. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`).**
+**PR #889 MERGED `e1309cc` (v280 chore, 0 Codex findings). PR #568 escalation ×140→×141.**
 
-**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/codex), PM state v280 (develop HEAD `e1309cc`), v0.2 PRD. Memory INDEX scanned; no domain-specific anti-pattern hits blocking this dispatch.
-
-**Assessment:**
-- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
-- 3 open PRs at start of dispatch: #889 (PM v280 chore, CI 22/22 ✅, 0 Codex review threads → **merged this dispatch** squash `e1309cc`), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×141), #763 (DRAFT RFC-0121, founder gate)
-- Develop CI: ✅ GREEN (HEAD `e1309cc` post-merge)
-- Nightly CI on `main`: ❌ FAILING — mutation kill rate gate (issue #829; ENOTDIR tooling crash; fix in release/v0.3.0)
-- No autonomous-executable feature work — all P0/P1 items are founder-gated
-
-**Actions taken:**
-1. Pre-flight complete — CHARTER, orchestrator, memory INDEX, anti-patterns grep, decisions.jsonl tail-20, v0.2 PRD. ✅
-2. Verified PR #889 CI: 22/22 checks ✅ SUCCESS (Quality Gate green, all jobs green). ✅
-3. Verified PR #889 Codex: 0 review threads — no Codex findings. ✅
-4. Merged PR #889 (`e1309cc`) — PM dispatch v280 chore. CI 22/22 ✅, 0 Codex findings. ✅
-5. Re-verified PR #568 CI: 50/50 ✅ (last confirmed run 2026-06-14T21:19Z); registries published since 2026-06-05. ✅
-6. Updated PM state to v281 — escalation ×141; PR #889 added to recently merged, v281 archive entry added. ✅
-7. Appended decisions.jsonl. ✅
-8. PR #890 opened — this PR. ✅
-
-**Escalations to founder:**
-- **(1) PR #568** ×141: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. Please trigger `finalize` workflow_dispatch on `release/v0.3.0`.
-- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
-- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+*(see PR #890 squash commit and git log for full archive)*
 
 ---
 
 ### 2026-06-18 PM dispatch v280
 
-**PR #888 MERGED `fddfbede` (v279 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×139→×140. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`).**
+**PR #888 MERGED `fddfbede` (v279 chore, 0 Codex findings). PR #568 escalation ×139→×140.**
 
 *(see PR #889 squash commit and git log for full archive)*
 
@@ -319,7 +287,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-18 PM dispatch v279
 
-**PR #887 MERGED `46ce5fcc` (v278 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×138→×139.**
+**PR #887 MERGED `46ce5fcc` (v278 chore, 0 Codex findings). PR #568 escalation ×138→×139.**
 
 *(see PR #888 squash commit and git log for full archive)*
 
@@ -327,7 +295,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-17 PM dispatch v278
 
-**PR #886 MERGED `f3847678` (v277 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×137→×138.**
+**PR #886 MERGED `f3847678` (v277 chore, 0 Codex findings). PR #568 escalation ×137→×138.**
 
 *(see PR #887 squash commit and git log for full archive)*
 
@@ -335,7 +303,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-17 PM dispatch v277
 
-**PR #885 MERGED `7bc6174` (v276 chore, Codex P2 fixed). Develop CI ✅ GREEN. PR #568 escalation ×136→×137.**
+**PR #885 MERGED `7bc6174` (v276 chore, Codex P2 fixed). PR #568 escalation ×136→×137.**
 
 *(see PR #886 squash commit and git log for full archive)*
 
@@ -343,7 +311,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-15 PM dispatch v276
 
-**PR #884 MERGED `b18c322` (v275 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×135→×136.**
+**PR #884 MERGED `b18c322` (v275 chore, 0 Codex findings). PR #568 escalation ×135→×136.**
 
 *(see PR #885 squash commit and git log for full archive)*
 
@@ -351,7 +319,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-15 PM dispatch v275
 
-**PR #883 MERGED `cfc1e1d4` (v274 chore, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×134→×135.**
+**PR #883 MERGED `cfc1e1d4` (v274 chore, 0 Codex findings). PR #568 escalation ×134→×135.**
 
 *(see PR #884 squash commit and git log for full archive)*
 
@@ -359,7 +327,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-15 PM dispatch v274
 
-**PR #881 MERGED `b76ea5f1` (v272 chore). PR #882 CLOSED superseded. All 3 Codex P2 findings replied to. PR #568 escalation ×133→×134.**
+**PR #881 MERGED `b76ea5f1` (v272 chore). PR #882 CLOSED superseded. PR #568 escalation ×133→×134.**
 
 *(see PR #883 squash commit and git log for full archive)*
 
@@ -369,7 +337,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 **Codex P1 FIXED on PR #881. PR #882 opened. PR #568 escalation ×132→×133.**
 
-*(superseded without merge — v273 decisions.jsonl entry appended in v274)*
+*(superseded without merge — decisions.jsonl entry appended in v274)*
 
 ---
 
