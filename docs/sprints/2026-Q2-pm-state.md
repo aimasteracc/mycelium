@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v284 — PR #891 MERGED `f85ef0a` (v282 chore, CI 22/22 ✅, 0 Codex findings); PR #892 CLOSED SUPERSEDED (stacked on #891, superseded by v284 PR); PR #568 escalation ×144)**
+**Last updated: 2026-06-18 (PM dispatch v286 — PR #893 MERGED `13cfd3df` (v284 chore, CI 22/22 ✅, Codex usage-limit/0 findings); PR #894 CLOSED SUPERSEDED (DCO failure + append-only violation); PR #568 escalation ×146)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×144 Escalation (CRITICAL)
+### PR #568 — ×146 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×144 (escalated in v284)
+- **Escalation count**: ×146 (escalated in v286)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×144 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
+- **Blocker**: Founder has not triggered `finalize` despite ×146 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,17 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #894 — CLOSED SUPERSEDED (v285 PM state chore → superseded by v286)
+
+- **Closed at**: 2026-06-18 (v286)
+- **What it was**: PM dispatch v285 state chore — PR #893 merged, PR #568 escalation ×145, Codex usage-limit noted, decisions.jsonl restore attempted.
+- **Why closed**: Two commits (`aaccf289`, `c68c3a14`) missing `Signed-off-by` (DCO failure → Quality Gate ❌). Additionally, the branch's decisions.jsonl diff deleted line 1 (v14 entry), violating Charter append-only rule (§5.3). Clean v286 PR incorporates the lesson (git push for large JSONL) without the violations.
+
+### PR #893 — MERGED `13cfd3df` (PM dispatch v284 chore → develop)
+
+- **Merged at**: 2026-06-18 (v285 / v286 verified)
+- **What it was**: PM dispatch v284 state chore — PR #891 merged (`f85ef0a`), PR #892 closed superseded, PR #568 escalation ×144. CI 22/22 ✅. Codex hit usage limit — 0 findings.
 
 ### PR #892 — CLOSED SUPERSEDED (v283 PM state chore → superseded by v284)
 
@@ -204,6 +215,38 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-18 PM dispatch v286
+
+**PR #894 CLOSED SUPERSEDED (DCO failure + append-only violation). Develop CI ✅ GREEN (HEAD `13cfd3df`). PR #568 escalation ×145→×146. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`). Codex usage limits remain hit.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v284 last entry), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v284 (develop HEAD `13cfd3df`), v0.2 PRD. Memory INDEX scanned.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
+- 3 open PRs: #894 (PM v285 chore — DCO failure + append-only violation → **closed superseded** this dispatch), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×146), #763 (DRAFT RFC-0121, founder gate)
+- PR #894 CI: Quality Gate ❌ FAILURE — DCO sign-off check failed. Root cause: commits `aaccf289` and `c68c3a14` missing `Signed-off-by`. Additionally, decisions.jsonl diff deleted line 1 (v14 entry) — violates Charter §5.3 append-only rule.
+- Develop CI: ✅ GREEN (HEAD `13cfd3df`)
+- Codex: usage limits remain hit (since PR #893 dispatch)
+- No autonomous-executable feature work — all P0/P1 items are founder-gated
+
+**Actions taken:**
+1. Pre-flight complete. ✅
+2. Fetched origin/develop; checked out on `chore/pm-state-v286`. ✅
+3. Diagnosed PR #894 failure: DCO on 2 commits + append-only violation in decisions.jsonl diff. ✅
+4. Closed PR #894 as superseded with explanation. ✅
+5. Updated PM state v286 — escalation ×146; PR #894 superseded; PR #893 documented; v286 archive entry added. ✅
+6. Appended decisions.jsonl (v286 entry — no deletions, append-only). ✅
+7. Added lesson (git push for large JSONL) from PR #894 that was not yet on develop. ✅
+8. PR #895 opened — this PR. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×146: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. **Two steps needed**: (a) Configure PyPI Trusted Publisher for `mycelium-rcig` on pypi.org (5 min — instructions in PR #568 comment); (b) trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+- **(4) Codex usage limit**: Reviews unavailable until limit resets. Check https://chatgpt.com/codex/cloud/settings/usage.
 
 ---
 
