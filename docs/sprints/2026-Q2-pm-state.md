@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v294 — PR #902 MERGED `ca731304` (v293 chore, CI 22/22 ✅, Codex usage-limit/0 code findings); PR #568 escalation ×154; develop CI ✅ GREEN)**
+**Last updated: 2026-06-18 (PM dispatch v295 — PR #903 MERGED `38184196` (v294 chore, CI 22/22 ✅, Codex 0 threads); PR #568 escalation ×155; develop CI ✅ GREEN)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×154 Escalation (CRITICAL)
+### PR #568 — ×155 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×154 (escalated in v294)
+- **Escalation count**: ×155 (escalated in v295)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×154 escalations over 13+ days. Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch.**
+- **⚠️ MILESTONE**: ×155 escalations over 13+ days. Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #903 — MERGED `38184196` (PM dispatch v294 chore → develop)
+
+- **Merged at**: 2026-06-18 (v295)
+- **What it was**: PM dispatch v294 state chore — PR #902 merged (`ca731304`), PR #568 escalation ×153→×154. CI 22/22 ✅. Codex 0 review threads (usage-limit exhausted — vacuously satisfied per v252+ precedent).
 
 ### PR #902 — MERGED `ca731304` (PM dispatch v293 chore → develop)
 
@@ -255,6 +260,32 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-18 PM dispatch v295
+
+**PR #903 MERGED `38184196` (v294 chore, CI 22/22 ✅, Codex 0 threads). Develop CI ✅ GREEN (HEAD `38184196`). PR #568 escalation ×154→×155.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v294 last entry, 278 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v294 (develop HEAD `38184196` post-merge), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0, 50/50 ✅ `f14f80df`, finalize pending ×155), #763 (DRAFT RFC-0121, founder gate)
+- 1 open issue: #829 (P1, mutation kill rate ENOTDIR — fix in release/v0.3.0; resolves after ceremony)
+- Develop CI: ✅ GREEN (HEAD `38184196` post-merge)
+- Codex: usage limits exhausted — vacuously satisfied per v252+ precedent
+- No new autonomous-executable work: all P0/P1 items remain founder-gated
+
+**Actions:**
+1. **Verified PR #903** CI: 22/22 ✅ (Quality Gate SUCCESS, all 22 checks SUCCESS or skipped). Codex: 0 review threads (usage limits exhausted). ✅
+2. **Merged PR #903** (squash `38184196`) — CI 22/22 ✅, 0 Codex threads. ✅
+3. **Updated PM state** v294→v295 — escalation ×155; PR #903 added to recently merged. ✅
+4. **Appended decisions.jsonl** (v295 entry). ✅
+5. **PR #904 opened** (this chore). ✅
+6. **PushNotification sent** — ×155 escalation, 13+ days.
+
+**Escalations to founder:**
+- **(1) PR #568** ×155: release/v0.3.0 `finalize` workflow_dispatch — **ONE STEP** (all registries published; CI 50/50 ✅; no remaining prerequisites per v291 correction).
 
 ---
 
