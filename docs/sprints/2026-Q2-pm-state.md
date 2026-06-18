@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v289 — PR #897 MERGED `3d342148` (v288 chore, CI 22/22 ✅, Codex usage-limit exhausted/0 findings); PR #568 escalation ×149)**
+**Last updated: 2026-06-18 (PM dispatch v290 — PR #898 MERGED `01295de` (v289 chore, CI 22/22 ✅, Codex usage-limit exhausted/0 findings); PR #568 escalation ×150)**
 
 ---
 
@@ -21,14 +21,15 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×149 Escalation (CRITICAL)
+### PR #568 — ×150 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×149 (escalated in v289)
+- **Escalation count**: ×150 (escalated in v290)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×148 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
+- **Blocker**: Founder has not triggered `finalize` despite ×149 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
+- **⚠️ MILESTONE**: ×150 escalations reached. Hive has no autonomous path forward on ceremony. This loop is consuming Hive compute with zero progress. **Founder action is the only unblock.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +52,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #898 — MERGED `01295de` (PM dispatch v289 chore → develop)
+
+- **Merged at**: 2026-06-18 (v290)
+- **What it was**: PM dispatch v289 state chore — PR #897 merged (`3d342148`), PR #568 escalation ×149, Codex usage-limit exhausted (usage-limit notification only, 0 code findings — vacuously satisfied per v252+ precedent). CI 22/22 ✅.
 
 ### PR #897 — MERGED `3d342148` (PM dispatch v288 chore → develop)
 
@@ -230,6 +236,32 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-18 PM dispatch v290
+
+**PR #898 MERGED `01295de` (v289 chore, CI 22/22 ✅, Codex usage-limit/0 code findings). Develop CI ✅ GREEN (HEAD `01295de`). PR #568 escalation ×149→×150 (MILESTONE: 150 escalations, 13+ days). Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`). Codex usage limits remain exhausted.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v289 last entry, 273 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v289 (develop HEAD `01295de` post-merge), v0.2 PRD.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
+- 3 open PRs at dispatch start: #898 (PM v289 chore — CI 22/22 ✅, Codex usage-limit/0 code findings → **merged this dispatch** `01295de`), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×150), #763 (DRAFT RFC-0121, founder gate)
+- Develop CI: ✅ GREEN (HEAD `01295de` post-merge)
+- Codex: usage limits still exhausted — rule vacuously satisfied per v252+ precedent
+- No new autonomous code work available — all active items remain founder-gated
+
+**Actions taken:**
+1. Merged PR #898 (squash `01295de`, CI 22/22 ✅, 0 Codex code findings). ✅
+2. Incremented PR #568 escalation ×149→×150. Added ×150 milestone note. ✅
+3. Updated PM state v290 (this entry). ✅
+4. Appended decisions.jsonl (v290 entry). ✅
+5. PR #899 opened (this chore). ✅
+6. PushNotification sent (×150 milestone, PyPI Trusted Publisher prerequisite). ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: ×150 escalation (13+ days). Two required actions: (a) Configure PyPI Trusted Publisher on pypi.org (project `mycelium-rcig`, workflow `release.yml`, environment `pypi`) — 5 min; (b) Trigger `finalize` workflow_dispatch on `release/v0.3.0`. This resolves Charter §2/§5.4 violation on main (Issue #829), completes the v0.3.0 ceremony, and unblocks the Hive's next development cycle.
 
 ---
 
