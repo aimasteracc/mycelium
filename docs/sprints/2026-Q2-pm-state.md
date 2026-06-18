@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v282 — PR #890 MERGED `8f4f586` (v281 chore, CI 22/22 ✅, 0 Codex findings); PR #568 escalation ×142)**
+**Last updated: 2026-06-18 (PM dispatch v284 — PR #891 MERGED `f85ef0a` (v282 chore, CI 22/22 ✅, 0 Codex findings); PR #892 CLOSED SUPERSEDED (stacked on #891, superseded by v284 PR); PR #568 escalation ×144)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×142 Escalation (CRITICAL)
+### PR #568 — ×144 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×142 (escalated in v282)
+- **Escalation count**: ×144 (escalated in v284)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×142 escalations over 13+ days (since 2026-06-05).
+- **Blocker**: Founder has not triggered `finalize` despite ×144 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,17 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #892 — CLOSED SUPERSEDED (v283 PM state chore → superseded by v284)
+
+- **Closed at**: 2026-06-18 (v284)
+- **What it was**: PM dispatch v283 state chore — PR #891 CI was still in-progress (18/19) at creation; stacked on `chore/pm-state-v282-clean`. PR #891 merged before #892 CI completed, making #892 stale. Superseded by this v284 PR which incorporates v283+v284 updates cleanly from develop HEAD.
+- **CI**: 22/22 ✅ (ran before #891 merged; no Codex findings).
+
+### PR #891 — MERGED `f85ef0a` (PM dispatch v282 chore → develop)
+
+- **Merged at**: 2026-06-18 (v284 verified)
+- **What it was**: PM dispatch v282 state chore — PR #890 merged (`8f4f586`), PR #568 escalation ×142. CI 22/22 ✅, 0 Codex findings on #891.
 
 ### PR #890 — MERGED `8f4f586` (PM dispatch v281 chore → develop)
 
@@ -193,6 +204,48 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-18 PM dispatch v284
+
+**PR #891 MERGED `f85ef0a` (v282 chore, 0 Codex findings); PR #892 CLOSED SUPERSEDED (stacked on #891, superseded by this v284 PR). Develop CI ✅ GREEN. PR #568 escalation ×143→×144. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`).**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v282 (develop HEAD `f85ef0a`), v0.2 PRD. Memory INDEX scanned; no domain-specific anti-pattern hits blocking this dispatch.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
+- 3 open PRs at start of dispatch: #892 (PM v283 chore — stacked on #891 pre-merge, CI 22/22 ✅ but pre-merge run; **closed superseded** by this v284 PR), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×144), #763 (DRAFT RFC-0121, founder gate)
+- PR #891 (v282 chore): **MERGED** `f85ef0a` by founder at 2026-06-18T10:10:59Z, CI 22/22 ✅, 0 Codex findings — verified
+- Develop CI: ✅ GREEN (HEAD `f85ef0a` post-merge)
+- PR #892 stacking issue: created on top of #891's branch before #891 squash-merged; #892 had 22/22 CI ✅ and 0 Codex findings but required rebase; superseded by creating v284 cleanly from develop HEAD
+- No autonomous-executable feature work — all P0/P1 items are founder-gated
+
+**Actions taken:**
+1. Pre-flight complete — CHARTER, orchestrator, memory INDEX, anti-patterns grep, decisions.jsonl tail-20, v0.2 PRD. ✅
+2. Assessed GitHub state: PR #891 merged (`f85ef0a`), PR #892 open (stacked, needs rebase — superseded), PR #568 ×144, develop CI GREEN. ✅
+3. Verified PR #892 CI: 22/22 checks ✅ SUCCESS (Quality Gate green). Verified 0 Codex review threads. ✅
+4. Verified PR #568 Codex: 1 P1 thread RESOLVED (reply posted 2026-06-05T12:40Z, tracked in #560). ✅
+5. Created `chore/pm-state-v284-clean` from `origin/develop` (`f85ef0a`) — clean baseline. ✅
+6. Closed PR #892 as superseded (incorporates v283+v284 in this single PR). ✅
+7. Updated PM state to v284 — escalation ×144; PR #891 added to recently merged; PR #892 closed superseded. ✅
+8. Appended decisions.jsonl (v283 + v284 entries). ✅
+9. PR #893 opened — this PR. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×144: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. **Two steps needed**: (a) Configure PyPI Trusted Publisher for `mycelium-rcig` on pypi.org (5 min — instructions in PR #568 comment); (b) trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+
+---
+
+### 2026-06-18 PM dispatch v283
+
+**PR #892 created (stacked on #891 branch, CI in-progress). Develop CI ✅ GREEN. PR #568 escalation ×142→×143.**
+
+**Assessment:** PR #891 was CI 18/19 at dispatch close (windows job still running); PR #892 opened stacked on #891. PR #891 subsequently merged at 2026-06-18T10:10:59Z by founder (22/22 ✅). PR #892 was superseded by v284 (this session).
+
+**Escalations to founder:** PR #568 ×143 (same as v282 — PyPI Trusted Publisher + finalize workflow_dispatch required).
 
 ---
 
