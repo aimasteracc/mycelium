@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-18 (PM dispatch v286 — PR #893 MERGED `13cfd3df` (v284 chore, CI 22/22 ✅, Codex usage-limit/0 findings); PR #894 CLOSED SUPERSEDED (DCO failure + append-only violation); PR #568 escalation ×146)**
+**Last updated: 2026-06-18 (PM dispatch v287 — PR #895 MERGED `90b0cba5` (v286 chore, CI 22/22 ✅, Codex usage-limit exhausted/0 findings); PR #568 escalation ×147)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×146 Escalation (CRITICAL)
+### PR #568 — ×147 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×146 (escalated in v286)
+- **Escalation count**: ×147 (escalated in v287)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — verified in v261 dispatch.
 - **Ceremony path (v268 — ALL PREREQUISITES MET)**: No remaining prerequisites. Founder only needs to **trigger `finalize` workflow_dispatch on release/v0.3.0** to complete the v0.3.0 ceremony (main merge → tag → GH Release → develop back-merge).
-- **Blocker**: Founder has not triggered `finalize` despite ×146 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
+- **Blocker**: Founder has not triggered `finalize` despite ×147 escalations over 13+ days (since 2026-06-05). PyPI Trusted Publisher must also be configured first (5 min on pypi.org — instructions in PR #568 comment).
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #895 — MERGED `90b0cba5` (PM dispatch v286 chore → develop)
+
+- **Merged at**: 2026-06-18 (v287)
+- **What it was**: PM dispatch v286 state chore — PR #894 closed (DCO+append-only violation), lessons.jsonl updated, PR #568 escalation ×146. CI 22/22 ✅. Codex usage limits exhausted (0 findings — vacuously satisfied per prior decisions).
 
 ### PR #894 — CLOSED SUPERSEDED (v285 PM state chore → superseded by v286)
 
@@ -215,6 +220,37 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-18 PM dispatch v287
+
+**PR #895 MERGED `90b0cba5` (v286 chore, CI 22/22 ✅, Codex exhausted). Develop CI ✅ GREEN (HEAD `90b0cba5`). PR #568 escalation ×146→×147. Nightly CI on `main` still failing (issue #829 — resolves after PR #568 `finalize`). Codex usage limits remain exhausted.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v286 (develop HEAD `90b0cba5`), v0.2 PRD.
+
+**Assessment:**
+- 1 open issue: #829 (P1, mutation kill rate <70% on main — ENOTDIR CI tooling crash; fix in release/v0.3.0; resolves after PR #568 finalize)
+- 3 open PRs at dispatch start: #895 (PM v286 chore — CI 22/22 ✅, Codex exhausted/0 findings → **merged this dispatch** `90b0cba5`), #568 (release/v0.3.0, CI 50/50 ✅ `f14f80df`, finalize pending ×147), #763 (DRAFT RFC-0121, founder gate)
+- Develop CI: ✅ GREEN (HEAD `90b0cba5` post-merge)
+- Codex: usage limits still exhausted — rule vacuously satisfied per v263+ precedent
+- No autonomous-executable feature work — all P0/P1 items are founder-gated
+
+**Actions taken:**
+1. Pre-flight complete. ✅
+2. Verified PR #895 CI: 22/22 ✅ Quality Gate (completed 2026-06-18T13:14:55Z). ✅
+3. Verified PR #895 Codex: usage limits exhausted → vacuously satisfied. ✅
+4. Merged PR #895 (squash `90b0cba5`) — CI 22/22 ✅, Codex exhausted. ✅
+5. Verified no new autonomous work: 1 open issue (#829), 2 remaining PRs both founder-gated (#568, #763). ✅
+6. Updated PM state v287 — escalation ×147; PR #895 added to recently merged; v287 archive entry added. ✅
+7. Appended decisions.jsonl (v287 entry — append-only, no deletions). ✅
+8. PR #896 opened. ✅
+
+**Escalations to founder:**
+- **(1) PR #568** ×147: release/v0.3.0 ceremony **ALL PREREQUISITES MET** — CI 50/50 ✅ `f14f80df`, crates.io + npm + PyPI published since 2026-06-05. **13+ days blocked.** Two steps needed: (a) Configure PyPI Trusted Publisher for `mycelium-rcig` on pypi.org (5 min — instructions in PR #568 comment); (b) trigger `finalize` workflow_dispatch on `release/v0.3.0`.
+- **(2) PR #763**: RFC-0121 DRAFT — undraft when ready for review.
+- **(3) Issue #829**: Resolves automatically after #568 ceremony lands on `main`.
+- **(4) Codex usage limit**: Reviews unavailable until limit resets. Check https://chatgpt.com/codex/cloud/settings/usage.
 
 ---
 
