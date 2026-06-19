@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v305 — PR #914 MERGED `bd55acfe` post-#912 memory sync chore; Codex P2 R3440917396 resolved via corrective v305 decisions entry; CI 22/22 ✅; PR #568 escalation ×163; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v306 — PR #915 MERGED `0ea8b5d9` v305 memory sync chore; 4 Codex findings addressed (P1 rejected-false-positive, P2a outdated, P2b rejected-append-only, P2c spun-off→v306); CI 20/20 ✅; PR #568 escalation ×164; develop CI ✅ GREEN)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×163 Escalation (CRITICAL)
+### PR #568 — ×164 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×163 (escalated in v305)
+- **Escalation count**: ×164 (escalated in v306)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×163 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
+- **⚠️ MILESTONE**: ×164 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #915 — MERGED `0ea8b5d9` (v305 memory sync chore → develop)
+
+- **Merged at**: 2026-06-19 (v306)
+- **What it was**: Chore carrying decisions.jsonl v305 corrective entry (action:pm-dispatch, dispatch:v305), PM state header bump to v305 (×163 normalised across all occurrences in d26abf7e push). CI 20/20 ✅ (Quality Gate 08:05:58Z). 4 Codex findings addressed before merge: P1 (DCO false-positive on pre-push intermediate commit — rejected, DCO CI ✅ job 82308240291); P2a (escalation count mismatch — outdated by 07:57Z push); P2b (v304 alias — rejected, memory append-only, v305 entry covers); P2c (v305 archive missing — spun off to v306, added below).
 
 ### PR #914 — MERGED `bd55acfe` (post-#912 memory sync chore → develop)
 
@@ -310,6 +315,56 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v306
+
+**PR #915 MERGED `0ea8b5d9` (v305 memory sync chore, CI 20/20 ✅, 4 Codex findings addressed). PR #568 escalation ×163→×164. Develop CI ✅ GREEN. PR #917 opened (this chore).**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v305 last entry on develop, 293 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/dco), PM state v305 (on develop HEAD 0ea8b5d9), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #915 (v305 chore — CI 20/20 ✅, 4 Codex findings), #763 (DRAFT RFC-0121, founder gate), #568 (release/v0.3.0, 50/50 ✅, finalize pending ×163)
+- 1 open P1 issue: #829 (mutation kill rate, resolves after #568 ceremony)
+- Develop CI: ✅ GREEN (HEAD `0ea8b5d9` = v305 base post-merge)
+- 0 open P0 issues
+
+**Actions:**
+1. Pre-flight read complete ✅
+2. Assessed GitHub state: 3 open PRs, 1 P1 issue ✅
+3. PR #915 CI confirmed 20/20 ✅ (Quality Gate 08:05:58Z, Windows 08:05:52Z) ✅
+4. Addressed all 4 Codex findings on PR #915: P1 rejected (DCO false-positive on c3d3f77, DCO CI ✅ job 82308240291); P2a outdated (×162/×161 fixed by d26abf7e push); P2b rejected (append-only, v305 covers v304); P2c spun off (v305 archive → added in this v306 chore) ✅
+5. Merged PR #915 squash `0ea8b5d9` ✅
+6. Updated PM state v305→v306: escalation ×164, PR #915 in recently merged, v305 archive entry added, v306 archive entry added ✅
+7. Appended decisions.jsonl v306 entry ✅
+8. PR #917 opened (this chore) ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony (main + tag + GitHub Release + develop back-merge). ×164 escalations over 15 days. One step. crates.io + npm + PyPI all already published. CI 50/50 ✅.
+- **(2) PR #763**: Mark DRAFT → "Ready for Review" to unblock RFC-0121 Charter §2 amendment review.
+
+---
+
+### 2026-06-19 PM dispatch v305
+
+**PR #914 MERGED `bd55acfe` (post-#912 memory sync chore, CI 22/22 ✅, Codex P2 R3440917396 resolved). PR #915 opened (v305 memory sync chore). PR #568 escalation ×163. Develop CI ✅ GREEN.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail (v303 last, 292 lines), anti-patterns, PM state v304, v0.2 PRD.
+
+**Assessment:**
+- PRs open: #914 (post-#912 memory sync chore, CI 22/22 ✅), #763 (DRAFT, founder gate), #568 (release/v0.3.0, finalize pending ×163)
+- Develop CI: ✅ GREEN
+
+**Actions:**
+1. PR #914 CI 22/22 ✅, Codex P2 R3440917396 found (v304 entries lacked action:pm-dispatch markers) — resolved via corrective v305 entry appended in decisions.jsonl (memory is append-only; in-place edit forbidden). Codex reply posted on PR #914 thread ✅
+2. Merged PR #914 squash `bd55acfe` ✅
+3. Updated PM state v304→v305: escalation ×163, v305 corrective entry documented ✅
+4. Appended decisions.jsonl v305 corrective entry ✅
+5. PR #915 opened (this successor chore) ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0`. ×163 escalations.
 
 ---
 
