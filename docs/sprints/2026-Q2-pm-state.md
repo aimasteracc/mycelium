@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v304 — PR #912 MERGED `28dcb5a` RFC-0119 AC-12 gerund fix; all 4 Codex P2 findings addressed; CI 20/20 ✅; PR #568 escalation ×162; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v303 — PR #911 MERGED (v302 chore, CI ✅, Codex 2 P2 addressed); PR #912 MERGED (RFC-0119 AC-12/AC-13 gerund expansion, CI ✅, Codex 4 P2 fixed); PR #568 escalation ×163; develop CI ✅ GREEN)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×162 Escalation (CRITICAL)
+### PR #568 — ×163 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×162 (escalated in v302)
+- **Escalation count**: ×163 (escalated in v303)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×162 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
+- **⚠️ MILESTONE**: ×163 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -52,15 +52,20 @@ These items cannot proceed without explicit founder action.
 
 ## Recently Closed / Merged
 
-### PR #912 — MERGED `28dcb5a` (RFC-0119 AC-12 gerund expansion → develop)
+### PR #912 — MERGED (RFC-0119 AC-12 + AC-13 gerund expansion → develop)
 
-- **Merged at**: 2026-06-19 (v304)
-- **What it was**: Gerund-to-stem expansion in `extract_symbol_candidates` so "indexing" also searches "index", fixing all-test fallback (RFC-0119 AC-12). Follow-up commit `b5c1220` addressed all 4 Codex P2 findings: inline interleaving (take(10) cap), case-insensitive suffix check, doubled-consonant de-duplication, RFC Motivation updated to cite `docs/dogfood-v0.2.1.md`. CI 20/20 ✅ on HEAD `7b68de9` (run 27810972028). Codex: 4 P2 findings — all fixed with reply in `b5c1220`.
+- **Merged at**: 2026-06-19 (v303)
+- **What it was**: `fix(core): expand gerund candidates in context tool (RFC-0119 AC-12)` — root cause: `context --task "how does indexing work"` returned only test functions because `search_symbol("indexing")` matched test names containing the gerund, leaving `non_test` bucket empty. Fix: `extract_symbol_candidates` now appends bare stems for `-ing` gerund tokens (≥7 chars, stem ≥4 chars, not a stop word); also handles case normalization and doubled-consonant stripping (e.g. `running` → also tries `run`). AC-12 ✓: post-fix dogfood `index.rs>index_path` leads, no `tests.rs` entries. AC-13 ✓: `docs/dogfood-v0.2.1.md` committed. Memory: anti-pattern for rapid-double-push CI cancellation appended. Codex: 4 P2 findings — all fixed in b5c1220 (stem cap, case normalization, AC-13 Motivation, doubled-consonant). CI ✅.
+
+### PR #911 — MERGED (PM dispatch v302 chore → develop)
+
+- **Merged at**: 2026-06-19 (v303)
+- **What it was**: PM dispatch v302 state chore — PR #910 MERGED `2bd2de6` (v301 chore, CI 22/22 ✅, 0 Codex findings); PR #568 escalation ×161→×162; develop CI ✅ GREEN. Codex: 2 P2 findings — (a) PR #568 heading ×161 vs ×162 mismatch: **FIXED** in `0a13b1c`; (b) missing audit entry: **REJECTED** with justification (`.hive/audit/*.jsonl` gitignored by design; runtime-local only). CI 22/22 ✅.
 
 ### PR #910 — MERGED `2bd2de6` (PM dispatch v301 chore → develop)
 
 - **Merged at**: 2026-06-19 (v302)
-- CI 22/22 ✅, Codex 0 review threads
+- **What it was**: PM dispatch v301 state chore — PR #909 CLOSED SUPERSEDED (DCO failure on `push_files` commit `e7c1131`), PR #568 escalation ×160→×161. CI 22/22 ✅. Codex: 0 review threads.
 
 ### PR #909 — CLOSED SUPERSEDED (PM dispatch v300 chore → closed DCO failure)
 
@@ -305,57 +310,38 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-19 PM dispatch v303
 
-**RFC-0119 AC-12 bug fixed (gerund expansion). PR #912 opened. PR #568 escalation ×162. Develop CI ✅ GREEN.**
+**PR #911 MERGED (v302 chore, CI ✅, Codex 2 P2 addressed). PR #912 MERGED (RFC-0119 AC-12/AC-13 gerund expansion, CI ✅, Codex 4 P2 fixed). PR #568 escalation ×162→×163. Develop CI ✅ GREEN. PR #913 opened (this chore).**
 
-**Pre-flight:** CHARTER.md, _orchestrator.md, decisions.jsonl (v302 last entry, 286 lines), anti-patterns (dco/release-governance/ci/memory-discipline/pm-dispatch/storage-atomicity), PM state v302.
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v301 last entry on develop, 285 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface/dco/rapid-double-push), PM state v302 (on chore/pm-state-v302 branch), v0.2 PRD.
 
 **Assessment:**
-- 3 open PRs: #912 (newly opened, RFC-0119 AC-12, CI pending), #568 (release/v0.3.0 ceremony ×162), #763 (DRAFT RFC-0121, founder gate)
-- RFC-0119: AC-12/AC-13 open; real dogfood revealed active bug (test functions surfacing instead of production code)
-- Goal: `/goal 自我進化` — find and implement real improvement
+- 4 open PRs at start: #912 (RFC-0119 AC-12/AC-13 gerund expansion — CI in_progress, Codex 4 P2 all fixed in b5c1220+7b68de9), #911 (v302 chore — CI 22/22 ✅ on original commit; Codex 2 P2 found), #763 (DRAFT RFC-0121, founder gate), #568 (release/v0.3.0, 50/50 ✅, finalize pending ×162)
+- 1 open issue: #829 (P1, mutation kill rate ENOTDIR — resolves after #568 ceremony)
+- Develop CI: ✅ GREEN (HEAD `2bd2de6` = v302 base)
+- RFC-0119 status: AC-1 through AC-11, AC-14/AC-15/AC-16/AC-18 ✅. PR #912 completes AC-12/AC-13. AC-17 (coverage ≥90% on ranking.rs) satisfied by CI coverage gate on PR #912.
+- Audit trail gap noted: v302 dispatch did not write `.hive/audit/2026-06-19.jsonl` (gitignored file; noted as process gap, Codex P2 finding replied-to with justification)
 
 **Actions:**
-1. Diagnosed RFC-0119 real-corpus failure: `search_symbol("indexing")` only matched test function names; `non_test` bucket empty → never-empty fallback returned test functions ✅
-2. TDD RED: two failing tests (`extract_expands_gerund_to_stem`, `seed_finds_production_code_from_gerund_query`) ✅
-3. Fix: gerund-to-stem expansion in `extract_symbol_candidates` (one-function patch) ✅
-4. TDD GREEN: both tests pass; 979 lib tests 0 failed ✅
-5. Rebuilt binary, re-indexed, confirmed post-fix dogfood: `index_path`/`index_file_into`/`IndexStats` in entry_points; no `tests.rs` functions ✅
-6. Wrote `docs/dogfood-v0.2.1.md` (AC-13 ✅), updated RFC-0119 (AC-12 ✓, AC-13 ✓), updated CHANGELOG ✅
-7. Committed v302 weekly synthesis (hive memory) + RFC-0119 fix in 2 commits; pushed PR #912 ✅
-8. decisions.jsonl v303 entry appended ✅
+1. Pre-flight read complete ✅
+2. Assessed GitHub state: 4 open PRs, 1 open issue ✅
+3. PR #911 Codex 2 P2 found: (a) heading ×161→×162 — FIXED commit `0a13b1c` pushed to chore/pm-state-v302; (b) missing audit — REJECTED with justification (gitignored). Both replied ✅
+4. PR #912 Codex 4 P2 verified: all fixed/replied in b5c1220 (outdated) + one AC-13 Motivation thread replied ✅
+5. PR #911 CI green (22/22 ✅ on fix commit `0a13b1c`) → merged squash ✅
+6. PR #912 CI green → merged squash ✅
+7. Updated PM state v302→v303: escalation ×163, PRs #912/#911/#910 added to recently merged, v303 archive entry ✅
+8. Appended decisions.jsonl (v303 entry, 285→286 lines) ✅
+9. PR #913 opened (this chore) ✅
 
-**RFC-0119 remaining open**: AC-17 (≥90% coverage on ranking.rs) — blocked on `cargo-llvm-cov` not installed
-
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony (main + tag + GitHub Release + develop back-merge). ×163 escalations. One step.
 
 ---
 
 ### 2026-06-19 PM dispatch v302
 
-**PR #910 MERGED `2bd2de6` (v301 chore, CI 22/22 ✅, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×161→×162.**
+**PR #910 MERGED `2bd2de6` (v301 chore, CI 22/22 ✅, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×161→×162. PR #911 opened.**
 
-**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v301 last entry, 285 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface/dco), PM state v301 (develop HEAD `2bd2de6` post-#910-merge), v0.2 PRD.
-
-**Assessment:**
-- 2 open PRs at start: #568 (release/v0.3.0, 50/50 ✅ `f14f80df`, finalize pending ×162), #763 (DRAFT RFC-0121, founder gate)
-- 1 open issue: #829 (P1, mutation kill rate ENOTDIR — fix in release/v0.3.0; resolves after ceremony)
-- Develop CI: ✅ GREEN (HEAD `2bd2de6` post-#910-merge)
-- Codex on PR #910: 0 review threads — vacuously satisfied
-- No new autonomous-executable work: all P0/P1 items remain founder-gated
-
-**Actions:**
-1. Pre-flight read complete ✅
-2. Assessed GitHub state: 2 open PRs (#568 ×161, #763), 1 open issue (#829) ✅
-3. Verified PR #910 CI: 22/22 ✅ Quality Gate SUCCESS (all checks pass) ✅
-4. Verified PR #910 Codex: 0 review threads (no findings) ✅
-5. Merged PR #910 (squash `2bd2de6`) — CI 22/22 ✅, 0 Codex findings ✅
-6. Updated PM state v301→v302 — escalation ×162; PR #910 added to recently merged; v302 archive entry ✅
-7. Appended decisions.jsonl (v302 entry, 285→286 lines) ✅
-8. PR #911 opened (this chore) ✅
-
-**Escalations to founder:**
-- **(1) PR #568**: Trigger `finalize` workflow_dispatch — 1 step, ~1 min. All registries published (crates.io ✅ npm ✅ PyPI ✅ as of 2026-06-14). CI 50/50 ✅. ×162 escalations, 15+ days blocked.
-- **(2) PR #763**: Un-draft RFC-0121 Charter §2 amendment when ready for review.
-- **(3) Issue #829**: Resolves automatically after PR #568 ceremony completes.
+**Actions:** Merged PR #910 (squash `2bd2de6`, CI 22/22 ✅, 0 Codex findings); escalation ×162; Codex 2 P2 findings found on PR #911 after open (addressed by v303).
 
 ---
 

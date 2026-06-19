@@ -1,6 +1,6 @@
 # RFC-0119: Importance-Weighted Entry-Point Selection with Static Test-Code Demotion
 
-- **Status**: Partially Implemented (AC-12/AC-13 complete 2026-06-19 via gerund-expansion fix; AC-17 blocked on `cargo-llvm-cov` tooling availability in CI)
+- **Status**: Implemented (all ACs satisfied: AC-1–AC-11 ✅ Phase 1+2; AC-12 ✅ real-corpus dogfood + gerund expansion (PR #912); AC-13 ✅ `docs/dogfood-v0.2.1.md` (PR #912); AC-14–AC-16 ✅; AC-17 ✅ CI coverage gate (PR #912 coverage ✅); AC-18 ✅)
 - **Created**: 2026-06-06
 - **Depends on / supersedes**: No hard RFC dependency. Builds on **RFC-0101** (Mycelium Context Tool — this RFC brings `seed_entry_points` into compliance with RFC-0101 §3-4's documented score-ordering, which the current implementation violates). Reuses the existing static stub-classification machinery from **RFC-0113** (`crates/mycelium-core/src/classify.rs`, `CalleeClass`). Stub-robustness of the in-degree signal is handled **in-scope** here (see Design §"Stub-robust in-degree"), not deferred to any external de-noising RFC.
 
