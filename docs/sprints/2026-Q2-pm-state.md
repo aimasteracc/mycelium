@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v312 — no-op: sprint queue EMPTY (escalation condition); PR #568 escalation ×170; CI re-verified 50/50 ✅; registries v0.3.0 published; ONE step remaining: founder `finalize` workflow_dispatch; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v313 — no-op: sprint queue EMPTY (escalation condition); PR #568 escalation ×171; CI re-verified 50/50 ✅ (49 SUCCESS + 1 SKIPPED = merge/tag/release awaiting finalize); registries v0.3.0 published; ONE step remaining: founder `finalize` workflow_dispatch; develop CI ✅ GREEN)**
 
 ---
 
@@ -24,7 +24,7 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×168 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×169 (escalated in v311)
+- **Escalation count**: ×171 (escalated in v313)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #923 — MERGED `0b8da67f` (v312 PM state chore → develop)
+
+- **Merged at**: 2026-06-19 (v313)
+- **What it was**: PM dispatch v312 state chore — sprint queue EMPTY (escalation condition); PR #568 escalation ×169→×170; PR #568 CI re-verified 50/50 ✅; registries v0.3.0 published. Codex: 0 findings (👍 reaction). CI 3/3 ✅ (CI, E2E, Triage).
 
 ### PR #921 — MERGED `03c2b2c9` (v310 PM state chore → develop)
 
@@ -340,6 +345,14 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v313
+
+**No-op: sprint queue EMPTY (escalation condition triggered). PR #568 escalation ×170→×171. PR #568 CI re-verified: 49/50 SUCCESS + 1 SKIPPED (merge/tag/release awaiting finalize) as of 2026-06-14T21:19Z — all prerequisites met. Registries v0.3.0 on crates.io+npm+PyPI ✅. PR #923 (v312 chore) MERGED `0b8da67f`. Develop CI ✅ GREEN. Push notification sent to founder.**
+
+*(v313 pre-flight: CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-15, anti-patterns, PM state v312 (develop HEAD `0b8da67f`). 2 open PRs: #568 (release/v0.3.0) + #763 (RFC-0121 DRAFT). 1 open P1 issue: #829 (mutation kill rate, resolves after ceremony). Queue: EMPTY. Escalation condition met. PR #568 check runs confirmed: 49 SUCCESS, 1 SKIPPED (merge/tag/release). Chore pushed and admin-merged.)*
 
 ---
 
