@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v297 — PR #905 MERGED `f2bb95d` (v296 chore, CI 22/22 ✅, Codex P1 rejected/DCO CI gate passed); PR #568 escalation ×157; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v298 — PR #906 MERGED (v297 chore, CI 22/22 ✅, Codex P1 rejected/DCO CI gate passed); PR #568 escalation ×158; develop CI ✅ GREEN)**
 
 ---
 
@@ -24,11 +24,11 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×157 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×157 (escalated in v297)
+- **Escalation count**: ×158 (escalated in v298)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×156 escalations over 13+ days. Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch.**
+- **⚠️ MILESTONE**: ×157 escalations over 14+ days. Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #906 — MERGED (PM dispatch v297 chore → develop)
+
+- **Merged at**: 2026-06-19 (v298)
+- **What it was**: PM dispatch v297 state chore — PR #905 merged (`f2bb95d`), PR #568 escalation ×157→×158. CI 22/22 ✅ (all 22 checks SUCCESS). Codex: 1 P1 finding (DCO missing on intermediate commit `79904aa`) — **rejected** with justification (DCO CI gate shows `success`; squash-merge carries trailer; finding is false positive on an intermediate commit, same pattern as v296/PR #905).
 
 ### PR #905 — MERGED `f2bb95d` (PM dispatch v296 chore → develop)
 
@@ -270,6 +275,34 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v298
+
+**PR #906 MERGED (v297 chore, CI 22/22 ✅, Codex P1 rejected). Develop CI ✅ GREEN. PR #568 escalation ×157→×158.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v297 last entry, 281 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v297 (develop HEAD post-#906-merge, origin/develop fetched), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at start: #906 (v297 chore — CI 22/22 ✅ → merged this dispatch), #568 (release/v0.3.0, 50/50 ✅ `f14f80df`, finalize pending ×158), #763 (DRAFT RFC-0121, founder gate)
+- 1 open issue: #829 (P1, mutation kill rate ENOTDIR — fix in release/v0.3.0; resolves after ceremony)
+- Develop CI: ✅ GREEN
+- Codex: 1 P1 finding on PR #906 (DCO missing on intermediate commit `79904aa`) — rejected with justification (DCO CI gate SUCCESS, false positive on intermediate commit — same pattern as v296/PR #905; reply already posted by v297)
+- No new autonomous-executable work: all P0/P1 items remain founder-gated
+
+**Actions:**
+1. Pre-flight read (CHARTER, orchestrator, decisions tail-20, anti-patterns, PM state v297, v0.2 PRD) ✅
+2. Assessed GitHub state: PR #906 (CI 22/22 ✅), 1 Codex P1 finding (reply already posted), 1 open issue #829 ✅
+3. Merged PR #906 (squash, CI 22/22 ✅, Codex P1 rejection reply already posted by v297) ✅
+4. Updated PM state v297→v298: escalation ×158, PR #906 added to recently merged, v298 archive entry ✅
+5. Appended decisions.jsonl (v298 entry, 281→282 lines) ✅
+6. PR #907 opened (this chore) ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — 1 step, ~1 min. All registries published (crates.io ✅ npm ✅ PyPI ✅ as of 2026-06-14). CI 50/50 ✅. ×158 escalations, 15 days blocked.
+- **(2) PR #763**: Un-draft RFC-0121 Charter §2 amendment when ready for review.
+- **(3) Issue #829**: Resolves automatically after PR #568 ceremony completes.
 
 ---
 
