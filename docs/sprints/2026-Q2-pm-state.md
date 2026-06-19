@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v306 — PR #915 MERGED `0ea8b5d9` v305 memory sync chore; 4 Codex findings addressed (P1 rejected-false-positive, P2a outdated, P2b rejected-append-only, P2c spun-off→v306); CI 20/20 ✅; PR #568 escalation ×164; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v307 — PR #917 MERGED `53be8c29` v306 PM chore; Codex P1 (DCO) rejected-false-positive (commit 41ac4a8 not in PR; both actual commits carry Signed-off-by; DCO CI job 82310180252 ✅); CI 20/20 ✅; PR #568 escalation ×165; develop CI ✅ GREEN)**
 
 ---
 
@@ -21,10 +21,10 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×164 Escalation (CRITICAL)
+### PR #568 — ×165 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×164 (escalated in v306)
+- **Escalation count**: ×165 (escalated in v307)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #917 — MERGED `53be8c29` (v306 PM state chore → develop)
+
+- **Merged at**: 2026-06-19 (v307)
+- **What it was**: PM dispatch v306 state chore — PR #915 MERGED `0ea8b5d9` (4 Codex findings addressed before merge); v305 archive entry added (spun off from PR #915 Codex P2c); PM state header v305→v306, escalation ×164. CI 20/20 ✅ (Quality Gate 08:17:37Z). Codex P1 finding (DCO false positive on commit `41ac4a8` not present in PR) — **rejected** with justification (both PR commits `267fa4dc` + `3864cca7` carry `Signed-off-by: aimasteracc`; DCO CI job `82310180252` ✅; same phantom-SHA pattern as PR #915).
 
 ### PR #915 — MERGED `0ea8b5d9` (v305 memory sync chore → develop)
 
