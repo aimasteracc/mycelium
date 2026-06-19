@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v313 — no-op: sprint queue EMPTY (escalation condition); PR #568 escalation ×171; CI re-verified 50/50 ✅ (49 SUCCESS + 1 SKIPPED = merge/tag/release awaiting finalize); registries v0.3.0 published; ONE step remaining: founder `finalize` workflow_dispatch; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v314 — no-op: sprint queue EMPTY (escalation condition); PR #568 escalation ×172; CI re-confirmed 50/50 ✅ (49 SUCCESS + 1 SKIPPED = merge/tag/release awaiting finalize); registries v0.3.0 published; ONE step remaining: founder `finalize` workflow_dispatch; develop CI ✅ GREEN; PushNotification sent)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×168 Escalation (CRITICAL)
+### PR #568 — ×172 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×171 (escalated in v313)
+- **Escalation count**: ×172 (escalated in v314)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×168 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
+- **⚠️ MILESTONE**: ×172 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -345,6 +345,14 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v314
+
+**No-op: sprint queue EMPTY (escalation condition triggered). PR #568 escalation ×171→×172. PM state v313→v314. PushNotification sent to founder. State re-confirmed: PR #568 CI 50/50 ✅, registries published, one founder step remaining (`finalize` workflow_dispatch). PR #763 (RFC-0121) still DRAFT.**
+
+*(v314 pre-flight: CHARTER §2/§5.1/§5.10/§5.12/§5.13, _orchestrator, decisions tail-20, anti-patterns (governance/release/ci), PM state v313 (develop HEAD cfc5ef2). 2 open PRs: #568 (release/v0.3.0) + #763 (RFC-0121 DRAFT). 1 open P1 issue: #829 (mutation kill rate CI tooling crash, fix in PR #861 on release/v0.3.0). Develop CI ✅ GREEN. Decisions.jsonl v314 entry appended. Chore pushed.)*
 
 ---
 
