@@ -108,29 +108,33 @@ pub fn extract_symbol_candidates(task: &str) -> Vec<String> {
         }
         if seen.insert(token.to_owned()) {
             out.push(token.to_owned());
-        }
-    }
-    // RFC-0119 AC-12: expand -ing gerunds to their bare stem so "indexing" also
-    // searches for "index".  This prevents the all-test fallback when production
-    // code uses the root form (e.g. `index_file`) and only test functions happen
-    // to contain the gerund in their name.
-    let stems: Vec<String> = out
-        .iter()
-        .filter_map(|t| {
-            if t.len() >= 7 && t.ends_with("ing") {
-                let stem = &t[..t.len() - 3];
-                let lc = stem.to_ascii_lowercase();
-                if !CONTEXT_STOP_WORDS.contains(&lc.as_str()) {
-                    return Some(stem.to_owned());
+            // RFC-0119 AC-12: gerund → stem inline so stems land within the
+            // take(10) cap used by seed_entry_points. Lowercase-based suffix
+            // check handles capitalised tokens ("Indexing" → "index").
+            let lc_token = token.to_ascii_lowercase();
+            if lc_token.len() >= 7 && lc_token.ends_with("ing") {
+                let stem = &lc_token[..lc_token.len() - 3];
+                if !CONTEXT_STOP_WORDS.contains(&stem) {
+                    if seen.insert(stem.to_owned()) {
+                        out.push(stem.to_owned());
+                    }
+                    // Doubled-consonant gerunds ("running"→"runn") need one
+                    // more letter stripped to reach the root form ("run").
+                    let bytes = stem.as_bytes();
+                    let n = bytes.len();
+                    if n >= 3 {
+                        let last = bytes[n - 1];
+                        if last == bytes[n - 2] && !b"aeiou".contains(&last) {
+                            let shorter = &stem[..n - 1];
+                            if !CONTEXT_STOP_WORDS.contains(&shorter)
+                                && seen.insert(shorter.to_owned())
+                            {
+                                out.push(shorter.to_owned());
+                            }
+                        }
+                    }
                 }
             }
-            None
-        })
-        .filter(|s| !seen.contains(s.as_str()))
-        .collect();
-    for s in stems {
-        if seen.insert(s.clone()) {
-            out.push(s);
         }
     }
     out
