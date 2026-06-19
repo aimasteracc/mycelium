@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v310 — PR #920 MERGED (v309 PM chore, Codex P2 fixed via corrective append `a12c0e2`); sprint queue empty; PR #568 escalation ×168; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v311 — PR #921 MERGED `03c2b2c9` (v310 PM chore, CI 3/3 ✅, Codex 👍 0 findings); sprint queue empty; PR #568 escalation ×169; develop CI ✅ GREEN)**
 
 ---
 
@@ -24,7 +24,7 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×168 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×168 (escalated in v310)
+- **Escalation count**: ×169 (escalated in v311)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #921 — MERGED `03c2b2c9` (v310 PM state chore → develop)
+
+- **Merged at**: 2026-06-19 (v311)
+- **What it was**: PM dispatch v310 state chore — PR #920 MERGED `c32cf877` (v309 PM chore, Codex P2 fixed via corrective append `a12c0e2`); sprint queue EMPTY; PR #568 escalation ×167→×168; develop CI ✅ GREEN. Codex: 0 review threads (👍 reaction — no findings). CI 3/3 ✅ (E2E, CI, Triage).
 
 ### PR #920 — MERGED `c32cf877` (v309 PM state chore → develop)
 
@@ -335,6 +340,32 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v311
+
+**PR #921 MERGED `03c2b2c9` (v310 PM chore, CI 3/3 ✅, Codex 👍 0 findings). PR #922 opened (this chore). PR #568 escalation ×168→×169. Sprint queue empty. Develop CI ✅ GREEN.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20, anti-patterns (rfc-0109/sla/ci), PM state v310 (develop HEAD `03c2b2c9`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #568 (release/v0.3.0, 50/50 ✅, finalize pending ×168→×169), #763 (DRAFT RFC-0121, founder gate), #921 (PM v310 chore — merged this run ✅)
+- 1 open P1 issue: #829 (mutation kill rate, resolves after #568 ceremony; root cause ENOTDIR, fix in release branch)
+- Develop CI: ✅ GREEN (HEAD `03c2b2c9` post-#921 merge)
+- Sprint queue: EMPTY (all RFCs 0112–0126 Implemented or governance-Draft)
+
+**Actions:**
+1. Pre-flight read complete ✅
+2. Assessed GitHub state: PR #921 CI 3/3 ✅, Codex 👍 0 findings ✅
+3. Merged PR #921 → develop (`03c2b2c9`) ✅
+4. Updated PM state v310→v311: escalation ×169 (heading + count), PR #921 in Recently Closed, v311 archive entry ✅
+5. Appended decisions.jsonl v311 entry ✅
+6. PR #922 opened (this chore) — CI queued ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony. ×169 escalations over 15+ days. **One step.** All registries (crates.io + npm + PyPI) already published. CI 50/50 ✅.
+- **(2) PR #763**: Mark DRAFT → "Ready for Review" to unblock RFC-0121 Charter §2 amendment review. Independent of v0.3.0 ceremony.
 
 ---
 
