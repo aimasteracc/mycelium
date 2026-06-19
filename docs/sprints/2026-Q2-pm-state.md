@@ -21,7 +21,7 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×159 Escalation (CRITICAL)
+### PR #568 — ×160 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
 - **Escalation count**: ×160 (escalated in v300)
