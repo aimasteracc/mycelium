@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v315 — Hard Rule fix: PR #925 CLOSED SUPERSEDED (decisions.jsonl rewritten 303→48 lines in v314, dropping v303–v313 history; Codex P1 confirmed real violation); clean v315 chore opened; PR #568 escalation ×173; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v316 — PR #926 MERGED `4466acba` (v315 chore, CI ✅ GREEN); PR #568 escalation ×174; develop CI ✅ GREEN; sprint queue EMPTY)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×173 Escalation (CRITICAL)
+### PR #568 — ×174 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×173 (escalated in v315)
+- **Escalation count**: ×174 (escalated in v316)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
-- **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
-- **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×173 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
+- **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v316 dispatch.
+- **Ceremony path — ALL PREREQUISITES CONFIRMED MET**: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites.** Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
+- **⚠️ MILESTONE**: ×174 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #926 — MERGED `4466acba` (v315 PM state chore → develop)
+
+- **Merged at**: 2026-06-19 (v316)
+- **What it was**: PM dispatch v315 state chore — PR #925 CLOSED SUPERSEDED (Codex P1 Hard Rule violation: decisions.jsonl overwritten 303→48 lines in v314); clean v315 chore opened from correct develop HEAD; PR #568 escalation ×171→×173; decisions.jsonl v314+v315 entries appended (303→305 lines); anti-pattern recorded. CI ✅ GREEN (22/22). Codex: 0 review threads (👍 reaction — no findings).
 
 ### PR #925 — CLOSED SUPERSEDED (v314 PM state chore → Hard Rule violation)
 
@@ -356,6 +361,35 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v316
+
+**PR #926 MERGED `4466acba` (v315 chore, CI ✅). PR #568 escalation ×173→×174. Develop CI ✅ GREEN. Sprint queue EMPTY.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (local clone was at main/v0.2.0 — fetched origin/develop first; post-fetch tail confirmed v315 pm-dispatch entry `2026-06-19T17:00:00Z` as last record, 305 lines intact), anti-patterns (CI cascade, decisions.jsonl overwrite patterns reviewed), PM state v315 (develop HEAD `4466acba`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0, CI 50/50 ✅, finalize pending ×173→×174), #763 (RFC-0121 DRAFT, founder gate)
+- 1 open P1 issue: #829 (mutation kill rate <70% on main; root cause ENOTDIR CI tooling crash, not real kill-rate failure; fix in release/v0.3.0 at `f14f80df`; resolves after ceremony)
+- Develop CI: ✅ GREEN (HEAD `4466acba`, v315 chore merged at 17:37Z today)
+- Sprint queue: EMPTY (all RFCs 0112–0126 Implemented or governance-Draft — RFC-0112/0121/0123 remain Draft pending founder/governance action; no engineering work actionable)
+- PR #568 CI re-verified: 50/50 ✅ (crates.io ✅, npm ✅, PyPI ✅ — all published 2026-06-14; `merge to main` SKIPPED awaiting finalize)
+- Codex on #568: 1 review thread (P1, RESOLVED/OUTDATED) + 0 open threads — safe to merge
+
+**Actions:**
+1. Pre-flight complete ✅
+2. Fetched origin/develop; checked out `chore/pm-v316` ✅
+3. Re-verified PR #568: 50/50 CI ✅, Codex P1 resolved/outdated ✅, all registries published ✅
+4. Confirmed issue #829 fix is in release branch (ENOTDIR root cause, nightly.yml fix `f14f80df`) ✅
+5. Updated PM state v315→v316: ×174 escalation, PR #926 in Recently Closed, v316 archive entry ✅
+6. Appended v316 entry to decisions.jsonl ✅
+7. Opened this PR + PushNotification sent to founder ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony (merge main + tag + GH Release + back-merge). ×174 escalations over 15 days. **One step.** All registries already published 2026-06-14. CI 50/50 ✅.
+- **(2) PR #763**: Mark DRAFT → "Ready for Review" to unblock RFC-0121 Charter §2 amendment review. Independent of ceremony.
 
 ---
 
