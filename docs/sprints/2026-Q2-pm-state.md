@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v303 — PR #911 MERGED (v302 chore, CI ✅, Codex 2 P2 addressed); PR #912 MERGED (RFC-0119 AC-12/AC-13 gerund expansion, CI ✅, Codex 4 P2 fixed); PR #568 escalation ×163; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v305 — PR #914 MERGED `bd55acfe` post-#912 memory sync chore; Codex P2 R3440917396 resolved via corrective v305 decisions entry; CI 22/22 ✅; PR #568 escalation ×163; develop CI ✅ GREEN)**
 
 ---
 
@@ -24,7 +24,7 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×163 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×163 (escalated in v303)
+- **Escalation count**: ×163 (escalated in v305)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #914 — MERGED `bd55acfe` (post-#912 memory sync chore → develop)
+
+- **Merged at**: 2026-06-19 (v305)
+- **What it was**: Chore carrying decisions.jsonl v303/v304 entries (Codex P2 fixes + PR #912 merge record), CI cascade anti-pattern in anti-patterns.jsonl, PM state header bump to v304. CI 22/22 ✅ (Quality Gate 07:25:58Z). Codex P2 finding R3440917396 (v304 entries lacked action:pm-dispatch markers) — resolved via corrective v305 entry appended in this PR's successor chore (memory is append-only; in-place edit not possible). Reply posted on PR #914 thread.
 
 ### PR #912 — MERGED (RFC-0119 AC-12 + AC-13 gerund expansion → develop)
 
