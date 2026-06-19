@@ -110,6 +110,29 @@ pub fn extract_symbol_candidates(task: &str) -> Vec<String> {
             out.push(token.to_owned());
         }
     }
+    // RFC-0119 AC-12: expand -ing gerunds to their bare stem so "indexing" also
+    // searches for "index".  This prevents the all-test fallback when production
+    // code uses the root form (e.g. `index_file`) and only test functions happen
+    // to contain the gerund in their name.
+    let stems: Vec<String> = out
+        .iter()
+        .filter_map(|t| {
+            if t.len() >= 7 && t.ends_with("ing") {
+                let stem = &t[..t.len() - 3];
+                let lc = stem.to_ascii_lowercase();
+                if !CONTEXT_STOP_WORDS.contains(&lc.as_str()) {
+                    return Some(stem.to_owned());
+                }
+            }
+            None
+        })
+        .filter(|s| !seen.contains(s.as_str()))
+        .collect();
+    for s in stems {
+        if seen.insert(s.clone()) {
+            out.push(s);
+        }
+    }
     out
 }
 

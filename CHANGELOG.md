@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **fix(core): `context --task` no longer returns only test functions for gerund queries (RFC-0119 AC-12).**
+  Queries phrased as gerunds (e.g. "how does indexing work") produced candidates like `["indexing"]`
+  which only matched test function names that happen to contain the gerund. Production symbols
+  (`index_path`, `index_file_into`, `IndexStats`) use the root verb form "index". With the
+  `non_test` bucket empty, the never-empty guarantee in `rank_entry_points` fell back to returning
+  test functions. Fixed by expanding gerund tokens (≥7 chars, suffix `-ing`) to their bare stem in
+  `extract_symbol_candidates`, so "indexing" also tries "index". Post-fix: `context "how does indexing work"`
+  returns production code entry points. (RFC-0119 AC-12; `docs/dogfood-v0.2.1.md`)
+
 - **fix(npm): add `libc: ["glibc"]` constraint to Linux platform packages.**
   Alpine Linux (musl) systems no longer receive the glibc-linked
   `linux-x64-gnu` / `linux-arm64-gnu` binaries as npm optional dependencies.
