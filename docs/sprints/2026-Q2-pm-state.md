@@ -368,13 +368,13 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 **PR #926 MERGED `4466acba` (v315 chore, CI ✅). PR #568 escalation ×173→×174. Develop CI ✅ GREEN. Sprint queue EMPTY.**
 
-**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (last entry: v0.2.0 release prep — local clone at main/v0.2.0; fetched origin/develop before any action), anti-patterns (CI cascade, decisions.jsonl overwrite patterns reviewed), PM state v315 (develop HEAD `4466acba`), v0.2 PRD.
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (local clone was at main/v0.2.0 — fetched origin/develop first; post-fetch tail confirmed v315 pm-dispatch entry `2026-06-19T17:00:00Z` as last record, 305 lines intact), anti-patterns (CI cascade, decisions.jsonl overwrite patterns reviewed), PM state v315 (develop HEAD `4466acba`), v0.2 PRD.
 
 **Assessment:**
 - 2 open PRs: #568 (release/v0.3.0, CI 50/50 ✅, finalize pending ×173→×174), #763 (RFC-0121 DRAFT, founder gate)
 - 1 open P1 issue: #829 (mutation kill rate <70% on main; root cause ENOTDIR CI tooling crash, not real kill-rate failure; fix in release/v0.3.0 at `f14f80df`; resolves after ceremony)
 - Develop CI: ✅ GREEN (HEAD `4466acba`, v315 chore merged at 17:37Z today)
-- Sprint queue: EMPTY (all RFCs 0112–0126 Implemented)
+- Sprint queue: EMPTY (all RFCs 0112–0126 Implemented or governance-Draft — RFC-0112/0121/0123 remain Draft pending founder/governance action; no engineering work actionable)
 - PR #568 CI re-verified: 50/50 ✅ (crates.io ✅, npm ✅, PyPI ✅ — all published 2026-06-14; `merge to main` SKIPPED awaiting finalize)
 - Codex on #568: 1 review thread (P1, RESOLVED/OUTDATED) + 0 open threads — safe to merge
 
