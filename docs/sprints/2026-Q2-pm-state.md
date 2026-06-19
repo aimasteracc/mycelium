@@ -320,7 +320,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 ### 2026-06-19 PM dispatch v306
 
-**PR #915 MERGED `0ea8b5d9` (v305 memory sync chore, CI 20/20 ✅, 4 Codex findings addressed). PR #568 escalation ×163→×164. Develop CI ✅ GREEN. PR #916 opened (this chore).**
+**PR #915 MERGED `0ea8b5d9` (v305 memory sync chore, CI 20/20 ✅, 4 Codex findings addressed). PR #568 escalation ×163→×164. Develop CI ✅ GREEN. PR #917 opened (this chore).**
 
 **Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v305 last entry on develop, 293 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/dco), PM state v305 (on develop HEAD 0ea8b5d9), v0.2 PRD.
 
@@ -338,7 +338,7 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 5. Merged PR #915 squash `0ea8b5d9` ✅
 6. Updated PM state v305→v306: escalation ×164, PR #915 in recently merged, v305 archive entry added, v306 archive entry added ✅
 7. Appended decisions.jsonl v306 entry ✅
-8. PR #916 opened (this chore) ✅
+8. PR #917 opened (this chore) ✅
 
 **Escalations to founder:**
 - **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony (main + tag + GitHub Release + develop back-merge). ×164 escalations over 15 days. One step. crates.io + npm + PyPI all already published. CI 50/50 ✅.
