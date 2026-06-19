@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v313 — no-op: sprint queue EMPTY (escalation condition); PR #568 escalation ×171; CI re-verified 50/50 ✅ (49 SUCCESS + 1 SKIPPED = merge/tag/release awaiting finalize); registries v0.3.0 published; ONE step remaining: founder `finalize` workflow_dispatch; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v315 — Hard Rule fix: PR #925 CLOSED SUPERSEDED (decisions.jsonl rewritten 303→48 lines in v314, dropping v303–v313 history; Codex P1 confirmed real violation); clean v315 chore opened; PR #568 escalation ×173; develop CI ✅ GREEN)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×168 Escalation (CRITICAL)
+### PR #568 — ×173 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×171 (escalated in v313)
+- **Escalation count**: ×173 (escalated in v315)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×168 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
+- **⚠️ MILESTONE**: ×173 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,17 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #925 — CLOSED SUPERSEDED (v314 PM state chore → Hard Rule violation)
+
+- **Closed at**: 2026-06-19 (v315)
+- **What it was**: PM dispatch v314 state chore — sprint queue EMPTY; PR #568 escalation ×171→×172; PushNotification sent to founder. CI 22/22 ✅. Codex: 2 findings — **P1** (decisions.jsonl rewritten 303→48 lines, dropping v303–v313 history, Charter §5.3 Hard Rule violation) + **P2** (stale "v28" reference in decisions entry).
+- **Why closed**: Codex P1 was a real Hard Rule violation — decisions.jsonl was not append-only; v303–v313 history was deleted. Both Codex threads replied to with justification before close. Superseded by v315 (this PR) which branches clean from develop HEAD (303-line file intact) and only appends.
+
+### PR #924 — MERGED `cfc5ef28` (v313 PM state chore → develop)
+
+- **Merged at**: 2026-06-19 (v313)
+- **What it was**: PM dispatch v313 state chore — sprint queue EMPTY (escalation condition); PR #568 escalation ×170→×171; PR #923 MERGED `0b8da67f`; PR #568 CI re-verified 49/50 SUCCESS + 1 SKIPPED; registries v0.3.0 published; develop CI ✅ GREEN. Admin-merged during v313 run. Codex: 0 findings (👍 reaction — no review threads).
 
 ### PR #923 — MERGED `0b8da67f` (v312 PM state chore → develop)
 
@@ -345,6 +356,45 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v315
+
+**PR #925 CLOSED SUPERSEDED (Codex P1 Hard Rule violation: decisions.jsonl 303→48 lines in v314, dropping v303–v313 history). Clean v315 chore opened (this PR). PR #568 escalation ×171→×173. Develop CI ✅ GREEN.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v313 last, 303 lines verified intact after fetch), anti-patterns (append-only precedent confirmed), PM state v313 (develop HEAD `cfc5ef28`), v0.2 PRD. Local clone was stale — fetched origin/develop first.
+
+**Assessment:**
+- 3 open PRs: #925 (v314 chore, Codex P1 Hard Rule violation — CLOSED this run), #568 (release/v0.3.0, CI 50/50 ✅, finalize pending ×171→×173), #763 (RFC-0121 DRAFT, founder gate)
+- 1 open P1 issue: #829 (mutation kill rate, resolves after #568 ceremony; root cause ENOTDIR, fix in release branch)
+- Develop CI: ✅ GREEN (HEAD `cfc5ef28`, v313 chore)
+- Sprint queue: EMPTY (all RFCs 0112–0126 Implemented or governance-Draft)
+
+**Actions:**
+1. Pre-flight complete ✅
+2. Fetched origin/develop — decisions.jsonl 303 lines (intact) ✅
+3. Inspected PR #925 diff — Codex P1 confirmed real Hard Rule violation (decisions.jsonl 303→48 lines) ✅
+4. Replied to Codex P1+P2 on PR #925 before closing ✅
+5. Closed PR #925 as SUPERSEDED (title updated) ✅
+6. Created `chore/pm-state-v315` from clean origin/develop ✅
+7. Appended v314 (reconstructed) + v315 entries to decisions.jsonl (303→305 lines) ✅
+8. Appended anti-pattern: decisions.jsonl overwrite via stale local checkout ✅
+9. Updated PM state v313→v315: ×173 escalation, PR #924+#925 in Recently Closed, v314+v315 archive entries ✅
+10. Opened PR #926 (this chore) ✅
+11. PushNotification sent to founder ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony. ×173 escalations over 15+ days. **One step.** All registries (crates.io + npm + PyPI) already published 2026-06-14. CI 50/50 ✅.
+- **(2) PR #763**: Mark DRAFT → "Ready for Review" to unblock RFC-0121 Charter §2 amendment review. Independent of v0.3.0 ceremony.
+
+---
+
+### 2026-06-19 PM dispatch v314
+
+**No-op: sprint queue EMPTY (escalation condition). PR #568 escalation ×171→×172. Push notification sent to founder. PR #925 opened but CLOSED SUPERSEDED in v315 (Codex P1: decisions.jsonl rewritten 303→48 lines — Hard Rule violation).**
+
+*(v314 session: branched from develop HEAD `cfc5ef28`. Sprint queue empty. Both P0 items founder-gated: #568 finalize + #763 undraft. Chore opened as PR #925 — CI 22/22 ✅. Codex found P1 (decisions.jsonl Hard Rule violation: 303→48 lines, v303–v313 history deleted) + P2 (stale v28 reference). PR closed in v315.)*
 
 ---
 
