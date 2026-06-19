@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v301 — PR #909 CLOSED SUPERSEDED (DCO failure on fix commit); PR #910 opened; PR #568 escalation ×161; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v303 — RFC-0119 AC-12 fix merged to PR #912; PR #910 MERGED `2bd2de6`; PR #568 escalation ×162; develop CI ✅ GREEN)**
 
 ---
 
@@ -21,7 +21,7 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×161 Escalation (CRITICAL)
+### PR #568 — ×162 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
 - **Escalation count**: ×161 (escalated in v301)
@@ -51,6 +51,17 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #912 — OPEN (RFC-0119 AC-12 gerund fix → develop)
+
+- **Opened at**: 2026-06-19 (v303)
+- 2 commits: v302 weekly synthesis (chore) + RFC-0119 AC-12 fix (fix)
+- CI pending; Codex review pending
+
+### PR #910 — MERGED `2bd2de6` (PM dispatch v301 chore → develop)
+
+- **Merged at**: 2026-06-19 (v302)
+- CI 22/22 ✅, Codex 0 review threads
 
 ### PR #909 — CLOSED SUPERSEDED (PM dispatch v300 chore → closed DCO failure)
 
@@ -290,6 +301,44 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v303
+
+**RFC-0119 AC-12 bug fixed (gerund expansion). PR #912 opened. PR #568 escalation ×162. Develop CI ✅ GREEN.**
+
+**Pre-flight:** CHARTER.md, _orchestrator.md, decisions.jsonl (v302 last entry, 286 lines), anti-patterns (dco/release-governance/ci/memory-discipline/pm-dispatch/storage-atomicity), PM state v302.
+
+**Assessment:**
+- 3 open PRs: #912 (newly opened, RFC-0119 AC-12, CI pending), #568 (release/v0.3.0 ceremony ×162), #763 (DRAFT RFC-0121, founder gate)
+- RFC-0119: AC-12/AC-13 open; real dogfood revealed active bug (test functions surfacing instead of production code)
+- Goal: `/goal 自我進化` — find and implement real improvement
+
+**Actions:**
+1. Diagnosed RFC-0119 real-corpus failure: `search_symbol("indexing")` only matched test function names; `non_test` bucket empty → never-empty fallback returned test functions ✅
+2. TDD RED: two failing tests (`extract_expands_gerund_to_stem`, `seed_finds_production_code_from_gerund_query`) ✅
+3. Fix: gerund-to-stem expansion in `extract_symbol_candidates` (one-function patch) ✅
+4. TDD GREEN: both tests pass; 979 lib tests 0 failed ✅
+5. Rebuilt binary, re-indexed, confirmed post-fix dogfood: `index_path`/`index_file_into`/`IndexStats` in entry_points; no `tests.rs` functions ✅
+6. Wrote `docs/dogfood-v0.2.1.md` (AC-13 ✅), updated RFC-0119 (AC-12 ✓, AC-13 ✓), updated CHANGELOG ✅
+7. Committed v302 weekly synthesis (hive memory) + RFC-0119 fix in 2 commits; pushed PR #912 ✅
+8. decisions.jsonl v303 entry appended ✅
+
+**RFC-0119 remaining open**: AC-17 (≥90% coverage on ranking.rs) — blocked on `cargo-llvm-cov` not installed
+
+---
+
+### 2026-06-19 PM dispatch v302
+
+**PR #910 MERGED `2bd2de6`. Weekly synthesis complete (6 lessons, INDEX.md rewrite). PR #568 escalation ×161→×162. Develop CI ✅ GREEN.**
+
+**Actions:**
+1. Pre-flight complete ✅
+2. Merged PR #910 (v301 chore, CI 22/22 ✅, 0 Codex findings) ✅
+3. Weekly synthesis: 6 new lessons (dco-discipline, release-ceremony, ci-portability, hive-memory-integrity, pm-dispatch-discipline, storage-atomicity) ✅
+4. INDEX.md rewritten from placeholder to full domain index ✅
+5. decisions.jsonl v302 entry appended ✅
 
 ---
 

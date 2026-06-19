@@ -108,6 +108,33 @@ pub fn extract_symbol_candidates(task: &str) -> Vec<String> {
         }
         if seen.insert(token.to_owned()) {
             out.push(token.to_owned());
+            // RFC-0119 AC-12: gerund → stem inline so stems land within the
+            // take(10) cap used by seed_entry_points. Lowercase-based suffix
+            // check handles capitalised tokens ("Indexing" → "index").
+            let lc_token = token.to_ascii_lowercase();
+            if lc_token.len() >= 7 && lc_token.ends_with("ing") {
+                let stem = &lc_token[..lc_token.len() - 3];
+                if !CONTEXT_STOP_WORDS.contains(&stem) {
+                    if seen.insert(stem.to_owned()) {
+                        out.push(stem.to_owned());
+                    }
+                    // Doubled-consonant gerunds ("running"→"runn") need one
+                    // more letter stripped to reach the root form ("run").
+                    let bytes = stem.as_bytes();
+                    let n = bytes.len();
+                    if n >= 3 {
+                        let last = bytes[n - 1];
+                        if last == bytes[n - 2] && !b"aeiou".contains(&last) {
+                            let shorter = &stem[..n - 1];
+                            if !CONTEXT_STOP_WORDS.contains(&shorter)
+                                && seen.insert(shorter.to_owned())
+                            {
+                                out.push(shorter.to_owned());
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     out

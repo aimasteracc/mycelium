@@ -238,6 +238,54 @@ fn context_indexing_query_ranks_subsystem_over_test_fixture() {
     );
 }
 
+// RFC-0119 AC-12: gerund query form ("indexing") must find production code, not just
+// test functions that contain the gerund in their name.  When extract_symbol_candidates
+// expands "indexing" → ["indexing", "index"], search_symbol("index") surfaces real
+// production symbols (e.g. `index_file`) and the test-demotion logic excludes the
+// all-test fallback.
+#[test]
+fn extract_expands_gerund_to_stem() {
+    let cands = extract_symbol_candidates("how does indexing work");
+    assert!(
+        cands.contains(&"indexing".to_owned()),
+        "original gerund must be kept: {cands:?}"
+    );
+    assert!(
+        cands.contains(&"index".to_owned()),
+        "bare stem must be added for gerund: {cands:?}"
+    );
+}
+
+#[test]
+fn seed_finds_production_code_from_gerund_query() {
+    let mut store = Store::new();
+    // Production symbol: "index_file" leaf contains "index" (stem of "indexing"),
+    // has one real caller → importance = 1.
+    let idx_fn = store.upsert_node(path("src/cortex.rs>index_file"));
+    let main_n = store.upsert_node(path("src/main.rs>main"));
+    store.upsert_edge(EdgeKind::Calls, main_n, idx_fn);
+
+    // Test function whose name contains "indexing" — higher in-degree (3 callers)
+    // but lives in tests.rs → must be demoted / excluded.
+    let test_fn = store.upsert_node(path("src/context/tests.rs>context_indexing_query_test"));
+    for i in 0..3u8 {
+        let tc = store.upsert_node(path(&format!("src/context/tests.rs>t_{i}")));
+        store.upsert_edge(EdgeKind::Calls, tc, test_fn);
+    }
+
+    let cands = extract_symbol_candidates("how does indexing work");
+    let eps = seed_entry_points(&store, &cands, 30);
+
+    assert!(
+        eps.iter().any(|p| p.ends_with(">index_file")),
+        "index_file (production) must appear when 'indexing' gerund expands to stem 'index': {eps:?}"
+    );
+    assert!(
+        !eps.iter().any(|p| p.contains("tests.rs>")),
+        "test function must not appear when non-test candidate exists: {eps:?}"
+    );
+}
+
 // RFC-0119 Phase 2 — AC-11: stub callers do not inflate in-degree.
 // When all of a node's callers are NodeKind::Unresolved, its importance is 0,
 // so a node with even 1 real caller ranks above it.
