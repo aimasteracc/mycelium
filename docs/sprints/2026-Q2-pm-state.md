@@ -28,7 +28,7 @@ These items cannot proceed without explicit founder action.
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×164 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
+- **⚠️ MILESTONE**: ×165 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -320,6 +320,35 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v307
+
+**PR #917 MERGED `53be8c29` (v306 chore, CI 20/20 ✅, Codex P1 rejected). PR #918 opened (this chore). PR #568 escalation ×164→×165. Develop CI ✅ GREEN.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v306 last entry, 294 lines), anti-patterns (ci/release-governance/merge-discipline/dco/git-workflow), PM state v306 (develop HEAD `53be8c29`), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs: #917 (v306 chore — CI 20/20 ✅, 1 Codex P1), #763 (DRAFT RFC-0121, founder gate), #568 (release/v0.3.0, 50/50 ✅, finalize pending ×164)
+- 1 open P1 issue: #829 (mutation kill rate, resolves after #568 ceremony)
+- Develop CI: ✅ GREEN (HEAD `53be8c29` = post-#917 merge)
+- 0 open P0 issues
+
+**Actions:**
+1. Pre-flight read complete ✅
+2. Assessed GitHub state: 3 open PRs, 1 P1 issue ✅
+3. PR #917 CI confirmed 20/20 ✅ (Quality Gate 08:17:37Z) ✅
+4. Addressed Codex P1 on PR #917: DCO false-positive on phantom SHA `41ac4a8` (not in PR; both actual commits `267fa4dc`+`3864cca7` carry Signed-off-by; DCO CI job `82310180252` ✅ — same pattern as PRs #915/#905/#906) → **rejected** with justification reply ✅
+5. Merged PR #917 squash `53be8c29` ✅
+6. Updated PM state v306→v307: escalation ×165 (heading + count + milestone), PR #917 in recently merged, v307 archive entry added ✅
+7. Appended decisions.jsonl v307 entry (294→295 lines) ✅
+8. PR #918 opened (this chore) — CI queued; subscribed for failure webhooks ✅
+9. Codex on #918: P1 (DCO phantom SHA `4e9f052`, not in PR, DCO CI ✅) → rejected; P2a (×164 milestone) → fixed; P2b (v307 archive) → fixed (this entry); commit `da80845` pushed ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony. ×165 escalations over 15+ days. One step. All registries (crates.io + npm + PyPI) already published. CI 50/50 ✅.
+- **(2) PR #763**: Mark DRAFT → "Ready for Review" to unblock RFC-0121 Charter §2 amendment review.
 
 ---
 
