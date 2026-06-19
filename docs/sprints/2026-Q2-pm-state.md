@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v318 — PR #928 MERGED `ab31917c` (v317 chore, CI ✅ 22/22, 2 Codex P2 rejected); PR #568 escalation ×176; develop CI ✅ GREEN; sprint queue EMPTY)**
+**Last updated: 2026-06-19 (PM dispatch v319 — PR #929 MERGED `30751b7` (v318 chore, CI ✅ 22/22, 2 Codex P2 rejected); PR #568 escalation ×177; develop CI ✅ GREEN; sprint queue EMPTY; PushNotification sent to founder)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×176 Escalation (CRITICAL)
+### PR #568 — ×177 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×176 (escalated in v318)
+- **Escalation count**: ×177 (escalated in v319)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v316 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET**: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites.** Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×176 escalations over 16 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (RFC-0112 design-Draft [IDE plugin, v0.3+ scope]; RFC-0121 governance-Draft [founder BDFL sign-off]; RFC-0123 governance-Draft [team ratification]; remaining RFCs 0113–0120/0122/0124–0126 Implemented — no autonomous implementation work available). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
+- **⚠️ MILESTONE**: ×177 escalations over 16 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (RFC-0112 design-Draft [IDE plugin, v0.3+ scope]; RFC-0121 governance-Draft [founder BDFL sign-off]; RFC-0123 governance-Draft [team ratification]; remaining RFCs 0113–0120/0122/0124–0126 Implemented — no autonomous implementation work available). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #929 — MERGED `30751b7` (v318 PM state chore → develop)
+
+- **Merged at**: 2026-06-19 (v319)
+- **What it was**: PM dispatch v318 state chore — PR #928 MERGED `ab31917c` (v317 chore, CI ✅ 22/22, 2 Codex P2 rejected); PR #568 escalation ×175→×176; develop CI ✅ GREEN. Sprint queue EMPTY. Codex: 2 P2 findings — both **rejected** with justification.
 
 ### PR #928 — MERGED `ab31917c` (v317 PM state chore → develop)
 
@@ -371,6 +376,30 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v319
+
+**PR #929 MERGED `30751b7` (v318 chore, CI ✅ 22/22, 2 Codex P2 rejected). PR #568 escalation ×176→×177. Develop CI ✅ GREEN. Sprint queue EMPTY. PushNotification sent to founder.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v318 last at line 309 — two entries), anti-patterns (governance-Draft, append-only, git-workflow patterns reviewed), PM state v318 (develop HEAD `30751b7`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0, CI 50/50 ✅, finalize pending ×176→×177), #763 (RFC-0121 DRAFT, founder gate)
+- 1 open P1 issue: #829 (mutation kill rate on main; ENOTDIR root cause, fix in release branch, resolves after ceremony)
+- Develop CI: ✅ GREEN (run 27849274848, 2026-06-19T21:29:15Z)
+- Sprint queue: EMPTY — no autonomous implementation work available
+- PR #929 (v318): merged at 21:29:12Z today, CI ✅ 22/22
+
+**Actions:**
+1. PR #568 escalation ×176→×177 (updated P0 section).
+2. PR #929 moved to Recently Closed.
+3. PushNotification sent to founder re: PR #568 finalize (16 days pending).
+4. decisions.jsonl v319 entry appended.
+5. v319 chore PR opened.
+
+**Escalations:** PR #568 finalize (×177 — founder must trigger `finalize` workflow_dispatch on release/v0.3.0).
 
 ---
 
