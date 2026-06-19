@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v311 — PR #921 MERGED `03c2b2c9` (v310 PM chore, CI 3/3 ✅, Codex 👍 0 findings); sprint queue empty; PR #568 escalation ×169; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v312 — no-op: sprint queue EMPTY (escalation condition); PR #568 escalation ×170; CI re-verified 50/50 ✅; registries v0.3.0 published; ONE step remaining: founder `finalize` workflow_dispatch; develop CI ✅ GREEN)**
 
 ---
 
@@ -340,6 +340,14 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v312
+
+**No-op: sprint queue EMPTY (escalation condition triggered). PR #568 escalation ×169→×170. PR #568 CI re-verified 50/50 ✅ (all SUCCESS/SKIPPED as of 2026-06-14T21:19Z). Registries v0.3.0 on crates.io+npm+PyPI ✅. ONE step remaining: founder `finalize` workflow_dispatch. PushNotification unavailable in this env. Develop CI ✅ GREEN.**
+
+*(v312 ran ~4 min after v311; both confirm identical state. Escalation condition: 优先队列空了. Report printed; chore committed.)*
 
 ---
 
