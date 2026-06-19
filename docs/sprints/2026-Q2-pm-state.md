@@ -28,7 +28,7 @@ These items cannot proceed without explicit founder action.
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v316 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET**: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites.** Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×176 escalations over 16 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented; RFC-0121 governance-Draft awaiting founder). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
+- **⚠️ MILESTONE**: ×176 escalations over 16 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (RFC-0112 design-Draft [IDE plugin, v0.3+ scope]; RFC-0121 governance-Draft [founder BDFL sign-off]; RFC-0123 governance-Draft [team ratification]; remaining RFCs 0113–0120/0122/0124–0126 Implemented — no autonomous implementation work available). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -55,7 +55,7 @@ These items cannot proceed without explicit founder action.
 ### PR #928 — MERGED `ab31917c` (v317 PM state chore → develop)
 
 - **Merged at**: 2026-06-19 (v318)
-- **What it was**: PM dispatch v317 state chore — PR #927 MERGED `042f445` (v316 chore, CI ✅ GREEN); corrective append to decisions.jsonl (dispatch:v317 field + governance-Draft qualifier); PR #568 escalation ×175→×176; develop CI ✅ GREEN. Sprint queue EMPTY. Codex: 2 P2 findings — both **rejected** with justification (finding 1: "Implemented" means sprint-complete, RFC-0121 is a decision gate not sprint work; finding 2: prospective dispatch records are standard Hive practice).
+- **What it was**: PM dispatch v317 state chore — PR #927 MERGED `042f445` (v316 chore, CI ✅ GREEN); corrective append to decisions.jsonl (dispatch:v317 field + governance-Draft qualifier); PR #568 escalation ×174→×175; develop CI ✅ GREEN. Sprint queue EMPTY. Codex: 2 P2 findings — both **rejected** with justification (finding 1: "Implemented" means sprint-complete, RFC-0121 is a decision gate not sprint work; finding 2: prospective dispatch records are standard Hive practice).
 
 ### PR #927 — MERGED `042f445` (v316 PM state chore → develop)
 
