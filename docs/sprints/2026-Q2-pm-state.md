@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v303 — RFC-0119 AC-12 fix merged to PR #912; PR #910 MERGED `2bd2de6`; PR #568 escalation ×162; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v304 — PR #912 MERGED `28dcb5a` RFC-0119 AC-12 gerund fix; all 4 Codex P2 findings addressed; CI 20/20 ✅; PR #568 escalation ×162; develop CI ✅ GREEN)**
 
 ---
 
@@ -52,11 +52,10 @@ These items cannot proceed without explicit founder action.
 
 ## Recently Closed / Merged
 
-### PR #912 — OPEN (RFC-0119 AC-12 gerund fix → develop)
+### PR #912 — MERGED `28dcb5a` (RFC-0119 AC-12 gerund expansion → develop)
 
-- **Opened at**: 2026-06-19 (v303)
-- 2 commits: v302 weekly synthesis (chore) + RFC-0119 AC-12 fix (fix)
-- CI pending; Codex review pending
+- **Merged at**: 2026-06-19 (v304)
+- **What it was**: Gerund-to-stem expansion in `extract_symbol_candidates` so "indexing" also searches "index", fixing all-test fallback (RFC-0119 AC-12). Follow-up commit `b5c1220` addressed all 4 Codex P2 findings: inline interleaving (take(10) cap), case-insensitive suffix check, doubled-consonant de-duplication, RFC Motivation updated to cite `docs/dogfood-v0.2.1.md`. CI 20/20 ✅ on HEAD `7b68de9` (run 27810972028). Codex: 4 P2 findings — all fixed with reply in `b5c1220`.
 
 ### PR #910 — MERGED `2bd2de6` (PM dispatch v301 chore → develop)
 
