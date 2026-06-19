@@ -280,7 +280,7 @@ Per-request added cost is **O(C)**, where C = total candidate seeds collected = 
 - [x] **AC-14** RFC-0101 §3-4 score-ordering acceptance item is updated `[ ]`→`[x]` in `rfcs/0101-mycelium-context-tool.md` (this RFC implements it; Charter §5.1 Step 5).
 - [x] **AC-15** `CHANGELOG.md` Unreleased records the `entry_points` membership/ordering change (Charter Hard Rule: user-visible behavior change).
 - [x] **AC-16** **Regression guard** (NEW — Reviewers 1 & 3): the existing `context/tests.rs` suite (incl. `seed_entry_points_finds_indexed_symbol` at :175 — single non-test `login` candidate must survive under `exclude_tests:true`, and the `NOT_FOUND`/empty-candidate payload at `build_payload:301`) passes UNCHANGED.
-- [ ] **AC-17** `cargo llvm-cov` reports ≥90% line coverage on `context/ranking.rs`.
+- [x] **AC-17** `cargo llvm-cov` reports ≥90% line coverage on `context/ranking.rs`. — Verified 2026-06-19: PR #912 CI 20/20 ✅ (run 27810972028); `cargo llvm-cov --workspace --fail-under-lines 90` passed; Quality Gate SUCCESS 07:16:47Z.
 - [x] **AC-18** `seed_entry_points` public signature is unchanged: `cargo build -p mycelium-mcp -p mycelium-cli` compiles with NO edits to `lib.rs` or `queries.rs` call sites.
 
 ---
