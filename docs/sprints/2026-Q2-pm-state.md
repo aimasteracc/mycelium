@@ -55,7 +55,7 @@ These items cannot proceed without explicit founder action.
 ### PR #907 — MERGED `9419fda` (PM dispatch v298 chore → develop)
 
 - **Merged at**: 2026-06-19 (v299)
-- **What it was**: PM dispatch v298 state chore — PR #906 merged (`9419fda` squash), PR #568 escalation ×158→×159. CI 22/22 ✅ (all checks SUCCESS). Codex: 0 findings (no review threads posted).
+- **What it was**: PM dispatch v298 state chore — PR #906 merged (v297 chore squash `19f9bec`), PR #568 escalation ×157→×158. CI 22/22 ✅ (all checks SUCCESS). Codex: 0 findings (no review threads posted).
 
 ### PR #906 — MERGED (PM dispatch v297 chore → develop)
 
@@ -280,6 +280,34 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v299
+
+**PR #907 MERGED `9419fda` (v298 chore, CI 22/22 ✅, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×158→×159.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v298 last entry, 282 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface), PM state v298 (develop HEAD `9419fda` post-#907-merge), v0.2 PRD.
+
+**Assessment:**
+- 3 open PRs at start: #907 (v298 chore — CI 22/22 ✅ → merged this dispatch), #568 (release/v0.3.0, 50/50 ✅ `f14f80df`, finalize pending ×159), #763 (DRAFT RFC-0121, founder gate)
+- 1 open issue: #829 (P1, mutation kill rate ENOTDIR — fix in release/v0.3.0; resolves after ceremony)
+- Develop CI: ✅ GREEN (HEAD `9419fda`)
+- Codex: 0 findings on PR #907 — vacuously satisfied
+- No new autonomous-executable work: all P0/P1 items remain founder-gated
+
+**Actions:**
+1. Pre-flight read (CHARTER, orchestrator, decisions tail-20, anti-patterns, PM state v298, v0.2 PRD) ✅
+2. Assessed GitHub state: PR #907 (CI 22/22 ✅, 0 Codex findings), 1 open issue #829 ✅
+3. Merged PR #907 (squash `9419fda`, CI 22/22 ✅, 0 Codex findings) ✅
+4. Updated PM state v298→v299: escalation ×159, PR #907 added to recently merged, v299 archive entry ✅
+5. Appended decisions.jsonl (v299 entry, 282→283 lines) ✅
+6. PR #908 opened (this chore) ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — 1 step, ~1 min. All registries published (crates.io ✅ npm ✅ PyPI ✅ as of 2026-06-14). CI 50/50 ✅. ×159 escalations, 15 days blocked.
+- **(2) PR #763**: Un-draft RFC-0121 Charter §2 amendment when ready for review.
+- **(3) Issue #829**: Resolves automatically after PR #568 ceremony completes.
 
 ---
 
