@@ -3,7 +3,7 @@
 This file is the **live state** of the PM brain, updated every dispatch.
 For historical sprints, see `docs/sprints/` archives.
 
-**Last updated: 2026-06-19 (PM dispatch v309 — PR #919 MERGED (v308 PM chore, Codex 5/5 addressed in `9c5fb3e` within the v308 session); sprint queue empty; PR #568 escalation ×167; develop CI ✅ GREEN)**
+**Last updated: 2026-06-19 (PM dispatch v310 — PR #920 MERGED (v309 PM chore, Codex P2 fixed via corrective append `a12c0e2`); sprint queue empty; PR #568 escalation ×168; develop CI ✅ GREEN)**
 
 ---
 
@@ -21,14 +21,14 @@ For historical sprints, see `docs/sprints/` archives.
 
 These items cannot proceed without explicit founder action.
 
-### PR #568 — ×167 Escalation (CRITICAL)
+### PR #568 — ×168 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×167 (escalated in v309)
+- **Escalation count**: ×168 (escalated in v310)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×167 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
+- **⚠️ MILESTONE**: ×168 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. Sprint queue is empty (all RFCs 0112–0126 Implemented). **Founder action is the only remaining v0.3.0 release ceremony unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.** (PR #763 RFC-0121 Charter amendment is separately founder-gated and independent of the ceremony.)
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -51,6 +51,11 @@ These items cannot proceed without explicit founder action.
 ---
 
 ## Recently Closed / Merged
+
+### PR #920 — MERGED `c32cf877` (v309 PM state chore → develop)
+
+- **Merged at**: 2026-06-19 (v310)
+- **What it was**: PM dispatch v309 state chore — PR #919 MERGED `b619078` (v308 PM chore, Codex 5/5 addressed in `9c5fb3e` within v308 session); sprint queue EMPTY; PR #568 escalation ×166→×167; develop CI ✅ GREEN. Codex posted 1 P2 finding: separate unblock paths for PR #568 vs PR #763 conflated in rationale — **fixed** via corrective append at decisions.jsonl line 299 (commit `a12c0e2`). Reply posted on thread. CI 20/20 ✅.
 
 ### PR #919 — MERGED `b619078` (v308 PM state chore → develop)
 
@@ -330,6 +335,33 @@ These items cannot proceed without explicit founder action.
 ## PM Dispatch Archive
 
 All dispatches from v129 onward are archived below. Earlier dispatches (v1–v128) are in closed PRs and git log.
+
+---
+
+### 2026-06-19 PM dispatch v310
+
+**PR #920 MERGED `c32cf877` (v309 PM chore, CI 20/20 ✅, Codex P2 fixed via corrective append). PR #921 opened (this chore). PR #568 escalation ×167→×168. Sprint queue empty. Develop CI ✅ GREEN.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-5 (v309 corrective last, 299 lines), anti-patterns (ci/release-governance/merge-discipline/dco/git-workflow), PM state v309 (develop HEAD `c32cf877`), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs: #568 (release/v0.3.0, 50/50 ✅, finalize pending ×167→×168), #763 (DRAFT RFC-0121, founder gate)
+- 1 open P1 issue: #829 (mutation kill rate, resolves after #568 ceremony)
+- Develop CI: ✅ GREEN (HEAD `c32cf877` = post-#920 merge)
+- Sprint queue: EMPTY (all RFCs 0112–0126 Implemented or governance-Draft)
+- Codex on PR #920: 1 P2 finding (PR #568 unblock conflated with PR #763 unblock) — **fixed** via corrective append decisions.jsonl line 299 (`a12c0e2`) within v309 session; vacuously satisfied for v310
+
+**Actions:**
+1. Pre-flight read complete ✅
+2. Assessed GitHub state: PR #920 CI 20/20 ✅, Codex P2 fixed before merge ✅
+3. Merged PR #920 → develop (`c32cf877`) ✅
+4. Updated PM state v309→v310: escalation ×168 (heading + count + milestone), PR #920 in Recently Closed ✅
+5. Appended decisions.jsonl v310 entry (299→300 lines) ✅
+6. PR #921 opened (this chore) — CI queued ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch on `release/v0.3.0` → completes v0.3.0 ceremony. ×168 escalations over 15+ days. One step. All registries (crates.io + npm + PyPI) already published. CI 50/50 ✅.
+- **(2) PR #763**: Mark DRAFT → "Ready for Review" to unblock RFC-0121 Charter §2 amendment review. Independent of v0.3.0 ceremony.
 
 ---
 
