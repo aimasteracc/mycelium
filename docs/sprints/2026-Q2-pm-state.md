@@ -24,11 +24,11 @@ These items cannot proceed without explicit founder action.
 ### PR #568 — ×162 Escalation (CRITICAL)
 
 - **Status**: OPEN — awaiting founder `finalize` workflow_dispatch or explicit "close as won't fix"
-- **Escalation count**: ×161 (escalated in v301)
+- **Escalation count**: ×162 (escalated in v302)
 - **What it is**: release/v0.3.0 — Node/Python SDKs (RFC-0111) + RFC-0103/0094. Registries published (crates.io + npm + PyPI ✅) since 2026-06-05/2026-06-14.
 - **Release branch HEAD**: `f14f80df` (nightly.yml fix from PR #861). **CI CONFIRMED 50/50 ✅ as of 2026-06-14T21:19Z** — re-verified in v291 dispatch.
 - **Ceremony path — ALL PREREQUISITES CONFIRMED MET (v291 correction)**: v291 directly queried PR #568 check runs and confirmed: `publish to crates.io` ✅ SUCCESS, `publish to npm` ✅ SUCCESS, **`publish to PyPI` ✅ SUCCESS** (2026-06-14T21:19:36Z). The `merge to main, tag, GitHub Release` job is **SKIPPED** (awaiting finalize). **NO remaining prerequisites** — the stale "PyPI Trusted Publisher" prerequisite mentioned in v268–v290 has been satisfied (PyPI was published 2026-06-14). Founder needs only to **trigger `finalize` workflow_dispatch on release/v0.3.0**.
-- **⚠️ MILESTONE**: ×161 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
+- **⚠️ MILESTONE**: ×162 escalations over 15 days (since 2026-06-04). Hive has no autonomous path forward on ceremony. **Founder action is the only unblock — one step: trigger `finalize` workflow_dispatch on branch `release/v0.3.0`.**
 
 ### PR #763 — RFC-0121 DRAFT
 
@@ -327,18 +327,36 @@ All dispatches from v129 onward are archived below. Earlier dispatches (v1–v12
 
 **RFC-0119 remaining open**: AC-17 (≥90% coverage on ranking.rs) — blocked on `cargo-llvm-cov` not installed
 
+
 ---
 
 ### 2026-06-19 PM dispatch v302
 
-**PR #910 MERGED `2bd2de6`. Weekly synthesis complete (6 lessons, INDEX.md rewrite). PR #568 escalation ×161→×162. Develop CI ✅ GREEN.**
+**PR #910 MERGED `2bd2de6` (v301 chore, CI 22/22 ✅, 0 Codex findings). Develop CI ✅ GREEN. PR #568 escalation ×161→×162.**
+
+**Pre-flight:** CHARTER.md §2/§5.1/§5.10/§5.12/§5.13, _orchestrator.md, decisions.jsonl tail-20 (v301 last entry, 285 lines), anti-patterns (ci/release-governance/merge-discipline/codex/git-workflow/three-surface/dco), PM state v301 (develop HEAD `2bd2de6` post-#910-merge), v0.2 PRD.
+
+**Assessment:**
+- 2 open PRs at start: #568 (release/v0.3.0, 50/50 ✅ `f14f80df`, finalize pending ×162), #763 (DRAFT RFC-0121, founder gate)
+- 1 open issue: #829 (P1, mutation kill rate ENOTDIR — fix in release/v0.3.0; resolves after ceremony)
+- Develop CI: ✅ GREEN (HEAD `2bd2de6` post-#910-merge)
+- Codex on PR #910: 0 review threads — vacuously satisfied
+- No new autonomous-executable work: all P0/P1 items remain founder-gated
 
 **Actions:**
-1. Pre-flight complete ✅
-2. Merged PR #910 (v301 chore, CI 22/22 ✅, 0 Codex findings) ✅
-3. Weekly synthesis: 6 new lessons (dco-discipline, release-ceremony, ci-portability, hive-memory-integrity, pm-dispatch-discipline, storage-atomicity) ✅
-4. INDEX.md rewritten from placeholder to full domain index ✅
-5. decisions.jsonl v302 entry appended ✅
+1. Pre-flight read complete ✅
+2. Assessed GitHub state: 2 open PRs (#568 ×161, #763), 1 open issue (#829) ✅
+3. Verified PR #910 CI: 22/22 ✅ Quality Gate SUCCESS (all checks pass) ✅
+4. Verified PR #910 Codex: 0 review threads (no findings) ✅
+5. Merged PR #910 (squash `2bd2de6`) — CI 22/22 ✅, 0 Codex findings ✅
+6. Updated PM state v301→v302 — escalation ×162; PR #910 added to recently merged; v302 archive entry ✅
+7. Appended decisions.jsonl (v302 entry, 285→286 lines) ✅
+8. PR #911 opened (this chore) ✅
+
+**Escalations to founder:**
+- **(1) PR #568**: Trigger `finalize` workflow_dispatch — 1 step, ~1 min. All registries published (crates.io ✅ npm ✅ PyPI ✅ as of 2026-06-14). CI 50/50 ✅. ×162 escalations, 15+ days blocked.
+- **(2) PR #763**: Un-draft RFC-0121 Charter §2 amendment when ready for review.
+- **(3) Issue #829**: Resolves automatically after PR #568 ceremony completes.
 
 ---
 
