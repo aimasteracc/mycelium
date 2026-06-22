@@ -29,7 +29,7 @@ jobs:
     outputs:
       version: ${{ steps.extract.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: extract
         run: |
           if [["${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -96,7 +96,7 @@ jobs:
     env:
       VERSION: ${{ needs.validate.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Verify crates.io token
@@ -182,7 +182,7 @@ jobs:
     env:
       VERSION: ${{ needs.validate.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
@@ -254,7 +254,7 @@ jobs:
     env:
       VERSION: ${{ needs.validate.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -307,7 +307,7 @@ jobs:
           - { key: linux-arm64,  os: ubuntu-latest,   target: aarch64-unknown-linux-gnu, exe: mycelium,     cross: true  }
           - { key: win32-x64,    os: windows-latest,  target: x86_64-pc-windows-msvc,    exe: mycelium.exe, cross: false }
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -358,7 +358,7 @@ jobs:
       # Use RELEASE_BOT_TOKEN when available (admin PAT required for main merge).
       # Tags and GitHub Releases are created only after the post-publish merges
       # succeed, so a failed merge cannot leave an orphan public release.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
