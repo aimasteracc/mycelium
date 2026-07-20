@@ -173,7 +173,7 @@ jobs:
       # the just-built linux-x64 binary — assemble the packages, install them
       # (--install-links copies like a registry install), and run the launcher.
       # Catches packaging/launcher regressions without a real publish.
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
       - name: npm launcher unit tests
